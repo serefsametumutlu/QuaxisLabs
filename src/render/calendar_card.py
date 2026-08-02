@@ -41,6 +41,39 @@ _DEFAULT_CONFIDENCE_LEVELS: frozenset[str] = frozenset({CONFIDENCE_KESIN, CONFID
 # uygun (200+ satırlık bir liste zaten okunabilir bir ürün DEĞİLDİR).
 _DEFAULT_MAX_ROWS = 60
 
+# CANLI hata (kullanıcı raporu, 2026-08-02, İKİNCİ bir çökme): max_rows=60 ile
+# bile 57 satır/16 gün grubu içeren BİR kart Telegram'a `send_photo` ile
+# gönderilirken `telegram.error.BadRequest: Photo_invalid_dimensions` ile
+# REDDEDİLDİ -- kart 2400x8924 piksele ULAŞMIŞTI (Telegram'ın "fotoğraf" olarak
+# kabul ettiği sınır: genişlik+yükseklik <= 10000). SADECE satır SAYISINI
+# sınırlamak yeterli DEĞİL -- ayni satır sayısı GÜN GRUBU sayısına göre çok
+# FARKLI yükseklik üretebilir (her satır ayrı bir günse, grup başlığı/kenarlık
+# maliyeti kat kat artar). Bu yüzden GERÇEK piksel yüksekliğini ÖNCEDEN tahmin
+# eden bir bütçe kullanılır -- card.py'deki _build_chart()'ın eksen pikselini
+# CSS'le BİREBİR eşleştirme deseniyle AYNI ilke (bkz. o modülün üst notu).
+#
+# Sabitler, calendar_card.html'e (bkz. .top-band/.day-group/.company-row/
+# .legend/.bottom-band kuralları) KARŞI kontrollü render'larla KALİBRE EDİLDİ
+# (device_scale_factor=2 DAHİL, gerçek piksel):
+#   (10 satır, 1 grup)  -> 1986px   (50 satır, 1 grup)  -> 5906px
+#   (10 satır, 10 grup) -> 3444px   (50 satır, 25 grup) -> 9794px
+# Bu 4 nokta TAM olarak dogrusal bir modele oturuyor:
+#   yukseklik_px = 844 + 98*satir_sayisi + 162*gun_grubu_sayisi
+# (844 = sabit ust bant+lejant+footer+bosluklar; 98 = satir basina; 162 = gun
+# grubu basina -- baslik+kenarlik+ic dolgu). CANLI 57-satir/16-grup kartla
+# CAPRAZ DOGRULANDI: formul 9022px tahmin etti, gercek 8924px olcum -- <%2 fark.
+_CALENDAR_FIXED_HEIGHT_PX = 844
+_CALENDAR_PER_ROW_PX = 98
+_CALENDAR_PER_GROUP_PX = 162
+_CARD_PHYSICAL_WIDTH_PX = 2400  # 1200 CSS px * render_card'in device_scale_factor=2 sabiti
+_TELEGRAM_MAX_PHOTO_DIMENSION_SUM = 10000  # Telegram sendPhoto siniri (CANLI dogrulandi: "Photo_invalid_dimensions")
+_HEIGHT_SAFETY_MARGIN_PX = 400  # logo/"BUGUN" rozeti gibi kucuk boyut varyasyonlarina + tahmin hatasina tampon
+_MAX_CALENDAR_HEIGHT_PX = _TELEGRAM_MAX_PHOTO_DIMENSION_SUM - _CARD_PHYSICAL_WIDTH_PX - _HEIGHT_SAFETY_MARGIN_PX
+
+
+def _predicted_height_px(rows: int, groups: int) -> int:
+    return _CALENDAR_FIXED_HEIGHT_PX + _CALENDAR_PER_ROW_PX * rows + _CALENDAR_PER_GROUP_PX * groups
+
 _AY_ADLARI_TR: dict[int, str] = {
     1: "Ocak", 2: "Şubat", 3: "Mart", 4: "Nisan", 5: "Mayıs", 6: "Haziran",
     7: "Temmuz", 8: "Ağustos", 9: "Eylül", 10: "Ekim", 11: "Kasım", 12: "Aralık",
@@ -109,12 +142,20 @@ def build_calendar_context(
 
     `max_rows`: gösterilecek TOPLAM satır (şirket) tavanı -- bkz. `_DEFAULT_MAX_ROWS`
     yorumu (CANLI hata: NASDAQ'ta 2287 kayıt Chromium'un ekran görüntüsü alma
-    kapasitesini aştı). Tavan aşılırsa GÜN GRUPLARI en yeni tarihten başlayarak
-    doldurulur, tavana denk gelen günün İÇİNDE bile kalan kısım kesilir (bir sonraki
-    günün TAMAMI hiç eklenmez) -- `truncated_count` kalan (gösterilmeyen) satır
-    sayısını, `is_truncated` bunun >0 olup olmadığını taşır; şablon bir uyarı notu
-    gösterir. `build_calendar_share_text()` de AYNI (kesilmiş) `day_groups`'u
-    kullanır -- metin de sınırsız BÜYÜYEMEZ (Telegram mesaj uzunluğu sınırı).
+    kapasitesini aştı). BUNUNLA BİRLİKTE, GERÇEK piksel yüksekliği de (bkz.
+    `_predicted_height_px()`, kalibre edilmiş sabitlerle) AYRI bir bütçe olarak
+    izlenir -- İKİNCİ bir CANLI hata: max_rows=60 ile bile 57 satır/16 gün grubu
+    içeren bir kart 2400x8924 piksele ulaştı ve Telegram `send_photo` bunu
+    `Photo_invalid_dimensions` ile REDDETTİ (Telegram sınırı: genişlik+yükseklik
+    <= 10000). Satır sayısı TEK BAŞINA yeterli bir tavan DEĞİLDİR çünkü AYNI satır
+    sayısı gün grubu sayısına göre ÇOK FARKLI yükseklik üretebilir. Her iki bütçeden
+    (satır sayısı, piksel yüksekliği) HANGİSİ önce dolarsa ORADA kesilir. Tavan
+    aşılırsa gün grupları en yeni tarihten başlayarak doldurulur, tavana denk gelen
+    günün İÇİNDE bile kalan kısım kesilir (bir sonraki günün TAMAMI hiç eklenmez) --
+    `truncated_count` kalan (gösterilmeyen) satır sayısını, `is_truncated` bunun >0
+    olup olmadığını taşır; şablon bir uyarı notu gösterir. `build_calendar_share_text()`
+    de AYNI (kesilmiş) `day_groups`'u kullanır -- metin de sınırsız BÜYÜYEMEZ
+    (Telegram mesaj uzunluğu sınırı).
 
     Dönen dict, calendar_card.html'in beklediği TAMAMEN ÖNCEDEN
     biçimlendirilmiş bir şemadır (bkz. modül üst notu -- render katmanı
@@ -131,12 +172,31 @@ def build_calendar_context(
         by_date[e.expected_date].append(e)
 
     day_groups = []
-    shown = 0
+    shown_rows = 0
+    shown_groups = 0
     for day in sorted(by_date):
-        remaining_budget = max_rows - shown
-        if remaining_budget <= 0:
-            break
-        day_entries = by_date[day][:remaining_budget]
+        day_entries_all = by_date[day]
+        candidate_groups = shown_groups + 1
+
+        # ONCE bu GUNUN TAMAMINI eklemeyi dene -- hem satir-sayisi tavanina
+        # (max_rows) hem GERCEK piksel yuksekligi butcesine (_MAX_CALENDAR_HEIGHT_PX)
+        # UYUYORSA oldugu gibi eklenir.
+        candidate_rows = shown_rows + len(day_entries_all)
+        if candidate_rows <= max_rows and _predicted_height_px(candidate_rows, candidate_groups) <= _MAX_CALENDAR_HEIGHT_PX:
+            day_entries = day_entries_all
+        else:
+            # Bu gun TAMAMEN sigmiyor -- iki butceden HANGISI daha dar ise ona
+            # gore KISMEN sigdirilir (kalan satirlar bir SONRAKI cagriya/paylasima
+            # birakilir, gun grubunun KENDISI yine de gosterilir -- bos bir gun
+            # grubu gostermek yerine).
+            rows_budget_by_count = max_rows - shown_rows
+            remaining_height = _MAX_CALENDAR_HEIGHT_PX - _CALENDAR_FIXED_HEIGHT_PX - _CALENDAR_PER_ROW_PX * shown_rows - _CALENDAR_PER_GROUP_PX * candidate_groups
+            rows_budget_by_height = remaining_height // _CALENDAR_PER_ROW_PX if remaining_height > 0 else 0
+            rows_that_fit = max(0, min(rows_budget_by_count, rows_budget_by_height, len(day_entries_all)))
+
+            if rows_that_fit == 0:
+                break  # bu ve (tarihe gore sirali) sonraki TUM gunler icin butce kalmadi
+            day_entries = day_entries_all[:rows_that_fit]
 
         rows = []
         for e in day_entries:
@@ -151,9 +211,13 @@ def build_calendar_context(
                 }
             )
         day_groups.append({"date_label": _turkish_date_label(day), "is_today": day == today, "rows": rows})
-        shown += len(day_entries)
+        shown_rows += len(day_entries)
+        shown_groups += 1
 
-    truncated_count = total_candidates - shown
+        if len(day_entries) < len(day_entries_all):
+            break  # bu gun KISMEN sigdirildi -- butce tukendi, sonraki gunlere gecme
+
+    truncated_count = total_candidates - shown_rows
     period_label = _dominant_period_label(filtered)
 
     if market == "NASDAQ":

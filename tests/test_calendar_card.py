@@ -10,12 +10,23 @@ test_render_card_gercek_png_uretir).
 
 from __future__ import annotations
 
+import struct
 from datetime import date, datetime
 
 from src.fetchers.earnings_calendar import CONFIDENCE_KESIN, CONFIDENCE_SON_TARIH, CONFIDENCE_TAHMINI, EarningsDate
 from src.render import calendar_card, card
 
 _NOW = datetime(2026, 8, 2, 10, 0)
+
+
+def _png_dimensions(path) -> tuple[int, int]:
+    """PNG'nin IHDR parcasindan genislik/yukseklik okur (buyuk-endian uint32,
+    dosyanin ilk 24 baytinda) -- Pillow gibi bir DIS BAGIMLILIK GEREKMEDEN
+    (requirements.txt'te yok) Telegram boyut siniri testini dogrulamak icin."""
+    with open(path, "rb") as f:
+        header = f.read(24)
+    width, height = struct.unpack(">II", header[16:24])
+    return width, height
 
 
 def _entry(
@@ -194,3 +205,27 @@ def test_render_calendar_card_gercek_png_uretir(tmp_path) -> None:
     assert out_path.exists()
     assert out_path.stat().st_size > 1000
     assert out_path.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+def test_render_calendar_card_telegram_boyut_sinirini_asmaz(tmp_path) -> None:
+    """CANLI hata (kullanıcı raporu, 2026-08-02): 57 satır/16 gün grubu içeren
+    bir kart 2400x8924 piksele ulaştı, Telegram send_photo bunu
+    `Photo_invalid_dimensions` ile REDDETTİ (Telegram sınırı: genişlik+yükseklik
+    <= 10000). Bu test, o CANLI senaryoyu (çok gün grubuna yayılmış onlarca
+    kesin/tahmini kayıt, max_rows tavanını aşan) GERÇEK bir Playwright render'la
+    yeniden üretip üretilen PNG'nin Telegram sınırının İÇİNDE kaldığını
+    doğrular -- _predicted_height_px()'in kalibrasyon sabitleri BOZULURSA
+    (veya calendar_card.html'de bir CSS boyutu değişip sabitlerle UYUMSUZ
+    kalırsa) bu test KIRILIR."""
+    entries = [
+        _entry(f"T{i}", f"Şirket {i}", date(2026, 8, 1 + (i % 20)), CONFIDENCE_KESIN if i % 2 == 0 else CONFIDENCE_TAHMINI)
+        for i in range(80)
+    ]
+    context = calendar_card.build_calendar_context(entries, "BIST", now=_NOW)
+    assert context["is_truncated"] is True  # bu senaryo max_rows/piksel butcesini AŞMALI
+
+    out_path = tmp_path / "test_takvim_buyuk.png"
+    card.render_card(context, str(out_path), template_name="calendar_card.html", screenshot_selector="#calendar-card")
+
+    width, height = _png_dimensions(out_path)
+    assert width + height <= 10_000

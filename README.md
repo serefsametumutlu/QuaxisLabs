@@ -442,6 +442,16 @@ pytest tests/ -v
       çözen `_turkish_lower()` zaten VARDI ama `normalize_ticker()` onu
       KULLANMIYORDU. Düzeltildi + BİST önbelleği `--top 100` ile yeniden dolduruldu.
       Test: `pytest tests/` (561 test, 2 yeni, hiçbir regresyon yok).
+- [x] **Faz 13.3 (KRİTİK — Telegram fotoğraf boyut sınırı, kullanıcı raporu, 2026-08-02)** —
+      `/takvim` sadece metin gönderiyordu, görsel HİÇ gelmiyordu. Bot logları:
+      `telegram.error.BadRequest: Photo_invalid_dimensions` — `max_rows=60` tavanına
+      rağmen 57 satır/16 gün grubu içeren gerçek bir kart 2400x8924 piksele ulaşmıştı
+      (Telegram sınırı: genişlik+yükseklik <= 10000). Kontrollü render'larla GERÇEK
+      piksel yüksekliği kalibre edildi (`844 + 98×satır + 162×grup`, 4 nokta tam
+      doğrusal) ve bu formülü kullanan bir piksel bütçesi eklendi — satır sayısı
+      tavanı ve piksel bütçesinden hangisi önce dolarsa orada kesiliyor. Aynı 57
+      satırlık veriyle şimdi 2400x7248 (toplam 9648) üretiliyor, sınırın altında.
+      Test: `pytest tests/` (562 test, 1 yeni, hiçbir regresyon yok).
 
 ## Dizin Yapisi
 

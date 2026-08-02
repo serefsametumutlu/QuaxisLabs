@@ -782,3 +782,69 @@ def test_run_pipeline_ticker_kucuk_harfle_de_calisir(izole_db, monkeypatch) -> N
 
     sonuc = pipeline.run_pipeline("testas")
     assert sonuc.ticker == "TESTAS"
+
+
+# --- §B19: market uyusmazliginda onbellek GECERSIZ sayilmali (KRITIK, kullanici raporu) -----------------------------------------------------
+
+
+def test_run_pipeline_nasdaq_ucdan_uca_basarili(izole_db, monkeypatch) -> None:
+    """Coverage bosluğu: run_pipeline(market='NASDAQ') icin HICBIR uctan
+    uca test YOKTU -- §B19'un asagidaki regresyonu icin once bu temel
+    "basarili NASDAQ akisi" saglamlastirilir."""
+    monkeypatch.setattr(sec_edgar, "fetch_financials", lambda ticker, periods=None: _fake_raw_us_gaap(ticker))
+    monkeypatch.setattr(sec_edgar, "fetch_latest_price", lambda ticker: None)
+
+    sonuc = pipeline.run_pipeline("TESTUS", market="NASDAQ")
+
+    assert sonuc.ticker == "TESTUS"
+    company_row = None
+    with repository.get_session() as session:
+        company_row = session.get(models.Company, "TESTUS")
+    assert company_row.market == "NASDAQ"
+
+
+def test_run_pipeline_bist_ile_onbellege_alinan_ticker_nasdaqta_tekrar_sorulursa_dogru_render_edilir(
+    izole_db, monkeypatch
+) -> None:
+    """CANLI HATA (kullanici raporu, 2026-08-03, ACİL): 'AMD'/'ASTS' gibi HEM
+    BIST regex'ine (3-6 harf) UYAN HEM DE daha once NASDAQ olarak analiz
+    edilmis bir ticker, menusuz/varsayilan bir aramada (market='BIST'
+    varsayilaniyla) sorulunca -- is_data_fresh() market'i KONTROL ETMEDIGI
+    icin -- yanlislikla "taze" sayiliyor VE BIST sablonuyla (₺, "İş Yatırım,
+    KAP" kaynagi, fiyat/degerleme basligi TAMAMEN kayip) render ediliyordu.
+    Bu test TAM olarak bu senaryoyu tekrar uretir: once NASDAQ olarak
+    onbellege alinir, SONRA market='BIST' ile (BIST'te GERCEKTEN yok)
+    sorulur -- artik TickerNotFoundError firlatmali (allow_market_fallback
+    mekanizmasinin dogru market'i denemesini saglamak icin), SESSIZCE
+    yanlis sablonla 'basarili' DONMEMELI."""
+    monkeypatch.setattr(sec_edgar, "fetch_financials", lambda ticker, periods=None: _fake_raw_us_gaap(ticker))
+    monkeypatch.setattr(sec_edgar, "fetch_latest_price", lambda ticker: None)
+    pipeline.run_pipeline("TESTUS", market="NASDAQ")  # onbellege NASDAQ olarak yazilir
+
+    def bist_te_bulunamaz(ticker, periods=None, financial_group=None):
+        raise isyatirim.CompanyNotFoundError(f"'{ticker}' BIST'te bulunamadi (test).")
+
+    monkeypatch.setattr(isyatirim, "fetch_financials", bist_te_bulunamaz)
+
+    with pytest.raises(pipeline.TickerNotFoundError):
+        pipeline.run_pipeline("TESTUS", market="BIST")
+
+
+def test_run_pipeline_ayni_market_ile_tekrar_sorulursa_onbellekten_okur(izole_db, monkeypatch) -> None:
+    """Regresyon KORUMASI: market uyusmazligi kontrolu SADECE gercek bir
+    uyusmazlik varken devreye girer -- AYNI market ile ikinci cagri hala
+    onbellekten okumali (gereksiz tam fetch TETIKLENMEMELI)."""
+    call_count = {"n": 0}
+
+    def sayan_fetch(ticker, periods=None):
+        call_count["n"] += 1
+        return _fake_raw_us_gaap(ticker)
+
+    monkeypatch.setattr(sec_edgar, "fetch_financials", sayan_fetch)
+    monkeypatch.setattr(sec_edgar, "fetch_latest_price", lambda ticker: None)
+
+    pipeline.run_pipeline("TESTUS", market="NASDAQ")
+    assert call_count["n"] == 1
+
+    pipeline.run_pipeline("TESTUS", market="NASDAQ")  # ayni market, veri hala taze
+    assert call_count["n"] == 1  # TEKRAR fetch edilmedi

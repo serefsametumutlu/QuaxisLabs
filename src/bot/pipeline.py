@@ -990,14 +990,36 @@ def run_pipeline(ticker: str, *, periods: list[Period] | None = None, market: st
     price_future = price_executor.submit(_fetch_price_safe_us if is_us else _fetch_price_safe, ticker)
 
     with repository.get_session() as session:
-        fresh = periods is None and repository.is_data_fresh(session, ticker, max_age_hours=12)
+        company_row = session.get(models.Company, ticker)
+        # CANLI HATA (kullanici raporu, 2026-08-03): "AMD"/"ASTS" gibi HEM
+        # BIST ticker regex'ine (3-6 harf) UYAN HEM DE daha once NASDAQ
+        # olarak analiz edilip onbellege alinmis bir sembol, menusuz/
+        # varsayilan bir aramada (market="BIST" varsayilaniyla) sorulunca --
+        # is_data_fresh() SADECE ticker+last_updated'a bakip HANGI MARKET
+        # icin taze oldugunu HIC KONTROL ETMEDIGI icin -- yanlislikla "taze"
+        # sayiliyor VE (is_us=False oldugundan) BIST sablonuyla (analyze()/
+        # build_card_context(), ₺ + "İş Yatırım, KAP" kaynagiyla) render
+        # ediliyordu -- fiyat/degerleme basligi TAMAMEN kayboluyordu (BIST'in
+        # compute_valuation'i US_GAAP kayitlarindaki "shares_outstanding"
+        # yerine "share_capital" bekliyor, bulamayinca valuation None
+        # kaliyor). Cozum: onbellekteki sirketin GERCEK market'i (varsa)
+        # istenen market'ten FARKLIYSA onbellek bu istek icin GECERSIZ
+        # sayilir (fresh=False) -- bu tam bir fetch'i tetikler, o da (ticker
+        # o markette GERCEKTEN yoksa) TickerNotFoundError firlatir --
+        # _execute_and_send'deki allow_market_fallback mekanizmasi bu sayede
+        # DOGRU market'i (NASDAQ) dener (bkz. 06_BILINEN_SORUNLAR.md §B19).
+        market_mismatch = company_row is not None and company_row.market != market
+        fresh = (
+            periods is None
+            and not market_mismatch
+            and repository.is_data_fresh(session, ticker, max_age_hours=12)
+        )
         cached_newest = None
         cached_group = None
         if fresh:
             cached = repository.get_financials(session, ticker, n_periods=1)
             if cached:
                 cached_newest = max(cached)
-            company_row = session.get(models.Company, ticker)
             cached_group = company_row.financial_group if company_row else None
 
     if not is_us and fresh and cached_newest is not None and cached_group:

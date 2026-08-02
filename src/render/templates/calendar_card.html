@@ -144,15 +144,18 @@
 
   .tier-heading-sub { font-size: 12px; color: var(--secondary); }
 
-  .day-groups { display: flex; flex-direction: column; }
-  .tier-kesin .day-groups { gap: 12px; }
-  .tier-tahmini .day-groups { gap: 8px; }
+  .day-groups { display: flex; flex-direction: column; gap: 12px; }
 
   .day-block { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px 14px; }
   .day-block.is-today { padding-left: 8px; border-left: 2px solid var(--accent); }
 
-  .tier-kesin .day-label { font-size: 15px; font-weight: 700; color: var(--heading); white-space: nowrap; min-width: 108px; }
-  .tier-tahmini .day-label { font-size: 12.5px; font-weight: 700; color: var(--secondary); white-space: nowrap; min-width: 96px; }
+  /* Kullanici geri bildirimi (2026-08-02): tahmini bolumu eskiden kesinden
+     KUCUK/soluk puntoyla gosteriliyordu -- "okumasi zor, garip duruyor"
+     tepkisi geldi. Artik gun etiketi VE chip'ler (bkz. asagida) IKI KATMANDA
+     DA BIREBIR AYNI font/punto/renk -- tek fark bolum BASLIGINDAKI (bkz.
+     .tier-heading-text) renk/ikon, o da zaten hangi bolumde oldugunu
+     anlamak icin yeterli. */
+  .day-label { font-size: 15px; font-weight: 700; color: var(--heading); white-space: nowrap; min-width: 108px; }
 
   .today-tag {
     font-size: 10px;
@@ -169,7 +172,11 @@
 
   /* Chip GENISLIGI SABIT -- bkz. calendar_card.py _KESIN_CHIPS_PER_ROW /
      _TAHMINI_CHIPS_PER_ROW: piksel butce hesabi bu sabit genislige DAYANIR,
-     degistirilirse o sabitler de guncellenmeli. */
+     degistirilirse o sabitler de guncellenmeli. Kullanici geri bildirimi:
+     iki katman (kesin/tahmini) BIREBIR AYNI font/punto/renkte olmali --
+     tek ayirt edici bolum BASLIGI (bkz. .tier-heading-text), chip'lerin
+     KENDISI notr/AYNI (asagida .tier-kesin/.tier-tahmini icin AYRI kural
+     YOK, TEK bir .chip tanimi ikisinde de gecerli). */
   .chip {
     display: inline-flex;
     align-items: center;
@@ -178,10 +185,9 @@
     padding: 5px 8px;
     border-radius: 8px;
     flex-shrink: 0;
+    background: var(--panel);
+    border: 1px solid var(--border);
   }
-
-  .tier-kesin .chip { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.35); }
-  .tier-tahmini .chip { background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.22); width: 88px; padding: 3px 6px; }
 
   .chip-logo {
     height: 20px;
@@ -191,7 +197,6 @@
     background: var(--panel);
     flex-shrink: 0;
   }
-  .tier-tahmini .chip-logo { height: 16px; width: 16px; }
 
   .chip-logo-placeholder { background: var(--panel); border: 1px solid var(--border-soft); }
 
@@ -203,7 +208,6 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .tier-tahmini .chip-ticker { font-size: 11.5px; font-weight: 600; color: var(--secondary); }
 
   .empty-state {
     padding: 24px 16px;

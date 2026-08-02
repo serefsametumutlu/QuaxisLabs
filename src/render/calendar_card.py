@@ -48,9 +48,12 @@ _MARKET_LABELS: dict[str, str] = {"BIST": "BİST", "NASDAQ": "NASDAQ"}
 # Chip'ler calendar_card.html'de SABİT genişlikte (.chip{width:...}) --
 # böylece bir satıra kaç chip sığacağı, TICKER METNİNİN gerçek render
 # genişliğine BAĞLI OLMADAN (BIST/NASDAQ ticker'ları hep kısa, 1-6 harf)
-# ÖNCEDEN, KESİN olarak hesaplanabilir -- bkz. _wrap_line_count().
+# ÖNCEDEN, KESİN olarak hesaplanabilir -- bkz. _wrap_line_count(). Kullanıcı
+# geri bildirimi (2026-08-02): iki katman (kesin/tahmini) artık BİREBİR AYNI
+# chip boyutunu kullanıyor (bkz. calendar_card.html .chip kuralı) -- bu
+# yüzden satır başına chip sayısı da AYNI.
 _KESIN_CHIPS_PER_ROW = 10
-_TAHMINI_CHIPS_PER_ROW = 13
+_TAHMINI_CHIPS_PER_ROW = 10
 
 # CANLI hata (kullanıcı raporu, 2026-08-02): eski "bir şirket bir satır"
 # tasarımında 57 satır/16 gün grubu 2400x8924 piksele ulaşıp Telegram'ın

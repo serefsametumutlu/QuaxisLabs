@@ -482,15 +482,37 @@ def analyze_us(ticker: str, financials_by_period: FinancialsByPeriod) -> Analysi
         tarafinda (score_industrial(enflasyon_yoy_pct=...)) esikler
         farkli KALIBRE edildi (bkz. scorer.CONFIG['abd_sanayi']['buyume']),
         hesaplama KATMANI DEGISMEDI.
+      - GELIR TABLOSU / bulgu listesi GORUNUMU: BIST'te (analyze()) bu
+        tablo KASITLI olarak KUMULATIF (YTD) rakam gosterir (bkz.
+        _build_analysis_result ici not, Fintables/Matriks konvansiyonu).
+        ABD'de bu YANLIS/YANILTICI olur -- CANLI DOGRULANDI (kullanici
+        raporu, AAPL Ç3 FY2026): sosyal medyada paylasilan "earnings
+        highlights" (Bloomberg/earnings-bot tarzi) HER ZAMAN TEK CEYREKLIK
+        rakam kullanir (orn. "$109,42 mr" TEK ceyrek, DEGIL "$364,4 mr" 9
+        aylik kumulatif) -- bu projenin TEK ceyreklik turetme mantigi
+        ($109.417 mr, 3 KURUS farkla eslesti) zaten DOGRUYDU, ama tablo
+        kumulatif GOSTERDIGI icin "yanlis veri" IZLENIMI veriyordu. Bu
+        yuzden analyze_us() `use_cumulative_display=False` gecer --
+        GELIR TABLOSU/bulgu listesi de TEK CEYREKLIK rakamlari gosterir
+        (ratios/TTM/degerleme zaten HER ZAMAN ceyreklikti, ETKILENMEDI).
     """
-    return _build_analysis_result(ticker, financials_by_period, currency="USD")
+    return _build_analysis_result(ticker, financials_by_period, currency="USD", use_cumulative_display=False)
 
 
-def _build_analysis_result(ticker: str, financials_by_period: FinancialsByPeriod, currency: str) -> AnalysisResult:
+def _build_analysis_result(
+    ticker: str, financials_by_period: FinancialsByPeriod, currency: str, use_cumulative_display: bool = True
+) -> AnalysisResult:
     """analyze()/analyze_us() ORTAK cekirdegi -- bkz. her iki fonksiyonun
     docstring'i. Kopyala-yapıştır ONLENMESI icin TUM hesaplama mantigi
-    burada TEK YERDE tutulur; iki giris noktasi SADECE `currency` degerini
-    farklilastirir."""
+    burada TEK YERDE tutulur; iki giris noktasi SADECE `currency` VE
+    `use_cumulative_display` degerlerini farklilastirir.
+
+    `use_cumulative_display`: GELIR TABLOSU ozet tablosu VE bulgu listesinin
+    (Artislar/Azalislar kutusu) KUMULATIF (YTD, True -- BIST varsayilani) mi
+    yoksa TEK CEYREKLIK (False -- ABD, bkz. analyze_us() docstring'i) rakam
+    mi gosterecegini secer. ratios/TTM/degerleme/quarterly_series bu
+    bayraktan ETKILENMEZ -- onlar HER ZAMAN ceyreklik alanlari okur (TTM 4
+    ceyregi ust uste toplar, kumulatif degerlerle bu YANLIS olurdu)."""
     if not financials_by_period:
         raise ValueError("financials_by_period bos olamaz.")
 
@@ -504,38 +526,53 @@ def _build_analysis_result(ticker: str, financials_by_period: FinancialsByPeriod
     ebitda_current = ebitda(current)
     ebitda_yoy_prior = ebitda(yoy_prior)
 
-    # GELIR TABLOSU ozet tablosu KASITLI olarak KUMULATIF (YTD) alanlari
-    # kullanir -- kullanici geri bildirimi: insanlar genelde Fintables'i
-    # referans aliyor, Fintables'in varsayilan (ucretsiz) gorunumu de KAP'a
-    # bagli kumulatif rakam gosteriyor (canli dogrulandi: TAVHL 2026/6 Ana
-    # Ortaklik Paylari = 528.152 bin TL, hem Fintables hem Matriks'te BIREBIR
-    # ayni) -- ceyreklestirilmis (standalone) rakamla kiyaslaninca "bu yanlis
-    # mi" sanilabiliyordu. TTM/rasyo/skorlama/CEYREKLIK SERI grafigi ise
+    # GELIR TABLOSU ozet tablosu (BIST'te, use_cumulative_display=True)
+    # KASITLI olarak KUMULATIF (YTD) alanlari kullanir -- kullanici geri
+    # bildirimi: insanlar genelde Fintables'i referans aliyor, Fintables'in
+    # varsayilan (ucretsiz) gorunumu de KAP'a bagli kumulatif rakam
+    # gosteriyor (canli dogrulandi: TAVHL 2026/6 Ana Ortaklik Paylari =
+    # 528.152 bin TL, hem Fintables hem Matriks'te BIREBIR ayni) --
+    # ceyreklestirilmis (standalone) rakamla kiyaslaninca "bu yanlis mi"
+    # sanilabiliyordu. ABD'de (use_cumulative_display=False) TERSI GECERLI
+    # -- bkz. analyze_us() docstring'i (CANLI DOGRULANDI: sosyal medya
+    # earnings-highlight paylasimlari TEK CEYREKLIK rakam kullanir).
+    # TTM/rasyo/skorlama/CEYREKLIK SERI grafigi ise HER IKI tarafta da
     # BILEREK ceyreklik (asagidaki ebitda_current/quarterly_series/ratios)
     # kullanmaya devam eder -- TTM 4 ceyregi ust uste toplar, kumulatif
     # degerlerle bu YANLIS olurdu.
     ebitda_cum_current = ebitda_cum(current)
     ebitda_cum_yoy_prior = ebitda_cum(yoy_prior)
 
+    if use_cumulative_display:
+        revenue_display_field, gross_profit_display_field = "revenue_cum", "gross_profit_cum"
+        operating_profit_display_field, net_income_display_field = "operating_profit_cum", "net_income_cum"
+        ebitda_display_current, ebitda_display_yoy_prior = ebitda_cum_current, ebitda_cum_yoy_prior
+    else:
+        revenue_display_field, gross_profit_display_field = "revenue", "gross_profit"
+        operating_profit_display_field, net_income_display_field = "operating_profit", "net_income"
+        ebitda_display_current, ebitda_display_yoy_prior = ebitda_current, ebitda_yoy_prior
+
     income_statement = IncomeStatementSummary(
         revenue=_line_item_change(
-            FIELD_LABELS_TR["revenue"], current.get("revenue_cum"), yoy_prior.get("revenue_cum")
+            FIELD_LABELS_TR["revenue"], current.get(revenue_display_field), yoy_prior.get(revenue_display_field)
         ),
         gross_profit=_line_item_change(
-            FIELD_LABELS_TR["gross_profit"], current.get("gross_profit_cum"), yoy_prior.get("gross_profit_cum")
+            FIELD_LABELS_TR["gross_profit"],
+            current.get(gross_profit_display_field),
+            yoy_prior.get(gross_profit_display_field),
         ),
         operating_profit=_line_item_change(
             FIELD_LABELS_TR["operating_profit"],
-            current.get("operating_profit_cum"),
-            yoy_prior.get("operating_profit_cum"),
+            current.get(operating_profit_display_field),
+            yoy_prior.get(operating_profit_display_field),
         ),
         ebitda=(
-            _line_item_change(FIELD_LABELS_TR["ebitda"], ebitda_cum_current, ebitda_cum_yoy_prior)
-            if ebitda_cum_current is not None
+            _line_item_change(FIELD_LABELS_TR["ebitda"], ebitda_display_current, ebitda_display_yoy_prior)
+            if ebitda_display_current is not None
             else None
         ),
         net_income=_line_item_change(
-            FIELD_LABELS_TR["net_income"], current.get("net_income_cum"), yoy_prior.get("net_income_cum")
+            FIELD_LABELS_TR["net_income"], current.get(net_income_display_field), yoy_prior.get(net_income_display_field)
         ),
     )
 
@@ -618,19 +655,25 @@ def _build_analysis_result(ticker: str, financials_by_period: FinancialsByPeriod
     ]
 
     # Bulgu listesi (Artislar/Azalislar kutusu + LLM/yedek yorum girdisi) de
-    # GELIR TABLOSU ile TUTARLI kalsin diye kumulatif rakamlari kullanir --
+    # GELIR TABLOSU ile TUTARLI kalsin diye AYNI display alanini kullanir --
     # aksi halde ayni karti icinde tablo "528 mn" derken Artislar kutusu
-    # "-191,6 mn -> 3,5 mr" (ceyreklik) diyip CELISKI yaratirdi.
+    # farkli bir rakam (kumulatif/ceyreklik karisikligi) gosterip CELISKI
+    # yaratirdi (bkz. yukaridaki income_statement notu).
     findings = [
-        _finding("revenue", "YoY", current.get("revenue_cum"), yoy_prior.get("revenue_cum")),
-        _finding("gross_profit", "YoY", current.get("gross_profit_cum"), yoy_prior.get("gross_profit_cum")),
+        _finding("revenue", "YoY", current.get(revenue_display_field), yoy_prior.get(revenue_display_field)),
         _finding(
-            "operating_profit", "YoY", current.get("operating_profit_cum"), yoy_prior.get("operating_profit_cum")
+            "gross_profit", "YoY", current.get(gross_profit_display_field), yoy_prior.get(gross_profit_display_field)
+        ),
+        _finding(
+            "operating_profit", "YoY",
+            current.get(operating_profit_display_field), yoy_prior.get(operating_profit_display_field),
         ),
     ]
-    if ebitda_cum_current is not None:
-        findings.append(_finding("ebitda", "YoY", ebitda_cum_current, ebitda_cum_yoy_prior))
-    findings.append(_finding("net_income", "YoY", current.get("net_income_cum"), yoy_prior.get("net_income_cum")))
+    if ebitda_display_current is not None:
+        findings.append(_finding("ebitda", "YoY", ebitda_display_current, ebitda_display_yoy_prior))
+    findings.append(
+        _finding("net_income", "YoY", current.get(net_income_display_field), yoy_prior.get(net_income_display_field))
+    )
 
     findings.extend(
         [

@@ -269,6 +269,38 @@ pytest tests/ -v
       zararla BİREBİR eşleşti) — ikisi de %5 eşiğinin ALTINDA. Test:
       `pytest tests/` (418 test, 19 yeni: test_calculator_us.py +
       test_scorer_us.py + test_card_us.py, hiçbir regresyon yok).
+- [x] **Faz 10.1 (veri doğruluğu düzeltmeleri — kullanıcı raporu, 2026-08-02)** —
+      Kullanıcı AAPL kartını sosyal medyada paylaşılan gerçek "Q3'26 earnings
+      highlights" ile karşılaştırdı ve GELİR TABLOSU'ndaki rakamların (Satışlar
+      $364,4 mr) gerçek çeyreklik rakamla ($109,42 mr) UYUŞMADIĞINI bildirdi.
+      **Kök neden**: `analyze_us()` BIST'in KÜMÜLATİF (9 aylık YTD) gösterim
+      konvansiyonunu miras almıştı — BIST'te doğru (Fintables/Matriks
+      konvansiyonu) ama ABD earnings-raporlama kültüründe SADECE tek çeyreklik
+      rakam "headline" sayılır. Çeyreklik türetme MATEMATİĞİ zaten baştan
+      DOĞRUYDU ($109,417 mr — kullanıcının kaynağıyla 3 kuruş farkla eşleşti);
+      sorun SADECE hangi rakamın öne çıkarıldığıydı. **Düzeltme**:
+      `_build_analysis_result(..., use_cumulative_display=False)` — `analyze_us()`
+      artık GELİR TABLOSU/bulgu listesinde TEK ÇEYREKLİK rakam gösterir,
+      `analyze()` (BIST) DEĞİŞMEDİ. **Ek doğrulamalar**: MSFT (Q4, ANNUAL-9AY
+      türetme yolu) — $90,01 mr hasılat/$35,77 mr net kâr/$40,6 mr esas
+      faaliyet kârı, web araştırmasıyla BİREBİR eşleşti; Alphabet'in
+      "$112,1 mr net kâr" gibi olağandışı görünen bir rakamının GERÇEK
+      olduğu (tek seferlik $98 mr gerçekleşmemiş yatırım kazancı) canlı
+      araştırmayla doğrulandı — VERİ HATASI değildi. **10 resmi NASDAQ
+      hissesinin (AAPL/TSLA/NVDA/MSFT/GOOGL/AMZN/META/NFLX/AMD/PYPL) TAMAMI**
+      canlı tarandı: hepsinde hasılat/net kâr/toplam varlık/pay adedi doğru
+      geliyor; 5'inde (GOOGL/AMZN/META/NFLX/PYPL) "Brüt Kâr" N/A (bu
+      şirketlerin XBRL verisinde GrossProfit tag'i güncel dönemde YOK —
+      kod hatası değil, bilinen veri sınırı, bkz. `06_BILINEN_SORUNLAR.md`
+      B13). **Ayrıca**: META'da Piyasa Değeri/F-K/PD-DD hiç hesaplanamıyordu
+      (hem `dei:EntityCommonStockSharesOutstanding` hem `us-gaap:CommonStockSharesOutstanding`
+      META'da YOK) — üçüncül yedek (`WeightedAverageNumberOfDilutedSharesOutstanding`,
+      dönem ortalaması) eklendi, macrotrends.net ile BİREBİR eşleşti. Şirket
+      logoları da düzeltildi: `company_logo.py` TradingView aramasını HER ZAMAN
+      "BIST:" öneki ile yapıyordu, bu yüzden hiçbir NASDAQ kartında logo
+      görünmüyordu — `market="NASDAQ"` için "NASDAQ:" sonra "NYSE:" fallback
+      eklendi (JPM SADECE NYSE ile bulunuyor). Test: `pytest tests/`
+      (427 test, 9 yeni, hiçbir regresyon yok).
 
 ## Dizin Yapisi
 

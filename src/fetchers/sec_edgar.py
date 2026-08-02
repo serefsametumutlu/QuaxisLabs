@@ -262,6 +262,23 @@ STANDARD_ITEM_MAP_US_GAAP: dict[str, list[str]] = {
         # tarihinin KENDISIYLE eslesir (daha "temiz") ama fy/fp etiketleri
         # dei tag'i kadar TUTARLI doldurulmamis olabilir; bu yuzden IKINCIL.
         "us-gaap:CommonStockSharesOutstanding",
+        # UCUNCUL yedek -- CANLI dogrulandi: META'da (10 resmi NASDAQ hissesi
+        # taramasinda bulundu) YUKARIDAKI IKI tag de HIC YOK (dei namespace'i
+        # SADECE "EntityPublicFloat" iceriyor, us-gaap'ta "SharesOutstanding"
+        # gecen HICBIR tag YOK) -- muhtemelen Class A/Class B pay sinifi
+        # boyutlandirmasi (dimensional) yuzunden bulk companyfacts API'sinde
+        # boyutsuz (varsayilan) bir toplam hic YAYINLANMAMIS. Bu DURUM SADECE
+        # ANLIK (point-in-time) degil, DONEM ORTALAMASI (weighted average,
+        # bir sure/duration fact) bir kalemdir -- _select_best_fact zaten
+        # DURATION facts'i ~90 gunluk ceyrek uzunluguna filtreler (bkz.
+        # _EXPECTED_CUMULATIVE_DURATION_DAYS), bu yuzden ekstra kod GEREKMEZ.
+        # CANLI DOGRULANDI: META FY2026 Ç1 (2026-01-01/2026-03-31) icin bu
+        # tag 2.564.000.000 doner -- macrotrends.net'in bagimsiz olarak
+        # raporladigi "shares outstanding for quarter ending March 31, 2026:
+        # 2.564B" ile BIREBIR eslesiyor. Bilinen yaklastirma: DONEM
+        # ORTALAMASI, o donemin SONUNDAKI ANLIK bakiye DEGIL (buyback/ihrac
+        # yogun donemlerde kucuk bir sapma olusturabilir).
+        "us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding",
     ],
 }
 

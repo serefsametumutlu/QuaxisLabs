@@ -215,6 +215,31 @@ def test_total_debt_us_gaap_iki_bileseni_toplar() -> None:
     assert total_debt_us_gaap(raw, period) == short_debt + long_debt
 
 
+def test_shares_outstanding_donem_ortalamasi_fallback_uzerinden_dogru_secilir() -> None:
+    """CANLI HATA (kullanici raporu -- 10 resmi NASDAQ hissesi taramasi
+    sirasinda bulundu): META'da dei:EntityCommonStockSharesOutstanding VE
+    us-gaap:CommonStockSharesOutstanding HIC YOK (dei namespace'i SADECE
+    'EntityPublicFloat' iceriyor) -- shares_outstanding HER ZAMAN None
+    donuyordu, Piyasa Degeri/F-K/PD-DD hesaplanamiyordu. Ucuncul yedek
+    (WeightedAverageNumberOfDilutedSharesOutstanding, bir DURATION/donem
+    ortalamasi fact'i) eklendi -- _select_best_fact bunu ~90 gunluk ceyrek
+    uzunluguna otomatik filtreler (ekstra kod GEREKMEDI). CANLI DOGRULANDI:
+    macrotrends.net'in bagimsiz raporladigi '2.564B (Mart 2026 ceyregi)'
+    ile BIREBIR eslesti."""
+    facts = [
+        # ANLIK (point-in-time) tag'ler HIC YOK -- META senaryosu.
+        ConceptFact(start=date(2026, 1, 1), end=date(2026, 3, 31), val=Decimal("2564000000"), form="10-Q", fp="Q1", fy=2026, frame="CY2026Q1", filed="2026-04-30"),
+        # 9 aylik (YTD) donem ortalamasi -- YANLISLIKLA secilmemeli (~90 gunluk degil).
+        ConceptFact(start=date(2026, 1, 1), end=date(2026, 9, 30), val=Decimal("2550000000"), form="10-Q", fp="Q3", fy=2026, frame=None, filed="2026-10-30"),
+    ]
+    raw = RawUsFinancials(
+        ticker="META", cik10="0001326801", company_name="Meta Platforms, Inc.",
+        periods=[(2026, 3)],
+        facts_by_tag={"us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding": facts},
+    )
+    assert standardized_value_us_gaap(raw, "shares_outstanding", (2026, 3)) == Decimal("2564000000")
+
+
 # --- STANDARD_ITEM_MAP_US_GAAP butunluk kontrolu -----------------------------------------------------
 
 

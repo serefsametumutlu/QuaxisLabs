@@ -244,6 +244,7 @@ def test_handle_ticker_message_bekleyen_islem_yokken_varsayilan_bist(monkeypatch
     _, kwargs = calls.await_args
     assert calls.await_args.args[0] == "THYAO"
     assert kwargs["market"] == "BIST"
+    assert kwargs["allow_market_fallback"] is True  # menu SECILMEDI -> NASDAQ fallback'e izinli
 
 
 def test_handle_ticker_message_nasdaq_bekleyen_islem_market_nasdaq_kullanir(monkeypatch) -> None:
@@ -260,6 +261,7 @@ def test_handle_ticker_message_nasdaq_bekleyen_islem_market_nasdaq_kullanir(monk
     calls.assert_awaited_once()
     assert calls.await_args.args[0] == "AAPL"
     assert calls.await_args.kwargs["market"] == "NASDAQ"
+    assert calls.await_args.kwargs["allow_market_fallback"] is False  # menuden ACIKCA secildi -> fallback YOK
     assert "bekleyen_islem" not in user_data  # basarili girdiden sonra TUKETILIR
 
 
@@ -446,3 +448,99 @@ def test_handle_menu_callback_hakkinda_metnini_gosterir() -> None:
     (text,), kwargs = query.edit_message_text.await_args
     assert text == telegram_bot._HAKKINDA_TEXT
     assert kwargs["reply_markup"].inline_keyboard[0][0].callback_data == "menu:root"
+
+
+# --- _execute_and_send: NASDAQ fallback (menusuz arama) -----------------------------------------------------
+#
+# _execute_and_send() ic. asyncio.to_thread(pipeline.run_pipeline, ...) cagirir --
+# bu GERCEK bir thread/event-loop iso gerektirir, _run_coro'nun "trivial
+# async/AsyncMock" varsayimini BOZAR. Bu yuzden asyncio.to_thread BURADA
+# senkron bir sahteyle degistirilir (fonksiyonu dogrudan cagirir) -- geri
+# kalan (context.bot.* cagrilari) zaten AsyncMock.
+
+
+async def _fake_to_thread(func, *args, **kwargs):
+    return func(*args, **kwargs)
+
+
+def _fake_pipeline_result(ticker: str, png_path) -> SimpleNamespace:
+    return SimpleNamespace(
+        ticker=ticker,
+        analysis=SimpleNamespace(latest_period=(2026, 6)),
+        score=SimpleNamespace(total_score=Decimal("5.0"), badge="DENGELİ", components=[]),
+        commentary=SimpleNamespace(positives=[], negatives=[], summary="Özet."),
+        png_path=str(png_path),
+    )
+
+
+def _fake_bot_context_for_execute(chat_id=555, user_id=9100):
+    bot = SimpleNamespace(send_chat_action=AsyncMock(), send_photo=AsyncMock(), send_message=AsyncMock())
+    context = SimpleNamespace(bot=bot)
+    update = SimpleNamespace(effective_chat=SimpleNamespace(id=chat_id), effective_user=SimpleNamespace(id=user_id))
+    return update, context
+
+
+def test_execute_and_send_bist_basarisizsa_nasdaqta_dener(tmp_path, monkeypatch) -> None:
+    """CANLI kullanıcı raporu (2026-08-02): 'AMD' menüden 🇺🇸 NASDAQ seçilmeden
+    yazıldığında varsayılan BİST'te aranıp bulunamıyordu -- oysa AMD gerçek
+    (ve büyük) bir NASDAQ şirketi. allow_market_fallback=True iken BİST
+    başarısız olursa NASDAQ OTOMATİK denenmeli."""
+    monkeypatch.setattr(telegram_bot.asyncio, "to_thread", _fake_to_thread)
+
+    png_path = tmp_path / "amd.png"
+    png_path.write_bytes(b"\x89PNG\r\n\x1a\n" + b"0" * 20)
+    sonuc = _fake_pipeline_result("AMD", png_path)
+
+    calls: list[str] = []
+
+    def sahte_run_pipeline(ticker, periods=None, market="BIST"):
+        calls.append(market)
+        if market == "BIST":
+            raise telegram_bot.pipeline.TickerNotFoundError(f"{ticker} bulunamadı")
+        return sonuc
+
+    monkeypatch.setattr(telegram_bot.pipeline, "run_pipeline", sahte_run_pipeline)
+
+    update, context = _fake_bot_context_for_execute()
+    _run_coro(telegram_bot._execute_and_send("AMD", update, context, market="BIST", allow_market_fallback=True))
+
+    assert calls == ["BIST", "NASDAQ"]
+    context.bot.send_photo.assert_awaited_once()
+    context.bot.send_message.assert_awaited_once()  # basari (ozet) mesaji -- "bulamadim" DEGIL
+
+
+def test_execute_and_send_acikca_bist_secilmisse_nasdaq_denenmez(monkeypatch) -> None:
+    """Kullanıcı menüden AÇIKÇA 🇹🇷 BİST'i seçmişse (allow_market_fallback=False),
+    BİST'te bulunamayan bir ticker için NASDAQ fallback DEVREYE GİRMEMELİ --
+    kullanıcının açık tercihi sessizce ezilmemeli."""
+    monkeypatch.setattr(telegram_bot.asyncio, "to_thread", _fake_to_thread)
+
+    calls: list[str] = []
+
+    def sahte_run_pipeline(ticker, periods=None, market="BIST"):
+        calls.append(market)
+        raise telegram_bot.pipeline.TickerNotFoundError(f"{ticker} bulunamadı")
+
+    monkeypatch.setattr(telegram_bot.pipeline, "run_pipeline", sahte_run_pipeline)
+
+    update, context = _fake_bot_context_for_execute()
+    _run_coro(telegram_bot._execute_and_send("XXXXXX", update, context, market="BIST", allow_market_fallback=False))
+
+    assert calls == ["BIST"]  # NASDAQ HIC denenmedi
+    (_, text), _ = context.bot.send_message.await_args
+    assert "bulamadım" in text
+
+
+def test_execute_and_send_her_ikisi_de_basarisizsa_iki_piyasayi_da_belirtir(monkeypatch) -> None:
+    monkeypatch.setattr(telegram_bot.asyncio, "to_thread", _fake_to_thread)
+
+    def sahte_run_pipeline(ticker, periods=None, market="BIST"):
+        raise telegram_bot.pipeline.TickerNotFoundError(f"{ticker} bulunamadı")
+
+    monkeypatch.setattr(telegram_bot.pipeline, "run_pipeline", sahte_run_pipeline)
+
+    update, context = _fake_bot_context_for_execute()
+    _run_coro(telegram_bot._execute_and_send("ZZZZZZ", update, context, market="BIST", allow_market_fallback=True))
+
+    (_, text), _ = context.bot.send_message.await_args
+    assert "BİST" in text and "NASDAQ" in text

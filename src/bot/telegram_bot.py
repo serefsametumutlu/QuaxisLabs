@@ -286,7 +286,12 @@ def _bilanco_ozeti_metni(sonuc: pipeline.PipelineResult) -> str:
 
 
 async def _execute_and_send(
-    ticker: str, update: Update, context: ContextTypes.DEFAULT_TYPE, periods=None, market: str = "BIST"
+    ticker: str,
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    periods=None,
+    market: str = "BIST",
+    allow_market_fallback: bool = False,
 ) -> None:
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
@@ -294,10 +299,33 @@ async def _execute_and_send(
 
     try:
         await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
-        sonuc = await asyncio.to_thread(pipeline.run_pipeline, ticker, periods=periods, market=market)
+        try:
+            sonuc = await asyncio.to_thread(pipeline.run_pipeline, ticker, periods=periods, market=market)
+        except pipeline.TickerNotFoundError:
+            # CANLI kullanici raporu (2026-08-02): kullanici menuden 🇺🇸 NASDAQ
+            # SECMEDEN dogrudan "AMD" yazdi -- varsayilan (menusuz) davranis
+            # BIST'te aradigi icin "bulamadim" mesaji aldi, oysa AMD GERCEK ve
+            # BUYUK bir NASDAQ sirketi (canli dogrulandi: sec_edgar.resolve_cik
+            # aninda CIK donuyor). BIST ile NASDAQ evrenleri arasinda GERCEK bir
+            # sembol cakismasi OLMADIGI canli dogrulandigindan (bkz.
+            # 06_BILINEN_SORUNLAR.md B12), SADECE menusuz/varsayilan aramalarda
+            # (allow_market_fallback=True, bkz. handle_ticker_message) BIST'te
+            # bulunamayan bir ticker SESSIZCE NASDAQ'ta da denenir -- kullanici
+            # ACIKCA 🇹🇷 BIST'i secmisse (menu uzerinden) bu fallback DEVREYE
+            # GIRMEZ, kullanicinin acik tercihi ezilmez.
+            if not (allow_market_fallback and market == "BIST"):
+                raise
+            logger.info("%s BIST'te bulunamadı, varsayılan aramada NASDAQ'ta da deneniyor", ticker)
+            sonuc = await asyncio.to_thread(pipeline.run_pipeline, ticker, periods=periods, market="NASDAQ")
+            market = "NASDAQ"
 
     except pipeline.TickerNotFoundError:
-        await context.bot.send_message(chat_id, f"❌ {ticker} diye bir hisse bulamadım. Kodu kontrol eder misin?")
+        if allow_market_fallback and market == "BIST":
+            # Buraya gelindiyse hem BIST HEM NASDAQ denenmis (yukarida) ikisi de basarisiz olmus demektir.
+            mesaj = f"❌ {ticker} diye bir hisse ne BİST'te ne NASDAQ'ta bulamadım. Kodu kontrol eder misin?"
+        else:
+            mesaj = f"❌ {ticker} diye bir hisse bulamadım. Kodu kontrol eder misin?"
+        await context.bot.send_message(chat_id, mesaj)
         logger.info("istek user=%s ticker=%s sure=%.1fs sonuc=bulunamadi", user_id, ticker, time.monotonic() - started)
 
     except pipeline.FinancialDataNotFoundError:
@@ -413,7 +441,10 @@ async def handle_ticker_message(update: Update, context: ContextTypes.DEFAULT_TY
     _active_users.add(user.id)
     try:
         await update.message.reply_text(f"🔍 {ticker} analiz ediliyor... (~20 sn)")
-        await _execute_and_send(ticker, update, context, market=market)
+        # allow_market_fallback: SADECE menuden ACIKCA bir piyasa SECILMEDIYSE
+        # (islem is None -- kullanici direkt "AMD" yazdi) True -- kullanici
+        # menuden 🇹🇷 BIST'i ACIKCA secmisse bu fallback devreye GIRMEZ.
+        await _execute_and_send(ticker, update, context, market=market, allow_market_fallback=islem is None)
     finally:
         _active_users.discard(user.id)
 

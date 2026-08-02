@@ -1,22 +1,25 @@
 """src/bot/telegram_bot.py -- saf mantik testleri (ticker normalizasyonu,
-hiz siniri). Telegram Update/Application nesnelerini gerektiren async
-handler'lar (gercek bot API'sine bagimli) bu dosyanin kapsami disindadir;
-uctan uca akis tests/test_pipeline.py ve scripts/demo_pipeline.py ile
-dogrulanir.
+hiz siniri) + handle_ticker_message/handle_menu_callback icin SimpleNamespace
+tabanli sahte Update/Context nesneleriyle davranis testleri (gercek Telegram
+API'sine BAGLANMAZ -- context.bot.send_photo/send_message gibi gercek
+Application gerektiren _execute_and_send AsyncMock ile degistirilir).
+Uctan uca akis (gercek pipeline.run_pipeline cagrisi) tests/test_pipeline.py,
+scripts/demo_pipeline.py ve canli Telegram testiyle dogrulanir.
 """
 
 from __future__ import annotations
 
 from decimal import Decimal
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
 from src.ai.commentary import Commentary
-from src.bot import telegram_bot
+from src.bot import menu, telegram_bot
 
 
-# --- normalize_ticker_input -----------------------------------------------------
+# --- normalize_ticker_input (BIST, varsayilan market) -----------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -38,6 +41,42 @@ def test_normalize_ticker_input_gecerli_kodlar(girdi, beklenen) -> None:
 @pytest.mark.parametrize("girdi", ["ab", "abcdefg", "thy4o", "", "   ", "thy ao", "12345"])
 def test_normalize_ticker_input_gecersiz_girdi_none_doner(girdi) -> None:
     assert telegram_bot.normalize_ticker_input(girdi) is None
+
+
+# --- normalize_ticker_input (NASDAQ, market="NASDAQ") -----------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "girdi,beklenen",
+    [
+        ("AAPL", "AAPL"),
+        ("aapl", "AAPL"),
+        ("A", "A"),
+        ("GOOGL", "GOOGL"),
+        ("$aapl", "AAPL"),
+        ("brk.b", "BRK.B"),
+        ("BRK.B", "BRK.B"),
+        ("  aapl  ", "AAPL"),
+    ],
+)
+def test_normalize_ticker_input_nasdaq_gecerli_kodlar(girdi, beklenen) -> None:
+    assert telegram_bot.normalize_ticker_input(girdi, market="NASDAQ") == beklenen
+
+
+@pytest.mark.parametrize("girdi", ["", "123", "abcdef", "BRK.BB", "THYAOX", "brk..b", "brk-b"])
+def test_normalize_ticker_input_nasdaq_gecersiz_girdi_none_doner(girdi) -> None:
+    assert telegram_bot.normalize_ticker_input(girdi, market="NASDAQ") is None
+
+
+def test_normalize_ticker_input_market_ayrimi_capraz_gecersiz() -> None:
+    """6 harfli bir kod BIST icin gecerliyken (3-6 harf) NASDAQ icin GECERSIZ
+    (azami 5 harf); tek harfli bir kod NASDAQ icin gecerliyken BIST icin
+    GECERSIZ (asgari 3 harf) -- iki market'in dogrulamasi birbirinden
+    BAGIMSIZ."""
+    assert telegram_bot.normalize_ticker_input("ABCDEF", market="BIST") == "ABCDEF"
+    assert telegram_bot.normalize_ticker_input("ABCDEF", market="NASDAQ") is None
+    assert telegram_bot.normalize_ticker_input("A", market="NASDAQ") == "A"
+    assert telegram_bot.normalize_ticker_input("A", market="BIST") is None
 
 
 # --- _check_rate_limit -----------------------------------------------------
@@ -144,3 +183,246 @@ def test_bilanco_ozeti_metni_skor_ve_gerekceyi_icerir() -> None:
     assert "Neden bu skor:" in text
     assert "• Kârlılık (%20 ağırlık) — 7,0/10: Net marj güçlü." in text
     assert "• Nakit Üretimi (%21 ağırlık) — N/A: FAVÖK hesaplanamadı." in text
+
+
+# --- handle_ticker_message / handle_menu_callback: menu bekleyen_islem entegrasyonu + geriye uyumluluk -----------------------------------------------------
+#
+# NOT: pytest.mark.asyncio / gercek bir asyncio event loop KULLANILMIYOR.
+# CANLI hata (bu oturumda gozlemlendi): tests/test_card.py'deki GERCEK
+# Playwright PNG render testi calistiktan SONRA, ayni pytest surecinde
+# calisan HERHANGI bir asyncio.Runner/pytest-asyncio cagrisi "Cannot run
+# the event loop while another loop is running" ile PATLIYOR (Windows +
+# Python 3.14 + Playwright sync API'nin ProactorEventLoop'u process
+# genelinde bozmasi -- src/render/card.py'nin thread-local Playwright
+# singleton'iyla ilgili, bu FAZIN kapsami DISINDA bir ortam sorunu).
+# Test edilen handler'lar (asagida) hicbir GERCEK I/O/timer/thread
+# beklemiyor -- hepsi AsyncMock veya trivial async fonksiyon cagiriyor --
+# bu yuzden coroutine'ler gercek bir event loop OLMADAN elle "surulur"
+# (_run_coro), boylece test_card.py'nin bozdugu global asyncio durumuna
+# hic dokunulmaz.
+
+
+def _run_coro(coro):
+    try:
+        coro.send(None)
+    except StopIteration as exc:
+        return exc.value
+    raise AssertionError(
+        "coroutine gercek bir event loop'a ihtiyac duydu (bir await noktasinda askida kaldi) -- "
+        "bu test yardimcisi sadece AsyncMock/trivial async fonksiyonlar icin calisir"
+    )
+
+
+@pytest.fixture(autouse=True)
+def _temiz_active_users_durumu():
+    telegram_bot._active_users.clear()
+    yield
+    telegram_bot._active_users.clear()
+
+
+def _fake_update(text: str, user_id: int):
+    message = SimpleNamespace(text=text, reply_text=AsyncMock())
+    return SimpleNamespace(message=message, effective_user=SimpleNamespace(id=user_id))
+
+
+def _fake_context(user_data: dict | None = None):
+    return SimpleNamespace(user_data=user_data if user_data is not None else {})
+
+
+def test_handle_ticker_message_bekleyen_islem_yokken_varsayilan_bist(monkeypatch) -> None:
+    """Kullanici menuye HIC girmeden dogrudan 'THYAO' yazarsa bu YINE
+    calismali (varsayilan market: BIST) -- gorev talimati, mevcut kullanici
+    aliskanligi korunmali."""
+    calls = AsyncMock()
+    monkeypatch.setattr(telegram_bot, "_execute_and_send", calls)
+
+    update = _fake_update("THYAO", user_id=9001)
+    context = _fake_context()
+    _run_coro(telegram_bot.handle_ticker_message(update, context))
+
+    calls.assert_awaited_once()
+    _, kwargs = calls.await_args
+    assert calls.await_args.args[0] == "THYAO"
+    assert kwargs["market"] == "BIST"
+
+
+def test_handle_ticker_message_nasdaq_bekleyen_islem_market_nasdaq_kullanir(monkeypatch) -> None:
+    calls = AsyncMock()
+    monkeypatch.setattr(telegram_bot, "_execute_and_send", calls)
+
+    user_data: dict = {}
+    menu.set_bekleyen_islem(user_data, tip="analiz", market="NASDAQ")
+
+    update = _fake_update("AAPL", user_id=9002)
+    context = _fake_context(user_data)
+    _run_coro(telegram_bot.handle_ticker_message(update, context))
+
+    calls.assert_awaited_once()
+    assert calls.await_args.args[0] == "AAPL"
+    assert calls.await_args.kwargs["market"] == "NASDAQ"
+    assert "bekleyen_islem" not in user_data  # basarili girdiden sonra TUKETILIR
+
+
+def test_handle_ticker_message_nasdaq_noktali_sembolu_dogru_normalize_eder(monkeypatch) -> None:
+    calls = AsyncMock()
+    monkeypatch.setattr(telegram_bot, "_execute_and_send", calls)
+
+    user_data: dict = {}
+    menu.set_bekleyen_islem(user_data, tip="analiz", market="NASDAQ")
+
+    update = _fake_update("brk.b", user_id=9003)
+    context = _fake_context(user_data)
+    _run_coro(telegram_bot.handle_ticker_message(update, context))
+
+    assert calls.await_args.args[0] == "BRK.B"
+
+
+def test_handle_ticker_message_nasdaq_bekleyen_islemken_gecersiz_girdi_state_korunur(monkeypatch) -> None:
+    """NASDAQ icin gecersiz bir kod (BIST kalibinda 6 harf) yazilirsa bekleyen
+    islem SILINMEMELI ki kullanici tekrar deneyebilsin."""
+    calls = AsyncMock()
+    monkeypatch.setattr(telegram_bot, "_execute_and_send", calls)
+
+    user_data: dict = {}
+    menu.set_bekleyen_islem(user_data, tip="analiz", market="NASDAQ")
+
+    update = _fake_update("THYAOX", user_id=9004)
+    context = _fake_context(user_data)
+    _run_coro(telegram_bot.handle_ticker_message(update, context))
+
+    calls.assert_not_awaited()
+    update.message.reply_text.assert_awaited_once()
+    (msg,), _ = update.message.reply_text.await_args
+    assert "NASDAQ" in msg
+    assert "bekleyen_islem" in user_data  # state KORUNDU
+
+
+def test_handle_ticker_message_bist_gecersiz_girdi_orijinal_mesaji_korur(monkeypatch) -> None:
+    calls = AsyncMock()
+    monkeypatch.setattr(telegram_bot, "_execute_and_send", calls)
+
+    update = _fake_update("AB", user_id=9005)
+    context = _fake_context()
+    _run_coro(telegram_bot.handle_ticker_message(update, context))
+
+    calls.assert_not_awaited()
+    update.message.reply_text.assert_awaited_once_with(
+        "Anlayamadım. Lütfen 3-6 harfli bir BIST hisse kodu yaz (örn: THYAO)."
+    )
+
+
+def test_handle_ticker_message_suresi_dolmus_bekleyen_islem_bist_varsayilanina_doner(monkeypatch) -> None:
+    import time as time_module
+
+    calls = AsyncMock()
+    monkeypatch.setattr(telegram_bot, "_execute_and_send", calls)
+
+    user_data: dict = {}
+    menu.set_bekleyen_islem(user_data, tip="analiz", market="NASDAQ")
+    expires_at = user_data["bekleyen_islem"].expires_at
+    monkeypatch.setattr(time_module, "monotonic", lambda: expires_at + 1.0)
+
+    update = _fake_update("THYAO", user_id=9006)
+    context = _fake_context(user_data)
+    _run_coro(telegram_bot.handle_ticker_message(update, context))
+
+    assert calls.await_args.kwargs["market"] == "BIST"
+
+
+# --- handle_menu_callback: her menu dali + geri butonu -----------------------------------------------------
+
+
+def _fake_callback_update(data: str):
+    query = SimpleNamespace(data=data, answer=AsyncMock(), edit_message_text=AsyncMock())
+    return SimpleNamespace(callback_query=query), query
+
+
+def test_handle_menu_callback_root_ana_menuyu_gosterir_ve_bekleyeni_temizler() -> None:
+    user_data: dict = {}
+    menu.set_bekleyen_islem(user_data, tip="analiz", market="NASDAQ")
+    update, query = _fake_callback_update("menu:root")
+
+    _run_coro(telegram_bot.handle_menu_callback(update, _fake_context(user_data)))
+
+    query.answer.assert_awaited_once()
+    query.edit_message_text.assert_awaited_once()
+    (text,), kwargs = query.edit_message_text.await_args
+    assert text == menu.ROOT_MENU_TEXT
+    assert kwargs["reply_markup"].inline_keyboard[0][0].callback_data == "menu:analiz"
+    assert "bekleyen_islem" not in user_data
+
+
+def test_handle_menu_callback_analiz_ust_menu_secenekleri_gosterir() -> None:
+    update, query = _fake_callback_update("menu:analiz")
+    _run_coro(telegram_bot.handle_menu_callback(update, _fake_context()))
+
+    (text,), kwargs = query.edit_message_text.await_args
+    assert text == menu.ANALIZ_MENU_TEXT
+    grid = [[b.callback_data for b in row] for row in kwargs["reply_markup"].inline_keyboard]
+    assert grid == [["menu:analiz:bist"], ["menu:analiz:nasdaq"], ["menu:root"]]
+
+
+def test_handle_menu_callback_analiz_bist_bekleyen_islem_ayarlar_ve_prompt_gosterir() -> None:
+    user_data: dict = {}
+    update, query = _fake_callback_update("menu:analiz:bist")
+    _run_coro(telegram_bot.handle_menu_callback(update, _fake_context(user_data)))
+
+    (text,), _ = query.edit_message_text.await_args
+    assert text == menu.ANALIZ_BIST_PROMPT
+    assert user_data["bekleyen_islem"].market == "BIST"
+
+
+def test_handle_menu_callback_analiz_nasdaq_bekleyen_islem_ayarlar_ve_prompt_gosterir() -> None:
+    user_data: dict = {}
+    update, query = _fake_callback_update("menu:analiz:nasdaq")
+    _run_coro(telegram_bot.handle_menu_callback(update, _fake_context(user_data)))
+
+    (text,), _ = query.edit_message_text.await_args
+    assert text == menu.ANALIZ_NASDAQ_PROMPT
+    assert user_data["bekleyen_islem"].market == "NASDAQ"
+
+
+def test_handle_menu_callback_takvim_ust_menu_secenekleri_gosterir() -> None:
+    update, query = _fake_callback_update("menu:takvim")
+    _run_coro(telegram_bot.handle_menu_callback(update, _fake_context()))
+
+    (text,), kwargs = query.edit_message_text.await_args
+    assert text == menu.TAKVIM_MENU_TEXT
+    grid = [[b.callback_data for b in row] for row in kwargs["reply_markup"].inline_keyboard]
+    assert grid == [["menu:takvim:bist"], ["menu:takvim:nasdaq"], ["menu:root"]]
+
+
+def test_handle_menu_callback_takvim_bist_iskelet_metni_gosterir() -> None:
+    update, query = _fake_callback_update("menu:takvim:bist")
+    _run_coro(telegram_bot.handle_menu_callback(update, _fake_context()))
+
+    (text,), _ = query.edit_message_text.await_args
+    assert text == menu.TAKVIM_ISKELET_TEXT_BIST
+
+
+def test_handle_menu_callback_takvim_nasdaq_iskelet_metni_gosterir() -> None:
+    update, query = _fake_callback_update("menu:takvim:nasdaq")
+    _run_coro(telegram_bot.handle_menu_callback(update, _fake_context()))
+
+    (text,), _ = query.edit_message_text.await_args
+    assert text == menu.TAKVIM_ISKELET_TEXT_NASDAQ
+
+
+def test_handle_menu_callback_son_kartlar_metnini_gosterir(monkeypatch) -> None:
+    monkeypatch.setattr(telegram_bot, "_son_kartlar_metni", AsyncMock(return_value="sahte kart listesi"))
+    update, query = _fake_callback_update("menu:son")
+    _run_coro(telegram_bot.handle_menu_callback(update, _fake_context()))
+
+    (text,), kwargs = query.edit_message_text.await_args
+    assert text == "sahte kart listesi"
+    grid = [[b.callback_data for b in row] for row in kwargs["reply_markup"].inline_keyboard]
+    assert grid == [["menu:root"]]
+
+
+def test_handle_menu_callback_hakkinda_metnini_gosterir() -> None:
+    update, query = _fake_callback_update("menu:hakkinda")
+    _run_coro(telegram_bot.handle_menu_callback(update, _fake_context()))
+
+    (text,), kwargs = query.edit_message_text.await_args
+    assert text == telegram_bot._HAKKINDA_TEXT
+    assert kwargs["reply_markup"].inline_keyboard[0][0].callback_data == "menu:root"

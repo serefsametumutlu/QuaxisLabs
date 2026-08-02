@@ -315,6 +315,36 @@ pytest tests/ -v
       artık her dönemi ayrı ayrı (tüm aday etiketleri deneyerek) çözüp SONRA
       çıkarıyor, etiket değişikliğine dayanıklı. Test: `pytest tests/`
       (432 test, 14 yeni, hiçbir regresyon yok).
+- [x] **Faz 11 (buton menü arayüzü, 2026-08-02)** — Bot düz-metin-ticker'dan
+      butonlu menüye taşındı: `/start`/`/menu` → 📊 Bilanço Analizi (🇹🇷 BİST /
+      🇺🇸 NASDAQ) → 📅 Yaklaşan Bilanço Tarihleri (Faz 12/13 için iskelet,
+      şimdilik "yakında" mesajı) → 🕘 Son Kartlar → ℹ️ Hakkında, her alt menüde
+      "⬅️ Geri". Menü mantığı yeni `src/bot/menu.py` (123 satır) modülüne
+      çıkarıldı: navigasyon TAMAMEN `callback_data` içine gömülü (örn.
+      `"menu:analiz:nasdaq"`, hepsi 64 byte sınırının altında) — süreç yeniden
+      başlasa bile butonlar çalışır. SADECE "hisse kodu bekleniyor" durumu
+      `context.user_data["bekleyen_islem"]` içinde TTL'li (10 dk) tutulur;
+      süresi dolarsa `handle_ticker_message` sessizce varsayılan BİST akışına
+      döner. **Geriye uyumluluk KORUNDU**: kullanıcı menüye hiç girmeden
+      doğrudan "THYAO" yazarsa aynen eskisi gibi çalışır (varsayılan market
+      BİST, `normalize_ticker_input()` ikinci bir `market` parametresi aldı
+      ama varsayılanı `"BIST"`). NASDAQ ticker doğrulaması ayrı bir regex
+      (`^[A-Z]{1,5}(\.[A-Z])?$`) ile eklendi — BRK.B gibi sınıf ekli
+      sembolleri destekler. `run_pipeline(..., market=...)` artık Telegram
+      botundan da NASDAQ ile çağrılabiliyor (Faz 10'dan beri motor hazırdı,
+      bota hiç bağlanmamıştı). Menü mesajları her tıklamada `edit_message_text`
+      ile güncellenir, yeni mesaj atılmaz. **NASDAQ kapsamı doğrulandı**:
+      SEC EDGAR fetcher `company_tickers.json` üzerinden CIK'i ARAR — sabit
+      10 hisseyle SINIRLI DEĞİL, herhangi bir SEC'e kayıtlı ticker çalışır
+      (canlı doğrulandı: `COST`, önceden test edilen 10 hissenin DIŞINDA,
+      `scripts/demo_pipeline_us.py COST` ile uçtan uca başarılı). Bilinen
+      sınır DEĞİŞMEDİ: bankalar/sigortalar için "revenue" gibi bazı kalemler
+      N/A kalabilir (US GAAP şeması sadece sanayi/ürün şirketleri için
+      doğrulanmış, bkz. `06_BILINEN_SORUNLAR.md` B11). Test:
+      `pytest tests/` (485 test, 53 yeni — `tests/test_menu.py` + genişletilmiş
+      `tests/test_telegram_bot.py`, hiçbir regresyon yok). Canlı doğrulama:
+      `python main.py` ile bot başlatıldı, Telegram `getMyCommands` ile
+      `/menu` komutunun kayıtlı olduğu doğrulandı.
 
 ## Dizin Yapisi
 
@@ -331,7 +361,7 @@ bilanco-radar/
 │   ├── analysis/              # calculator.py, scorer.py
 │   ├── ai/                    # commentary.py
 │   ├── render/                 # templates/, card.py
-│   └── bot/                    # pipeline.py (orkestrasyon), telegram_bot.py
+│   └── bot/                    # pipeline.py (orkestrasyon), telegram_bot.py, menu.py (buton menü)
 └── tests/
 ```
 

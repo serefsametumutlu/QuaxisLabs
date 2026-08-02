@@ -23,7 +23,7 @@ from telegram.ext import Application, CallbackQueryHandler, CommandHandler, Cont
 from telegram.request import HTTPXRequest
 
 import config
-from src.bot import pipeline
+from src.bot import menu, pipeline
 from src.db import repository
 from src.formatting import format_number_tr
 
@@ -84,7 +84,12 @@ async def _on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     logger.exception("Beklenmeyen hata:", exc_info=context.error)
 
-_TICKER_RE = re.compile(r"^[A-Z]{3,6}$")
+# BIST: 3-6 harf. NASDAQ: 1-5 harf, opsiyonel tek harfli ".X" sinif eki (orn.
+# BRK.B, BF.B) -- Google'in GOOGL/GOOG'u gibi cift sembolluler zaten taban
+# desenle (nokta olmadan) eslesir, sinif eki SADECE BRK.B turu semboller icin
+# gerekir.
+_TICKER_RE_BIST = re.compile(r"^[A-Z]{3,6}$")
+_TICKER_RE_NASDAQ = re.compile(r"^[A-Z]{1,5}(\.[A-Z])?$")
 
 # --- Es zamanlilik / hiz siniri (bellek-ici, tek surec varsayimiyla) -----------------------------------------------------
 
@@ -96,11 +101,15 @@ _RATE_LIMIT_WINDOW_SECONDS = 60.0
 _RETRY_PERIODS_KEY_PREFIX = "retry_periods:"
 
 
-def normalize_ticker_input(text: str) -> str | None:
-    """'$thyao', '#THYAO ', 'thyao' -> 'THYAO'. 3-6 harf disinda bir sey
-    girilirse (ya da bos/cok uzunsa) None doner."""
+def normalize_ticker_input(text: str, market: str = "BIST") -> str | None:
+    """'$thyao', '#THYAO ', 'thyao' -> 'THYAO'. Market'e gore beklenen
+    desene (BIST: 3-6 harf, NASDAQ: 1-5 harf + opsiyonel .X sinif eki)
+    uymuyorsa None doner. Varsayilan market="BIST" -- menu ONCESI mevcut
+    kullanicilarin serbest metin ticker aliskanligi (bkz. handle_ticker_message)
+    AYNEN korunur."""
     cleaned = text.strip().lstrip("$#").strip().upper()
-    return cleaned if _TICKER_RE.fullmatch(cleaned) else None
+    ticker_re = _TICKER_RE_NASDAQ if market == "NASDAQ" else _TICKER_RE_BIST
+    return cleaned if ticker_re.fullmatch(cleaned) else None
 
 
 def _check_rate_limit(user_id: int) -> bool:
@@ -117,6 +126,35 @@ def _check_rate_limit(user_id: int) -> bool:
 # --- Komutlar -----------------------------------------------------
 
 
+_HAKKINDA_TEXT = (
+    "Bilanço Radar; çeyreklik finansal verileri İş Yatırım'dan, önemli "
+    "şirket duyurularını KAP'tan çeker. Tüm sayısal hesaplamalar "
+    "(yüzde değişim, oran, puan) kural tabanlı Python koduyla yapılır; "
+    "yapay zeka SADECE bu hazır sayılara kısa sözel yorum ekler, hiçbir "
+    "sayı üretmez.\n\n"
+    "Kaynaklar: İş Yatırım, KAP (kap.org.tr)\n\n"
+    "Bu içerik yatırım tavsiyesi değildir; yatırım kararı için "
+    "profesyonel danışmanlık alınmalıdır."
+)
+
+
+async def _son_kartlar_metni() -> str:
+    """cmd_son (/son) ve menu:son buton ekrani AYNI metni kullanir --
+    orkestrasyon farkli (biri yeni mesaj, digeri edit_message_text) ama
+    icerik TEK kaynaktan gelir."""
+    with repository.get_session() as session:
+        cards = repository.get_recent_cards(session, limit=5)
+
+    if not cards:
+        return "Henüz üretilmiş bir kart yok. Bir hisse kodu yazarak başlayabilirsin."
+
+    lines = ["Son üretilen kartlar:"]
+    for c in cards:
+        skor = format_number_tr(c.score, decimals=2)
+        lines.append(f"• #{c.ticker} — {c.created_at.strftime('%d.%m.%Y %H:%M')} — {skor}/10")
+    return "\n".join(lines)
+
+
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         "Merhaba! Ben Bilanço Radar 📊\n\n"
@@ -124,37 +162,23 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "analiz edip kart olarak sana gönderirim: yıllık/çeyreklik değişimler, "
         "kural tabanlı puanlama ve önemli KAP bildirimleri dahil.\n\n"
         "Denemek için yaz: THYAO\n\n"
-        "Diğer komutlar: /son (son üretilen kartlar), /hakkinda\n\n"
-        "Not: Bu içerik yatırım tavsiyesi değildir."
+        "Ya da aşağıdaki menüden BİST/NASDAQ seçip ilerleyebilirsin "
+        "(bu menü her zaman /menu ile tekrar açılır).\n\n"
+        "Not: Bu içerik yatırım tavsiyesi değildir.",
+        reply_markup=menu.build_root_menu(),
     )
+
+
+async def cmd_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text(menu.ROOT_MENU_TEXT, reply_markup=menu.build_root_menu())
 
 
 async def cmd_hakkinda(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text(
-        "Bilanço Radar; çeyreklik finansal verileri İş Yatırım'dan, önemli "
-        "şirket duyurularını KAP'tan çeker. Tüm sayısal hesaplamalar "
-        "(yüzde değişim, oran, puan) kural tabanlı Python koduyla yapılır; "
-        "yapay zeka SADECE bu hazır sayılara kısa sözel yorum ekler, hiçbir "
-        "sayı üretmez.\n\n"
-        "Kaynaklar: İş Yatırım, KAP (kap.org.tr)\n\n"
-        "Bu içerik yatırım tavsiyesi değildir; yatırım kararı için "
-        "profesyonel danışmanlık alınmalıdır."
-    )
+    await update.message.reply_text(_HAKKINDA_TEXT)
 
 
 async def cmd_son(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    with repository.get_session() as session:
-        cards = repository.get_recent_cards(session, limit=5)
-
-    if not cards:
-        await update.message.reply_text("Henüz üretilmiş bir kart yok. Bir hisse kodu yazarak başlayabilirsin.")
-        return
-
-    lines = ["Son üretilen kartlar:"]
-    for c in cards:
-        skor = format_number_tr(c.score, decimals=2)
-        lines.append(f"• #{c.ticker} — {c.created_at.strftime('%d.%m.%Y %H:%M')} — {skor}/10")
-    await update.message.reply_text("\n".join(lines))
+    await update.message.reply_text(await _son_kartlar_metni())
 
 
 # --- Analiz akisi -----------------------------------------------------
@@ -208,14 +232,16 @@ def _bilanco_ozeti_metni(sonuc: pipeline.PipelineResult) -> str:
     return "\n".join(lines).strip()
 
 
-async def _execute_and_send(ticker: str, update: Update, context: ContextTypes.DEFAULT_TYPE, periods=None) -> None:
+async def _execute_and_send(
+    ticker: str, update: Update, context: ContextTypes.DEFAULT_TYPE, periods=None, market: str = "BIST"
+) -> None:
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
     started = time.monotonic()
 
     try:
         await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
-        sonuc = await asyncio.to_thread(pipeline.run_pipeline, ticker, periods=periods)
+        sonuc = await asyncio.to_thread(pipeline.run_pipeline, ticker, periods=periods, market=market)
 
     except pipeline.TickerNotFoundError:
         await context.bot.send_message(chat_id, f"❌ {ticker} diye bir hisse bulamadım. Kodu kontrol eder misin?")
@@ -285,13 +311,29 @@ async def _execute_and_send(ticker: str, update: Update, context: ContextTypes.D
 
 
 async def handle_ticker_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Serbest metin ticker akisi. Menu uzerinden "Hisse kodunu yaz" butonuna
+    basilmissa `context.user_data["bekleyen_islem"]` o market'i (TTL'li)
+    belirtir; YOKSA (kullanici menuye HIC girmeden dogrudan "THYAO" yazdi)
+    varsayilan market="BIST" ile ESKI davranis AYNEN calisir -- menu EK bir
+    yol, yerine gecen degil (bkz. menu.py modul docstring'i)."""
     user = update.effective_user
     raw_text = update.message.text or ""
 
-    ticker = normalize_ticker_input(raw_text)
+    islem = menu.peek_bekleyen_islem(context.user_data)
+    market = islem.market if islem is not None else "BIST"
+
+    ticker = normalize_ticker_input(raw_text, market=market)
     if ticker is None:
-        await update.message.reply_text("Anlayamadım. Lütfen 3-6 harfli bir BIST hisse kodu yaz (örn: THYAO).")
+        if market == "NASDAQ":
+            await update.message.reply_text(
+                "Anlayamadım. Lütfen 1-5 harfli bir NASDAQ sembolü yaz (örn: AAPL, BRK.B)."
+            )
+        else:
+            await update.message.reply_text("Anlayamadım. Lütfen 3-6 harfli bir BIST hisse kodu yaz (örn: THYAO).")
         return
+
+    if islem is not None:
+        menu.clear_bekleyen_islem(context.user_data)
 
     if user.id in _active_users:
         await update.message.reply_text("⏳ Önceki isteğin hâlâ işleniyor, lütfen onu bekle.")
@@ -304,9 +346,55 @@ async def handle_ticker_message(update: Update, context: ContextTypes.DEFAULT_TY
     _active_users.add(user.id)
     try:
         await update.message.reply_text(f"🔍 {ticker} analiz ediliyor... (~20 sn)")
-        await _execute_and_send(ticker, update, context)
+        await _execute_and_send(ticker, update, context, market=market)
     finally:
         _active_users.discard(user.id)
+
+
+async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Tum 'menu:...' callback_data'lari icin tek giris noktasi. Menu mesaji
+    HER TIKLAMADA edit_message_text ile GUNCELLENIR -- yeni mesaj atilmaz
+    (sohbet kirlenmesin diye, gorev talimati)."""
+    query = update.callback_query
+    await query.answer()
+
+    parts = (query.data or "").split(":")
+    screen = parts[1] if len(parts) > 1 else "root"
+    sub = parts[2] if len(parts) > 2 else None
+
+    if screen == "root":
+        menu.clear_bekleyen_islem(context.user_data)
+        await query.edit_message_text(menu.ROOT_MENU_TEXT, reply_markup=menu.build_root_menu())
+        return
+
+    if screen == "analiz":
+        if sub == "bist":
+            menu.set_bekleyen_islem(context.user_data, tip="analiz", market="BIST")
+            await query.edit_message_text(menu.ANALIZ_BIST_PROMPT, reply_markup=menu.build_analiz_bekleniyor_menu())
+        elif sub == "nasdaq":
+            menu.set_bekleyen_islem(context.user_data, tip="analiz", market="NASDAQ")
+            await query.edit_message_text(menu.ANALIZ_NASDAQ_PROMPT, reply_markup=menu.build_analiz_bekleniyor_menu())
+        else:
+            menu.clear_bekleyen_islem(context.user_data)
+            await query.edit_message_text(menu.ANALIZ_MENU_TEXT, reply_markup=menu.build_analiz_menu())
+        return
+
+    if screen == "takvim":
+        if sub == "bist":
+            await query.edit_message_text(menu.TAKVIM_ISKELET_TEXT_BIST, reply_markup=menu.build_takvim_iskelet_menu())
+        elif sub == "nasdaq":
+            await query.edit_message_text(menu.TAKVIM_ISKELET_TEXT_NASDAQ, reply_markup=menu.build_takvim_iskelet_menu())
+        else:
+            await query.edit_message_text(menu.TAKVIM_MENU_TEXT, reply_markup=menu.build_takvim_menu())
+        return
+
+    if screen == "son":
+        await query.edit_message_text(await _son_kartlar_metni(), reply_markup=menu.build_alt_ekran_menu())
+        return
+
+    if screen == "hakkinda":
+        await query.edit_message_text(_HAKKINDA_TEXT, reply_markup=menu.build_alt_ekran_menu())
+        return
 
 
 async def handle_period_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -337,7 +425,8 @@ async def handle_period_callback(update: Update, context: ContextTypes.DEFAULT_T
 # --- Uygulama kurulumu -----------------------------------------------------
 
 _BOT_COMMANDS = [
-    BotCommand("start", "Botu tanıt, örnek kullanım göster"),
+    BotCommand("start", "Botu tanıt, menüyü aç"),
+    BotCommand("menu", "Buton menüsünü aç"),
     BotCommand("son", "Son üretilen 5 kartı listele"),
     BotCommand("hakkinda", "Veri kaynakları ve sorumluluk reddi"),
 ]
@@ -367,9 +456,11 @@ def build_application() -> Application:
         Application.builder().token(config.TELEGRAM_BOT_TOKEN).request(request).post_init(_post_init).build()
     )
     application.add_handler(CommandHandler("start", cmd_start))
+    application.add_handler(CommandHandler("menu", cmd_menu))
     application.add_handler(CommandHandler("son", cmd_son))
     application.add_handler(CommandHandler("hakkinda", cmd_hakkinda))
     application.add_handler(CallbackQueryHandler(handle_period_callback, pattern=r"^oncekidonem:"))
+    application.add_handler(CallbackQueryHandler(handle_menu_callback, pattern=r"^menu:"))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_ticker_message))
     application.add_error_handler(_on_error)
     return application

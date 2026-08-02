@@ -225,6 +225,24 @@ STANDARD_ITEM_MAP_US_GAAP: dict[str, list[str]] = {
         # ("DepreciationDepletionAndAmortization" JPM'de YOK).
         "us-gaap:DepreciationAmortizationAndAccretionNet",
     ],
+    # SADECE depreciation_amortization_us_gaap() turetmesi icin ic (internal)
+    # alanlar -- pipeline._standardize_to_records_us_gaap() bunlari DOGRUDAN
+    # DB'ye YAZMAZ (cost_of_revenue ic alaniyla AYNI ilke). CANLI hata
+    # (kullanici raporu, 2026-08-02): MSFT'nin gelir tablosunda (kart) FAVOK
+    # satiri EKSIKTI (5 yerine 4 metrik gorunuyordu) -- kok neden MSFT'nin
+    # yukaridaki IKI birlesik D&A tag'ini de HIC kullanmamasi (CANLI
+    # dogrulandi: DepreciationDepletionAndAmortization VE
+    # DepreciationAmortizationAndAccretionNet MSFT'de YOK), bunun yerine
+    # amortismani Depreciation (maddi duran varlik) ve
+    # AmortizationOfIntangibleAssets (maddi olmayan duran varlik) olarak IKI
+    # AYRI satirda raporluyor. depreciation_amortization_us_gaap() once
+    # birlesik tag'i dener, yoksa bu ikisini TOPLAR. CANLI dogrulandi (web
+    # aramasi, gurufocus.com): MSFT FY2026 Ç3 (Ocak-Mart 2026) icin
+    # Depreciation $9,0mr + AmortizationOfIntangibleAssets $1,1mr = $10,1mr
+    # -- gurufocus'un raporladigi birlesik "$10.167mr" ile %1'in ALTINDA
+    # farkla eslesiyor.
+    "depreciation_component": ["us-gaap:Depreciation"],
+    "amortization_component": ["us-gaap:AmortizationOfIntangibleAssets"],
     # --- Bilanco (STOK deger -- kumulatif duzeltme YAPILMAZ) ---
     "total_assets": ["us-gaap:Assets"],
     # NOT: JPM'de (banka) "AssetsCurrent" HIC raporlanmiyor (CANLI dogrulandi)
@@ -319,7 +337,10 @@ STANDARD_ITEM_MAP_US_GAAP: dict[str, list[str]] = {
 # adlari BIST XI_29 ile TUTARLI tutuldu (Faz 10'da calculator.py'nin
 # DOGRUDAN yeniden kullanilabilmesi icin).
 CUMULATIVE_FIELDS_US_GAAP: frozenset[str] = frozenset(
-    {"revenue", "gross_profit", "cost_of_revenue", "operating_profit", "net_income", "depreciation_amortization"}
+    {
+        "revenue", "gross_profit", "cost_of_revenue", "operating_profit", "net_income",
+        "depreciation_amortization", "depreciation_component", "amortization_component",
+    }
 )
 
 _STOCK_FIELDS_US_GAAP: frozenset[str] = frozenset(
@@ -768,6 +789,39 @@ def quarterly_gross_profit_us_gaap(raw: RawUsFinancials, period: Period) -> Deci
     if revenue is None or cost is None:
         return None
     return revenue - cost
+
+
+def depreciation_amortization_us_gaap(raw: RawUsFinancials, period: Period) -> Decimal | None:
+    """D&A (KUMULATIF) -- gross_profit_us_gaap() ile AYNI desen (dogrudan
+    birlesik tag ONCELIKLI, yoksa DOGRULANMIS bir toplama). Once
+    "DepreciationDepletionAndAmortization"/"DepreciationAmortizationAndAccretionNet"
+    (AAPL/NVDA/JPM) denenir; o donem icin YOKSA "Depreciation" (maddi duran
+    varlik) + "AmortizationOfIntangibleAssets" (maddi olmayan duran varlik)
+    TOPLANARAK turetilir (MSFT -- CANLI dogrulandi, bkz. STANDARD_ITEM_MAP_US_GAAP
+    'depreciation_component'/'amortization_component' ic alanlari ust notu).
+    Iki bilesenden SADECE biri varsa None doner (Kural 8: yanlis rakamdan
+    iyidir -- sadece amortismani/sadece amortisman DISI kismi FAVOK'a
+    yanlislikla katmamak icin)."""
+    direct = standardized_value_us_gaap(raw, "depreciation_amortization", period)
+    if direct is not None:
+        return direct
+    depreciation = standardized_value_us_gaap(raw, "depreciation_component", period)
+    amortization = standardized_value_us_gaap(raw, "amortization_component", period)
+    if depreciation is None or amortization is None:
+        return None
+    return depreciation + amortization
+
+
+def quarterly_depreciation_amortization_us_gaap(raw: RawUsFinancials, period: Period) -> Decimal | None:
+    """depreciation_amortization_us_gaap()'in TEK CEYREKLIK karsiligi -- bkz. docstring'i."""
+    direct = quarterly_standardized_value_us_gaap(raw, "depreciation_amortization", period)
+    if direct is not None:
+        return direct
+    depreciation = quarterly_standardized_value_us_gaap(raw, "depreciation_component", period)
+    amortization = quarterly_standardized_value_us_gaap(raw, "amortization_component", period)
+    if depreciation is None or amortization is None:
+        return None
+    return depreciation + amortization
 
 
 # --- Fiyat -----------------------------------------------------

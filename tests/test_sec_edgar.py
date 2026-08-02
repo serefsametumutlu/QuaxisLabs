@@ -26,8 +26,10 @@ from src.fetchers.sec_edgar import (
     _discover_available_periods,
     _extract_relevant_facts,
     _select_best_fact,
+    depreciation_amortization_us_gaap,
     gross_profit_us_gaap,
     normalize_ticker,
+    quarterly_depreciation_amortization_us_gaap,
     quarterly_gross_profit_us_gaap,
     quarterly_standardized_value_us_gaap,
     quarterly_value_from_cumulative_us_gaap,
@@ -319,6 +321,49 @@ def test_quarterly_gross_profit_us_gaap_kumulatiften_ceyreklik_turetir() -> None
     # ceyreklik maliyet = 11.925.203.000 - 5.000.000.000 = 6.925.203.000
     beklenen = Decimal("6559938000") - Decimal("6925203000")
     assert quarterly_gross_profit_us_gaap(raw, (2026, 6)) == beklenen
+
+
+# --- depreciation_amortization_us_gaap: dogrudan tag varsa oncelikli, yoksa Depreciation+Amortization toplami -----------------------------------------------------
+
+
+def test_depreciation_amortization_us_gaap_dogrudan_tag_varsa_onceliklidir() -> None:
+    # AAPL'de "DepreciationDepletionAndAmortization" tag'i dogrudan mevcut.
+    raw = _build_raw("AAPL")
+    period = raw.periods[0]
+    direct = standardized_value_us_gaap(raw, "depreciation_amortization", period)
+    assert direct is not None
+    assert depreciation_amortization_us_gaap(raw, period) == direct
+
+
+def test_depreciation_amortization_us_gaap_birlesik_tag_yoksa_depreciation_ve_amortizasyonu_toplar() -> None:
+    """CANLI DOGRULANDI (kullanici raporu, 2026-08-02: MSFT kartinda FAVOK
+    satiri eksikti -- 5 yerine 4 gelir tablosu metrigi gorunuyordu). MSFT
+    "DepreciationDepletionAndAmortization"/"DepreciationAmortizationAndAccretionNet"
+    tag'lerinin HICBIRINI kullanmiyor, D&A'yi "Depreciation" (maddi duran
+    varlik) + "AmortizationOfIntangibleAssets" (maddi olmayan duran varlik)
+    olarak IKI AYRI satirda raporluyor. Web aramasiyla (gurufocus.com)
+    dogrulandi: MSFT FY2026 Ç3 (Ocak-Mart 2026) birlesik D&A = $10.167mr;
+    bu testteki $9,0mr + $1,1mr = $10,1mr, %1'in ALTINDA farkla eslesiyor."""
+    raw = _build_raw("MSFT")
+    period = (2026, 9)  # FY2026 Q3 (fp="Q3") -- Ocak-Mart 2026 takvim ceyregi
+    assert standardized_value_us_gaap(raw, "depreciation_amortization", period) is None  # birlesik tag YOK
+    beklenen = Decimal("24000000000") - Decimal("15000000000") + (Decimal("3700000000") - Decimal("2600000000"))
+    assert quarterly_depreciation_amortization_us_gaap(raw, period) == beklenen
+    assert beklenen == Decimal("10100000000")  # $10,1mr -- gurufocus'un $10,167mr'iyle %1 altinda fark
+
+
+def test_depreciation_amortization_us_gaap_sadece_bir_bilesen_varsa_none_doner() -> None:
+    # Sadece "Depreciation" var, "AmortizationOfIntangibleAssets" yok --
+    # yanlislikla eksik bir D&A rakami uretmemek icin None donmeli (Kural 8).
+    facts_by_tag = {
+        "us-gaap:Depreciation": [_fact("2026-01-01", "2026-03-31", "9000000000", "Q3", 2026)],
+    }
+    raw = RawUsFinancials(
+        ticker="TEST", cik10="0000000000", company_name="Test Corp",
+        periods=[(2026, 9)], facts_by_tag=facts_by_tag,
+    )
+    assert depreciation_amortization_us_gaap(raw, (2026, 9)) is None
+    assert quarterly_depreciation_amortization_us_gaap(raw, (2026, 9)) is None
 
 
 def test_shares_outstanding_donem_ortalamasi_fallback_uzerinden_dogru_secilir() -> None:

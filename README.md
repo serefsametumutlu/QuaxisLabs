@@ -345,6 +345,25 @@ pytest tests/ -v
       `tests/test_telegram_bot.py`, hiçbir regresyon yok). Canlı doğrulama:
       `python main.py` ile bot başlatıldı, Telegram `getMyCommands` ile
       `/menu` komutunun kayıtlı olduğu doğrulandı.
+- [x] **Faz 11.1 (MSFT FAVÖK eksikliği düzeltmesi — kullanıcı raporu, 2026-08-02)** —
+      Kullanıcı MSFT kartında GELİR TABLOSU'nun 5 yerine 4 metrik gösterdiğini
+      bildirdi (FAVÖK satırı tamamen kayboluyordu, tablo görsel olarak eksik/
+      dengesiz görünüyordu). **Kök neden**: MSFT, AAPL/NVDA/JPM'nin kullandığı
+      birleşik D&A tag'lerinin (`DepreciationDepletionAndAmortization`/
+      `DepreciationAmortizationAndAccretionNet`) HİÇBİRİNİ raporlamıyor —
+      amortismanı `Depreciation` (maddi duran varlık) + `AmortizationOfIntangibleAssets`
+      (maddi olmayan duran varlık) olarak İKİ AYRI XBRL satırında tutuyor.
+      **Düzeltme**: `sec_edgar.depreciation_amortization_us_gaap()`/
+      `quarterly_depreciation_amortization_us_gaap()` eklendi — `gross_profit_us_gaap()`
+      ile AYNI desen (birleşik tag öncelikli, yoksa iki bileşen TOPLANIR, sadece
+      biri varsa None). CANLI DOĞRULANDI (web araması, gurufocus.com): MSFT
+      FY26 Ç3 hesaplanan D&A $10,1mr, dış kaynağın raporladığı $10.167mr ile
+      %1'in ALTINDA farkla eşleşti; kart yeniden render edildi, FAVÖK satırı
+      artık görünüyor. Ayrıca kullanıcının "tüm NASDAQ hisseleri render
+      edilebiliyor mu" sorusu için `COST` (önceden test edilmemiş) ve `ADBE`
+      canlı test edildi — ikisi de 5/5 metrikle uçtan uca başarılı. Test:
+      `pytest tests/` (488 test, 3 yeni — `tests/test_sec_edgar.py`, hiçbir
+      regresyon yok).
 
 ## Dizin Yapisi
 

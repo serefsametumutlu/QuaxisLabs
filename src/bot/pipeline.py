@@ -374,6 +374,13 @@ def _standardize_to_records_us_gaap(raw: sec_edgar.RawUsFinancials) -> list[repo
                 # stockanalysis.com ile BIREBIR dogrulandi, PYPL'de HALA None).
                 value = sec_edgar.quarterly_gross_profit_us_gaap(raw, period)
                 cum_value = sec_edgar.gross_profit_us_gaap(raw, period)
+            elif field == "depreciation_amortization":
+                # bkz. sec_edgar.depreciation_amortization_us_gaap() docstring'i:
+                # dogrudan birlesik tag yoksa (MSFT -- CANLI hata, kullanici
+                # raporu: FAVOK satiri kartta eksikti) Depreciation +
+                # AmortizationOfIntangibleAssets TOPLANARAK turetilir.
+                value = sec_edgar.quarterly_depreciation_amortization_us_gaap(raw, period)
+                cum_value = sec_edgar.depreciation_amortization_us_gaap(raw, period)
             else:
                 value = sec_edgar.quarterly_standardized_value_us_gaap(raw, field, period)
                 cum_value = sec_edgar.standardized_value_us_gaap(raw, field, period)

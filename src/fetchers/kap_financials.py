@@ -418,7 +418,7 @@ def find_latest_financial_report(ticker: str, days: int = 365) -> FinancialRepor
         newest = candidates[0]
         for candidate in candidates:
             try:
-                html = _fetch_report_html(candidate["disclosureIndex"])
+                html = fetch_disclosure_html(candidate["disclosureIndex"])
             except Exception as exc:  # noqa: BLE001 -- tek bir adayin sayfasi cekilemese bile digerleri denenmeli
                 logger.warning(
                     "%s icin disclosure_index=%s Konsolide/Solo kontrolu icin cekilemedi: %s",
@@ -443,11 +443,14 @@ def find_latest_financial_report(ticker: str, days: int = 365) -> FinancialRepor
     wait=wait_fixed(config.HTTP_RATE_LIMIT_DELAY_SECONDS),
     retry=retry_if_exception_type(httpx.RequestError),
 )
-def _fetch_report_html(disclosure_index: int) -> str:
+def fetch_disclosure_html(disclosure_index: int) -> str:
     """Bir KAP bildirim sayfasinin TAM HTML'ini ceker (JAVASCRIPT calismaz,
     saf httpx.get() -- canli dogrulandi: veri sunucu tarafinda render
     edilmis HTML icinde geliyor). Sayfalar buyuk olabilir (~5MB, TATGD ile
-    dogrulandi)."""
+    dogrulandi). Rapor-turune OZGU DEGILDIR -- Finansal Rapor sayfalari icin
+    bu modul icinde, Finansal Takvim sayfalari icin src/fetchers/
+    earnings_calendar.py'de kullanilir (ONCEDEN '_fetch_report_html' adiyla
+    SADECE bu modulde ozeldi, Faz 12'de genel kullanima acildi)."""
     url = _DISCLOSURE_URL_TEMPLATE.format(disclosure_index=disclosure_index)
     try:
         response = httpx.get(url, headers=_HEADERS, timeout=max(config.HTTP_TIMEOUT_SECONDS, 30), follow_redirects=True)
@@ -620,7 +623,7 @@ def fetch_latest_xi29_financials(ticker: str) -> RawKapFinancials | None:
         ref = find_latest_financial_report(ticker)
         if ref is None:
             return None
-        html = _fetch_report_html(ref.disclosure_index)
+        html = fetch_disclosure_html(ref.disclosure_index)
         return parse_financial_report(html, ticker, ref.disclosure_index, ref.period)
     except Exception as exc:  # noqa: BLE001 -- bkz. docstring: tazelik yamasi ASLA pipeline'i BLOKE ETMEMELI
         logger.warning("%s icin KAP'tan tazelik yamasi cekilemedi (Is Yatirim verisiyle devam edilecek): %s", ticker, exc)
@@ -638,7 +641,7 @@ def fetch_latest_ufrs_financials(ticker: str) -> RawKapFinancials | None:
         ref = find_latest_financial_report(ticker)
         if ref is None:
             return None
-        html = _fetch_report_html(ref.disclosure_index)
+        html = fetch_disclosure_html(ref.disclosure_index)
         return parse_financial_report(html, ticker, ref.disclosure_index, ref.period, balance_column_count=6)
     except Exception as exc:  # noqa: BLE001 -- bkz. docstring: tazelik yamasi ASLA pipeline'i BLOKE ETMEMELI
         logger.warning("%s icin KAP'tan (UFRS) tazelik yamasi cekilemedi (Is Yatirim verisiyle devam edilecek): %s", ticker, exc)

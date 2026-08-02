@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 from contextlib import contextmanager
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Iterator
 
@@ -28,6 +28,7 @@ from src.db.models import (
     CommentaryCache,
     Company,
     Disclosure,
+    EarningsCalendar,
     FinancialPeriod,
     GeneratedCard,
     DefaultSessionLocal,
@@ -42,6 +43,9 @@ FinancialRecord = tuple[int, int, str, str, Decimal]
 
 # (date, title, category, importance, url)
 DisclosureRecord = tuple[datetime, str, str, str, str]
+
+# (ticker, market, company_name, year, period, expected_date, confidence, source)
+EarningsCalendarRecord = tuple[str, str, str, int, int, date, str, str]
 
 _default_db_initialized = False
 
@@ -353,3 +357,78 @@ def save_generated_card(session: Session, ticker: str, png_path: str, score: flo
     session.add(card)
     session.commit()
     return card
+
+
+# --- Faz 12: Yaklaşan Bilanço Tarihleri (earnings_calendar) -----------------------------------------------------
+
+
+def upsert_earnings_calendar(session: Session, records: Iterable[EarningsCalendarRecord]) -> int:
+    """(ticker, year, period) benzersizligine gore kaydeder/gunceller --
+    ayni donem icin daha once (orn. dusuk guvenli 'son_tarih') bir tahmin
+    varsa, YENI (orn. KAP'in kendisinin acikladigi 'kesin') deger bunun
+    UZERINE YAZILIR (bkz. src/fetchers/earnings_calendar.py -- caller
+    ONCELIK sirasina gore [kesin > tahmini > son_tarih] SADECE bir tanesini
+    gonderir, bu fonksiyon sirf var olan satiri gunceller).
+
+    Donen deger: eklenen/guncellenen satir sayisi.
+    """
+    records = list(records)
+    if not records:
+        return 0
+
+    existing_by_key: dict[tuple[str, int, int], EarningsCalendar] = {
+        (row.ticker, row.year, row.period): row
+        for row in session.execute(select(EarningsCalendar)).scalars().all()
+    }
+
+    count = 0
+    for ticker, market, company_name, year, period, expected_date, confidence, source in records:
+        key = (ticker, year, period)
+        row = existing_by_key.get(key)
+        if row is None:
+            row = EarningsCalendar(ticker=ticker, year=year, period=period)
+            session.add(row)
+            existing_by_key[key] = row
+        row.market = market
+        row.company_name = company_name
+        row.expected_date = expected_date
+        row.confidence = confidence
+        row.source = source
+        row.updated_at = utcnow_naive()
+        count += 1
+
+    session.commit()
+    return count
+
+
+def get_upcoming_earnings(
+    session: Session, market: str, days_ahead: int = 30, today: date | None = None
+) -> list[EarningsCalendar]:
+    """`today` (varsayilan: bugun) ile `today + days_ahead` arasindaki
+    (dahil) tarihe sahip kayitlari, tarihe gore (en yakin once) doner.
+    `today` parametresi TEST EDILEBILIRLIK icin acik birakildi (date.today()
+    dogrudan cagrilmaz -- bkz. Faz 12 gorev talimati)."""
+    reference_day = today if today is not None else date.today()
+    end_day = reference_day + timedelta(days=days_ahead)
+    rows = session.execute(
+        select(EarningsCalendar)
+        .where(
+            EarningsCalendar.market == market,
+            EarningsCalendar.expected_date >= reference_day,
+            EarningsCalendar.expected_date <= end_day,
+        )
+        .order_by(EarningsCalendar.expected_date.asc())
+    ).scalars().all()
+    return list(rows)
+
+
+def is_earnings_calendar_fresh(session: Session, market: str, max_age_hours: int = 24) -> bool:
+    """O market icin herhangi bir kayit YOKSA VEYA en son guncellenen kayit
+    `max_age_hours`'tan eskiyse False doner -- gunde 1 kez yenileme
+    stratejisi icin (bkz. Faz 12 gorev talimati)."""
+    latest_updated_at = session.execute(
+        select(EarningsCalendar.updated_at).where(EarningsCalendar.market == market).order_by(EarningsCalendar.updated_at.desc()).limit(1)
+    ).scalar_one_or_none()
+    if latest_updated_at is None:
+        return False
+    return (utcnow_naive() - latest_updated_at) <= timedelta(hours=max_age_hours)

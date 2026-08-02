@@ -7,14 +7,14 @@ data/bilanco_radar.db dosyasina asla dokunulmaz.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
 from sqlalchemy import select
 
 from src.db import models, repository
-from src.db.models import Company, Disclosure, FinancialPeriod
+from src.db.models import Company, Disclosure, EarningsCalendar, FinancialPeriod
 
 
 @pytest.fixture()
@@ -239,3 +239,94 @@ def test_migrate_add_market_column_eski_semaya_sutun_ekler_ve_bist_ile_doldurur(
 
     # idempotentlik: tekrar cagirmak hata FIRLATMAMALI.
     models.init_db(engine)
+
+
+# --- Faz 12: earnings_calendar (upsert_earnings_calendar / get_upcoming_earnings / is_earnings_calendar_fresh) -----------------------------------------------------
+
+
+def _fake_earnings_record(ticker="TESTAS", market="BIST", expected_date=date(2026, 8, 10), confidence="tahmini"):
+    return (ticker, market, f"{ticker} A.Ş.", 2026, 6, expected_date, confidence, "geçmiş yayın medyanı")
+
+
+def test_upsert_earnings_calendar_ilk_cagrida_satir_ekler(session) -> None:
+    inserted = repository.upsert_earnings_calendar(session, [_fake_earnings_record()])
+    assert inserted == 1
+    rows = session.execute(select(EarningsCalendar).where(EarningsCalendar.ticker == "TESTAS")).scalars().all()
+    assert len(rows) == 1
+    assert rows[0].expected_date == date(2026, 8, 10)
+
+
+def test_upsert_earnings_calendar_ayni_donem_icin_mukerrer_satir_olusturmaz_gunceller(session) -> None:
+    repository.upsert_earnings_calendar(session, [_fake_earnings_record(confidence="son_tarih", expected_date=date(2026, 8, 20))])
+    repository.upsert_earnings_calendar(session, [_fake_earnings_record(confidence="kesin", expected_date=date(2026, 8, 10))])
+
+    rows = session.execute(select(EarningsCalendar).where(EarningsCalendar.ticker == "TESTAS")).scalars().all()
+    assert len(rows) == 1
+    assert rows[0].confidence == "kesin"
+    assert rows[0].expected_date == date(2026, 8, 10)
+
+
+def test_get_upcoming_earnings_tarih_araligina_gore_filtreler(session) -> None:
+    repository.upsert_earnings_calendar(
+        session,
+        [
+            _fake_earnings_record("ICERIDE", expected_date=date(2026, 8, 15)),
+            _fake_earnings_record("ONCESI", expected_date=date(2026, 7, 1)),
+            _fake_earnings_record("SONRASI", expected_date=date(2026, 12, 1)),
+        ],
+    )
+
+    results = repository.get_upcoming_earnings(session, market="BIST", days_ahead=30, today=date(2026, 8, 1))
+
+    assert [r.ticker for r in results] == ["ICERIDE"]
+
+
+def test_get_upcoming_earnings_market_filtreler(session) -> None:
+    repository.upsert_earnings_calendar(
+        session,
+        [
+            _fake_earnings_record("BIST_HISSE", market="BIST", expected_date=date(2026, 8, 10)),
+            _fake_earnings_record("NASDAQ_HISSE", market="NASDAQ", expected_date=date(2026, 8, 10)),
+        ],
+    )
+
+    results = repository.get_upcoming_earnings(session, market="NASDAQ", days_ahead=30, today=date(2026, 8, 1))
+
+    assert [r.ticker for r in results] == ["NASDAQ_HISSE"]
+
+
+def test_get_upcoming_earnings_tarihe_gore_siralanir(session) -> None:
+    repository.upsert_earnings_calendar(
+        session,
+        [
+            _fake_earnings_record("GEC", expected_date=date(2026, 8, 20)),
+            _fake_earnings_record("ERKEN", expected_date=date(2026, 8, 5)),
+        ],
+    )
+
+    results = repository.get_upcoming_earnings(session, market="BIST", days_ahead=30, today=date(2026, 8, 1))
+
+    assert [r.ticker for r in results] == ["ERKEN", "GEC"]
+
+
+def test_is_earnings_calendar_fresh_hic_kayit_yoksa_false(session) -> None:
+    assert repository.is_earnings_calendar_fresh(session, market="BIST") is False
+
+
+def test_is_earnings_calendar_fresh_yeni_guncellenmisse_true(session) -> None:
+    repository.upsert_earnings_calendar(session, [_fake_earnings_record()])
+    assert repository.is_earnings_calendar_fresh(session, market="BIST", max_age_hours=24) is True
+
+
+def test_is_earnings_calendar_fresh_eskiyse_false(session) -> None:
+    repository.upsert_earnings_calendar(session, [_fake_earnings_record()])
+    row = session.execute(select(EarningsCalendar).where(EarningsCalendar.ticker == "TESTAS")).scalar_one()
+    row.updated_at = models.utcnow_naive() - timedelta(hours=48)
+    session.commit()
+
+    assert repository.is_earnings_calendar_fresh(session, market="BIST", max_age_hours=24) is False
+
+
+def test_is_earnings_calendar_fresh_farkli_market_etkilemez(session) -> None:
+    repository.upsert_earnings_calendar(session, [_fake_earnings_record(market="BIST")])
+    assert repository.is_earnings_calendar_fresh(session, market="NASDAQ") is False

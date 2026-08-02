@@ -12,10 +12,10 @@ tutarli olmasi icin projede baska hicbir yerde yerel saat kullanilmamalidir.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import CheckConstraint, DateTime, Engine, ForeignKey, JSON, Numeric, String, UniqueConstraint, create_engine, inspect, text
+from sqlalchemy import CheckConstraint, Date, DateTime, Engine, ForeignKey, JSON, Numeric, String, UniqueConstraint, create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 import config
@@ -114,6 +114,28 @@ class CommentaryCache(Base):
     kap_note: Mapped[str | None] = mapped_column(String(500))
     source: Mapped[str] = mapped_column(String(20))  # "llm" | "fallback"
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow_naive)
+
+
+class EarningsCalendar(Base):
+    """Faz 12: "Yaklaşan Bilanço Tarihleri" onbellek tablosu -- her (ticker,
+    year, period) icin EN SON hesaplanan tahmini/kesin tarihi tutar (bkz.
+    src/fetchers/earnings_calendar.py). `ticker` KASITLI OLARAK Company'ye
+    FK DEGIL -- takvim, kullanicinin henuz hic sormadigi (Company tablosunda
+    kaydi olmayan) BIST100/NASDAQ evrenindeki sirketleri de icerebilir."""
+
+    __tablename__ = "earnings_calendar"
+    __table_args__ = (UniqueConstraint("ticker", "year", "period", name="uq_earnings_calendar_key"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    ticker: Mapped[str] = mapped_column(String(20), index=True)
+    market: Mapped[str] = mapped_column(String(10))  # "BIST" | "NASDAQ"
+    company_name: Mapped[str] = mapped_column(String(255))
+    year: Mapped[int]
+    period: Mapped[int]  # 3, 6, 9 veya 12
+    expected_date: Mapped[date] = mapped_column(Date)
+    confidence: Mapped[str] = mapped_column(String(20))  # "kesin" | "tahmini" | "son_tarih"
+    source: Mapped[str] = mapped_column(String(100))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow_naive)
 
 
 class GeneratedCard(Base):

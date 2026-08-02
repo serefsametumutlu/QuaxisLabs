@@ -376,6 +376,25 @@ pytest tests/ -v
       kalıcı önbelleğe yazılmaz, kendiliğinden düzelir), bu yüzden kod
       değişikliği yapılmadı. Test: `pytest tests/` (491 test, 3 yeni —
       `tests/test_pipeline.py`, hiçbir regresyon yok).
+- [x] **Faz 12 (Yaklaşan Bilanço Tarihleri — VERİ katmanı, 2026-08-02)** — BİST için
+      "hangi şirket ne zaman bilanço açıklayacak" sorusuna cevap veren tek bir resmi
+      API yok — üç yaklaşım araştırılıp (hepsi canlı doğrulandı) güven seviyesine göre
+      birleştirildi: (1) KAP **"Finansal Takvim"** bildirimi — kesin ama opsiyonel
+      (TAVHL/ASELS yayınlıyor, THYAO yayınlamıyor); (2) geçmiş **"Finansal Rapor"**
+      yayın tarihlerinin medyanı — tahmini (THYAO ~37 gün, TAVHL ~27,5 gün, ASELS
+      ~35,5 gün, dönem sonundan); (3) **SPK II-14.1 Tebliği** yasal son tarih — her
+      zaman hesaplanabilir fallback (yıllık 60/70 gün, ara dönem 30/40+10 gün,
+      resmi tatil kayması dahil). NASDAQ için üç aday karşılaştırıldı (Finnhub API
+      anahtarı istiyor, Yahoo artık "crumb" oturum tokenı istiyor) —
+      **`api.nasdaq.com/api/calendar/earnings`** seçildi (kayıtsız, günlük tüm
+      piyasayı tek istekte döndürüyor). Yeni `src/fetchers/earnings_calendar.py`
+      (490 satır) + `earnings_calendar` DB tablosu (`repository.upsert_earnings_calendar()`/
+      `get_upcoming_earnings()`/`is_earnings_calendar_fresh()`). **Görsel/bot
+      entegrasyonu bu fazın KAPSAMI DIŞINDA** (görev talimatı gereği — Faz 13'ün
+      konusu; menü hâlâ "yakında eklenecek" gösteriyor). Demo:
+      `python scripts/demo_takvim.py bist|nasdaq`. Test: `pytest tests/`
+      (537 test, 46 yeni — `tests/test_earnings_calendar.py` + `tests/test_db.py`
+      genişletmesi, hiçbir regresyon yok).
 
 ## Dizin Yapisi
 
@@ -387,7 +406,7 @@ bilanco-radar/
 ├── main.py                  # Giris noktasi
 ├── data/                    # SQLite dosyasi + loglar + onbellek
 ├── src/
-│   ├── fetchers/             # isyatirim.py, kap.py, sec_edgar.py (NASDAQ)
+│   ├── fetchers/             # isyatirim.py, kap.py, sec_edgar.py (NASDAQ), earnings_calendar.py (takvim)
 │   ├── db/                   # models.py, repository.py
 │   ├── analysis/              # calculator.py, scorer.py
 │   ├── ai/                    # commentary.py

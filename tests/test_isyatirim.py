@@ -1,0 +1,435 @@
+"""isyatirim.py icindeki saf mantik fonksiyonlarinin birim testleri.
+
+Ag erisimi gerektiren fetch_financials() bu dosyada test EDILMEZ (bkz.
+scripts/demo_fetch.py -- canli veriyle calisan Faz 2 teslim kriteri
+scripti). Burada sadece disariya bagimliligi olmayan hesaplamalar
+dogrulanir.
+"""
+
+from __future__ import annotations
+
+from decimal import Decimal
+
+import pytest
+
+from src.fetchers.isyatirim import (
+    FinancialItem,
+    STANDARD_ITEM_MAP_UFRS,
+    STANDARD_ITEM_MAP_UFRS_K,
+    STANDARD_ITEM_MAP_UFRS_KATILIM,
+    UnsupportedFinancialGroupError,
+    _merge_items,
+    _parse_decimal,
+    _resolve_actual_group,
+    _rows_to_items,
+    cash_and_financial_assets_ufrs_k,
+    guess_last_periods,
+    normalize_company_code,
+    previous_period,
+    quarterly_standardized_value_ufrs,
+    quarterly_standardized_value_ufrs_k,
+    quarterly_standardized_value_ufrs_katilim,
+    quarterly_technical_balance_ufrs_k,
+    quarterly_value_from_cumulative,
+    standardized_value_ufrs,
+    standardized_value_ufrs_k,
+    standardized_value_ufrs_katilim,
+    technical_balance_ufrs_k,
+    technical_provisions_ufrs_k,
+    total_debt,
+    total_revenue,
+    quarterly_total_revenue,
+    RawFinancials,
+    STANDARD_ITEM_MAP_XI_29,
+)
+
+
+# --- STANDARD_ITEM_MAP_XI_29: THYAO canli kesif yanitiyla dogrulanan kodlar -----------------------------------------------------
+# (bkz. data/exploration/thyao_items_readable.txt) -- bu alanlar onceden
+# haritada YOKTU (kart "Ticari Alacaklar" satiri her zaman "veri yok"
+# gosteriyordu); regresyonu kilitler.
+
+
+def test_standard_item_map_trade_receivables_dogru_kod() -> None:
+    assert STANDARD_ITEM_MAP_XI_29["trade_receivables"] == "1AC"
+
+
+def test_standard_item_map_current_assets_dogru_kod() -> None:
+    assert STANDARD_ITEM_MAP_XI_29["current_assets"] == "1A"
+
+
+def test_standard_item_map_share_capital_dogru_kod() -> None:
+    assert STANDARD_ITEM_MAP_XI_29["share_capital"] == "2OA"
+
+
+def test_normalize_company_code_strips_suffix_and_uppercases() -> None:
+    assert normalize_company_code("THYAO.IS") == "THYAO"
+    assert normalize_company_code("thyao") == "THYAO"
+    assert normalize_company_code("  akbnk.is  ") == "AKBNK"
+
+
+def test_previous_period_yil_basinda_none_doner() -> None:
+    assert previous_period((2026, 3)) is None
+
+
+def test_previous_period_yil_ici_dogru_hesaplar() -> None:
+    assert previous_period((2026, 6)) == (2026, 3)
+    assert previous_period((2026, 9)) == (2026, 6)
+    assert previous_period((2026, 12)) == (2026, 9)
+
+
+def test_previous_period_yil_donusu_dogru_hesaplar() -> None:
+    assert previous_period((2026, 3)) is None
+    assert previous_period((2025, 12)) == (2025, 9)
+
+
+def test_previous_period_gecersiz_donem_hata_firlatir() -> None:
+    with pytest.raises(ValueError):
+        previous_period((2026, 5))
+
+
+def test_quarterly_value_yil_basinda_cikarma_yapmaz() -> None:
+    values = {(2026, 3): Decimal("100")}
+    assert quarterly_value_from_cumulative(values, (2026, 3)) == Decimal("100")
+
+
+def test_quarterly_value_onceki_donemden_cikarir() -> None:
+    values = {(2026, 3): Decimal("100"), (2026, 6): Decimal("250")}
+    assert quarterly_value_from_cumulative(values, (2026, 6)) == Decimal("150")
+
+
+def test_quarterly_value_onceki_donem_yoksa_none_doner() -> None:
+    values = {(2026, 6): Decimal("250")}
+    assert quarterly_value_from_cumulative(values, (2026, 6)) is None
+
+
+def test_quarterly_value_mevcut_donem_yoksa_none_doner() -> None:
+    values = {(2026, 3): Decimal("100")}
+    assert quarterly_value_from_cumulative(values, (2026, 6)) is None
+
+
+def test_guess_last_periods_dogru_sayida_ve_sirada() -> None:
+    periods = guess_last_periods(count=8)
+    assert len(periods) == 8
+    for year, period in periods:
+        assert period in (3, 6, 9, 12)
+    # Yeniden eskiye siralanmis olmali
+    for i in range(len(periods) - 1):
+        current_year, current_period = periods[i]
+        next_year, next_period = periods[i + 1]
+        assert (current_year, current_period) > (next_year, next_period)
+
+
+def test_parse_decimal_bos_ve_none_degerler() -> None:
+    assert _parse_decimal(None) is None
+    assert _parse_decimal("") is None
+    assert _parse_decimal("   ") is None
+
+
+def test_parse_decimal_gecerli_sayi() -> None:
+    assert _parse_decimal("485646000000") == Decimal("485646000000")
+    assert _parse_decimal("-1818000000") == Decimal("-1818000000")
+
+
+def test_parse_decimal_sayisal_olmayan_deger_none_doner() -> None:
+    assert _parse_decimal("N/A") is None
+
+
+def test_rows_to_items_deger_donem_eslemesi() -> None:
+    rows = [
+        {"itemCode": "3C", "itemDescTr": "Satis Gelirleri", "value1": "100", "value2": "80", "value3": "", "value4": None},
+    ]
+    periods = [(2026, 3), (2025, 12), (2025, 9), (2025, 6)]
+    items = _rows_to_items(rows, periods)
+    assert items["3C"].values_by_period == {(2026, 3): Decimal("100"), (2025, 12): Decimal("80")}
+
+
+def test_merge_items_farkli_donemleri_birlestirir() -> None:
+    base = {
+        "3C": FinancialItem("3C", "Satis Gelirleri", {(2026, 3): Decimal("100")}),
+    }
+    extra = {
+        "3C": FinancialItem("3C", "Satis Gelirleri", {(2025, 3): Decimal("50")}),
+        "1BL": FinancialItem("1BL", "Toplam Varliklar", {(2025, 3): Decimal("1000")}),
+    }
+    merged = _merge_items(base, extra)
+    assert merged["3C"].values_by_period == {(2026, 3): Decimal("100"), (2025, 3): Decimal("50")}
+    assert merged["1BL"].values_by_period == {(2025, 3): Decimal("1000")}
+
+
+def test_total_debt_iki_kalemi_toplar() -> None:
+    period = (2026, 3)
+    items = {
+        STANDARD_ITEM_MAP_XI_29["short_term_financial_debt"]: FinancialItem(
+            "2AA", "Kisa Vadeli Finansal Borclar", {period: Decimal("100")}
+        ),
+        STANDARD_ITEM_MAP_XI_29["long_term_financial_debt"]: FinancialItem(
+            "2BA", "Uzun Vadeli Finansal Borclar", {period: Decimal("400")}
+        ),
+    }
+    raw = RawFinancials(
+        ticker="TEST", company_code="TEST", financial_group="XI_29", periods=[period], items=items
+    )
+    assert total_debt(raw, period) == Decimal("500")
+
+
+def test_total_debt_hicbiri_yoksa_none_doner() -> None:
+    period = (2026, 3)
+    raw = RawFinancials(
+        ticker="TEST", company_code="TEST", financial_group="XI_29", periods=[period], items={}
+    )
+    assert total_debt(raw, period) is None
+
+
+# --- total_revenue / quarterly_total_revenue: finans segmentli sirketler (TOASO canli hatasi) -----------------------------------------------------
+
+
+def test_total_revenue_finans_segmenti_varsa_3cac_ile_toplar() -> None:
+    """Canli dogrulanan TOASO hatasi: '3C' (Satis Gelirleri) tek basina,
+    bunyesinde finansman/leasing kolu olan sirketlerde Fintables'in
+    "Satislar" kaleminden dusuk kaliyordu -- '3CAC' (Finans Sektoru
+    Faaliyetlerinden Gelirler) DAHIL edilince TL'ye kadar eslesti."""
+    h1 = (2026, 6)
+    q1 = (2026, 3)
+    items = {
+        STANDARD_ITEM_MAP_XI_29["revenue"]: FinancialItem(
+            item_code=STANDARD_ITEM_MAP_XI_29["revenue"], description_tr="Satis Gelirleri",
+            values_by_period={h1: Decimal("201797108000"), q1: Decimal("95109919000")},
+        ),
+        "3CAC": FinancialItem(
+            item_code="3CAC", description_tr="Faiz, Ucret, Prim, Komisyon ve Diger Gelirler",
+            values_by_period={h1: Decimal("11346872000"), q1: Decimal("5000000000")},
+        ),
+    }
+    raw = RawFinancials(ticker="TOASO", company_code="TOASO", financial_group="XI_29", periods=[h1, q1], items=items)
+
+    assert total_revenue(raw, h1) == Decimal("213143980000")
+    assert quarterly_total_revenue(raw, h1) == Decimal("213143980000") - Decimal("100109919000")
+
+
+def test_total_revenue_finans_segmenti_yoksa_sadece_3c_doner() -> None:
+    """Cogunluk sirketlerde '3CAC' hic raporlanmaz -- davranis eskisiyle AYNI kalmali."""
+    period = (2026, 3)
+    items = {
+        STANDARD_ITEM_MAP_XI_29["revenue"]: FinancialItem(
+            item_code=STANDARD_ITEM_MAP_XI_29["revenue"], description_tr="Satis Gelirleri",
+            values_by_period={period: Decimal("1000")},
+        ),
+    }
+    raw = RawFinancials(ticker="TEST", company_code="TEST", financial_group="XI_29", periods=[period], items=items)
+
+    assert total_revenue(raw, period) == Decimal("1000")
+    assert quarterly_total_revenue(raw, period) == Decimal("1000")
+
+
+def test_total_revenue_hicbiri_yoksa_none_doner() -> None:
+    period = (2026, 3)
+    raw = RawFinancials(ticker="TEST", company_code="TEST", financial_group="XI_29", periods=[period], items={})
+    assert total_revenue(raw, period) is None
+    assert quarterly_total_revenue(raw, period) is None
+
+
+# --- STANDARD_ITEM_MAP_UFRS (banka): GARAN + AKBNK canli kesif yanitlariyla
+# dogrulanan kodlar (bkz. data/exploration/GARAN_UFRS_get_*.json,
+# akbnk_ufrs_items_readable.txt) -----------------------------------------------------
+
+
+def _raw_ufrs(items: dict) -> RawFinancials:
+    return RawFinancials(ticker="GARAN", company_code="GARAN", financial_group="UFRS", periods=list(items), items=items)
+
+
+def test_standardized_value_ufrs_interest_expense_negatiflenir() -> None:
+    """Ham veride Faiz Giderleri POZITIF buyukluk olarak gelir (GARAN canli
+    yaniti: value1=293769000000); kart/rapor geleneginde gider satiri EKSI
+    gosterilir (bkz. GARAN referans karti) -- standardized_value_ufrs bunu
+    NEGATIFE cevirmeli."""
+    period = (2026, 6)
+    item_code = STANDARD_ITEM_MAP_UFRS["interest_expense"]
+    raw = _raw_ufrs({item_code: FinancialItem(item_code, "FAIZ GIDERLERI", {period: Decimal("293769000000")})})
+    assert standardized_value_ufrs(raw, "interest_expense", period) == Decimal("-293769000000")
+
+
+def test_standardized_value_ufrs_diger_alanlar_negatiflenmez() -> None:
+    period = (2026, 6)
+    item_code = STANDARD_ITEM_MAP_UFRS["loans"]
+    raw = _raw_ufrs({item_code: FinancialItem(item_code, "KREDILER", {period: Decimal("2624664000000")})})
+    assert standardized_value_ufrs(raw, "loans", period) == Decimal("2624664000000")
+
+
+def test_quarterly_standardized_value_ufrs_interest_expense_ceyreklik_ve_negatif() -> None:
+    """Kumulatif (YTD) Faiz Giderleri'nden ceyreklik turetilirken de negatif
+    isaret korunmali."""
+    q1, q2 = (2026, 3), (2026, 6)
+    item_code = STANDARD_ITEM_MAP_UFRS["interest_expense"]
+    raw = _raw_ufrs(
+        {item_code: FinancialItem(item_code, "FAIZ GIDERLERI", {q1: Decimal("150000000000"), q2: Decimal("293769000000")})}
+    )
+    # Ceyreklik = 2Ç kumulatif - 1Ç kumulatif = 293.769mn - 150.000mn = 143.769mn, negatiflenmis hali -143.769mn
+    assert quarterly_standardized_value_ufrs(raw, "interest_expense", q2) == Decimal("-143769000000")
+
+
+def test_quarterly_standardized_value_ufrs_bilanco_kalemi_ceyreklestirilmez() -> None:
+    """loans (STOK deger) kumulatif -> ceyreklik donusumune TABI DEGILDIR --
+    standardized_value_ufrs ile ayni sonucu dondurmeli."""
+    period = (2026, 6)
+    item_code = STANDARD_ITEM_MAP_UFRS["loans"]
+    raw = _raw_ufrs({item_code: FinancialItem(item_code, "KREDILER", {period: Decimal("2624664000000")})})
+    assert quarterly_standardized_value_ufrs(raw, "loans", period) == Decimal("2624664000000")
+
+
+def test_standardized_value_ufrs_xi_29_semasinda_hata_firlatir() -> None:
+    raw = RawFinancials(ticker="THYAO", company_code="THYAO", financial_group="XI_29", periods=[], items={})
+    with pytest.raises(UnsupportedFinancialGroupError):
+        standardized_value_ufrs(raw, "loans", (2026, 6))
+
+
+# --- STANDARD_ITEM_MAP_UFRS_K (sigorta): ANSGR canli kesif yanitiyla
+# dogrulanan kodlar (bkz. data/exploration/ANSGR_UFRS_K_get_*.json) --
+# TUM degerler PROGRAMATIK olarak canli veriyle son haneye kadar dogrulandi. -----------------------------------------------------
+
+
+def _raw_ufrs_k(items: dict) -> RawFinancials:
+    return RawFinancials(ticker="ANSGR", company_code="ANSGR", financial_group="UFRS_K", periods=list(items), items=items)
+
+
+def test_standardized_value_ufrs_k_prim_uretimi() -> None:
+    period = (2026, 6)
+    item_code = STANDARD_ITEM_MAP_UFRS_K["gross_written_premiums"]
+    raw = _raw_ufrs_k({item_code: FinancialItem(item_code, "BRUT YAZILAN PRIMLER", {period: Decimal("54189705323")})})
+    assert standardized_value_ufrs_k(raw, "gross_written_premiums", period) == Decimal("54189705323")
+
+
+def test_technical_balance_ufrs_k_gelir_artı_gider_toplanir() -> None:
+    """Teknik Denge = Teknik Gelir + Teknik Gider (Teknik Gider ham veride
+    ZATEN negatif isaretle gelir, dogrudan toplanir). ANSGR ile canli
+    dogrulandi: 54.903.467.315 + (-45.602.915.467) = 9.300.551.848."""
+    period = (2026, 6)
+    income_code = STANDARD_ITEM_MAP_UFRS_K["technical_income"]
+    expense_code = STANDARD_ITEM_MAP_UFRS_K["technical_expense"]
+    raw = _raw_ufrs_k(
+        {
+            income_code: FinancialItem(income_code, "TEKNIK GELIR", {period: Decimal("54903467315")}),
+            expense_code: FinancialItem(expense_code, "TEKNIK GIDER", {period: Decimal("-45602915467")}),
+        }
+    )
+    assert technical_balance_ufrs_k(raw, period) == Decimal("9300551848")
+
+
+def test_cash_and_financial_assets_ufrs_k_iki_kalemi_toplar() -> None:
+    """Nakit Benzeri Finansal Varliklar = Nakit (1A) + Finansal Varliklar (1B)
+    -- ANSGR ile canli dogrulandi: 38.872.587.231 + 60.995.842.343 = 99.868.429.574."""
+    period = (2026, 6)
+    cash_code = STANDARD_ITEM_MAP_UFRS_K["cash_and_equivalents"]
+    financial_code = STANDARD_ITEM_MAP_UFRS_K["financial_assets"]
+    raw = _raw_ufrs_k(
+        {
+            cash_code: FinancialItem(cash_code, "NAKIT", {period: Decimal("38872587231")}),
+            financial_code: FinancialItem(financial_code, "FINANSAL VARLIKLAR", {period: Decimal("60995842343")}),
+        }
+    )
+    assert cash_and_financial_assets_ufrs_k(raw, period) == Decimal("99868429574")
+
+
+def test_technical_provisions_ufrs_k_iki_kalemi_toplar() -> None:
+    """Teknik Karsiliklar = kisa vadeli (2E) + uzun vadeli (2MD) -- ANSGR ile
+    canli dogrulandi: 82.395.051.067 + 2.416.774.566 = 84.811.825.633."""
+    period = (2026, 6)
+    current_code = STANDARD_ITEM_MAP_UFRS_K["technical_provisions_current"]
+    noncurrent_code = STANDARD_ITEM_MAP_UFRS_K["technical_provisions_noncurrent"]
+    raw = _raw_ufrs_k(
+        {
+            current_code: FinancialItem(current_code, "TEKNIK KARSILIK KV", {period: Decimal("82395051067")}),
+            noncurrent_code: FinancialItem(noncurrent_code, "TEKNIK KARSILIK UV", {period: Decimal("2416774566")}),
+        }
+    )
+    assert technical_provisions_ufrs_k(raw, period) == Decimal("84811825633")
+
+
+def test_quarterly_technical_balance_ufrs_k_ceyreklestirir() -> None:
+    q1, q2 = (2026, 3), (2026, 6)
+    income_code = STANDARD_ITEM_MAP_UFRS_K["technical_income"]
+    expense_code = STANDARD_ITEM_MAP_UFRS_K["technical_expense"]
+    raw = _raw_ufrs_k(
+        {
+            income_code: FinancialItem(
+                income_code, "TEKNIK GELIR", {q1: Decimal("20000000000"), q2: Decimal("54903467315")}
+            ),
+            expense_code: FinancialItem(
+                expense_code, "TEKNIK GIDER", {q1: Decimal("-15000000000"), q2: Decimal("-45602915467")}
+            ),
+        }
+    )
+    # Ceyreklik gelir = 54.903.467.315 - 20.000.000.000 = 34.903.467.315
+    # Ceyreklik gider = -45.602.915.467 - (-15.000.000.000) = -30.602.915.467
+    # Toplam = 34.903.467.315 + (-30.602.915.467) = 4.300.551.848
+    assert quarterly_technical_balance_ufrs_k(raw, q2) == Decimal("4300551848")
+
+
+def test_standardized_value_ufrs_k_yanlis_semada_hata_firlatir() -> None:
+    raw = RawFinancials(ticker="GARAN", company_code="GARAN", financial_group="UFRS", periods=[], items={})
+    with pytest.raises(UnsupportedFinancialGroupError):
+        standardized_value_ufrs_k(raw, "gross_written_premiums", (2026, 6))
+
+
+# --- STANDARD_ITEM_MAP_UFRS_KATILIM (katilim bankasi): ALBRK canli kesif
+# yanitiyla dogrulanan kodlar (bkz. data/exploration/ALBRK_UFRS_get_*.json) -----------------------------------------------------
+
+
+def _raw_ufrs_katilim(items: dict) -> RawFinancials:
+    return RawFinancials(ticker="ALBRK", company_code="ALBRK", financial_group="UFRS_KATILIM", periods=list(items), items=items)
+
+
+def test_standardized_value_ufrs_katilim_kar_payi_geliri() -> None:
+    period = (2026, 3)
+    item_code = STANDARD_ITEM_MAP_UFRS_KATILIM["interest_income"]
+    raw = _raw_ufrs_katilim({item_code: FinancialItem(item_code, "KAR PAYI GELIRLERI", {period: Decimal("19514464000")})})
+    assert standardized_value_ufrs_katilim(raw, "interest_income", period) == Decimal("19514464000")
+
+
+def test_standardized_value_ufrs_katilim_kar_payi_gideri_negatiflenir() -> None:
+    """Kar Payi Giderleri ham veride POZITIF buyukluk olarak gelir
+    (konvansiyonel bankadaki Faiz Giderleri gibi); NEGATIFE cevrilmeli."""
+    period = (2026, 3)
+    item_code = STANDARD_ITEM_MAP_UFRS_KATILIM["interest_expense"]
+    raw = _raw_ufrs_katilim({item_code: FinancialItem(item_code, "KAR PAYI GIDERLERI", {period: Decimal("16316515000")})})
+    assert standardized_value_ufrs_katilim(raw, "interest_expense", period) == Decimal("-16316515000")
+
+
+def test_quarterly_standardized_value_ufrs_katilim_ceyreklestirir() -> None:
+    q1, q2 = (2025, 12), (2026, 3)
+    item_code = STANDARD_ITEM_MAP_UFRS_KATILIM["interest_income"]
+    raw = _raw_ufrs_katilim(
+        {item_code: FinancialItem(item_code, "KAR PAYI GELIRLERI", {q1: Decimal("66678784000"), q2: Decimal("19514464000")})}
+    )
+    # q2 kumulatif zaten yil basi (period=3) oldugu icin CIKARMA YAPILMAZ,
+    # kendisi doner (bkz. quarterly_value_from_cumulative).
+    assert quarterly_standardized_value_ufrs_katilim(raw, "interest_income", q2) == Decimal("19514464000")
+
+
+def test_standardized_value_ufrs_katilim_yanlis_semada_hata_firlatir() -> None:
+    raw = RawFinancials(ticker="GARAN", company_code="GARAN", financial_group="UFRS", periods=[], items={})
+    with pytest.raises(UnsupportedFinancialGroupError):
+        standardized_value_ufrs_katilim(raw, "interest_income", (2026, 6))
+
+
+# --- _resolve_actual_group: katilim bankasi tespiti (canli ALBRK yanitiyla
+# dogrulanan '3A' aciklama metni: "I. KAR PAYI GELİRLERİ") -----------------------------------------------------
+
+
+def test_resolve_actual_group_kar_payi_katilim_bankasi_olarak_tespit_eder() -> None:
+    rows = [{"itemCode": "3A", "itemDescTr": "I. KAR PAYI GELİRLERİ"}]
+    assert _resolve_actual_group("UFRS", rows, "ALBRK") == "UFRS_KATILIM"
+
+
+def test_resolve_actual_group_faiz_konvansiyonel_banka_olarak_tespit_eder() -> None:
+    rows = [{"itemCode": "3A", "itemDescTr": "I. FAİZ GELİRLERİ"}]
+    assert _resolve_actual_group("UFRS", rows, "GARAN") == "UFRS"
+
+
+def test_resolve_actual_group_teknik_sigorta_olarak_tespit_eder() -> None:
+    rows = [{"itemCode": "3A", "itemDescTr": "A- Hayat Dışı Teknik Gelir"}]
+    assert _resolve_actual_group("UFRS", rows, "ANSGR") == "UFRS_K"
+
+
+def test_resolve_actual_group_xi_29_dokunulmaz() -> None:
+    assert _resolve_actual_group("XI_29", [{"itemCode": "3A", "itemDescTr": "her ne olursa"}], "THYAO") == "XI_29"

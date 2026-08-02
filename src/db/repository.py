@@ -1,0 +1,355 @@
+"""Veritabani CRUD/upsert islemleri.
+
+Tasarim notu: Fonksiyonlar kendi session'larini ACMAZ; cagiran taraf bir
+`Session` verir (bagimlilik enjeksiyonu). Bu sayede hem uretim kodunda
+(get_session() ile) hem de testlerde (izole bir SQLite dosyasina bagli
+session ile) ayni fonksiyonlar degismeden kullanilabilir.
+
+Bu modul kasitli olarak src.fetchers.* modullerini import ETMEZ (temiz
+katman ayrimi): upsert_financials/save_disclosures duz tuple'lar alir,
+fetcher -> repository donusumu ileride bir orkestrasyon/servis katmaninda
+yapilacaktir.
+"""
+
+from __future__ import annotations
+
+import logging
+from collections.abc import Iterable
+from contextlib import contextmanager
+from datetime import datetime, timedelta
+from decimal import Decimal
+from typing import Iterator
+
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from src.db.models import (
+    CommentaryCache,
+    Company,
+    Disclosure,
+    FinancialPeriod,
+    GeneratedCard,
+    DefaultSessionLocal,
+    utcnow_naive,
+    init_db,
+)
+
+logger = logging.getLogger(__name__)
+
+# (year, period, item_code, item_name, value)
+FinancialRecord = tuple[int, int, str, str, Decimal]
+
+# (date, title, category, importance, url)
+DisclosureRecord = tuple[datetime, str, str, str, str]
+
+_default_db_initialized = False
+
+
+class TickerMarketConflictError(Exception):
+    """Bir ticker, veritabaninda ZATEN FARKLI bir 'market' (BIST/NASDAQ)
+    ile kayitliyken TEKRAR farkli bir market ile yazilmaya calisildi.
+
+    Neden var: `Company.ticker` HALA TEK BASINA birincil anahtar (bkz.
+    models.Company) -- (market, ticker) bilesik anahtarina GECILMEDI, cunku
+    bu, olgun/376-test-kapsamli BIST kod yolunun (fetchers/pipeline/repository
+    HER YERINDE ticker'in TEK BASINA bir str oldugunu varsayan onlarca
+    cagri) BASTAN AsAGI degistirilmesini gerektirirdi -- Faz 9 kapsaminin
+    ("SADECE veri katmani") COK disinda, riskli bir refactor olurdu. Bugun
+    icin BIST (THYAO, ASELS, ...) ile NASDAQ (AAPL, NVDA, JPM, ...) evrenleri
+    arasinda GERCEK bir sembol cakismasi YOK (canli dogrulandi, proje
+    evreninin 10+10 hisse listesi). Ama bu TEORIK bir risktir (orn. ileride
+    3-6 harfli bir NASDAQ sembolu bir BIST koduyla CAKISABILIR).
+
+    Bu yuzden "sessizce coz" (orn. bir market'i otomatik 'kazanan' sec) YERINE
+    "algilay ve REDDET" secildi (Kural: yanlis/belirsiz veriden ISE None/hata
+    iyidir) -- boyle bir cakisma GERCEKTEN olursa sistem SESSIZCE bir
+    borsanin verisini digeriyle EZMEK yerine GURULTULU sekilde patlar, bir
+    insan (orn. sembollerden birine ayirt edici bir onek/sonek ekleyerek)
+    cozer.
+    """
+
+
+def _get_or_create_company(session: Session, ticker: str, market: str | None = None) -> Company:
+    company = session.get(Company, ticker)
+    if company is None:
+        company = Company(ticker=ticker, market=market or "BIST")
+        session.add(company)
+    elif market is not None and company.market is not None and company.market != market:
+        raise TickerMarketConflictError(
+            f"'{ticker}' zaten '{company.market}' piyasasinda kayitli, '{market}' olarak "
+            "TEKRAR yazilmaya calisildi -- muhtemelen BIST/NASDAQ sembol cakismasi (bkz. "
+            "TickerMarketConflictError docstring'i). Otomatik cozulmedi, elle mudahale gerekir."
+        )
+    return company
+
+
+@contextmanager
+def get_session() -> Iterator[Session]:
+    """Uretim kodu icin: veritabanini (ilk cagrida) hazirlar ve varsayilan
+    (config.DATABASE_URL'e bagli) bir Session doner.
+
+    Kullanim: `with get_session() as session: repository.upsert_financials(session, ...)`
+    """
+    global _default_db_initialized
+    if not _default_db_initialized:
+        init_db()
+        _default_db_initialized = True
+
+    session = DefaultSessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
+
+
+def upsert_financials(session: Session, ticker: str, records: Iterable[FinancialRecord], market: str | None = None) -> int:
+    """FinancialPeriod satirlarini (ticker, year, period, item_code) anahtarina
+    gore upsert eder: anahtar zaten varsa deger/kalem adi GUNCELLENIR, YENI
+    SATIR EKLENMEZ; yoksa yeni satir eklenir. Ayrica Company.last_updated'i
+    simdiki UTC zamanina gunceller (is_data_fresh() bu alana bakar).
+
+    CANLI HATA (Faz 10, NASDAQ ile bulundu): `market` verilmezse (varsayilan
+    cagirim) brand-new bir ticker icin BURADA olusturulan Company satiri
+    HER ZAMAN varsayilan "BIST" market'iyle yaratiliyordu -- pipeline.py
+    _fetch_and_store_us_gaap() hemen ARDINDAN set_company_info(market="NASDAQ")
+    cagirdiginda bu, henuz "BIST" olarak olusturulmus satirla CAKISIYOR
+    (TickerMarketConflictError) ve HER TEK yeni NASDAQ ticker'i icin sabit
+    sekilde patliyordu. Bu yuzden `pipeline._fetch_and_store_us_gaap()`
+    `market="NASDAQ"` ACIKCA gecirir -- boylece satir BASTAN dogru market'le
+    olusur, set_company_info()'nun sonraki cagrisi CAKISMAZ.
+
+    Donen deger: yeni EKLENEN satir sayisi (guncellenenler dahil degil).
+    """
+    records = list(records)
+
+    company = _get_or_create_company(session, ticker, market=market)
+
+    existing_rows = session.execute(
+        select(FinancialPeriod).where(FinancialPeriod.ticker == ticker)
+    ).scalars().all()
+    existing_by_key = {(row.year, row.period, row.item_code): row for row in existing_rows}
+
+    inserted = 0
+    for year, period, item_code, item_name, value in records:
+        key = (year, period, item_code)
+        existing = existing_by_key.get(key)
+        if existing is not None:
+            existing.item_name = item_name
+            existing.value = value
+        else:
+            session.add(
+                FinancialPeriod(
+                    ticker=ticker,
+                    year=year,
+                    period=period,
+                    item_code=item_code,
+                    item_name=item_name,
+                    value=value,
+                )
+            )
+            inserted += 1
+
+    company.last_updated = utcnow_naive()
+    session.commit()
+    return inserted
+
+
+def set_company_info(
+    session: Session,
+    ticker: str,
+    name: str | None = None,
+    sector: str | None = None,
+    financial_group: str | None = None,
+    market: str | None = None,
+) -> None:
+    """Sirket adi/sektor/financial_group/market bilgisini gunceller (bos/None
+    verilen alanlar DEGISTIRILMEZ, mevcut deger korunur). Orkestrasyon katmani
+    (src/bot/pipeline.py) KAP arama sonucundan gelen sirket adini VE Is Yatirim'dan
+    cozulen financial_group'u (XI_29/UFRS/UFRS_K) buraya yazar -- run_pipeline
+    hangi analiz/kart yolunu (sanayi vs banka) kullanacagina bunu okuyarak karar verir.
+    NASDAQ tarafi (src/fetchers/sec_edgar.py) icin `market="NASDAQ"`,
+    `financial_group="US_GAAP"` ile cagrilir.
+
+    `market` verilip ticker ZATEN FARKLI bir market ile kayitliysa
+    TickerMarketConflictError firlatir (bkz. sinif docstring'i) -- BIST/NASDAQ
+    sembol cakismasini SESSIZCE EZMEK yerine GURULTULU sekilde reddeder.
+    """
+    company = _get_or_create_company(session, ticker, market=market)
+    if name:
+        company.name = name
+    if sector:
+        company.sector = sector
+    if financial_group:
+        company.financial_group = financial_group
+    if market:
+        company.market = market
+    session.commit()
+
+
+def get_financials(session: Session, ticker: str, n_periods: int = 8) -> dict[tuple[int, int], dict[str, Decimal]]:
+    """Bir sirketin en yeni `n_periods` donemine ait tum kalemlerini
+    {(year, period): {item_code: value}} seklinde doner (yeniden eskiye).
+    """
+    rows = session.execute(
+        select(FinancialPeriod)
+        .where(FinancialPeriod.ticker == ticker)
+        .order_by(FinancialPeriod.year.desc(), FinancialPeriod.period.desc())
+    ).scalars().all()
+
+    result: dict[tuple[int, int], dict[str, Decimal]] = {}
+    for row in rows:
+        period_key = (row.year, row.period)
+        if period_key not in result and len(result) >= n_periods:
+            continue
+        result.setdefault(period_key, {})[row.item_code] = row.value
+    return result
+
+
+def save_disclosures(session: Session, ticker: str, records: Iterable[DisclosureRecord]) -> int:
+    """Disclosure satirlarini `url` benzersizligine gore kaydeder; ayni url
+    zaten varsa o kayit ATLANIR (guncellenmez -- bir bildirim yayinlandiktan
+    sonra icerigi degismez, sadece tekrar cekilmis olabilir).
+
+    Donen deger: yeni EKLENEN satir sayisi.
+    """
+    records = list(records)
+    if not records:
+        return 0
+
+    _get_or_create_company(session, ticker)
+
+    existing_urls = set(
+        session.execute(select(Disclosure.url).where(Disclosure.ticker == ticker)).scalars().all()
+    )
+
+    inserted = 0
+    for disclosure_date, title, category, importance, url in records:
+        if url in existing_urls:
+            continue
+        session.add(
+            Disclosure(
+                ticker=ticker,
+                date=disclosure_date,
+                title=title,
+                category=category,
+                importance=importance,
+                url=url,
+            )
+        )
+        existing_urls.add(url)
+        inserted += 1
+
+    try:
+        session.commit()
+    except IntegrityError:
+        # CANLI hata (kullanici raporu icin arastirilirken bulundu, EREGL):
+        # UNIQUE(ticker, url) yine de ihlal edilebilir (orn. ayni ticker+url
+        # icin es zamanli iki fetch, ya da bu fonksiyon disinda baska bir
+        # yoldan zaten eklenmis bir satir) -- bildirimler karta SADECE
+        # kozmetik zenginlestirme katar, TEMEL finansal veri DEGILDIR, bu
+        # yuzden bu asla run_pipeline'i COKERTMEMELI (bkz. modul geneli
+        # "tazelik yamasi" ilkesi, src/fetchers/kap_financials.py).
+        logger.warning("%s icin bildirimler kaydedilirken UNIQUE catismasi (atlaniyor): %s kayittan bazilari", ticker, len(records))
+        session.rollback()
+        return 0
+    return inserted
+
+
+def get_recent_disclosures(session: Session, ticker: str, days: int = 90) -> list[Disclosure]:
+    """Son `days` gunun bildirimlerini tarihe gore (yeniden eskiye) doner."""
+    cutoff = utcnow_naive() - timedelta(days=days)
+    rows = session.execute(
+        select(Disclosure)
+        .where(Disclosure.ticker == ticker, Disclosure.date >= cutoff)
+        .order_by(Disclosure.date.desc())
+    ).scalars().all()
+    return list(rows)
+
+
+def get_cached_commentary(session: Session, ticker: str, period: tuple[int, int]) -> CommentaryCache | None:
+    """(ticker, period) icin en son onbelleklenmis yorumu doner (yoksa None).
+    run_pipeline, finansal veri TAZEYSE (is_data_fresh) bunu kullanip
+    Gemini'yi TEKRAR cagirmaz -- bkz. CommentaryCache modeli (Gemini
+    ucretsiz katmaninin gunluk kota siniri var, canli dogrulandi: 20
+    istek/gun/model; ayni donem icin tekrar sorgu bu kotayi gereksiz tuketir)."""
+    year, period_no = period
+    return session.execute(
+        select(CommentaryCache).where(
+            CommentaryCache.ticker == ticker, CommentaryCache.year == year, CommentaryCache.period == period_no
+        )
+    ).scalar_one_or_none()
+
+
+def save_commentary(
+    session: Session,
+    ticker: str,
+    period: tuple[int, int],
+    headline: str,
+    summary: str,
+    positives: list[str],
+    negatives: list[str],
+    kap_note: str | None,
+    source: str,
+) -> None:
+    """(ticker, period) icin yorumu upsert eder (ayni donem icin TEKRAR
+    cagrilirsa GUNCELLENIR, yeni satir EKLENMEZ)."""
+    year, period_no = period
+    existing = session.execute(
+        select(CommentaryCache).where(
+            CommentaryCache.ticker == ticker, CommentaryCache.year == year, CommentaryCache.period == period_no
+        )
+    ).scalar_one_or_none()
+
+    if existing is not None:
+        existing.headline = headline
+        existing.summary = summary
+        existing.positives = positives
+        existing.negatives = negatives
+        existing.kap_note = kap_note
+        existing.source = source
+        existing.created_at = utcnow_naive()
+    else:
+        _get_or_create_company(session, ticker)
+        session.add(
+            CommentaryCache(
+                ticker=ticker, year=year, period=period_no, headline=headline, summary=summary,
+                positives=positives, negatives=negatives, kap_note=kap_note, source=source,
+            )
+        )
+    session.commit()
+
+
+def is_data_fresh(session: Session, ticker: str, max_age_hours: int = 12) -> bool:
+    """Company.last_updated `max_age_hours` icindeyse True doner (yeniden
+    internetten cekmeye gerek yok demektir). Sirket hic gorulmemisse veya
+    henuz finansal veri cekilmemisse False doner.
+    """
+    company = session.get(Company, ticker)
+    if company is None or company.last_updated is None:
+        return False
+    return (utcnow_naive() - company.last_updated) <= timedelta(hours=max_age_hours)
+
+
+def get_recent_cards(session: Session, limit: int = 5) -> list[GeneratedCard]:
+    """Bot genelinde en son URETILEN (herhangi bir sirket icin) en fazla
+    `limit` karti tarihe gore (yeniden eskiye) doner.
+
+    NOT: kullanici/chat bazinda DEGIL -- GeneratedCard semasinda (Faz 3'te
+    tasarlandigi sekliyle) bir chat_id sutunu yoktur, bu yuzden /son komutu
+    botun genelinde son uretilenleri gosterir.
+    """
+    rows = session.execute(
+        select(GeneratedCard).order_by(GeneratedCard.created_at.desc()).limit(limit)
+    ).scalars().all()
+    return list(rows)
+
+
+def save_generated_card(session: Session, ticker: str, png_path: str, score: float) -> GeneratedCard:
+    """Uretilen bir kartin kaydini olusturur (her cagrida YENI satir - kart
+    gecmisini tutmak icin upsert yapilmaz)."""
+    _get_or_create_company(session, ticker)
+    card = GeneratedCard(ticker=ticker, png_path=png_path, score=score, created_at=utcnow_naive())
+    session.add(card)
+    session.commit()
+    return card

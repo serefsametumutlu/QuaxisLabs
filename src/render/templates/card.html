@@ -1,0 +1,1045 @@
+<!--
+  Bilanco Radar kart sablonu -- yatay, tek-kare "terminal röntgen" (X-ray)
+  estetigi (Fintables tarzi paylasim karti referans alindi).
+
+  ONEMLI: Bu sablon HICBIR sayi hesaplamaz veya bicimlendirmez. Butun
+  degerler src.render.card.build_card_context() tarafindan ONCEDEN
+  Turkce formatlanmis string olarak gelir; burada sadece yerlestirilir.
+  card.py'deki show_ebitda bayragi FAVOK satir/grafigini acikca bir
+  kosullu blokla gizler (banka/sigorta modu).
+-->
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>{{ ticker }} - Bilanço Radar</title>
+<style>
+  :root {
+    --bg: #0a0e12;
+    --panel: rgba(255, 255, 255, 0.02);
+    --border: rgba(226, 232, 240, 0.09);
+    --border-soft: rgba(226, 232, 240, 0.06);
+    --heading: #e2e8f0;
+    --secondary: #64748b;
+    --positive: #22c55e;
+    --negative: #ef4444;
+    --accent: #f59e0b;
+    --mixed: #f97316;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+  }
+
+  .card {
+    position: relative;
+    width: 2000px;
+    background: radial-gradient(circle at 10% -10%, rgba(245, 158, 11, 0.05), transparent 40%),
+      radial-gradient(circle at 100% 0%, rgba(34, 197, 94, 0.04), transparent 35%),
+      var(--bg);
+    color: var(--heading);
+    font-family: "Cascadia Code", "Cascadia Mono", Consolas, "JetBrains Mono", "IBM Plex Mono",
+      "SFMono-Regular", Menlo, Monaco, ui-monospace, monospace;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    overflow: hidden;
+    padding: 30px 36px 24px;
+
+    display: grid;
+    /* Skor bolumu ARTIK sag tarafta 3 satiri (income/balance, charts, movers)
+       tek basina kaplayan DAR VE UZUN bir yan sutun DEGIL -- bu eski duzende
+       CSS Grid, o 3 satirin YUKSEKLIGINI skor panelinin TOPLAM icerigine gore
+       zorluyordu; income/balance/charts/movers kutulari ("align-self: start"
+       ile) kendi (daha kisa) icerikleri kadar yer kapladigindan, bu ZORLA
+       BUYUTULMUS satirlarda UST TARAFA yigilip ALTTA BUYUK BOS ALAN
+       birakiyorlardi (kullanici geri bildirimi: "tablolar/grafikler yukari
+       sikisiyor, artislar/azalislar altinda cok bosluk kaliyor"). Duzeltme:
+       skor artik income+balance ile AYNI GENISLIKTE, kendi ALTLARINDA TAM
+       GENISLIKTE ayri bir satir -- her satir SADECE KENDI icerigine gore
+       boyutlanir, baska bir sutunun yuksekligiyle ARTIK ZORLANMAZ.
+
+       DEGERLEME (piyasa degeri/carpanlar) ARTIK AYRI BIR SATIR/BOLUM DEGIL --
+       kullanici geri bildirimi: kart cok dolu/kalabalik gorunuyordu, "her
+       seyin puntosu asiri kucuk". Bu bolum ust bantin (header) icine, ince
+       bir istatistik seridi olarak tasindi (bkz. .header-stats) -- boylece
+       acilan dikey alan diger bolumlere (ozellikle SKOR) daha buyuk punto
+       icin aktarilabildi. */
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto auto auto auto auto;
+    grid-template-areas:
+      "header    header"
+      "income    balance"
+      "charts    charts"
+      "movers    movers"
+      "score     score"
+      "footer    footer";
+    column-gap: 24px;
+    row-gap: 18px;
+  }
+
+  .scanlines {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.018) 0px,
+      rgba(255, 255, 255, 0.018) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    mix-blend-mode: overlay;
+  }
+
+  /* --- Ust bant --- */
+
+  /* Kullanici geri bildirimi: ust bant (hisse adi/fiyat/degerleme seridi)
+     "cok basit/duz" gorunuyordu -- karttaki DIGER TUM bolumler (tablolar,
+     grafikler, artis/azalis, skor) bir cerceve+arka plan kutusu icinde
+     yer alirken, ust bant TEK BASINA cerceve/arka plansiz duz metin
+     olarak duruyordu; bu tutarsizlik "eksik/basit" hissi yaratiyordu.
+     Artik diger bolumlerle AYNI kutu dilini (kenarlik+panel+radius)
+     kullanir, ustune ince bir accent seride sahiptir. */
+  .top-band {
+    grid-area: header;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 26px 30px;
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--accent);
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(245, 158, 11, 0.05), transparent 55%), var(--panel);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  }
+
+  .top-band-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+
+  /* --- Marka rozeti (masthead) -- kullanici talebi: paylasilan her kartta
+     QuaxisLabs markasi acikca gorunsun (bkz. references/ klasorundeki
+     Fintables kartlarinin ayni amacla kullandigi ust-sol marka rozeti). */
+  .masthead {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .masthead-logo {
+    height: 64px;
+    width: 64px;
+    border-radius: 50%;
+    display: block;
+  }
+
+  .masthead-text {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+  }
+
+  .masthead-brand {
+    color: var(--heading);
+  }
+
+  .masthead-accent {
+    color: #2dd4bf;
+  }
+
+  .masthead-product {
+    color: var(--secondary);
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+
+  .ticker-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .ticker-logo {
+    height: 50px;
+    width: 50px;
+    border-radius: 8px;
+    object-fit: contain;
+    display: block;
+    background: var(--panel);
+  }
+
+  .ticker-big {
+    font-size: 52px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--heading);
+    line-height: 1;
+  }
+
+  .period-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 16px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--panel);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--heading);
+    opacity: 0.9;
+    line-height: 1;
+  }
+
+  .company-line {
+    margin-top: 9px;
+    font-size: 19px;
+    color: var(--heading);
+    opacity: 0.85;
+  }
+
+  .meta-line {
+    margin-top: 5px;
+    font-size: 15px;
+    color: var(--secondary);
+    letter-spacing: 0.4px;
+  }
+
+  .dot-sep {
+    margin: 0 8px;
+    color: var(--secondary);
+  }
+
+  .top-right {
+    text-align: right;
+  }
+
+  .price-value {
+    font-size: 44px;
+    font-weight: 700;
+    color: var(--heading);
+    line-height: 1;
+  }
+
+  .price-label {
+    margin-top: 7px;
+    font-size: 12.5px;
+    color: var(--secondary);
+    letter-spacing: 1px;
+  }
+
+  /* --- Ust bant icindeki DEGERLEME seridi (piyasa degeri/carpanlar) ---
+     Kullanici geri bildirimi: bu kutucuklar ayri, kalin cerceveli/gradyanli
+     bir bolum olarak asiri yer kapliyordu. Artik ust banda gomulu, ince
+     dikey ayirac cizgileriyle tek satirlik bir serit (Fintables referans
+     kartlarindaki -- bkz. references/ klasoru, TAVHL/ANSGR orneklerindeki
+     "Fiyat | Piyasa Degeri | F/K | PD/DD | FD/FAVOK" seridi gibi) -- kutu
+     cercevesi/gradyan/golge YOK, sadece etiket+deger cifti. */
+  .header-stats {
+    display: flex;
+    flex-wrap: wrap;
+    row-gap: 14px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+
+  .header-stat {
+    flex: 1 1 150px;
+    padding: 0 20px;
+    border-left: 1px solid var(--border);
+  }
+
+  .header-stat:first-child {
+    padding-left: 0;
+    border-left: none;
+  }
+
+  .header-stat-label {
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--secondary);
+    margin-bottom: 6px;
+  }
+
+  .header-stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--heading);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .header-stat-value.ratio {
+    color: var(--accent);
+  }
+
+  /* --- Bilanco Ozeti (genel degerlendirme, skor bolumunun alti) --- */
+
+  .summary-block {
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+  }
+
+  .summary-box {
+    font-size: 19px;
+    line-height: 1.65;
+    color: var(--heading);
+    opacity: 0.95;
+  }
+
+  /* --- Bolum basliklari --- */
+
+  .section-title {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 14px;
+    padding: 4px 12px;
+    border-left: 4px solid var(--accent);
+    background: rgba(245, 158, 11, 0.07);
+    border-radius: 0 4px 4px 0;
+  }
+
+  .title-text {
+    font-size: 23px;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    color: var(--heading);
+  }
+
+  .title-sub {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--secondary);
+    letter-spacing: 0.7px;
+  }
+
+  /* --- Tablolar --- */
+
+  .table-section {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px 12px;
+    background: var(--panel);
+    /* Grid varsayilaninda (align-items: stretch) bu kutu, ayni satirdaki
+       en uzun kutuya (orn. 5 satirli BİLANÇO yaninda 4 satirli GELİR
+       TABLOSU -- FAVÖK satiri gizliyse) esitlenecek sekilde UZATILIYOR,
+       ama icindeki satirlar yine ust tarafta kalip altta bos, "yukariya
+       sikismis" bir gorunum birakiyordu (kullanici geri bildirimi). Kutu
+       artik SADECE KENDI icerigi kadar yer kaplasin diye stretch iptal
+       edilir -- boylece daha az satirli tablo, bos alan birakmadan kendi
+       satirlarina tam sarilir. */
+    align-self: start;
+  }
+
+  .table-section.income { grid-area: income; }
+  .table-section.balance { grid-area: balance; }
+
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 19px;
+  }
+
+  .data-table th {
+    text-align: right;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+    color: var(--secondary);
+    font-weight: 700;
+    padding: 9px 4px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .data-table th.col-label,
+  .data-table td.label-cell {
+    text-align: left;
+  }
+
+  .data-table td {
+    text-align: right;
+    padding: 13px 4px;
+    border-bottom: 1px solid var(--border-soft);
+    white-space: nowrap;
+  }
+
+  .data-table tbody tr:nth-child(odd) {
+    background: rgba(255, 255, 255, 0.012);
+  }
+
+  .row-emphasis td {
+    font-weight: 700;
+  }
+
+  .secondary {
+    color: var(--secondary);
+  }
+
+  .positive { color: var(--positive); font-weight: 600; }
+  .negative { color: var(--negative); font-weight: 600; }
+  .neutral { color: var(--secondary); font-weight: 600; }
+
+  /* --- Ceyreklik mini grafikler --- */
+
+  .charts-section { grid-area: charts; }
+
+  .charts-row {
+    display: flex;
+    gap: 16px;
+  }
+
+  .mini-chart-block {
+    flex: 1;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 16px 12px;
+    background: var(--panel);
+    min-width: 0;
+  }
+
+  .mini-chart-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .mini-chart-title {
+    font-size: 14.5px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--secondary);
+  }
+
+  /* Serinin en son (en guncel) ceyregine ait deger -- profesyonel finans
+     panellerindeki gibi mini grafigin basligi yaninda one cikarilir,
+     kullanicinin en cok merak ettigi rakami taramak icin grafigin
+     tamamini okumasi gerekmez. .positive/.negative/.neutral renkleri
+     zaten global olarak tanimli (bkz. yukarida). */
+  .mini-chart-current {
+    font-size: 18px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  /* Degerler artik bar'larin UZERINE yazilmiyor (dar sutunlarda cakisiyordu) --
+     referans kartlardaki (Fintables) gibi SOLDA gercek bir grafik ekseni
+     olarak gosteriliyor (bkz. .chart-axis). */
+  .mini-chart-body {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  /* Etiketler artik flexbox space-between ILE DEGIL (metin satir yuksekligi
+     araligi bozuyordu), her etiket icin card.py'de ONCEDEN hesaplanmis
+     top_pct ile position:absolute olarak yerlestirilir -- boylece bar'larin
+     kullandigi YUZDE-YUKSEKLIK olcegiyle BIREBIR ayni referansi kullanirlar. */
+  .chart-axis {
+    position: relative;
+    width: 50px;
+    height: 72px;
+    padding-right: 8px;
+    border-right: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  /* Serideki en az bir deger negatifse (has_negative) eksen sifirin
+     ALTINA da uzanir -- ust yari (72px, pozitif) + sifir cizgisi (1px) +
+     alt yari (72px, negatif) = 145px, mini-chart-body ile TAM hizali. */
+  .chart-axis.chart-axis-negative {
+    height: 145px;
+  }
+
+  .chart-axis span {
+    position: absolute;
+    right: 8px;
+    transform: translateY(-50%);
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--secondary);
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .chart-plot-area {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .mini-chart {
+    display: flex;
+    gap: 10px;
+  }
+
+  .chart-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  /* Fintables referans kartlarindaki gibi (bkz. references/ klasoru) ince
+     yatay izgara cizgileri -- y_axis_ticks'in top_pct'siyle ayni referansi
+     kullanmasi icin araligi SABIT %25 DEGIL, her grafigin kendi tik sayisina
+     gore card.py'de hesaplanmis --grid-interval degiskenidir (bkz.
+     .mini-chart[style] inline degeri, _build_chart: grid_interval_pct).
+     Bar'lar (.bar, opak arka planli) bu cizgilerin ONUNDE durur, sadece
+     bar'in UZERINDEKI bos alanda gorunurler -- gercek grafik izlenimi verir. */
+  .chart-upper {
+    position: relative;
+    height: 72px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      var(--border-soft) 0,
+      var(--border-soft) 1px,
+      transparent 1px,
+      transparent 100%
+    );
+    background-size: 100% var(--grid-interval, 25%);
+  }
+
+  /* Seride negatif deger yoksa bu alan HIC render edilmemeli -- aksi halde
+     (kullanici geri bildirimi: bar'lar eksenle hizasiz gorunuyordu) bar
+     sutunu eksenden daha uzun render olur, ikisi arasindaki oran gorsel
+     olarak bozulurdu. Sadece .has-negative sinifi varsa acilir. */
+  .chart-lower {
+    position: relative;
+    height: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    overflow: hidden;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      var(--border-soft) 0,
+      var(--border-soft) 1px,
+      transparent 1px,
+      transparent 100%
+    );
+    background-size: 100% var(--grid-interval, 25%);
+  }
+
+  .mini-chart.has-negative .chart-lower {
+    height: 72px;
+    overflow: visible;
+  }
+
+  .chart-zero {
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Fintables referansindaki gibi (bkz. references/) ince, sutuna tam
+     yaslanmayan bar'lar -- kolon genisliginin tamamini kaplamak yerine
+     %62'sini kullanir, geri kalani (justify-content:center ile) iki
+     yanda esit bosluk birakir. */
+  .bar {
+    width: 62%;
+    min-height: 0;
+    transition: none;
+  }
+
+  .bar-positive {
+    background: linear-gradient(180deg, var(--positive), rgba(34, 197, 94, 0.55));
+    border-radius: 3px 3px 0 0;
+  }
+
+  .bar-negative {
+    background: linear-gradient(0deg, var(--negative), rgba(239, 68, 68, 0.55));
+    border-radius: 0 0 3px 3px;
+  }
+
+  /* En son (en guncel) ceyrek -- kullanici geri bildirimi: grafiklerin
+     "daha profesyonel" gorunmesi icin en onemli/guncel bar'i digerlerinden
+     ayirt edilebilir kilan ince bir vurgu (amber cerceve + biraz daha genis
+     bar) eklendi; renk (yesil/kirmizi = artis/azalis) DEGISMEZ, sadece
+     hangi barin "bu ceyrek" oldugu netlesir. */
+  .mini-chart .chart-col:last-child .bar {
+    width: 74%;
+  }
+
+  .mini-chart .chart-col:last-child .bar-positive,
+  .mini-chart .chart-col:last-child .bar-negative {
+    box-shadow: 0 0 0 1.5px var(--accent);
+  }
+
+  .mini-chart-labels span:last-child {
+    color: var(--heading);
+    font-weight: 700;
+  }
+
+  .mini-chart-labels {
+    display: flex;
+    gap: 6px;
+    margin-top: 9px;
+  }
+
+  .mini-chart-labels span {
+    flex: 1;
+    text-align: center;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--secondary);
+  }
+
+  /* --- Artis/Azalis ozeti --- */
+
+  .movers-section {
+    grid-area: movers;
+    display: flex;
+    flex-direction: row;
+    gap: 16px;
+  }
+
+  .movers-col {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    background: var(--panel);
+    flex: 1;
+  }
+
+  .movers-positive { border-left: 4px solid var(--positive); }
+  .movers-negative { border-left: 4px solid var(--negative); }
+
+  .movers-title {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    margin-bottom: 14px;
+  }
+
+  .movers-positive .movers-title { color: var(--positive); }
+  .movers-negative .movers-title { color: var(--negative); }
+
+  .movers-col ul {
+    list-style: none;
+  }
+
+  .movers-col li {
+    font-size: 17px;
+    line-height: 1.6;
+    padding-left: 22px;
+    position: relative;
+    margin-bottom: 13px;
+    color: var(--heading);
+    opacity: 0.94;
+  }
+
+  .movers-col li::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    font-weight: 700;
+    color: var(--positive);
+  }
+
+  .movers-negative li::before {
+    content: "!";
+    color: var(--negative);
+  }
+
+  .movers-col li.empty {
+    color: var(--secondary);
+    font-style: normal;
+  }
+
+  /* --- Radar skoru --- */
+
+  .score-section {
+    grid-area: score;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px 26px;
+    background: var(--panel);
+  }
+
+  .score-header {
+    display: flex;
+    align-items: baseline;
+    gap: 20px;
+  }
+
+  .score-big {
+    font-size: 60px;
+    font-weight: 700;
+    color: var(--heading);
+    line-height: 1;
+  }
+
+  .score-max {
+    font-size: 24px;
+    color: var(--secondary);
+    font-weight: 500;
+    margin-left: 2px;
+  }
+
+  .badge-saglam-text { color: var(--positive); }
+  .badge-dengeli-text { color: var(--accent); }
+  .badge-karisik-text { color: var(--mixed); }
+  .badge-riskli-text { color: var(--negative); }
+
+  /* Kullanici geri bildirimi: "en onemli nokta olan BILANCO SKORU kismi
+     cok kucuk kalmis, telefonda bile zor okunuyor" -- her bilesen ARTIK
+     SABIT 3 sutunlu (auto-fit/kucuk-minmax DEGIL) genis kartlarda, buyuk
+     puntoyla gosteriliyor. 3 sutun secildi (2 degil) -- kart Twitter/X
+     gibi platformlarda kirpilmadan paylasilabilsin diye kullanici geri
+     bildirimiyle kartin GENISLIGI artirildi (bkz. .card width) ve dikey
+     yuksekligi geri kazanmak icin skor SATIR SAYISI azaltildi (2 sutunda
+     7 bilesen 4 satir tutuyordu, 3 sutunda 3 satira duser). Son satirda
+     TEK BASINA kalan bilesen (bkz. :last-child:nth-child(3n+1) -- bu
+     "satirin ilk sutununda VE ayni zamanda son eleman" demektir, yani
+     satirda YALNIZ kaldigi anlamina gelir) tam genislige yayilir. */
+  .score-list {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px 20px;
+  }
+
+  .score-list li:last-child:nth-child(3n + 1) {
+    grid-column: 1 / -1;
+  }
+
+  .score-list li {
+    padding: 18px 20px;
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.015);
+  }
+
+  .score-row-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    font-size: 19px;
+    margin-bottom: 8px;
+  }
+
+  .score-list .score-name {
+    color: var(--heading);
+    opacity: 0.95;
+    font-weight: 700;
+  }
+
+  .score-list .score-weight {
+    font-size: 13.5px;
+    color: var(--secondary);
+    font-weight: 600;
+    margin-left: 6px;
+  }
+
+  .score-list .score-value {
+    font-size: 26px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .score-value.score-good { color: var(--positive); }
+  .score-value.score-mid { color: var(--accent); }
+  .score-value.score-poor { color: var(--negative); }
+  .score-value.score-na { color: var(--secondary); }
+
+  .score-reasoning {
+    font-size: 15.5px;
+    line-height: 1.55;
+    color: var(--secondary);
+  }
+
+  /* --- Alt bant --- */
+
+  .bottom-band {
+    grid-area: footer;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  .disclaimer {
+    font-size: 12.5px;
+    color: var(--secondary);
+    letter-spacing: 0.2px;
+  }
+
+  .footer-meta {
+    font-size: 12px;
+    color: var(--secondary);
+    opacity: 0.75;
+  }
+
+  .footer-handle {
+    color: var(--heading);
+    font-weight: 700;
+    opacity: 0.9;
+  }
+</style>
+</head>
+<body>
+<div id="card" class="card">
+  <div class="scanlines"></div>
+
+  <header class="top-band">
+    <div class="masthead">
+      <img class="masthead-logo" src="{{ logo_data_uri }}" alt="QuaxisLabs">
+      <span class="masthead-text"><span class="masthead-brand">QUAXIS<span class="masthead-accent">LABS</span></span><span class="masthead-product"> · BİLANÇO RADAR</span></span>
+    </div>
+    <div class="top-band-row">
+      <div class="top-left">
+        <div class="ticker-row">
+          {% if company_logo_data_uri %}
+          <img class="ticker-logo" src="{{ company_logo_data_uri }}" alt="{{ ticker }}">
+          {% endif %}
+          <span class="ticker-big">{{ ticker }}</span>
+          <span class="period-badge">{{ period_badge }}</span>
+        </div>
+        <div class="company-line">
+          {{ company_name }}{% if sector %}<span class="dot-sep">·</span>{{ sector }}{% endif %}
+        </div>
+        <div class="meta-line">{{ period_label }} DÖNEMİ<span class="dot-sep">·</span>{{ report_timestamp }}</div>
+      </div>
+      {% if price_display %}
+      <div class="top-right">
+        <div class="price-value">{{ price_display }}</div>
+        <div class="price-label">SON KAPANIŞ</div>
+      </div>
+      {% endif %}
+    </div>
+    {% if valuation %}
+    <!-- DEGERLEME kutulari kullanici geri bildirimiyle buraya, ust banda
+         tasindi (bkz. .header-stats ici not) -- ayri bir bolum/satir
+         DEGIL, ince bir istatistik seridi. -->
+    <div class="header-stats">
+      {% if sector_template in ["banka", "sigorta"] %}
+      <div class="header-stat">
+        <div class="header-stat-label">PİYASA DEĞERİ</div>
+        <div class="header-stat-value">{{ valuation.piyasa_degeri }}</div>
+      </div>
+      <div class="header-stat">
+        <div class="header-stat-label">F/K</div>
+        <div class="header-stat-value ratio">{{ valuation.fk }}</div>
+      </div>
+      <div class="header-stat">
+        <div class="header-stat-label">PD/DD</div>
+        <div class="header-stat-value ratio">{{ valuation.pd_dd }}</div>
+      </div>
+      {% else %}
+      <div class="header-stat">
+        <div class="header-stat-label">PİYASA DEĞERİ</div>
+        <div class="header-stat-value">{{ valuation.piyasa_degeri }}</div>
+      </div>
+      <div class="header-stat">
+        <div class="header-stat-label">SERMAYE</div>
+        <div class="header-stat-value">{{ valuation.sermaye }}</div>
+      </div>
+      <!-- NET BORÇ burada AYRICA gosterilmiyor -- kullanici geri bildirimi:
+           bu kalem zaten BİLANÇO tablosunda (Dönen/Duran/Toplam Varlıklar'ın
+           hemen altinda, bkz. asagidaki balance_keys) satir olarak var. -->
+      <div class="header-stat">
+        <div class="header-stat-label">F/K</div>
+        <div class="header-stat-value ratio">{{ valuation.fk }}</div>
+      </div>
+      <div class="header-stat">
+        <div class="header-stat-label">PD/DD</div>
+        <div class="header-stat-value ratio">{{ valuation.pd_dd }}</div>
+      </div>
+      <div class="header-stat">
+        <div class="header-stat-label">FD/FAVÖK</div>
+        <div class="header-stat-value ratio">{{ valuation.fd_favok }}</div>
+      </div>
+      <div class="header-stat">
+        <div class="header-stat-label">FD/HASILAT</div>
+        <div class="header-stat-value ratio">{{ valuation.fd_hasilat }}</div>
+      </div>
+      <div class="header-stat">
+        <div class="header-stat-label">PD/EFK</div>
+        <div class="header-stat-value ratio">{{ valuation.pd_efk }}</div>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+  </header>
+
+  {% if sector_template == "banka" %}
+  {% set income_keys = ["interest_income", "interest_expense", "net_fee_income", "net_operating_profit"] %}
+  {% set balance_keys = ["loans", "deposits", "provisions", "total_assets"] %}
+  {% elif sector_template == "sigorta" %}
+  {% set income_keys = ["gross_written_premiums", "net_premiums_earned", "technical_income", "technical_balance"] %}
+  {% set balance_keys = ["cash_and_financial_assets", "receivables_from_operations", "technical_provisions", "payables_from_operations"] %}
+  {% else %}
+  {% set income_keys = ["revenue", "gross_profit", "operating_profit"] + (["ebitda"] if show_ebitda else []) %}
+  {% set balance_keys = ["current_assets", "non_current_assets", "total_assets", "net_debt"] %}
+  {% endif %}
+  <section class="table-section income">
+    <div class="section-title"><span class="title-text">GELİR TABLOSU</span></div>
+    <table class="data-table">
+      <thead>
+        <tr><th class="col-label">Kalem</th><th>{{ table_periods.current }}</th><th>{{ table_periods.income_comparison }}</th><th>Değişim</th></tr>
+      </thead>
+      <tbody>
+        {% for key in income_keys %}
+        {% set row = income_rows[key] %}
+        <tr>
+          <td class="label-cell">{{ row.label }}</td>
+          <td class="{{ row.value_class }}">{{ row.current }}</td>
+          <td class="secondary">{{ row.comparison }}</td>
+          <td class="{{ row.color_class }}">{{ row.change_display }}</td>
+        </tr>
+        {% endfor %}
+        {% set net_row = income_rows.net_income %}
+        <tr class="row-emphasis">
+          <td class="label-cell">{{ net_row.label }}</td>
+          <td class="{{ net_row.value_class }}">{{ net_row.current }}</td>
+          <td class="secondary">{{ net_row.comparison }}</td>
+          <td class="{{ net_row.color_class }}">{{ net_row.change_display }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="table-section balance">
+    <div class="section-title"><span class="title-text">BİLANÇO</span></div>
+    <table class="data-table">
+      <thead>
+        <tr><th class="col-label">Kalem</th><th>{{ table_periods.current }}</th><th>{{ table_periods.balance_comparison }}</th><th>Değişim</th></tr>
+      </thead>
+      <tbody>
+        {% for key in balance_keys %}
+        {% set row = balance_rows[key] %}
+        <tr>
+          <td class="label-cell">{{ row.label }}</td>
+          <td class="{{ row.value_class }}">{{ row.current }}</td>
+          <td class="secondary">{{ row.comparison }}</td>
+          <td class="{{ row.color_class }}">{{ row.change_display }}</td>
+        </tr>
+        {% endfor %}
+        {% set equity_row = balance_rows.equity %}
+        <tr>
+          <td class="label-cell">{{ equity_row.label }}</td>
+          <td class="{{ equity_row.value_class }}">{{ equity_row.current }}</td>
+          <td class="secondary">{{ equity_row.comparison }}</td>
+          <td class="{{ equity_row.color_class }}">{{ equity_row.change_display }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  {% if sector_template == "banka" %}
+  {% set primary_chart = charts.net_interest_income %}
+  {% elif sector_template == "sigorta" %}
+  {% set primary_chart = charts.gross_written_premiums %}
+  {% else %}
+  {% set primary_chart = charts.revenue %}
+  {% endif %}
+  <section class="charts-section">
+    <div class="section-title"><span class="title-text">ÇEYREKLİK SERİ</span><span class="title-sub">SON {{ primary_chart.points|length }} ÇEYREK</span></div>
+    <div class="charts-row">
+      {% macro mini_chart(chart) %}
+      <div class="mini-chart-block">
+        <div class="mini-chart-title-row">
+          <span class="mini-chart-title">{{ chart.title }}</span>
+          <span class="mini-chart-current {{ chart.current_value_class }}">{{ chart.current_value_display }}</span>
+        </div>
+        <div class="mini-chart-body">
+          <div class="chart-axis{% if chart.has_negative %} chart-axis-negative{% endif %}">
+            {% for tick in chart.y_axis_ticks %}<span style="top: {{ tick.top_pct }}%;">{{ tick.label }}</span>{% endfor %}
+          </div>
+          <div class="chart-plot-area">
+            <div class="mini-chart{% if chart.has_negative %} has-negative{% endif %}" style="--grid-interval: {{ chart.grid_interval_pct }}%;">
+              {% for point in chart.points %}
+              <div class="chart-col" title="{{ point.label }}: {{ point.display }}">
+                <div class="chart-upper">
+                  <div class="bar bar-positive" style="height: {{ point.pos_pct }}%;"></div>
+                </div>
+                <div class="chart-zero"></div>
+                <div class="chart-lower">
+                  <div class="bar bar-negative" style="height: {{ point.neg_pct }}%;"></div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            <div class="mini-chart-labels">
+              {% for point in chart.points %}<span>{{ point.label }}</span>{% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endmacro %}
+      {% if sector_template == "banka" %}
+      {{ mini_chart(charts.net_interest_income) }}
+      {{ mini_chart(charts.net_income) }}
+      {{ mini_chart(charts.loans) }}
+      {% elif sector_template == "sigorta" %}
+      {{ mini_chart(charts.gross_written_premiums) }}
+      {{ mini_chart(charts.technical_balance) }}
+      {{ mini_chart(charts.net_income) }}
+      {% else %}
+      {{ mini_chart(charts.revenue) }}
+      {% if show_ebitda %}{{ mini_chart(charts.ebitda) }}{% endif %}
+      {{ mini_chart(charts.net_income) }}
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="movers-section">
+    <div class="movers-col movers-positive">
+      <div class="movers-title">▲ ARTIŞLAR</div>
+      <ul>
+        {% for item in positives %}<li>{{ item }}</li>{% endfor %}
+        {% if not positives %}<li class="empty">Belirgin bir artış bulgusu yok.</li>{% endif %}
+      </ul>
+    </div>
+    <div class="movers-col movers-negative">
+      <div class="movers-title">▼ AZALIŞLAR</div>
+      <ul>
+        {% for item in negatives %}<li>{{ item }}</li>{% endfor %}
+        {% if not negatives %}<li class="empty">Belirgin bir azalış bulgusu yok.</li>{% endif %}
+      </ul>
+    </div>
+  </section>
+
+  <section class="score-section">
+    <div class="score-header">
+      <div class="section-title"><span class="title-text">BİLANÇO SKORU</span></div>
+      <div class="score-big badge-{{ score_badge_class }}-text">{{ score_total_display }}<span class="score-max">/10</span></div>
+    </div>
+    <ul class="score-list">
+      {% for row in score_rows %}
+      <li>
+        <div class="score-row-top">
+          <span class="score-name">{{ row.name }}<span class="score-weight">(ağırlık {{ row.weight }})</span></span>
+          <span class="score-value {{ row.score_band_class }}">{{ row.score }}</span>
+        </div>
+        <div class="score-reasoning">{{ row.reasoning }}</div>
+      </li>
+      {% endfor %}
+    </ul>
+    <div class="summary-block">
+      <div class="section-title"><span class="title-text">BİLANÇO ÖZETİ</span></div>
+      <div class="summary-box">{{ summary }}</div>
+    </div>
+  </section>
+
+  <footer class="bottom-band">
+    <div class="disclaimer">{{ disclaimer }}</div>
+    <div class="footer-meta">Üretim: {{ report_timestamp }}<span class="dot-sep">·</span>Kaynaklar: {{ data_sources_note }}<span class="dot-sep">·</span><span class="footer-handle">@QuaxisLabs</span></div>
+  </footer>
+</div>
+
+</body>
+</html>

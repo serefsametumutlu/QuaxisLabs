@@ -1,0 +1,17 @@
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+data/*.db
+data/*.lock
+data/last_card.html
+data/logs/*.log*
+data/cache/
+data/cards/*.png
+data/logos/*.svg
+!data/.gitkeep
+data/exploration/*.json
+!data/exploration/*_readable.txt
+!data/exploration/*_ozet_*.txt
+.venv/
+venv/

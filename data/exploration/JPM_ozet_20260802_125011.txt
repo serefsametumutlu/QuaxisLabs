@@ -1,0 +1,228 @@
+===== JPM =====
+CIK: 0000019617
+entityName: JPMORGAN CHASE & CO
+Toplam us-gaap kavram sayisi: 917
+Toplam dei kavram sayisi: 2
+Ham yanit kaydedildi: C:\Users\Samet\Desktop\Temel Analiz\bilanco-radar\data\exploration\JPM_companyfacts_20260802_125011.json
+
+--- alan: revenue ---
+    [us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax] -> YOK (bu sirkette raporlanmamis)
+    [us-gaap:Revenues] -> VAR, 120 veri noktasi (ilk 10 en yeniden eskiye):
+      start=2025-01-01   end=2025-12-31   val=182447000000       form=10-K     fp=FY   fy=2025   frame=CY2025       gun=364   tahmin=YTD-YILLIK-gorunumlu (~12 ay)
+      start=2024-01-01   end=2024-12-31   val=177556000000       form=10-K     fp=FY   fy=2025   frame=CY2024       gun=365   tahmin=YTD-YILLIK-gorunumlu (~12 ay)
+      start=2024-01-01   end=2024-12-31   val=177556000000       form=10-K     fp=FY   fy=2024   frame=None         gun=365   tahmin=YTD-YILLIK-gorunumlu (~12 ay)
+      start=2023-01-01   end=2023-12-31   val=158104000000       form=10-K     fp=FY   fy=2025   frame=CY2023       gun=364   tahmin=YTD-YILLIK-gorunumlu (~12 ay)
+      start=2023-01-01   end=2023-12-31   val=158104000000       form=10-K     fp=FY   fy=2024   frame=None         gun=364   tahmin=YTD-YILLIK-gorunumlu (~12 ay)
+      start=2023-01-01   end=2023-12-31   val=158104000000       form=10-K     fp=FY   fy=2023   frame=None         gun=364   tahmin=YTD-YILLIK-gorunumlu (~12 ay)
+      start=2022-01-01   end=2022-12-31   val=128695000000       form=10-K     fp=FY   fy=2024   frame=CY2022       gun=364   tahmin=YTD-YILLIK-gorunumlu (~12 ay)
+      start=2022-01-01   end=2022-12-31   val=128695000000       form=10-K     fp=FY   fy=2023   frame=None         gun=364   tahmin=YTD-YILLIK-gorunumlu (~12 ay)
+      start=2022-01-01   end=2022-12-31   val=128695000000       form=10-K     fp=FY   fy=2022   frame=None         gun=364   tahmin=YTD-YILLIK-gorunumlu (~12 ay)
+      start=2021-01-01   end=2021-12-31   val=121649000000       form=10-K     fp=FY   fy=2023   frame=CY2021       gun=364   tahmin=YTD-YILLIK-gorunumlu (~12 ay)
+    [us-gaap:RevenueFromContractWithCustomerIncludingAssessedTax] -> YOK (bu sirkette raporlanmamis)
+    [us-gaap:InterestAndDividendIncomeOperating] -> VAR, 54 veri noktasi (ilk 10 en yeniden eskiye):
+      start=2012-01-01   end=2012-06-30   val=28800000000        form=10-Q     fp=Q2   fy=2012   frame=None         gun=181   tahmin=YTD-2C-gorunumlu (~6 ay)
+      start=2012-04-01   end=2012-06-30   val=14099000000        form=10-Q     fp=Q2   fy=2012   frame=CY2012Q2     gun=90    tahmin=CEYREKLIK-gorunumlu (~3 ay)
+      start=2012-01-01   end=2012-03-31   val=14701000000        form=10-Q/A   fp=Q1   fy=2012   frame=CY2012Q1     gun=90    tahmin=CEYREKLIK-gorunumlu (~3 ay)
+      start=2012-01-01   end=2012-03-31   val=14701000000        form=10-Q     fp=Q1   fy=2012   frame=None         gun=90    tahmin=CEYREKLIK-gorunumlu (~3 ay)
+      start=2011-01-01   end=2011-12-31   val=61293000000        form=10-K     fp=FY   fy=2011   frame=CY2011       gun=364   tahmin=YTD-YILLIK-gorunumlu (~12 ay)
+      start=2011-01-01   end=2011-09-30   val=46239000000        form=10-Q     fp=Q3   fy=2011   frame=None         gun=272   tahmin=YTD-3C-gorunumlu (~9 ay)
+      start=2011-07-01   end=2011-09-30   val=15160000000        form=10-Q     fp=Q3   fy=2011   frame=CY2011Q3     gun=91    tahmin=CEYREKLIK-gorunumlu (~3 ay)
+      start=2011-01-01   end=2011-06-30   val=31079000000        form=10-Q     fp=Q2   fy=2012   frame=None         gun=180   tahmin=YTD-2C-gorunumlu (~6 ay)
+      start=2011-04-01   end=2011-06-30   val=15632000000        form=10-Q     fp=Q2   fy=2012   frame=CY2011Q2     gun=90    tahmin=CEYREKLIK-gorunumlu (~3 ay)
+      start=2011-01-01   end=2011-06-30   val=31079000000        form=8-K      fp=Q2   fy=2011   frame=None         gun=180   tahmin=YTD-2C-gorunumlu (~6 ay)
+    [us-gaap:InterestIncomeExpenseNet] -> VAR, 232 veri noktasi (ilk 10 en yeniden eskiye):
+      start=2026-01-01   end=2026-03-31   val=25366000000        form=10-Q     fp=Q1   fy=2026   frame=CY2026Q1     gun=89    tahmin=CEYREKLIK-gorunumlu (~3 ay)
+      start=2025-01-01   end=2025-12-31   val=95443000000        form=10-K     fp=FY   fy=2025   frame=CY2025       gun=364   tahmin=YTD-YILLIK-gorunumlu (~12 ay)
+      start=2025-01-01   end=2025-09-30   val=70448000000        form=10-Q     fp=Q3   fy=2025   frame=None         gun=272   tahmin=YTD-3C-gorunumlu (~9 ay)
+      start=2025-07-01   end=2025-09-30   val=23966000000        form=10-Q     fp=Q3   fy=2025   frame=CY2025Q3     gun=91    tahmin=CEYREKLIK-gorunumlu (~3 ay)
+      start=2025-01-01   end=2025-06-30   val=46482000000        form=10-Q     fp=Q2   fy=2025   frame=None         gun=180   tahmin=YTD-2C-gorunumlu (~6 ay)
+      start=2025-04-01   end=2025-06-30   val=23209000000        form=10-Q     fp=Q2   fy=2025   frame=CY2025Q2     gun=90    tahmin=CEYREKLIK-gorunumlu (~3 ay)
+      start=2025-01-01   end=2025-03-31   val=23273000000        form=10-Q     fp=Q1   fy=2026   frame=CY2025Q1     gun=89    tahmin=CEYREKLIK-gorunumlu (~3 ay)
+      start=2025-01-01   end=2025-03-31   val=23273000000        form=10-Q     fp=Q1   fy=2025   frame=None         gun=89    tahmin=CEYREKLIK-gorunumlu (~3 ay)
+      start=2024-01-01   end=2024-12-31   val=92583000000        form=10-K     fp=FY   fy=2025   frame=CY2024       gun=365   tahmin=YTD-YILLIK-gorunumlu (~12 ay)
+      start=2024-01-01   end=2024-12-31   val=92583000000        form=10-K     fp=FY   fy=2024   frame=None         gun=365   tahmin=YTD-YILLIK-gorunumlu (~12 ay)
+
+--- alan: gross_profit ---
+    [us-gaap:GrossProfit] -> YOK (bu sirkette raporlanmamis)
+
+--- alan: operating_profit ---
+    [us-gaap:OperatingIncomeLoss] -> YOK (bu sirkette raporlanmamis)
+
+--- alan: net_income ---
+    [us-gaap:NetIncomeLoss] -> VAR, 237 veri noktasi (ilk 10 en yeniden eskiye):
+      start=2026-01-01   end=2026-03-31   val=16494000000        form=10-Q     fp=Q1   fy=2026   frame=CY2026Q1     gun=89    tahmin=CEYREKLIK-gorunumlu (~3 ay)
+      start=2025-01-01   end=2025-12-31   val=57000000000        form=DEF 14A  fp=None fy=None   frame=CY2025       gun=364   tahmin=YTD-YILLIK-gorunumlu (~12 ay)
+      start=2025-01-01   end=2025-12-31   val=57048000000        form=10-K     fp=FY   fy=2025   frame=None         gun=364   tahmin=YTD-YILLIK-gorunumlu (~12 ay)
+      start=2025-01-01   end=2025-09-30   val=44023000000        form=10-Q     fp=Q3   fy=2025   frame=None         gun=272   tahmin=YTD-3C-gorunumlu (~9 ay)
+      start=2025-07-01   end=2025-09-30   val=14393000000        form=10-Q     fp=Q3   fy=2025   frame=CY2025Q3     gun=91    tahmin=CEYREKLIK-gorunumlu (~3 ay)
+      start=2025-01-01   end=2025-06-30   val=29630000000        form=10-Q     fp=Q2   fy=2025   frame=None         gun=180   tahmin=YTD-2C-gorunumlu (~6 ay)
+      start=2025-04-01   end=2025-06-30   val=14987000000        form=10-Q     fp=Q2   fy=2025   frame=CY2025Q2     gun=90    tahmin=CEYREKLIK-gorunumlu (~3 ay)
+      start=2025-01-01   end=2025-03-31   val=14643000000        form=10-Q     fp=Q1   fy=2026   frame=CY2025Q1     gun=89    tahmin=CEYREKLIK-gorunumlu (~3 ay)
+      start=2025-01-01   end=2025-03-31   val=14643000000        form=10-Q     fp=Q1   fy=2025   frame=None         gun=89    tahmin=CEYREKLIK-gorunumlu (~3 ay)
+      start=2024-01-01   end=2024-12-31   val=58500000000        form=DEF 14A  fp=None fy=None   frame=CY2024       gun=365   tahmin=YTD-YILLIK-gorunumlu (~12 ay)
+    [us-gaap:ProfitLoss] -> VAR, 30 veri noktasi (ilk 10 en yeniden eskiye):
+      start=2013-01-01   end=2013-12-31   val=17923000000        form=10-K     fp=FY   fy=2013   frame=CY2013       gun=364   tahmin=YTD-YILLIK-gorunumlu (~12 ay)
+      start=2013-01-01   end=2013-09-30   val=12645000000        form=10-Q     fp=Q3   fy=2013   frame=None         gun=272   tahmin=YTD-3C-gorunumlu (~9 ay)
+      start=2013-07-01   end=2013-09-30   val=-380000000         form=10-Q     fp=Q3   fy=2013   frame=CY2013Q3     gun=91    tahmin=CEYREKLIK-gorunumlu (~3 ay)
+      start=2013-01-01   end=2013-06-30   val=13025000000        form=10-Q     fp=Q2   fy=2013   frame=None         gun=180   tahmin=YTD-2C-gorunumlu (~6 ay)
+      start=2013-04-01   end=2013-06-30   val=6496000000         form=10-Q     fp=Q2   fy=2013   frame=CY2013Q2     gun=90    tahmin=CEYREKLIK-gorunumlu (~3 ay)
+      start=2013-01-01   end=2013-03-31   val=6529000000         form=10-Q     fp=Q1   fy=2013   frame=CY2013Q1     gun=89    tahmin=CEYREKLIK-gorunumlu (~3 ay)
+      start=2012-01-01   end=2012-12-31   val=21284000000        form=10-K     fp=FY   fy=2013   frame=CY2012       gun=365   tahmin=YTD-YILLIK-gorunumlu (~12 ay)
+      start=2012-01-01   end=2012-09-30   val=15592000000        form=10-Q     fp=Q3   fy=2013   frame=None         gun=273   tahmin=YTD-3C-gorunumlu (~9 ay)
+      start=2012-07-01   end=2012-09-30   val=5708000000         form=10-Q     fp=Q3   fy=2013   frame=CY2012Q3     gun=91    tahmin=CEYREKLIK-gorunumlu (~3 ay)
+      start=2012-01-01   end=2012-09-30   val=15592000000        form=10-Q     fp=Q3   fy=2012   frame=None         gun=273   tahmin=YTD-3C-gorunumlu (~9 ay)
+    [us-gaap:NetIncomeLossAvailableToCommonStockholdersBasic] -> VAR, 232 veri noktasi (ilk 10 en yeniden eskiye):
+      start=2026-01-01   end=2026-03-31   val=16148000000        form=10-Q     fp=Q1   fy=2026   frame=CY2026Q1     gun=89    tahmin=CEYREKLIK-gorunumlu (~3 ay)
+      start=2025-01-01   end=2025-12-31   val=55681000000        form=10-K     fp=FY   fy=2025   frame=CY2025       gun=364   tahmin=YTD-YILLIK-gorunumlu (~12 ay)
+      start=2025-01-01   end=2025-09-30   val=42991000000        form=10-Q     fp=Q3   fy=2025   frame=None         gun=272   tahmin=YTD-3C-gorunumlu (~9 ay)
+      start=2025-07-01   end=2025-09-30   val=14043000000        form=10-Q     fp=Q3   fy=2025   frame=CY2025Q3     gun=91    tahmin=CEYREKLIK-gorunumlu (~3 ay)
+      start=2025-01-01   end=2025-06-30   val=28948000000        form=10-Q     fp=Q2   fy=2025   frame=None         gun=180   tahmin=YTD-2C-gorunumlu (~6 ay)
+      start=2025-04-01   end=2025-06-30   val=14630000000        form=10-Q     fp=Q2   fy=2025   frame=CY2025Q2     gun=90    tahmin=CEYREKLIK-gorunumlu (~3 ay)
+      start=2025-01-01   end=2025-03-31   val=14317000000        form=10-Q     fp=Q1   fy=2026   frame=CY2025Q1     gun=89    tahmin=CEYREKLIK-gorunumlu (~3 ay)
+      start=2025-01-01   end=2025-03-31   val=14317000000        form=10-Q     fp=Q1   fy=2025   frame=None         gun=89    tahmin=CEYREKLIK-gorunumlu (~3 ay)
+      start=2024-01-01   end=2024-12-31   val=56868000000        form=10-K     fp=FY   fy=2025   frame=CY2024       gun=365   tahmin=YTD-YILLIK-gorunumlu (~12 ay)
+      start=2024-01-01   end=2024-12-31   val=56868000000        form=10-K     fp=FY   fy=2024   frame=None         gun=365   tahmin=YTD-YILLIK-gorunumlu (~12 ay)
+
+--- alan: depreciation_amortization ---
+    [us-gaap:DepreciationDepletionAndAmortization] -> YOK (bu sirkette raporlanmamis)
+    [us-gaap:DepreciationAmortizationAndAccretionNet] -> VAR, 162 veri noktasi (ilk 10 en yeniden eskiye):
+      start=2026-01-01   end=2026-03-31   val=2364000000         form=10-Q     fp=Q1   fy=2026   frame=CY2026Q1     gun=89    tahmin=CEYREKLIK-gorunumlu (~3 ay)
+      start=2025-01-01   end=2025-12-31   val=8821000000         form=10-K     fp=FY   fy=2025   frame=CY2025       gun=364   tahmin=YTD-YILLIK-gorunumlu (~12 ay)
+      start=2025-01-01   end=2025-09-30   val=6509000000         form=10-Q     fp=Q3   fy=2025   frame=None         gun=272   tahmin=YTD-3C-gorunumlu (~9 ay)
+      start=2025-01-01   end=2025-06-30   val=4240000000         form=10-Q     fp=Q2   fy=2025   frame=None         gun=180   tahmin=YTD-2C-gorunumlu (~6 ay)
+      start=2025-01-01   end=2025-03-31   val=2030000000         form=10-Q     fp=Q1   fy=2026   frame=CY2025Q1     gun=89    tahmin=CEYREKLIK-gorunumlu (~3 ay)
+      start=2025-01-01   end=2025-03-31   val=2030000000         form=10-Q     fp=Q1   fy=2025   frame=None         gun=89    tahmin=CEYREKLIK-gorunumlu (~3 ay)
+      start=2024-01-01   end=2024-12-31   val=7938000000         form=10-K     fp=FY   fy=2025   frame=CY2024       gun=365   tahmin=YTD-YILLIK-gorunumlu (~12 ay)
+      start=2024-01-01   end=2024-12-31   val=7938000000         form=10-K     fp=FY   fy=2024   frame=None         gun=365   tahmin=YTD-YILLIK-gorunumlu (~12 ay)
+      start=2024-01-01   end=2024-09-30   val=5973000000         form=10-Q     fp=Q3   fy=2025   frame=None         gun=273   tahmin=YTD-3C-gorunumlu (~9 ay)
+      start=2024-01-01   end=2024-09-30   val=5973000000         form=10-Q     fp=Q3   fy=2024   frame=None         gun=273   tahmin=YTD-3C-gorunumlu (~9 ay)
+    [us-gaap:DepreciationAndAmortization] -> YOK (bu sirkette raporlanmamis)
+    [us-gaap:Depreciation] -> YOK (bu sirkette raporlanmamis)
+
+--- alan: total_assets ---
+    [us-gaap:Assets] -> VAR, 203 veri noktasi (ilk 10 en yeniden eskiye):
+      start=None         end=2026-03-31   val=4900475000000      form=10-Q     fp=Q1   fy=2026   frame=CY2026Q1I    gun=None  tahmin=?
+      start=None         end=2025-12-31   val=4424900000000      form=10-Q     fp=Q1   fy=2026   frame=CY2025Q4I    gun=None  tahmin=?
+      start=None         end=2025-12-31   val=4424900000000      form=10-K     fp=FY   fy=2025   frame=None         gun=None  tahmin=?
+      start=None         end=2025-09-30   val=4560205000000      form=10-Q     fp=Q3   fy=2025   frame=CY2025Q3I    gun=None  tahmin=?
+      start=None         end=2025-06-30   val=4552482000000      form=10-Q     fp=Q2   fy=2025   frame=CY2025Q2I    gun=None  tahmin=?
+      start=None         end=2025-03-31   val=4357856000000      form=10-Q     fp=Q1   fy=2026   frame=CY2025Q1I    gun=None  tahmin=?
+      start=None         end=2025-03-31   val=4357856000000      form=10-Q     fp=Q1   fy=2025   frame=None         gun=None  tahmin=?
+      start=None         end=2024-12-31   val=4002814000000      form=10-K     fp=FY   fy=2025   frame=CY2024Q4I    gun=None  tahmin=?
+      start=None         end=2024-12-31   val=4002814000000      form=10-Q     fp=Q3   fy=2025   frame=None         gun=None  tahmin=?
+      start=None         end=2024-12-31   val=4002814000000      form=10-Q     fp=Q2   fy=2025   frame=None         gun=None  tahmin=?
+
+--- alan: current_assets ---
+    [us-gaap:AssetsCurrent] -> YOK (bu sirkette raporlanmamis)
+
+--- alan: equity ---
+    [us-gaap:StockholdersEquity] -> VAR, 187 veri noktasi (ilk 10 en yeniden eskiye):
+      start=None         end=2026-03-31   val=364038000000       form=10-Q     fp=Q1   fy=2026   frame=CY2026Q1I    gun=None  tahmin=?
+      start=None         end=2025-12-31   val=362438000000       form=10-Q     fp=Q1   fy=2026   frame=CY2025Q4I    gun=None  tahmin=?
+      start=None         end=2025-12-31   val=362438000000       form=10-K     fp=FY   fy=2025   frame=None         gun=None  tahmin=?
+      start=None         end=2025-09-30   val=360212000000       form=10-Q     fp=Q3   fy=2025   frame=CY2025Q3I    gun=None  tahmin=?
+      start=None         end=2025-06-30   val=356924000000       form=10-Q     fp=Q2   fy=2025   frame=CY2025Q2I    gun=None  tahmin=?
+      start=None         end=2025-03-31   val=351420000000       form=10-Q     fp=Q1   fy=2026   frame=CY2025Q1I    gun=None  tahmin=?
+      start=None         end=2025-03-31   val=351420000000       form=10-Q     fp=Q1   fy=2025   frame=None         gun=None  tahmin=?
+      start=None         end=2024-12-31   val=344758000000       form=10-K     fp=FY   fy=2025   frame=CY2024Q4I    gun=None  tahmin=?
+      start=None         end=2024-12-31   val=344758000000       form=10-Q     fp=Q3   fy=2025   frame=None         gun=None  tahmin=?
+      start=None         end=2024-12-31   val=344758000000       form=10-Q     fp=Q2   fy=2025   frame=None         gun=None  tahmin=?
+    [us-gaap:StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest] -> VAR, 68 veri noktasi (ilk 10 en yeniden eskiye):
+      start=None         end=2015-12-31   val=247573000000       form=10-K     fp=FY   fy=2015   frame=CY2015Q4I    gun=None  tahmin=?
+      start=None         end=2015-09-30   val=245728000000       form=10-Q     fp=Q3   fy=2015   frame=CY2015Q3I    gun=None  tahmin=?
+      start=None         end=2015-06-30   val=241205000000       form=10-Q     fp=Q2   fy=2015   frame=CY2015Q2I    gun=None  tahmin=?
+      start=None         end=2015-03-31   val=235864000000       form=10-Q     fp=Q1   fy=2015   frame=CY2015Q1I    gun=None  tahmin=?
+      start=None         end=2014-12-31   val=231727000000       form=10-K     fp=FY   fy=2015   frame=CY2014Q4I    gun=None  tahmin=?
+      start=None         end=2014-12-31   val=232065000000       form=10-K     fp=FY   fy=2014   frame=None         gun=None  tahmin=?
+      start=None         end=2014-09-30   val=230939000000       form=10-Q     fp=Q3   fy=2015   frame=CY2014Q3I    gun=None  tahmin=?
+      start=None         end=2014-09-30   val=231277000000       form=10-Q     fp=Q3   fy=2014   frame=None         gun=None  tahmin=?
+      start=None         end=2014-06-30   val=226983000000       form=10-Q     fp=Q2   fy=2015   frame=CY2014Q2I    gun=None  tahmin=?
+      start=None         end=2014-06-30   val=227314000000       form=10-Q     fp=Q2   fy=2014   frame=None         gun=None  tahmin=?
+
+--- alan: cash ---
+    [us-gaap:CashAndCashEquivalentsAtCarryingValue] -> VAR, 16 veri noktasi (ilk 10 en yeniden eskiye):
+      start=None         end=2018-12-31   val=278793000000       form=10-K     fp=FY   fy=2018   frame=CY2018Q4I    gun=None  tahmin=?
+      start=None         end=2018-09-30   val=419097000000       form=10-Q     fp=Q3   fy=2018   frame=CY2018Q3I    gun=None  tahmin=?
+      start=None         end=2018-06-30   val=405180000000       form=10-Q     fp=Q2   fy=2018   frame=CY2018Q2I    gun=None  tahmin=?
+      start=None         end=2018-03-31   val=414812000000       form=10-Q     fp=Q1   fy=2018   frame=CY2018Q1I    gun=None  tahmin=?
+      start=None         end=2017-12-31   val=431304000000       form=10-K     fp=FY   fy=2018   frame=CY2017Q4I    gun=None  tahmin=?
+      start=None         end=2017-12-31   val=431304000000       form=10-Q     fp=Q3   fy=2018   frame=None         gun=None  tahmin=?
+      start=None         end=2017-12-31   val=431304000000       form=10-Q     fp=Q2   fy=2018   frame=None         gun=None  tahmin=?
+      start=None         end=2017-12-31   val=431304000000       form=10-Q     fp=Q1   fy=2018   frame=None         gun=None  tahmin=?
+      start=None         end=2017-09-30   val=459156000000       form=10-Q     fp=Q3   fy=2018   frame=CY2017Q3I    gun=None  tahmin=?
+      start=None         end=2017-06-30   val=450526000000       form=10-Q     fp=Q2   fy=2018   frame=CY2017Q2I    gun=None  tahmin=?
+    [us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents] -> VAR, 116 veri noktasi (ilk 10 en yeniden eskiye):
+      start=None         end=2026-03-31   val=312142000000       form=10-Q     fp=Q1   fy=2026   frame=CY2026Q1I    gun=None  tahmin=?
+      start=None         end=2025-12-31   val=343338000000       form=10-Q     fp=Q1   fy=2026   frame=CY2025Q4I    gun=None  tahmin=?
+      start=None         end=2025-12-31   val=343338000000       form=10-K     fp=FY   fy=2025   frame=None         gun=None  tahmin=?
+      start=None         end=2025-09-30   val=303436000000       form=10-Q     fp=Q3   fy=2025   frame=CY2025Q3I    gun=None  tahmin=?
+      start=None         end=2025-06-30   val=420327000000       form=10-Q     fp=Q2   fy=2025   frame=CY2025Q2I    gun=None  tahmin=?
+      start=None         end=2025-03-31   val=425903000000       form=10-Q     fp=Q1   fy=2026   frame=CY2025Q1I    gun=None  tahmin=?
+      start=None         end=2025-03-31   val=425903000000       form=10-Q     fp=Q1   fy=2025   frame=None         gun=None  tahmin=?
+      start=None         end=2024-12-31   val=469317000000       form=10-Q     fp=Q1   fy=2026   frame=CY2024Q4I    gun=None  tahmin=?
+      start=None         end=2024-12-31   val=469317000000       form=10-K     fp=FY   fy=2025   frame=None         gun=None  tahmin=?
+      start=None         end=2024-12-31   val=469317000000       form=10-Q     fp=Q3   fy=2025   frame=None         gun=None  tahmin=?
+
+--- alan: short_term_debt ---
+    [us-gaap:LongTermDebtCurrent] -> YOK (bu sirkette raporlanmamis)
+    [us-gaap:DebtCurrent] -> YOK (bu sirkette raporlanmamis)
+    [us-gaap:ShortTermBorrowings] -> VAR, 68 veri noktasi (ilk 10 en yeniden eskiye):
+      start=None         end=2026-03-31   val=68048000000        form=10-Q     fp=Q1   fy=2026   frame=CY2026Q1I    gun=None  tahmin=?
+      start=None         end=2025-12-31   val=64776000000        form=10-Q     fp=Q1   fy=2026   frame=CY2025Q4I    gun=None  tahmin=?
+      start=None         end=2025-12-31   val=64776000000        form=10-K     fp=FY   fy=2025   frame=None         gun=None  tahmin=?
+      start=None         end=2025-09-30   val=69355000000        form=10-Q     fp=Q3   fy=2025   frame=CY2025Q3I    gun=None  tahmin=?
+      start=None         end=2025-06-30   val=65293000000        form=10-Q     fp=Q2   fy=2025   frame=CY2025Q2I    gun=None  tahmin=?
+      start=None         end=2025-03-31   val=64980000000        form=10-Q     fp=Q1   fy=2025   frame=CY2025Q1I    gun=None  tahmin=?
+      start=None         end=2024-12-31   val=52893000000        form=10-K     fp=FY   fy=2025   frame=CY2024Q4I    gun=None  tahmin=?
+      start=None         end=2024-12-31   val=52893000000        form=10-Q     fp=Q3   fy=2025   frame=None         gun=None  tahmin=?
+      start=None         end=2024-12-31   val=52893000000        form=10-Q     fp=Q2   fy=2025   frame=None         gun=None  tahmin=?
+      start=None         end=2024-12-31   val=52893000000        form=10-Q     fp=Q1   fy=2025   frame=None         gun=None  tahmin=?
+    [us-gaap:CommercialPaper] -> VAR, 76 veri noktasi (ilk 10 en yeniden eskiye):
+      start=None         end=2017-09-30   val=24248000000        form=10-Q     fp=Q3   fy=2017   frame=CY2017Q3I    gun=None  tahmin=?
+      start=None         end=2017-06-30   val=22207000000        form=10-Q     fp=Q2   fy=2017   frame=CY2017Q2I    gun=None  tahmin=?
+      start=None         end=2017-03-31   val=14908000000        form=10-Q     fp=Q1   fy=2017   frame=CY2017Q1I    gun=None  tahmin=?
+      start=None         end=2016-12-31   val=11738000000        form=10-Q     fp=Q3   fy=2017   frame=CY2016Q4I    gun=None  tahmin=?
+      start=None         end=2016-12-31   val=11738000000        form=10-Q     fp=Q2   fy=2017   frame=None         gun=None  tahmin=?
+      start=None         end=2016-12-31   val=11738000000        form=10-Q     fp=Q1   fy=2017   frame=None         gun=None  tahmin=?
+      start=None         end=2016-12-31   val=11738000000        form=10-K     fp=FY   fy=2016   frame=None         gun=None  tahmin=?
+      start=None         end=2016-09-30   val=12258000000        form=10-Q     fp=Q3   fy=2016   frame=CY2016Q3I    gun=None  tahmin=?
+      start=None         end=2016-06-30   val=17279000000        form=10-Q     fp=Q2   fy=2016   frame=CY2016Q2I    gun=None  tahmin=?
+      start=None         end=2016-03-31   val=17490000000        form=10-Q     fp=Q1   fy=2016   frame=CY2016Q1I    gun=None  tahmin=?
+
+--- alan: long_term_debt ---
+    [us-gaap:LongTermDebtNoncurrent] -> YOK (bu sirkette raporlanmamis)
+    [us-gaap:LongTermDebt] -> VAR, 46 veri noktasi (ilk 10 en yeniden eskiye):
+      start=None         end=2014-06-30   val=269929000000       form=10-Q     fp=Q2   fy=2014   frame=CY2014Q2I    gun=None  tahmin=?
+      start=None         end=2014-03-31   val=274512000000       form=10-Q     fp=Q1   fy=2014   frame=CY2014Q1I    gun=None  tahmin=?
+      start=None         end=2013-12-31   val=267889000000       form=10-Q     fp=Q2   fy=2014   frame=CY2013Q4I    gun=None  tahmin=?
+      start=None         end=2013-12-31   val=267889000000       form=10-Q     fp=Q1   fy=2014   frame=None         gun=None  tahmin=?
+      start=None         end=2013-12-31   val=267889000000       form=10-K     fp=FY   fy=2013   frame=None         gun=None  tahmin=?
+      start=None         end=2013-09-30   val=263372000000       form=10-Q     fp=Q3   fy=2013   frame=CY2013Q3I    gun=None  tahmin=?
+      start=None         end=2013-06-30   val=266212000000       form=10-Q     fp=Q2   fy=2013   frame=CY2013Q2I    gun=None  tahmin=?
+      start=None         end=2013-03-31   val=268361000000       form=10-Q     fp=Q1   fy=2013   frame=CY2013Q1I    gun=None  tahmin=?
+      start=None         end=2012-12-31   val=249024000000       form=10-K     fp=FY   fy=2013   frame=CY2012Q4I    gun=None  tahmin=?
+      start=None         end=2012-12-31   val=249024000000       form=10-Q     fp=Q3   fy=2013   frame=None         gun=None  tahmin=?
+
+--- alan: shares_outstanding ---
+    [dei:EntityCommonStockSharesOutstanding] -> VAR, 72 veri noktasi (ilk 10 en yeniden eskiye):
+      start=None         end=2026-03-31   val=2679511418         form=10-Q     fp=Q1   fy=2026   frame=CY2026Q1I    gun=None  tahmin=?
+      start=None         end=2026-01-31   val=2697032375         form=10-K     fp=FY   fy=2025   frame=CY2025Q4I    gun=None  tahmin=?
+      start=None         end=2025-09-30   val=2722262295         form=10-Q     fp=Q3   fy=2025   frame=CY2025Q3I    gun=None  tahmin=?
+      start=None         end=2025-06-30   val=2749753854         form=10-Q     fp=Q2   fy=2025   frame=CY2025Q2I    gun=None  tahmin=?
+      start=None         end=2025-03-31   val=2779094488         form=10-Q     fp=Q1   fy=2025   frame=CY2025Q1I    gun=None  tahmin=?
+      start=None         end=2025-01-31   val=2796106099         form=10-K     fp=FY   fy=2024   frame=CY2024Q4I    gun=None  tahmin=?
+      start=None         end=2024-09-30   val=2815340422         form=10-Q     fp=Q3   fy=2024   frame=CY2024Q3I    gun=None  tahmin=?
+      start=None         end=2024-06-30   val=2845164727         form=10-Q     fp=Q2   fy=2024   frame=CY2024Q2I    gun=None  tahmin=?
+      start=None         end=2024-03-31   val=2871667879         form=10-Q     fp=Q1   fy=2024   frame=CY2024Q1I    gun=None  tahmin=?
+      start=None         end=2024-01-31   val=2880371498         form=10-K     fp=FY   fy=2023   frame=CY2023Q4I    gun=None  tahmin=?
+    [us-gaap:CommonStockSharesOutstanding] -> VAR, 51 veri noktasi (ilk 10 en yeniden eskiye):
+      start=None         end=2025-12-31   val=2696200000         form=10-K     fp=FY   fy=2025   frame=CY2025Q4I    gun=None  tahmin=?
+      start=None         end=2024-12-31   val=2797600000         form=10-K     fp=FY   fy=2025   frame=CY2024Q4I    gun=None  tahmin=?
+      start=None         end=2024-12-31   val=2797600000         form=10-K     fp=FY   fy=2024   frame=None         gun=None  tahmin=?
+      start=None         end=2023-12-31   val=2876600000         form=10-K     fp=FY   fy=2025   frame=CY2023Q4I    gun=None  tahmin=?
+      start=None         end=2023-12-31   val=2876600000         form=10-K     fp=FY   fy=2024   frame=None         gun=None  tahmin=?
+      start=None         end=2023-12-31   val=2876600000         form=10-K     fp=FY   fy=2023   frame=None         gun=None  tahmin=?
+      start=None         end=2022-12-31   val=2934200000         form=10-K     fp=FY   fy=2024   frame=CY2022Q4I    gun=None  tahmin=?
+      start=None         end=2022-12-31   val=2934200000         form=10-K     fp=FY   fy=2023   frame=None         gun=None  tahmin=?
+      start=None         end=2022-12-31   val=2934200000         form=10-K     fp=FY   fy=2022   frame=None         gun=None  tahmin=?
+      start=None         end=2021-12-31   val=2944100000         form=10-K     fp=FY   fy=2023   frame=CY2021Q4I    gun=None  tahmin=?

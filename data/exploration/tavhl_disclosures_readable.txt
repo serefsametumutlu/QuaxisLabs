@@ -1,0 +1,21 @@
+28.07.2026 19:17:38 | class=ODA | subject=Özel Durum Açıklaması (Genel) | summary=2026/6A Finansallar Hk. | idx=1637985 | isLate=False
+28.07.2026 19:17:03 | class=ODA | subject=Finansal Duran Varlık Edinimi | summary=Almatı Havalimanı Hisse Alımı | idx=1637984 | isLate=False
+28.07.2026 19:15:44 | class=ODA | subject=Geleceğe Dönük Değerlendirmeler | summary=2026 Beklentileri | idx=1637982 | isLate=False
+28.07.2026 19:05:55 | class=FR | subject=Sorumluluk Beyanı (Konsolide) | summary=TAVHL Sorumluluk Beyanı | idx=1637974 | isLate=False
+28.07.2026 19:05:12 | class=FR | subject=Faaliyet Raporu (Konsolide) | summary=TAVHL Faaliyet Raporu | idx=1637971 | isLate=False
+28.07.2026 19:04:54 | class=FR | subject=Finansal Rapor | summary=None | idx=1637970 | isLate=False
+23.07.2026 17:20:03 | class=DKB | subject=Pay Bazında Devre Kesici Bildirimi | summary=TAVHL.E işlem sırasında Pay Bazında Devre Kesici Uygulaması devreye girmiştir | idx=1636174 | isLate=False
+23.07.2026 16:52:40 | class=DKB | subject=Pay Mali Hak Kullanım İşlemi - Nakit Ödeme | summary=Hak Kullanım İşlemleri | idx=1636154 | isLate=False
+21.07.2026 09:08:41 | class=DKB | subject=BISTECH Pay Piyasası Alım Satım Sistemi Duyurusu | summary=Hak Kullanımı | idx=1635222 | isLate=False
+20.07.2026 16:48:55 | class=DKB | subject=Hak Kullanımı | summary=None | idx=1634983 | isLate=False
+13.07.2026 12:27:30 | class=ODA | subject=Özel Durum Açıklaması (Genel) | summary=Yatırımcı Bülteni (Haziran 2026) | idx=1632386 | isLate=False
+09.07.2026 15:13:14 | class=DG | subject=Finansal Takvim | summary=2026 İkinci Çeyrek Finansal Takvimi | idx=1630730 | isLate=False
+08.07.2026 11:21:16 | class=DKB | subject=Pay Bazında Devre Kesici Bildirimi | summary=TAVHL.E işlem sırasında Pay Bazında Devre Kesici Uygulaması devreye girmiştir | idx=1627852 | isLate=False
+22.06.2026 14:55:35 | class=DKB | subject=VİOP İşlem İptali Duyuruları | summary=VİOP İşlem İptali Duyuruları | idx=1619328 | isLate=False
+09.06.2026 13:55:50 | class=ODA | subject=Özel Durum Açıklaması (Genel) | summary=Yatırımcı Bülteni (Mayıs 2026) | idx=1615275 | isLate=False
+08.06.2026 16:06:21 | class=ODA | subject=İhale Süreci / Sonucu | summary=Kuveyt Uluslararası Havalimanı Terminal 2 İşletme ve Bakım Hizmeti İhalesi | idx=1614665 | isLate=False
+08.06.2026 10:12:20 | class=ODA | subject=Pay Dışında Sermaye Piyasası Aracı İşlemlerine İlişkin Bildirim (Faiz İçeren) | summary=Yurt Dışı Tahvil 5. Kupon Ödemesi | idx=1614251 | isLate=False
+21.05.2026 17:30:50 | class=DKB | subject=Pay Bazında Devre Kesici Bildirimi | summary=TAVHL.E işlem sırasında Pay Bazında Devre Kesici Uygulaması devreye girmiştir | idx=1609738 | isLate=False
+13.05.2026 14:13:20 | class=FR | subject=TSRS Uyumlu Sürdürülebilirlik Raporu | summary=2025 Raporu | idx=1606680 | isLate=False
+11.05.2026 16:21:25 | class=ODA | subject=Özel Durum Açıklaması (Genel) | summary=Yatırımcı Bülteni (Nisan 2026) | idx=1604678 | isLate=False
+07.05.2026 18:01:17 | class=DKB | subject=Pay Alım Satım Bildirimi | summary=Pay Alım Satım Bildirimi | idx=1602572 | isLate=False

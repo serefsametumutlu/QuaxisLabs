@@ -1,0 +1,899 @@
+"""AnalysisResult + ScoreResult + Commentary'yi Jinja2 ile HTML'e, Playwright
+(chromium headless) ile PNG karta cevirir. Bu, kullanicinin gorecegi TEK
+ciktidir.
+
+Bu modul kesinlikle sayi HESAPLAMAZ; sadece calculator/scorer/commentary
+tarafindan zaten hesaplanmis/formatlanmis degerleri gorsel bir duzene
+yerlestirir. Butun Turkce sayi/para birimi formatlamasi (yuzde isareti,
+virgullu ondalik, milyar/milyon kisaltma) src.formatting'teki TEK ortak
+yardimcilarla yapilir; sablon (card.html) HICBIR bicimlendirme mantigi
+icermez, sadece onceden hazirlanmis string'leri yerlestirir.
+
+Iki asama:
+    1. build_card_context(...) -- domain nesnelerini (AnalysisResult,
+       ScoreResult, Commentary, disclosures) duz bir dict'e cevirir. Bu
+       dict'in tam semasi asagida belgelenmistir.
+    2. render_card(context, out_path) -- context'i Jinja2 ile HTML'e
+       render eder (debug icin data/last_card.html'e de yazar), Playwright
+       chromium ile acar, #card elementinin ekran goruntusunu
+       device_scale_factor=2 (retina) ile PNG olarak kaydeder.
+
+context semasi (build_card_context'in urettigi, render_card'in bekledigi):
+    ticker, company_name, sector, period_label, report_timestamp,
+    price_display (str|None), valuation (dict|None: piyasa_degeri, sermaye,
+        fk, pd_dd, fd_favok, fd_hasilat, pd_efk -- fiyat/sermaye ikisi de
+        yoksa None, bkz. calculator.compute_valuation; Net Borç burada YOK,
+        SADECE balance_rows icinde gosterilir),
+    headline, summary, show_ebitda (bool),
+    income_rows (dict: revenue/gross_profit/operating_profit/ebitda/net_income
+        -> {label,current,comparison,change_display,color_class} | None),
+    balance_rows (dict: current_assets/non_current_assets/total_assets/net_debt/equity
+        -> ayni sekil -- Net Borç SADECE burada gosterilir, valuation kutularinda
+        TEKRAR gosterilmez, bkz. _valuation_context),
+    charts (dict: revenue/ebitda/net_income -> {title, points:[{label,display,
+        pos_pct,neg_pct}]} | None),
+    positives (list[str]), negatives (list[str]),
+    score_total_display, score_badge, score_badge_class,
+    score_rows (list[{name,weight,score,contribution,reasoning}]),
+    kap_note (str|None), disclosure_rows (list[{date,title}]),
+    commentary_source, data_sources_note, disclaimer.
+
+Font secimi: harici Google Fonts CAGRISI YAPILMAZ (Playwright'in cevrimdisi
+de guvenilir render etmesi icin) -- sistem monospace yigininin ("Cascadia
+Code", "Consolas" gibi kaliteli terminal fontlari coğu Windows/Mac/Linux
+kurulumunda hazir bulunur) fallback zinciri kullanilir.
+"""
+
+from __future__ import annotations
+
+import base64
+import logging
+import math
+import threading
+from datetime import datetime
+from decimal import ROUND_CEILING, Decimal
+from pathlib import Path
+
+import jinja2
+
+import config
+from src.ai import commentary as commentary_module
+from src.analysis import calculator, scorer
+from src.fetchers import company_logo, kap
+from src.formatting import format_currency_short, format_number_tr, format_percent_tr
+
+logger = logging.getLogger(__name__)
+
+_TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
+_ASSETS_DIR = Path(__file__).resolve().parent / "assets"
+_LOGO_PATH = _ASSETS_DIR / "quaxis_logo_badge.png"
+_DEBUG_HTML_PATH = config.DATA_DIR / "last_card.html"
+
+_env = jinja2.Environment(
+    loader=jinja2.FileSystemLoader(_TEMPLATE_DIR),
+    autoescape=jinja2.select_autoescape(["html"]),
+)
+
+# QuaxisLabs marka rozeti (masthead + tum kart genelindeki dusuk-opasiteli
+# filigran) -- kart hangi build_*_card_context() cagrisiyla uretilirse
+# uretilsin (sanayi/banka/sigorta) AYNI rozeti gostersin diye context'e her
+# seferinde ayri ayri eklenmek yerine Jinja global'i olarak KAYIT EDILIR;
+# boylece card.html tum PNG'lerde (Twitter/X'te paylasilan TEK cikti) marka
+# kaynagi belli olur ve baskasi kirpip kendi hesabindan paylasirsa bile
+# filigran kirpilmadigi surece kaynagi gosterir. Dosya kucuk (~130KB) oldugu
+# icin modul yuklenirken BIR KEZ base64'e cevrilip bellekte tutulur.
+_env.globals["logo_data_uri"] = "data:image/png;base64," + base64.b64encode(_LOGO_PATH.read_bytes()).decode("ascii")
+
+# Chromium'u HER render_card() cagrisinda yeniden baslatip kapatmak (~1-2sn
+# baslangic maliyeti) yerine, is parcacigi basina BIR kez baslatilip
+# saklanir (Playwright'in sync API'si is parcaciklari arasi PAYLASILAMAZ --
+# resmi kisitlama; bu yuzden process-genelinde TEK bir singleton yerine
+# threading.local() kullanilir). asyncio.to_thread() varsayilan havuzu ayni
+# is parcaciklarini istekler arasi yeniden kullandigi icin bu, ardisik
+# isteklerde gercek bir hiz kazanci saglar.
+_thread_local = threading.local()
+
+
+def _get_browser():
+    browser = getattr(_thread_local, "browser", None)
+    if browser is not None and browser.is_connected():
+        return browser
+
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError as exc:
+        raise CardRenderError(
+            "playwright paketi kurulu değil. `pip install playwright` ve `playwright install chromium` çalıştırın."
+        ) from exc
+
+    playwright_ctx = sync_playwright().start()
+    browser = playwright_ctx.chromium.launch()
+    _thread_local.playwright_ctx = playwright_ctx
+    _thread_local.browser = browser
+    return browser
+
+
+class CardRenderError(Exception):
+    """Kart HTML->PNG donusumu basarisiz oldu (orn. Playwright chromium
+    kurulu degil -- `playwright install chromium` calistirilmali)."""
+
+
+# --- Renk/rozet esleme (LLM'siz, saf esleme -- sayi uretmez) -----------------------------------------------------
+
+_LABEL_COLOR_CLASS: dict[str, str] = {
+    calculator.ChangeLabel.GUCLU_ARTIS: "positive",
+    calculator.ChangeLabel.ARTIS: "positive",
+    calculator.ChangeLabel.YATAY: "neutral",
+    calculator.ChangeLabel.AZALIS: "negative",
+    calculator.ChangeLabel.SERT_DUSUS: "negative",
+    calculator.ChangeLabel.ZARARDAN_KARA_GECTI: "positive",
+    calculator.ChangeLabel.KARA_KARSIN_ZARAR: "negative",
+    calculator.ChangeLabel.VERI_YOK: "neutral",
+    # net_debt'e ozel (bkz. calculator.classify_debt_change): net nakitten
+    # net borca gecmek KOTULESME (kirmizi), net borctan net nakde gecmek
+    # IYILESME (yesil) -- kar/zarar etiketleriyle TERS renklenir.
+    calculator.ChangeLabel.NET_BORCA_GECTI: "negative",
+    calculator.ChangeLabel.NET_NAKDE_GECTI: "positive",
+}
+
+_BADGE_CLASS: dict[str, str] = {
+    "SAĞLAM": "saglam",
+    "DENGELİ": "dengeli",
+    "KARIŞIK": "karisik",
+    "RİSKLİ": "riskli",
+}
+
+_MIN_BAR_PCT = 6  # cok kucuk degerler de gorsel olarak fark edilsin diye taban bar yuksekligi
+
+
+def _quarter_label(period: tuple[int, int]) -> str:
+    year, quarter = period
+    return f"{quarter // 3}Ç{year % 100:02d}"
+
+
+def _fiscal_quarter_label(period: tuple[int, int]) -> str:
+    """_quarter_label()'in NASDAQ/ABD (US_GAAP) karsiligi. `period[0]`
+    US_GAAP icin TAKVIM yili DEGIL, sirketin KENDI mali yilidir (SEC 'fy'
+    alani, bkz. src/fetchers/sec_edgar.py modul notu) -- NVDA gibi mali
+    yili takvim yiliyla ORTUSMEYEN sirketlerde "_quarter_label" biciminde
+    (orn. "1Ç27") gosterilirse TAKVIM 1. ceyregiymis gibi YANLIS izlenim
+    verir (Kural 8: "uydurma" olur). Bu yuzden ayri, ACIKCA "mali yil"
+    oldugunu belirten bir bicim kullanilir: "FYyy Çn" (orn. "FY27 Ç1")."""
+    year, quarter = period
+    return f"FY{year % 100:02d} Ç{quarter // 3}"
+
+
+def _money_or_dash(value: Decimal | None, currency_symbol: str = "₺") -> str:
+    return format_currency_short(value, symbol=currency_symbol) if value is not None else "—"
+
+
+def _ratio_or_dash(value: Decimal | None, decimals: int = 2, suffix: str = "") -> str:
+    return f"{format_number_tr(value, decimals=decimals)}{suffix}" if value is not None else "—"
+
+
+# Degerleme kutulari (Piyasa Degeri, F/K, PD/DD, FD/FAVOK, vb.) icin AYRI
+# fallback: kullanici geri bildirimi -- Fintables gibi referans platformlar
+# bu carpanlar SIRKET ICIN ANLAMLI/HESAPLANABILIR DEGILSE (ör. zarar eden
+# sirkette F/K) "N/A" yazar, "—" DEGIL. _money_or_dash/_ratio_or_dash ise
+# gelir/bilanco tablosu satirlarinda (_line_item_row) FARKLI bir anlamla
+# ("bu donem icin veri cekilememis") paylasilmaya devam ediyor -- o yuzden
+# BURADA ayri fonksiyonlar tanimlanir, mevcut ikisi DEGISTIRILMEZ.
+def _money_or_na(value: Decimal | None, currency_symbol: str = "₺") -> str:
+    return format_currency_short(value, symbol=currency_symbol) if value is not None else "N/A"
+
+
+def _ratio_or_na(value: Decimal | None, decimals: int = 2, suffix: str = "") -> str:
+    return f"{format_number_tr(value, decimals=decimals)}{suffix}" if value is not None else "N/A"
+
+
+def _line_item_row(item: calculator.LineItemChange, *, lower_is_better: bool = False, currency_symbol: str = "₺") -> dict:
+    # Gecis etiketlerinde (zarardan kara gecti / kara karsin zarar / net
+    # nakit<->net borc) BILEREK yuzde GOSTERILMEZ: (guncel-onceki)/|onceki|
+    # formulu guncel deger onceki DEGERE GORE cok kucuk kaldiginda (orn.
+    # TERA canli hatasi: -4,7 mr'dan 15,5 mn'ye) buyuklukten BAGIMSIZ olarak
+    # neredeyse HER ZAMAN ~%100 uretir -- bilgi degeri yoktur, hatta yanlis
+    # bir "yaklasik %100 degisim" izlenimi verir. Etiketin kendisi zaten
+    # yon/anlami tam olarak tasir, ek yuzdeye gerek yoktur.
+    if item.percent_change is not None:
+        change_display = format_percent_tr(item.percent_change)
+    else:
+        change_display = item.change_label
+    # Renk, oncelikle YUZDENIN KENDI ISARETINE gore belirlenir (kullanici
+    # geri bildirimi: "pozitifler yesil, negatifler kirmizi olmali" -- eski
+    # mantik YATAY (|degisim|<%5) etiketini HER ZAMAN notr/gri boyuyordu,
+    # bu da orn. "%-2,1" gibi KUCUK ama yine de EKSI bir yuzdenin gri
+    # gorunmesine (bazi negatiflerin kirmizi, bazilarinin gri gorunmesine)
+    # yol aciyordu. percent_change sayisal bir deger oldugu surece isareti
+    # NET'tir (ARTIS/AZALIS/GUCLU_ARTIS/SERT_DUSUS/YATAY etiketinden BAGIMSIZ
+    # olarak dogrudan +/- kullanilir); percent_change None ise (ozel gecis
+    # etiketleri: zarardan kara gecti / kara karsin zarar, ya da veri yok)
+    # bu durumda etikete gore renklendirilir (bkz. _LABEL_COLOR_CLASS).
+    #
+    # CANLI hata (kullanici raporu, Fintables karsilastirmasi): Net Borc
+    # icin AZALIS iyi (daha az borc/daha fazla net nakit) haberdir, ama bu
+    # mantik ARTIS=yesil/AZALIS=kirmizi varsayimini KOSULSUZ uyguluyordu --
+    # orn. net borc %-103 (daha da negatife, yani daha fazla net nakde)
+    # gitmisken KIRMIZI gosteriliyordu, Fintables ise (dogru sekilde) YESIL
+    # gosteriyor. `lower_is_better=True` (SADECE net_debt satiri icin)
+    # isareti TERSINE cevirir.
+    if item.percent_change is not None:
+        sign = -item.percent_change if lower_is_better else item.percent_change
+        if sign > 0:
+            color_class = "positive"
+        elif sign < 0:
+            color_class = "negative"
+        else:
+            color_class = "neutral"
+    else:
+        color_class = _LABEL_COLOR_CLASS.get(item.change_label, "neutral")
+    # CANLI hata (kullanici raporu): guncel donem degeri (gelir tablosu VE
+    # bilanco) HER ZAMAN duz/beyaz gosterilmeli, eski donem (comparison) HER
+    # ZAMAN gri ("secondary", bkz. card.html) -- rengi tasiyan tek sutun
+    # DEGISIM'dir. Eskiden guncel deger NEGATIFSE (orn. Net Borc net nakit
+    # pozisyonundayken) otomatik kirmiziya boyaniyordu; bu Net Borc icin
+    # YANLIS izlenim veriyordu (negatif net borc IYI bir seydir, alarm rengi
+    # DEGIL) VE genel kurala (guncel=beyaz) aykiriydi.
+    value_class = ""
+    return {
+        "label": item.label_tr,
+        "current": _money_or_dash(item.current, currency_symbol),
+        "value_class": value_class,
+        "comparison": _money_or_dash(item.comparison, currency_symbol),
+        "change_display": change_display,
+        "color_class": color_class,
+    }
+
+
+def _company_logo_data_uri(ticker: str, market: str = "BIST") -> str | None:
+    """company_logo fetcher'i zaten kendi hatalarini sessizce yutup None
+    doner (bkz. modul docstring'i) -- bu sarmalayici sadece BEKLENMEYEN
+    (kutuphane ici) istisnalarin kart uretimini KIRMAMASINI garanti eder."""
+    try:
+        return company_logo.fetch_logo_data_uri(ticker, market=market)
+    except Exception:
+        logger.warning("%s icin sirket logosu eklenemedi", ticker, exc_info=True)
+        return None
+
+
+def _score_band_class(score: Decimal | None) -> str:
+    """Bilesen puanini (0-10) hizli taranabilir bir renge esler -- kullanici
+    geri bildirimi: skor bolumu okunmasi zor, her madde tek tek net ayirt
+    edilmeli. Sadece GORSEL bir ipucu; puanin kendisi scorer.py'de zaten
+    hesaplanmis, burada HICBIR esik/agirlik mantigi TEKRAR uygulanmaz."""
+    if score is None:
+        return "score-na"
+    if score >= 7:
+        return "score-good"
+    if score >= 4:
+        return "score-mid"
+    return "score-poor"
+
+
+def _score_row(c: scorer.ComponentScore) -> dict:
+    return {
+        "name": c.name,
+        "weight": f"%{format_number_tr(c.weight_nominal, decimals=0)}",
+        "score": f"{format_number_tr(c.score, decimals=1)}/10" if c.score is not None else "N/A",
+        "score_band_class": _score_band_class(c.score),
+        "contribution": format_number_tr(c.contribution, decimals=2) if c.score is not None else "N/A",
+        "reasoning": c.reasoning_tr,
+    }
+
+
+_TARGET_TICK_COUNT = 4  # eksende hedeflenen aralik sayisi (guzel yuvarlama sonrasi gercek sayi degisebilir)
+
+
+def _axis_tick_label(value: Decimal) -> str:
+    """Eksen cizgisi etiketi: buyuk tutarlarda mr/mn kisaltmasi kullanir ama
+    (referans gorsellerdeki gibi) para birimi sembolu EKLEMEZ (bu yuzden
+    currency_symbol parametresi YOK -- deger her iki para biriminde de
+    sembolsuz gosterilir); sifir icin daima '0,0' doner."""
+    if value == 0:
+        return "0,0"
+    return format_currency_short(value, symbol="").strip()
+
+
+def _nice_axis_step(max_abs: Decimal, target_ticks: int = _TARGET_TICK_COUNT) -> tuple[Decimal, int]:
+    """Eksen icin 'guzel' (1/2/5/10 katlari) bir aralik ve gereken tik sayisini
+    hesaplar -- Fintables referans kartlarindaki gibi (bkz. references/
+    klasoru) 25/20/15/10/5/0 turu YUVARLAK sayilar uretir, ham en buyuk
+    mutlak degerin (max_abs) HAM KESIRLERINI degil (eski yontem, kullanici
+    geri bildirimi: "grafikler profesyonel gorunmuyor" -- 82,1mn/61,6mn/
+    41,1mn gibi rastgele kesirli eksen etiketleri buna sebep oluyordu).
+
+    Standart 'nice numbers' algoritmasi: hedef aralik sayisina gore kaba bir
+    adim hesaplanir, bu adim en yakin 1/2/5/10'un katina yuvarlanir. Tik
+    sayisi bu YUVARLAK adima gore max_abs'i kapsayacak kadar (yukari
+    yuvarlanarak) belirlenir -- bu yuzden SABIT DEGIL, veriye gore 2-5 arasi
+    degisebilir (Fintables'in kendi referans kartlarinda da tik sayisi
+    sabit degil, bkz. ANSGR ornegi 6 satir, TAVHL ornegi 5 satir)."""
+    if not max_abs or max_abs <= 0:
+        return Decimal(0), 0
+    rough_step = float(max_abs) / target_ticks
+    magnitude = Decimal(10) ** math.floor(math.log10(rough_step))
+    normalized = rough_step / float(magnitude)
+    if normalized <= 1:
+        nice_multiplier = Decimal(1)
+    elif normalized <= 2:
+        nice_multiplier = Decimal(2)
+    elif normalized <= 5:
+        nice_multiplier = Decimal(5)
+    else:
+        nice_multiplier = Decimal(10)
+    step = nice_multiplier * magnitude
+    tick_count = int((max_abs / step).to_integral_value(rounding=ROUND_CEILING))
+    return step, max(tick_count, 1)
+
+
+_AXIS_UPPER_PX = 72.0  # .chart-upper yuksekligiyle (CSS) BIREBIR eslesmeli
+_AXIS_LOWER_PX = 72.0  # .chart-lower yuksekligiyle (CSS, sadece has_negative iken aktif) BIREBIR eslesmeli
+_AXIS_ZERO_PX = 1.0  # .chart-zero yuksekligiyle (CSS) BIREBIR eslesmeli
+
+
+def _build_chart(title: str, values: list[Decimal | None], period_labels: list[str], currency_symbol: str = "₺") -> dict:
+    """Saf CSS mini bar grafik icin veri hazirlar: her nokta icin sifir
+    cizgisinin ustunde (pos_pct) ya da altinda (neg_pct) yuzde-yukseklik
+    uretir -- ARTIK o serideki HAM en buyuk mutlak degere (max_abs) degil,
+    _nice_axis_step()'in urettigi YUVARLAK eksen tavanina (axis_max >=
+    max_abs) gore olceklenir; boylece bar yukseklikleri ile sol eksendeki
+    yuvarlak sayilar ayni referansi kullanir (axis_max'a ulasan bar %100
+    degil, kendi payina dusen orani gosterir -- bkz. asagidaki y_axis_ticks).
+
+    Kullanici geri bildirimi: bar yukseklikleri eksendeki sayilarla TAM
+    hizali degildi. Kok neden IKI KATMANLIYDI:
+      1. Eksen etiketleri flexbox `justify-content:space-between` ile
+         dizilmisti -- bu, metin kutularinin kendi satir yuksekligini
+         (line-height) hesaba katarak araligi bozuyor, 0/25/50/75/100
+         yuzdelerinden kayan bir konum uretiyordu. Duzeltme: her etiket
+         icin PIKSEL-KESIN bir top_pct onceden (burada, Python'da) hesaplanip
+         `position:absolute; top: {top_pct}%` ile yerlestiriliyor (bkz.
+         sablon/card.html) -- boylece etiket ile bar'in gercek yuzde-yukseklik
+         olceginin AYNI referans noktasini kullanmasi garanti edilir.
+      2. .chart-lower (negatif bar alani) CSS'te has_negative olmasa BILE
+         her zaman ust ile ayni yer kapliyordu; bu da eksen ile bar sutununun
+         gercek render yuksekligi arasinda uyumsuzluga, dolayisiyla gorsel
+         olarak "sikismis" bir eksen/bar oranina yol aciyordu. Duzeltme:
+         sablonda has_negative degilse .chart-lower 0 yuksekliğe collapse
+         edilir (bkz. .mini-chart.has-negative .chart-lower).
+
+    Seride en az bir negatif deger varsa (has_negative) eksen simetrik hale
+    getirilir: +axis_max'tan 0'a, 0'dan -axis_max'e kadar uzanir; toplam
+    eksen yuksekligi _AXIS_UPPER_PX + _AXIS_ZERO_PX + _AXIS_LOWER_PX olur,
+    yoksa sadece _AXIS_UPPER_PX.
+
+    Ayrica en son (en guncel) ceyregin degeri current_value_display/
+    current_value_class olarak AYRICA doner -- sablon bunu mini grafigin
+    basligi yaninda bir "guncel deger" etiketi olarak gosterir (profesyonel
+    finans panellerindeki gibi en onemli rakami one cikarir); bar'in kendisi
+    de (bkz. card.html .mini-chart .chart-col:last-child) hafifce vurgulanir."""
+    max_abs = max((abs(v) for v in values if v is not None), default=None)
+    has_negative = any(v is not None and v < 0 for v in values)
+    axis_step, tick_count = _nice_axis_step(max_abs) if max_abs else (Decimal(0), 0)
+    axis_max = axis_step * tick_count if tick_count else None
+
+    points = []
+    for label, value in zip(period_labels, values):
+        if value is None or not axis_max:
+            points.append({"label": label, "display": "—", "pos_pct": 0, "neg_pct": 0})
+            continue
+        pct = max(int(round(abs(value) / axis_max * 100)), _MIN_BAR_PCT) if value != 0 else 0
+        display = format_currency_short(value, symbol=currency_symbol)
+        if value >= 0:
+            points.append({"label": label, "display": display, "pos_pct": pct, "neg_pct": 0})
+        else:
+            points.append({"label": label, "display": display, "pos_pct": 0, "neg_pct": pct})
+
+    y_axis_ticks: list[dict] = []
+    if axis_max:
+        axis_total_px = _AXIS_UPPER_PX + (_AXIS_ZERO_PX + _AXIS_LOWER_PX if has_negative else 0)
+        for i in range(tick_count, -1, -1):
+            tick_value = axis_step * i
+            top_px = (tick_count - i) / tick_count * _AXIS_UPPER_PX
+            y_axis_ticks.append({"label": _axis_tick_label(tick_value), "top_pct": top_px / axis_total_px * 100})
+        if has_negative:
+            for i in range(1, tick_count + 1):
+                tick_value = -axis_step * i
+                top_px = _AXIS_UPPER_PX + _AXIS_ZERO_PX + (i / tick_count) * _AXIS_LOWER_PX
+                y_axis_ticks.append({"label": _axis_tick_label(tick_value), "top_pct": top_px / axis_total_px * 100})
+
+    last_value = values[-1] if values else None
+    if last_value is None:
+        current_value_class = "neutral"
+    elif last_value > 0:
+        current_value_class = "positive"
+    elif last_value < 0:
+        current_value_class = "negative"
+    else:
+        current_value_class = "neutral"
+
+    return {
+        "title": title,
+        "points": points,
+        "y_axis_ticks": y_axis_ticks,
+        "has_negative": has_negative,
+        # Izgara cizgileri (bkz. card.html .chart-upper/.chart-lower) sabit
+        # %25 araliklarla DEGIL, bu grafigin GERCEK tik sayisina gore
+        # (100/tick_count) inline bir CSS degiskeni olarak yerlestirilir --
+        # tick_count artik sabit 4 degil, veriye gore degisiyor (bkz.
+        # _nice_axis_step). tick_count=0 iken (veri yok) 25 varsayilanina
+        # duser, ama o durumda zaten hicbir cizgi gorunmuyor olacak.
+        "grid_interval_pct": (100 / tick_count) if tick_count else 25,
+        "current_value_display": points[-1]["display"] if points else "—",
+        "current_value_class": current_value_class,
+    }
+
+
+def _table_period_labels(latest_period: calculator.Period, label_fn=_quarter_label) -> dict:
+    """GELİR TABLOSU/BİLANÇO basliklarinda "Güncel"/"Geçen Yıl"/"Ö. Çeyrek"
+    gibi JENERIK etiketler yerine GERÇEK donem etiketleri (orn. "2Ç26",
+    "2Ç25") gosterilmesi icin -- kullanici geri bildirimi: "hangi donemle
+    karsilastirildigi belli degildi, direkt yil/donem yazsak daha iyi olur".
+    Gelir tablosu YoY (bir yil once ayni ceyrek), bilanco QoQ (bir onceki
+    ceyrek) karsilastirir -- bkz. calculator.analyze() icindeki ayni ayrim.
+
+    `label_fn`: US_GAAP kartlari icin `_fiscal_quarter_label` verilir (bkz.
+    build_us_card_context()) -- "year" mali yil oldugu icin TAKVIM ceyregi
+    UYDURULMAZ."""
+    return {
+        "current": label_fn(latest_period),
+        "income_comparison": label_fn(calculator.year_ago_period(latest_period)),
+        "balance_comparison": label_fn(calculator.previous_quarter_period(latest_period)),
+    }
+
+
+def _valuation_context(valuation: calculator.ValuationMetrics | None, currency_symbol: str = "₺") -> dict | None:
+    """ValuationMetrics'i (varsa) karttaki DEĞERLEME kutucuklari icin
+    onceden Turkce bicimlendirilmis string'lere cevirir. Fiyat/sermaye
+    ikisi de yoksa (henuz cekilememis) None doner -- sablon bu durumda
+    tum bolumu gizler (bkz. card.html valuation-section kosulu)."""
+    if valuation is None:
+        return None
+    return {
+        "piyasa_degeri": _money_or_na(valuation.market_cap, currency_symbol),
+        "sermaye": _money_or_na(valuation.share_capital, currency_symbol),
+        "fk": _ratio_or_na(valuation.pe_ratio),
+        "pd_dd": _ratio_or_na(valuation.pb_ratio),
+        "fd_favok": _ratio_or_na(valuation.ev_ebitda),
+        "fd_hasilat": _ratio_or_na(valuation.ev_revenue),
+        "pd_efk": _ratio_or_na(valuation.price_to_operating_profit),
+    }
+
+
+def _valuation_context_bank(valuation: calculator.BankValuationMetrics | None) -> dict | None:
+    """_valuation_context()'in banka karsiligi -- BILEREK sadece Piyasa
+    Degeri/F-K/PD-DD icerir (bkz. calculator.compute_valuation_bank docstring'i:
+    bankalar icin FD bazli carpanlar anlamsizdir, referans kartlarda da
+    gosterilmez)."""
+    if valuation is None:
+        return None
+    return {
+        "piyasa_degeri": _money_or_na(valuation.market_cap),
+        "fk": _ratio_or_na(valuation.pe_ratio),
+        "pd_dd": _ratio_or_na(valuation.pb_ratio),
+    }
+
+
+def _valuation_context_insurance(valuation: calculator.InsuranceValuationMetrics | None) -> dict | None:
+    """_valuation_context()'in sigorta karsiligi -- bankadaki gibi BILEREK
+    sadece Piyasa Degeri/F-K/PD-DD icerir (bkz. compute_valuation_insurance
+    docstring'i)."""
+    if valuation is None:
+        return None
+    return {
+        "piyasa_degeri": _money_or_na(valuation.market_cap),
+        "fk": _ratio_or_na(valuation.pe_ratio),
+        "pd_dd": _ratio_or_na(valuation.pb_ratio),
+    }
+
+
+def build_card_context(
+    analysis: calculator.AnalysisResult,
+    score: scorer.ScoreResult,
+    commentary: commentary_module.Commentary,
+    disclosures: list[kap.Disclosure] | None = None,
+    *,
+    company_name: str | None = None,
+    sector: str | None = None,
+    price: Decimal | None = None,
+    valuation: calculator.ValuationMetrics | None = None,
+    data_sources_note: str = "İş Yatırım, KAP",
+    now: datetime | None = None,
+) -> dict:
+    """calculator/scorer/commentary ciktisini render_card()'in bekledigi
+    duz dict'e cevirir (bkz. modul docstring'indeki sema). Hicbir sayi
+    HESAPLAMAZ -- sadece Turkce bicimlendirir ve gorsel siniflara (renk,
+    rozet) esler."""
+    disclosures = disclosures or []
+    now = now or datetime.now()
+
+    show_ebitda = analysis.income_statement.ebitda is not None
+
+    income_rows = {
+        "revenue": _line_item_row(analysis.income_statement.revenue),
+        "gross_profit": _line_item_row(analysis.income_statement.gross_profit),
+        "operating_profit": _line_item_row(analysis.income_statement.operating_profit),
+        "ebitda": _line_item_row(analysis.income_statement.ebitda) if show_ebitda else None,
+        "net_income": _line_item_row(analysis.income_statement.net_income),
+    }
+    # Fintables/Matriks referans kartlariyla (bkz. references/ klasoru,
+    # kullanici geri bildirimi) birebir eslesmesi icin BİLANÇO tablosu
+    # Donen Varlıklar/Duran Varlıklar/Toplam Varlıklar/Net Borç/Özkaynaklar
+    # gosterir -- Nakit/Ticari Alacaklar/Finansal Borçlar ayri satir olarak
+    # GOSTERILMEZ (Net Borç zaten bu ikisinin farki), ama AnalysisResult
+    # icinde hesapli kalmaya devam eder (bkz. calculator.BalanceSheetSummary).
+    balance_rows = {
+        "current_assets": _line_item_row(analysis.balance_sheet.current_assets),
+        "non_current_assets": _line_item_row(analysis.balance_sheet.non_current_assets),
+        "total_assets": _line_item_row(analysis.balance_sheet.total_assets),
+        "net_debt": _line_item_row(analysis.balance_sheet.net_debt, lower_is_better=True),
+        "equity": _line_item_row(analysis.balance_sheet.equity),
+    }
+
+    period_labels = [_quarter_label(pt.period) for pt in analysis.quarterly_series]
+    charts = {
+        "revenue": _build_chart("Satışlar", [pt.revenue for pt in analysis.quarterly_series], period_labels),
+        "ebitda": (
+            _build_chart("FAVÖK", [pt.ebitda for pt in analysis.quarterly_series], period_labels) if show_ebitda else None
+        ),
+        "net_income": _build_chart("Net Kâr", [pt.net_income for pt in analysis.quarterly_series], period_labels),
+    }
+
+    onemli_bildirimler = [d for d in disclosures if d.importance == kap.IMPORTANCE_HIGH][:5]
+    disclosure_rows = [{"date": d.date.strftime("%d.%m.%Y"), "title": d.title} for d in onemli_bildirimler]
+
+    return {
+        "sector_template": "sanayi",
+        "ticker": analysis.ticker,
+        "company_logo_data_uri": _company_logo_data_uri(analysis.ticker),
+        "company_name": company_name or analysis.ticker,
+        "sector": sector,
+        "period_label": _quarter_label(analysis.latest_period),
+        "period_badge": f"{analysis.latest_period[0]}/{analysis.latest_period[1]}",
+        "table_periods": _table_period_labels(analysis.latest_period),
+        "report_timestamp": now.strftime("%d.%m.%Y %H:%M"),
+        "price_display": f"{format_number_tr(price, decimals=2)} ₺" if price is not None else None,
+        "valuation": _valuation_context(valuation),
+        "headline": commentary.headline,
+        "summary": commentary.summary,
+        "show_ebitda": show_ebitda,
+        "income_rows": income_rows,
+        "balance_rows": balance_rows,
+        "charts": charts,
+        "positives": commentary.positives,
+        "negatives": commentary.negatives,
+        "score_total_display": format_number_tr(score.total_score, decimals=2),
+        "score_badge": score.badge,
+        "score_badge_class": _BADGE_CLASS.get(score.badge, "karisik"),
+        "score_rows": [_score_row(c) for c in score.components],
+        "kap_note": commentary.kap_note,
+        "disclosure_rows": disclosure_rows,
+        "commentary_source": commentary.source,
+        "data_sources_note": data_sources_note,
+        "disclaimer": "Bu içerik yatırım tavsiyesi değildir; yatırım kararı için profesyonel danışmanlık alınmalıdır.",
+    }
+
+
+_USD_SYMBOL = "$"
+
+
+def build_us_card_context(
+    analysis: calculator.AnalysisResult,
+    score: scorer.ScoreResult,
+    commentary: commentary_module.Commentary,
+    disclosures: list | None = None,
+    *,
+    company_name: str | None = None,
+    sector: str | None = None,
+    price: Decimal | None = None,
+    valuation: calculator.ValuationMetrics | None = None,
+    data_sources_note: str = "SEC EDGAR (XBRL)",
+    now: datetime | None = None,
+) -> dict:
+    """build_card_context()'in NASDAQ/ABD (US_GAAP) karsiligi -- Faz 10.
+
+    `analysis`/`score`/`valuation` calculator.analyze_us()/scorer.score_industrial_us()/
+    calculator.compute_valuation() ile uretilir ve build_card_context()'in
+    bekledigi ile TAMAMEN AYNI TIPTEDIR (calculator.AnalysisResult/
+    calculator.ValuationMetrics/scorer.ScoreResult -- ayri US_GAAP'e ozel
+    tip YOK, bkz. analyze_us() docstring'i). Bu yuzden bu fonksiyon
+    build_card_context()'i COPY-PASTE ETMEK yerine AYNI ozel yardimcilari
+    (_line_item_row/_build_chart/_valuation_context/_score_row/vb.)
+    `currency_symbol="$"` ile CAGIRIR -- SADECE 3 fark vardir:
+      1. Para birimi sembolu: ₺ yerine $ (bkz. yukaridaki yardimcilarin
+         currency_symbol parametresi).
+      2. Donem etiketi: `_fiscal_quarter_label` ("FYyy Çn") kullanilir,
+         `_quarter_label` ("nÇyy") DEGIL -- "year" burada TAKVIM yili
+         DEGIL sirketin KENDI mali yilidir (bkz. sec_edgar.py modul notu),
+         "1Ç27" gibi bir etiket YANLIŞLIKLA takvim ceyregi izlenimi verirdi.
+      3. `sector_template: "abd"` -- card.html'deki `{% if sector_template ==
+         "banka" %} {% elif sector_template == "sigorta" %} {% else %}`
+         kosullarinin HICBIRINE eslesmedigi icin OTOMATIK olarak sanayi
+         seklindeki (varsayilan/else) satir/grafik/degerleme duzenine
+         DUSER -- income_rows/balance_rows semasi zaten XI_29 ile AYNI
+         oldugundan (revenue/gross_profit/operating_profit/ebitda/net_income,
+         current_assets/non_current_assets/total_assets/net_debt/equity)
+         card.html'de HICBIR YENI sablon/kosul EKLENMESI GEREKMEDI (CANLI
+         dogrulandi: sablonda hicbir yerde "₺" hardcode edilmemis, tum para
+         degerleri Python'dan ONCEDEN bicimlendirilmis string olarak gelir).
+
+    KAP bildirimleri (`disclosures`) bu fazda YOKTUR -- ABD'nin KAP
+    karsiligi (SEC 8-K haberleri) BU FAZIN KAPSAMI DISINDA, `disclosures`
+    HER ZAMAN bos liste varsayilir (parametre sadece imza uyumlulugu icin
+    tutuldu, cagiran taraf None/bos gecmelidir)."""
+    disclosures = disclosures or []
+    now = now or datetime.now()
+
+    show_ebitda = analysis.income_statement.ebitda is not None
+
+    income_rows = {
+        "revenue": _line_item_row(analysis.income_statement.revenue, currency_symbol=_USD_SYMBOL),
+        "gross_profit": _line_item_row(analysis.income_statement.gross_profit, currency_symbol=_USD_SYMBOL),
+        "operating_profit": _line_item_row(analysis.income_statement.operating_profit, currency_symbol=_USD_SYMBOL),
+        "ebitda": _line_item_row(analysis.income_statement.ebitda, currency_symbol=_USD_SYMBOL) if show_ebitda else None,
+        "net_income": _line_item_row(analysis.income_statement.net_income, currency_symbol=_USD_SYMBOL),
+    }
+    balance_rows = {
+        "current_assets": _line_item_row(analysis.balance_sheet.current_assets, currency_symbol=_USD_SYMBOL),
+        "non_current_assets": _line_item_row(analysis.balance_sheet.non_current_assets, currency_symbol=_USD_SYMBOL),
+        "total_assets": _line_item_row(analysis.balance_sheet.total_assets, currency_symbol=_USD_SYMBOL),
+        "net_debt": _line_item_row(analysis.balance_sheet.net_debt, lower_is_better=True, currency_symbol=_USD_SYMBOL),
+        "equity": _line_item_row(analysis.balance_sheet.equity, currency_symbol=_USD_SYMBOL),
+    }
+
+    period_labels = [_fiscal_quarter_label(pt.period) for pt in analysis.quarterly_series]
+    charts = {
+        "revenue": _build_chart("Satışlar", [pt.revenue for pt in analysis.quarterly_series], period_labels, _USD_SYMBOL),
+        "ebitda": (
+            _build_chart("FAVÖK", [pt.ebitda for pt in analysis.quarterly_series], period_labels, _USD_SYMBOL)
+            if show_ebitda
+            else None
+        ),
+        "net_income": _build_chart("Net Kâr", [pt.net_income for pt in analysis.quarterly_series], period_labels, _USD_SYMBOL),
+    }
+
+    return {
+        "sector_template": "abd",
+        "ticker": analysis.ticker,
+        "company_logo_data_uri": _company_logo_data_uri(analysis.ticker, market="NASDAQ"),
+        "company_name": company_name or analysis.ticker,
+        "sector": sector,
+        "period_label": _fiscal_quarter_label(analysis.latest_period),
+        "period_badge": f"FY{analysis.latest_period[0]}/{analysis.latest_period[1]}",
+        "table_periods": _table_period_labels(analysis.latest_period, label_fn=_fiscal_quarter_label),
+        "report_timestamp": now.strftime("%d.%m.%Y %H:%M"),
+        "price_display": f"{_USD_SYMBOL}{format_number_tr(price, decimals=2)}" if price is not None else None,
+        "valuation": _valuation_context(valuation, _USD_SYMBOL),
+        "headline": commentary.headline,
+        "summary": commentary.summary,
+        "show_ebitda": show_ebitda,
+        "income_rows": income_rows,
+        "balance_rows": balance_rows,
+        "charts": charts,
+        "positives": commentary.positives,
+        "negatives": commentary.negatives,
+        "score_total_display": format_number_tr(score.total_score, decimals=2),
+        "score_badge": score.badge,
+        "score_badge_class": _BADGE_CLASS.get(score.badge, "karisik"),
+        "score_rows": [_score_row(c) for c in score.components],
+        "kap_note": None,
+        "disclosure_rows": [],
+        "commentary_source": commentary.source,
+        "data_sources_note": data_sources_note,
+        "disclaimer": "Bu içerik yatırım tavsiyesi değildir; yatırım kararı için profesyonel danışmanlık alınmalıdır.",
+    }
+
+
+def build_bank_card_context(
+    analysis: calculator.BankAnalysisResult,
+    score: scorer.ScoreResult,
+    commentary: commentary_module.Commentary,
+    disclosures: list[kap.Disclosure] | None = None,
+    *,
+    company_name: str | None = None,
+    sector: str | None = None,
+    price: Decimal | None = None,
+    valuation: calculator.BankValuationMetrics | None = None,
+    data_sources_note: str = "İş Yatırım (solo), en güncel çeyrek KAP'tan konsolide gelmiş olabilir",
+    now: datetime | None = None,
+) -> dict:
+    """build_card_context()'in banka (UFRS) karsiligi. Donen sozlukteki
+    `sector_template: "banka"` alani, card.html'in hangi tablo/degerleme/
+    grafik bolumunu (sanayi vs banka) cizecegine karar vermesini saglar --
+    bkz. modul ici ust not (BankIncomeStatementSummary/BankBalanceSheetSummary
+    sanayi sirketlerinden TAMAMEN FARKLI kalemler tasir).
+
+    ONEMLI (canli dogrulandi -- GARAN icin isyatirim.com.tr'nin kendi
+    sitesinde "Konsolide UFRS" / "Konsolide Olmayan UFRS" secimi test
+    edildi): bu projenin kullandigi HERKESE ACIK MaliTablo JSON uc noktasi
+    (companyCode+exchange+financialGroup) bankalar icin SADECE "Konsolide
+    Olmayan" (solo, banka-tek-basina) veriyi donduruyor -- ornegin GARAN
+    Krediler: solo=2.624.664.000.000 iken Konsolide (kiralama/faktoring
+    istirakleri dahil grup geneli, Fintables'in gosterdigi) 2.997.999.000.000.
+    Denenen 5 alternatif financialGroup degeri (UFRS_KONSOLIDE, UFRSK, vb.)
+    bos sonuc dondu -- konsolide veri bu herkese acik uc noktada YOK, sadece
+    sitenin kendi ic mekanizmasinda erisiliyor. Bu yuzden data_sources_note
+    varsayilani ACIKCA "solo/konsolide olmayan" der -- Fintables/haberlerdeki
+    konsolide rakamlarla farkli olmasi BEKLENEN bir durumdur, veri hatasi
+    DEGILDIR."""
+    disclosures = disclosures or []
+    now = now or datetime.now()
+
+    income_rows = {
+        "interest_income": _line_item_row(analysis.income_statement.interest_income),
+        "interest_expense": _line_item_row(analysis.income_statement.interest_expense),
+        "net_fee_income": _line_item_row(analysis.income_statement.net_fee_income),
+        "net_operating_profit": _line_item_row(analysis.income_statement.net_operating_profit),
+        "net_income": _line_item_row(analysis.income_statement.net_income),
+    }
+    balance_rows = {
+        "loans": _line_item_row(analysis.balance_sheet.loans),
+        "deposits": _line_item_row(analysis.balance_sheet.deposits),
+        "provisions": _line_item_row(analysis.balance_sheet.provisions),
+        "total_assets": _line_item_row(analysis.balance_sheet.total_assets),
+        "equity": _line_item_row(analysis.balance_sheet.equity),
+    }
+
+    period_labels = [_quarter_label(pt.period) for pt in analysis.quarterly_series]
+    charts = {
+        "net_interest_income": _build_chart(
+            "Net Faiz Geliri", [pt.net_interest_income for pt in analysis.quarterly_series], period_labels
+        ),
+        "net_income": _build_chart("Net Kâr", [pt.net_income for pt in analysis.quarterly_series], period_labels),
+        "loans": _build_chart("Krediler", [pt.loans for pt in analysis.quarterly_series], period_labels),
+    }
+
+    onemli_bildirimler = [d for d in disclosures if d.importance == kap.IMPORTANCE_HIGH][:5]
+    disclosure_rows = [{"date": d.date.strftime("%d.%m.%Y"), "title": d.title} for d in onemli_bildirimler]
+
+    return {
+        "sector_template": "banka",
+        "ticker": analysis.ticker,
+        "company_logo_data_uri": _company_logo_data_uri(analysis.ticker),
+        "company_name": company_name or analysis.ticker,
+        "sector": sector,
+        "period_label": _quarter_label(analysis.latest_period),
+        "period_badge": f"{analysis.latest_period[0]}/{analysis.latest_period[1]}",
+        "table_periods": _table_period_labels(analysis.latest_period),
+        "report_timestamp": now.strftime("%d.%m.%Y %H:%M"),
+        "price_display": f"{format_number_tr(price, decimals=2)} ₺" if price is not None else None,
+        "valuation": _valuation_context_bank(valuation),
+        "headline": commentary.headline,
+        "summary": commentary.summary,
+        "show_ebitda": False,
+        "income_rows": income_rows,
+        "balance_rows": balance_rows,
+        "charts": charts,
+        "positives": commentary.positives,
+        "negatives": commentary.negatives,
+        "score_total_display": format_number_tr(score.total_score, decimals=2),
+        "score_badge": score.badge,
+        "score_badge_class": _BADGE_CLASS.get(score.badge, "karisik"),
+        "score_rows": [_score_row(c) for c in score.components],
+        "kap_note": commentary.kap_note,
+        "disclosure_rows": disclosure_rows,
+        "commentary_source": commentary.source,
+        "data_sources_note": data_sources_note,
+        "disclaimer": "Bu içerik yatırım tavsiyesi değildir; yatırım kararı için profesyonel danışmanlık alınmalıdır.",
+    }
+
+
+def build_insurance_card_context(
+    analysis: calculator.InsuranceAnalysisResult,
+    score: scorer.ScoreResult,
+    commentary: commentary_module.Commentary,
+    disclosures: list[kap.Disclosure] | None = None,
+    *,
+    company_name: str | None = None,
+    sector: str | None = None,
+    price: Decimal | None = None,
+    valuation: calculator.InsuranceValuationMetrics | None = None,
+    data_sources_note: str = "İş Yatırım, KAP",
+    now: datetime | None = None,
+) -> dict:
+    """build_card_context()'in sigorta (UFRS_K) karsiligi. Donen sozlukteki
+    `sector_template: "sigorta"` alani, card.html'in hangi tablo/degerleme/
+    grafik bolumunu cizecegine karar vermesini saglar -- bkz.
+    InsuranceIncomeStatementSummary/InsuranceBalanceSheetSummary (ANSGR ile
+    canli dogrulandi, ratios/tum kalemler referans kartla BIREBIR eslesti)."""
+    disclosures = disclosures or []
+    now = now or datetime.now()
+
+    income_rows = {
+        "gross_written_premiums": _line_item_row(analysis.income_statement.gross_written_premiums),
+        "net_premiums_earned": _line_item_row(analysis.income_statement.net_premiums_earned),
+        "technical_income": _line_item_row(analysis.income_statement.technical_income),
+        "technical_balance": _line_item_row(analysis.income_statement.technical_balance),
+        "net_income": _line_item_row(analysis.income_statement.net_income),
+    }
+    balance_rows = {
+        "cash_and_financial_assets": _line_item_row(analysis.balance_sheet.cash_and_financial_assets),
+        "receivables_from_operations": _line_item_row(analysis.balance_sheet.receivables_from_operations),
+        "technical_provisions": _line_item_row(analysis.balance_sheet.technical_provisions),
+        "payables_from_operations": _line_item_row(analysis.balance_sheet.payables_from_operations),
+        "equity": _line_item_row(analysis.balance_sheet.equity),
+    }
+
+    period_labels = [_quarter_label(pt.period) for pt in analysis.quarterly_series]
+    charts = {
+        "gross_written_premiums": _build_chart(
+            "Prim Üretimi", [pt.gross_written_premiums for pt in analysis.quarterly_series], period_labels
+        ),
+        "technical_balance": _build_chart(
+            "Teknik Denge", [pt.technical_balance for pt in analysis.quarterly_series], period_labels
+        ),
+        "net_income": _build_chart("Net Kâr", [pt.net_income for pt in analysis.quarterly_series], period_labels),
+    }
+
+    onemli_bildirimler = [d for d in disclosures if d.importance == kap.IMPORTANCE_HIGH][:5]
+    disclosure_rows = [{"date": d.date.strftime("%d.%m.%Y"), "title": d.title} for d in onemli_bildirimler]
+
+    return {
+        "sector_template": "sigorta",
+        "ticker": analysis.ticker,
+        "company_logo_data_uri": _company_logo_data_uri(analysis.ticker),
+        "company_name": company_name or analysis.ticker,
+        "sector": sector,
+        "period_label": _quarter_label(analysis.latest_period),
+        "period_badge": f"{analysis.latest_period[0]}/{analysis.latest_period[1]}",
+        "table_periods": _table_period_labels(analysis.latest_period),
+        "report_timestamp": now.strftime("%d.%m.%Y %H:%M"),
+        "price_display": f"{format_number_tr(price, decimals=2)} ₺" if price is not None else None,
+        "valuation": _valuation_context_insurance(valuation),
+        "headline": commentary.headline,
+        "summary": commentary.summary,
+        "show_ebitda": False,
+        "income_rows": income_rows,
+        "balance_rows": balance_rows,
+        "charts": charts,
+        "positives": commentary.positives,
+        "negatives": commentary.negatives,
+        "score_total_display": format_number_tr(score.total_score, decimals=2),
+        "score_badge": score.badge,
+        "score_badge_class": _BADGE_CLASS.get(score.badge, "karisik"),
+        "score_rows": [_score_row(c) for c in score.components],
+        "kap_note": commentary.kap_note,
+        "disclosure_rows": disclosure_rows,
+        "commentary_source": commentary.source,
+        "data_sources_note": data_sources_note,
+        "disclaimer": "Bu içerik yatırım tavsiyesi değildir; yatırım kararı için profesyonel danışmanlık alınmalıdır.",
+    }
+
+
+def render_html(context: dict) -> str:
+    """context'ten HTML uretir (Playwright olmadan da test edilebilsin
+    diye render_card()'dan ayri tutuldu)."""
+    template = _env.get_template("card.html")
+    return template.render(**context)
+
+
+def render_card(context: dict, out_path: str) -> str:
+    """context'i HTML'e render eder, debug icin data/last_card.html'e
+    yazar, sonra Playwright chromium (headless) ile #card elementinin
+    ekran goruntusunu device_scale_factor=2 (retina) ile out_path'e PNG
+    olarak kaydeder. Uretilen PNG dosya yolunu (out_path) doner.
+
+    Hatalar:
+        CardRenderError: Playwright/chromium baslatilamadi (kurulu
+            olmayabilir -- `playwright install chromium` calistirilmali).
+    """
+    html = render_html(context)
+
+    _DEBUG_HTML_PATH.parent.mkdir(parents=True, exist_ok=True)
+    _DEBUG_HTML_PATH.write_text(html, encoding="utf-8")
+
+    out_path_obj = Path(out_path)
+    out_path_obj.parent.mkdir(parents=True, exist_ok=True)
+
+    browser = _get_browser()
+    try:
+        page = browser.new_page(viewport={"width": 1000, "height": 1200}, device_scale_factor=2)
+        try:
+            page.set_content(html, wait_until="load")
+            page.locator("#card").screenshot(path=str(out_path_obj))
+        finally:
+            page.close()
+    except Exception as exc:  # playwright kendi hata siniflarini firlatir (Error, TimeoutError vb.)
+        raise CardRenderError(f"Kart PNG'ye render edilemedi: {exc}") from exc
+
+    logger.info("Kart render edildi: %s", out_path_obj)
+    return str(out_path_obj)

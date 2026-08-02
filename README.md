@@ -527,6 +527,24 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       yeni tasarım 2400x2724'e sığıyor — hiçbir kırpma gerekmedi. Chip genişliği
       CSS'te sabit tutularak piksel bütçesi deterministik hesaplanabiliyor.
       Test: `pytest tests/` (566 test, hiçbir regresyon yok).
+- [x] **Faz 13.5 (kullanıcı raporu, 2026-08-03 — ASTS/genç NASDAQ şirketleri +
+      menü UX)** — Üç ayrı sorun çözüldü: **(1)** ASTS gibi genç/küçük NASDAQ
+      şirketlerinde Satışlar "veri yok" gösteriyordu — şirket 2025'ten itibaren
+      3. bir SEC revenue tag'ine geçmişti, haritaya eklendi. **(2)** FAVÖK
+      satırı hesaplanamadığında gelir tablosundan TAMAMEN gizleniyordu (5
+      yerine 4 satır) — artık HER ZAMAN görünür (N/A dahil). **(3)** Skor
+      paneli TÜM bileşenler N/A iken bile "10,00/10 SAĞLAM" gösterebiliyordu
+      (sadece %4 ağırlıklı tek bileşenden) — `scorer.py`'ye veri-yeterlilik
+      eşiği (%50) eklendi, altında kalınırsa "YETERSİZ VERİ" rozeti gösterilir,
+      sayısal skor HİÇ basılmaz. **YENİ**: SEC'te hâlâ eksik kalan Brüt Kâr/
+      Esas Faaliyet Kârı için `src/fetchers/stockanalysis.py` — stockanalysis.com'dan
+      (investing.com/tradingview.com CANLI test edildi, ikisi de teknik
+      olarak uygun değildi — bkz. `PROJE_HAFIZASI/02_VERI_KAYNAKLARI.md` §6.10)
+      YEDEK veri çeker; FAVÖK bu sayede SIFIR ek kodla otomatik dolar. Ayrıca
+      menüde "son kullanılan piyasa" hafızası + her analiz sonrası "tek
+      dokunuşla yeni arama" butonları eklendi (kullanıcı geri bildirimi: menü
+      akışı çok adımlıydı). Test: `pytest tests/` (594 test, 28 yeni, hiçbir
+      regresyon yok).
 
 ## Dizin Yapisi
 

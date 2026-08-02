@@ -394,8 +394,18 @@ async def _execute_and_send(
         except Exception:
             logger.exception("istek user=%s ticker=%s: kart fotoğrafı gönderilemedi (özet metni yine de denenecek)", user_id, ticker)
 
+        # §B18: en son basarili aramanin piyasasi (fallback ile degismis
+        # olabilir, orn. BIST->NASDAQ) kalici hafizaya yazilir -- bir
+        # sonraki menusuz/dogrudan ticker yazma varsayilani bunu kullanir.
+        menu.set_son_market(context.user_data, market)
+
         try:
-            await context.bot.send_message(chat_id=chat_id, text=_bilanco_ozeti_metni(sonuc))
+            # §B18: ozet mesajina "tek dokunusla yeni arama" butonlari
+            # eklenir -- kullanici /menu -> Bilanço Analizi akisini BASTAN
+            # gezmeden hemen baska bir piyasada/hissede arama baslatabilsin.
+            await context.bot.send_message(
+                chat_id=chat_id, text=_bilanco_ozeti_metni(sonuc), reply_markup=menu.build_sonuc_sonrasi_menu()
+            )
         except Exception:
             logger.exception("istek user=%s ticker=%s: özet metni gönderilemedi", user_id, ticker)
 
@@ -415,7 +425,12 @@ async def handle_ticker_message(update: Update, context: ContextTypes.DEFAULT_TY
     raw_text = update.message.text or ""
 
     islem = menu.peek_bekleyen_islem(context.user_data)
-    market = islem.market if islem is not None else "BIST"
+    # CANLI KULLANICI GERİ BİLDİRİMİ (§B18): menüsüz dogrudan ticker yazan
+    # kullanicilar icin varsayilan piyasa ARTIK sabit "BIST" DEGIL -- en son
+    # kullanilan/secilen piyasa (menu.get_son_market, TTL'siz) kullanilir.
+    # Hic hicbir sey secilmemisse (ilk kullanim) "BIST" varsayilanina duser
+    # (eski davranisla GERIYE UYUMLU).
+    market = islem.market if islem is not None else menu.get_son_market(context.user_data)
 
     ticker = normalize_ticker_input(raw_text, market=market)
     if ticker is None:
@@ -468,9 +483,11 @@ async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     if screen == "analiz":
         if sub == "bist":
             menu.set_bekleyen_islem(context.user_data, tip="analiz", market="BIST")
+            menu.set_son_market(context.user_data, "BIST")
             await query.edit_message_text(menu.ANALIZ_BIST_PROMPT, reply_markup=menu.build_analiz_bekleniyor_menu())
         elif sub == "nasdaq":
             menu.set_bekleyen_islem(context.user_data, tip="analiz", market="NASDAQ")
+            menu.set_son_market(context.user_data, "NASDAQ")
             await query.edit_message_text(menu.ANALIZ_NASDAQ_PROMPT, reply_markup=menu.build_analiz_bekleniyor_menu())
         else:
             menu.clear_bekleyen_islem(context.user_data)

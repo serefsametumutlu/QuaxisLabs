@@ -265,6 +265,26 @@ def test_handle_ticker_message_nasdaq_bekleyen_islem_market_nasdaq_kullanir(monk
     assert "bekleyen_islem" not in user_data  # basarili girdiden sonra TUKETILIR
 
 
+def test_handle_ticker_message_bekleyen_islem_yokken_son_market_kullanilir(monkeypatch) -> None:
+    """CANLI KULLANICI GERİ BİLDİRİMİ (§B18): kullanıcı önceki aramasında
+    NASDAQ seçmişse (son_market kalıcı hafızası), bekleyen_islem OLMADAN
+    (menüsüz) yazdığı bir sonraki ticker de varsayılan olarak NASDAQ'ta
+    aranmalı -- artık HER ZAMAN sabit "BIST" değil."""
+    calls = AsyncMock()
+    monkeypatch.setattr(telegram_bot, "_execute_and_send", calls)
+
+    user_data: dict = {}
+    menu.set_son_market(user_data, "NASDAQ")
+
+    update = _fake_update("AAPL", user_id=9010)
+    context = _fake_context(user_data)
+    _run_coro(telegram_bot.handle_ticker_message(update, context))
+
+    calls.assert_awaited_once()
+    assert calls.await_args.kwargs["market"] == "NASDAQ"
+    assert calls.await_args.kwargs["allow_market_fallback"] is True  # menuden ACIKCA secilmedi (bekleyen_islem yok)
+
+
 def test_handle_ticker_message_nasdaq_noktali_sembolu_dogru_normalize_eder(monkeypatch) -> None:
     calls = AsyncMock()
     monkeypatch.setattr(telegram_bot, "_execute_and_send", calls)
@@ -377,6 +397,7 @@ def test_handle_menu_callback_analiz_bist_bekleyen_islem_ayarlar_ve_prompt_goste
     (text,), _ = query.edit_message_text.await_args
     assert text == menu.ANALIZ_BIST_PROMPT
     assert user_data["bekleyen_islem"].market == "BIST"
+    assert menu.get_son_market(user_data) == "BIST"  # §B18: bir sonraki menusuz aramanin varsayilani
 
 
 def test_handle_menu_callback_analiz_nasdaq_bekleyen_islem_ayarlar_ve_prompt_gosterir() -> None:
@@ -387,6 +408,7 @@ def test_handle_menu_callback_analiz_nasdaq_bekleyen_islem_ayarlar_ve_prompt_gos
     (text,), _ = query.edit_message_text.await_args
     assert text == menu.ANALIZ_NASDAQ_PROMPT
     assert user_data["bekleyen_islem"].market == "NASDAQ"
+    assert menu.get_son_market(user_data) == "NASDAQ"  # §B18: bir sonraki menusuz aramanin varsayilani
 
 
 def test_handle_menu_callback_takvim_ust_menu_secenekleri_gosterir() -> None:
@@ -475,9 +497,32 @@ def _fake_pipeline_result(ticker: str, png_path) -> SimpleNamespace:
 
 def _fake_bot_context_for_execute(chat_id=555, user_id=9100):
     bot = SimpleNamespace(send_chat_action=AsyncMock(), send_photo=AsyncMock(), send_message=AsyncMock())
-    context = SimpleNamespace(bot=bot)
+    # user_data={} -- gercek telegram.ext Context'te HER ZAMAN vardir (bkz.
+    # menu.set_son_market cagrisi, §B18); bos dict basari yolunun bunu
+    # yazabilmesi icin yeterli.
+    context = SimpleNamespace(bot=bot, user_data={})
     update = SimpleNamespace(effective_chat=SimpleNamespace(id=chat_id), effective_user=SimpleNamespace(id=user_id))
     return update, context
+
+
+def test_execute_and_send_basarida_son_market_yazar_ve_hizli_menu_ekler(tmp_path, monkeypatch) -> None:
+    """§B18: basarili bir analiz sonrasi (a) son_market kalici hafizaya
+    yazilir (bir sonraki menusuz aramanin varsayilanini belirler) ve (b)
+    ozet mesajina "tek dokunusla yeni arama" butonlari (build_sonuc_sonrasi_
+    menu) eklenir -- kullanici /menu akisini bastan gezmek ZORUNDA kalmaz."""
+    monkeypatch.setattr(telegram_bot.asyncio, "to_thread", _fake_to_thread)
+
+    png_path = tmp_path / "thyao.png"
+    png_path.write_bytes(b"\x89PNG\r\n\x1a\n" + b"0" * 20)
+    sonuc = _fake_pipeline_result("THYAO", png_path)
+    monkeypatch.setattr(telegram_bot.pipeline, "run_pipeline", lambda ticker, periods=None, market="BIST": sonuc)
+
+    update, context = _fake_bot_context_for_execute()
+    _run_coro(telegram_bot._execute_and_send("THYAO", update, context, market="BIST"))
+
+    assert menu.get_son_market(context.user_data) == "BIST"
+    _, kwargs = context.bot.send_message.await_args
+    assert kwargs["reply_markup"] == menu.build_sonuc_sonrasi_menu()
 
 
 def test_execute_and_send_bist_basarisizsa_nasdaqta_dener(tmp_path, monkeypatch) -> None:

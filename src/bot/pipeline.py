@@ -62,7 +62,7 @@ import config
 from src.ai import commentary as commentary_module
 from src.analysis import calculator, scorer
 from src.db import models, repository
-from src.fetchers import earnings_calendar, isyatirim, kap, kap_financials, sec_edgar
+from src.fetchers import earnings_calendar, isyatirim, kap, kap_financials, sec_edgar, stockanalysis
 from src.render import card
 
 logger = logging.getLogger(__name__)
@@ -352,6 +352,29 @@ def _standardize_to_records_ufrs_k(raw: isyatirim.RawFinancials) -> list[reposit
     return records
 
 
+def _stockanalysis_yedek_veri(ticker: str) -> dict[Period, stockanalysis.QuarterlyIncomeSnapshot] | None:
+    """SEC'te (ozellikle genc/kucuk NASDAQ sirketlerinde, bkz. 06_BILINEN_
+    SORUNLAR.md §B17 -- orn. ASTS) eksik kalan Satislar/Brut Kar/Esas
+    Faaliyet Kari icin YEDEK kaynak. SADECE cagiran taraf (asagida,
+    _standardize_to_records_us_gaap) SEC verisinde en az bir eksik
+    bulduysa cagrilir -- SEC'in eksiksiz oldugu (ornegin AAPL/NVDA/MSFT)
+    COGUNLUK durumda GEREKSIZ bir dis istek YAPILMAZ.
+
+    Kural 9 geregi bu IKINCIL/yardimci bir veri kaynagidir -- HERHANGI bir
+    hata (ag, ayristirma, site yapisi degisikligi) pipeline'i ASLA
+    BLOKLAMAZ, sessizce None doner ve loglanir; SEC'te eksik kalan alanlar
+    bu durumda N/A kalmaya devam eder (Kural 3: yanlis rakamdan iyidir)."""
+    try:
+        snapshots = stockanalysis.fetch_quarterly_income(ticker)
+    except stockanalysis.StockAnalysisError:
+        logger.warning(
+            "%s icin stockanalysis.com yedek verisi cekilemedi -- SEC'teki eksik alanlar N/A kalacak", ticker,
+            exc_info=True,
+        )
+        return None
+    return {snap.period: snap for snap in snapshots}
+
+
 def _standardize_to_records_us_gaap(raw: sec_edgar.RawUsFinancials) -> list[repository.FinancialRecord]:
     """_standardize_to_records()'un NASDAQ/ABD (US_GAAP) karsiligi -- bkz.
     sec_edgar.py STANDARD_ITEM_MAP_US_GAAP. `raw.periods` icindeki Period
@@ -378,17 +401,46 @@ def _standardize_to_records_us_gaap(raw: sec_edgar.RawUsFinancials) -> list[repo
     "operating_profit" ile AYNI deger olarak YAZILIR -- boylece calculator.ebitda()/
     ebitda_cum() SIFIR degisiklikle (kopyalanmadan) US_GAAP verisinde de
     calisir (bkz. calculator.analyze_us() -- ayni _build_analysis_result()
-    cekirdegini kullanir)."""
+    cekirdegini kullanir).
+
+    §B17 (kullanici raporu, ASTS): SEC XBRL'de "revenue"/"gross_profit"/
+    "operating_profit" bir donem icin HALA None ise (SEC otoritatif
+    kaynaktir ama genc/kucuk sirketler bu tag'leri raporlamayi BIRAKABILIYOR,
+    bkz. sec_edgar.py STANDARD_ITEM_MAP_US_GAAP "revenue" notu) SADECE O
+    DURUMDA stockanalysis.com'dan (bkz. _stockanalysis_yedek_veri) TEK
+    ceyreklik (KUMULATIF DEGIL -- stockanalysis zaten ceyreklik veri
+    verdigi icin "_cum" alani doldurulmaz, TTM/kaldirac bileseni bu
+    donemler icin N/A KALMAYA devam eder) deger YEDEK olarak kullanilir."""
+    yedek_gerekli = any(
+        sec_edgar.standardized_value_us_gaap(raw, alan, donem) is None
+        for donem in raw.periods
+        for alan in ("revenue", "gross_profit", "operating_profit")
+    )
+    yedek_veri = _stockanalysis_yedek_veri(raw.ticker) if yedek_gerekli else None
+
     records: list[repository.FinancialRecord] = []
     for period in raw.periods:
+        yedek_donem = yedek_veri.get(period) if yedek_veri else None
         for field in _US_GAAP_QUARTERLY_FIELDS:
-            if field == "gross_profit":
+            if field == "revenue":
+                value = sec_edgar.quarterly_standardized_value_us_gaap(raw, field, period)
+                cum_value = sec_edgar.standardized_value_us_gaap(raw, field, period)
+                if value is None and yedek_donem is not None and yedek_donem.revenue is not None:
+                    value = yedek_donem.revenue
+            elif field == "gross_profit":
                 # bkz. sec_edgar.gross_profit_us_gaap() docstring'i: dogrudan
                 # "GrossProfit" tag'i (AAPL/NVDA/MSFT/TSLA/AMD) yoksa Hasilat -
                 # Satislarin Maliyeti turetilir (GOOGL/AMZN/META/NFLX --
                 # stockanalysis.com ile BIREBIR dogrulandi, PYPL'de HALA None).
                 value = sec_edgar.quarterly_gross_profit_us_gaap(raw, period)
                 cum_value = sec_edgar.gross_profit_us_gaap(raw, period)
+                if value is None and yedek_donem is not None and yedek_donem.gross_profit is not None:
+                    value = yedek_donem.gross_profit
+            elif field == "operating_profit":
+                value = sec_edgar.quarterly_standardized_value_us_gaap(raw, field, period)
+                cum_value = sec_edgar.standardized_value_us_gaap(raw, field, period)
+                if value is None and yedek_donem is not None and yedek_donem.operating_profit is not None:
+                    value = yedek_donem.operating_profit
             elif field == "depreciation_amortization":
                 # bkz. sec_edgar.depreciation_amortization_us_gaap() docstring'i:
                 # dogrudan birlesik tag yoksa (MSFT -- CANLI hata, kullanici

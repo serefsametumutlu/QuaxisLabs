@@ -23,7 +23,7 @@ import pytest
 import config
 from src.bot import pipeline
 from src.db import models, repository
-from src.fetchers import isyatirim, kap, kap_financials, sec_edgar
+from src.fetchers import isyatirim, kap, kap_financials, sec_edgar, stockanalysis
 
 
 # --- Izole DB fixture (repository.get_session()'i tmp_path'e yonlendirir) -----------------------------------------------------
@@ -196,6 +196,87 @@ def test_standardize_to_records_us_gaap_kisa_uzun_borc_bileseni_ayrica_yazilmaz(
     codes = {code for (_y, _p, code, _n, _v) in records}
     assert "short_term_financial_debt" not in codes
     assert "long_term_financial_debt" not in codes
+
+
+# --- §B17: stockanalysis.com YEDEK veri (SEC'te eksik revenue/gross_profit/operating_profit) -----------------------------------------------------
+
+
+def _fake_raw_us_gaap_eksik_gp_opinc(ticker: str = "ASTSTEST") -> sec_edgar.RawUsFinancials:
+    """ASTS'de CANLI gozlemlenen durumu taklit eder: GrossProfit/
+    OperatingIncomeLoss tag'leri SEC'te bu donem icin HIC YOK (revenue/
+    net_income VAR) -- bkz. _fake_raw_us_gaap() ile AYNI ilke, SADECE
+    "us-gaap:GrossProfit"/"us-gaap:OperatingIncomeLoss" anahtarlari EKSIK."""
+    facts_by_tag = {
+        "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax": [_us_fact("2025-09-28", "2025-12-27", "1200", "Q1", 2026)],
+        "us-gaap:NetIncomeLoss": [_us_fact("2025-09-28", "2025-12-27", "260", "Q1", 2026)],
+        "us-gaap:DepreciationDepletionAndAmortization": [_us_fact("2025-09-28", "2025-12-27", "60", "Q1", 2026)],
+        "us-gaap:Assets": [_us_fact(None, "2025-12-27", "5000", "Q1", 2026)],
+        "us-gaap:AssetsCurrent": [_us_fact(None, "2025-12-27", "2000", "Q1", 2026)],
+        "us-gaap:StockholdersEquity": [_us_fact(None, "2025-12-27", "3000", "Q1", 2026)],
+        "us-gaap:CashAndCashEquivalentsAtCarryingValue": [_us_fact(None, "2025-12-27", "400", "Q1", 2026)],
+        "us-gaap:LongTermDebtCurrent": [_us_fact(None, "2025-12-27", "200", "Q1", 2026)],
+        "us-gaap:LongTermDebtNoncurrent": [_us_fact(None, "2025-12-27", "400", "Q1", 2026)],
+        "dei:EntityCommonStockSharesOutstanding": [_us_fact(None, "2025-12-27", "1000000", "Q1", 2026)],
+    }
+    return sec_edgar.RawUsFinancials(
+        ticker=ticker, cik10="0000000000", company_name="Test Inc.", periods=[(2026, 3)], facts_by_tag=facts_by_tag
+    )
+
+
+def test_standardize_to_records_us_gaap_sec_eksikse_stockanalysis_yedek_kullanir(monkeypatch) -> None:
+    """CANLI HATA (kullanici raporu, ASTS, §B17): SEC'te GrossProfit/
+    OperatingIncomeLoss tag'leri yoksa bu alanlar N/A kaliyordu. Artik
+    stockanalysis.com'dan (yedek kaynak) doldurulur -- VE FAVOK'un ic
+    tabani (operating_profit_ebitda_base) da otomatik olarak bu yedek
+    degeri kullanir (SIFIR ek kod -- calculator.ebitda() zaten bu alani
+    okuyor)."""
+    raw = _fake_raw_us_gaap_eksik_gp_opinc()
+    yedek = {
+        (2026, 3): stockanalysis.QuarterlyIncomeSnapshot(
+            period=(2026, 3), revenue=Decimal("1200"), gross_profit=Decimal("480"),
+            operating_profit=Decimal("300"), net_income=Decimal("260"),
+        )
+    }
+    monkeypatch.setattr(pipeline.stockanalysis, "fetch_quarterly_income", lambda ticker: list(yedek.values()))
+
+    records = pipeline._standardize_to_records_us_gaap(raw)
+    by_key = {(y, p, code): value for (y, p, code, _name, value) in records}
+
+    assert by_key[(2026, 3, "gross_profit")] == Decimal("480")
+    assert by_key[(2026, 3, "operating_profit")] == Decimal("300")
+    assert by_key[(2026, 3, "operating_profit_ebitda_base")] == Decimal("300")
+    # kumulatif ("_cum") alani stockanalysis'ten DOLDURULMAZ (SADECE ceyreklik
+    # veri saglar) -- bkz. _standardize_to_records_us_gaap docstring'i.
+    assert (2026, 3, "gross_profit_cum") not in by_key
+    assert (2026, 3, "operating_profit_cum") not in by_key
+
+
+def test_standardize_to_records_us_gaap_sec_tamsa_stockanalysis_cagrilmaz(monkeypatch) -> None:
+    """Performans/nezaket: SEC verisi ZATEN eksiksizse (AAPL/NVDA/MSFT gibi
+    buyuk cogunluk durum) stockanalysis.com'a GEREKSIZ bir istek ATILMAZ."""
+    raw = _fake_raw_us_gaap()  # TUM alanlar dolu
+
+    def patlarsa_hata_ver(ticker: str) -> list:
+        raise AssertionError("SEC verisi eksiksizken stockanalysis.com CAGRILMAMALIYDI")
+
+    monkeypatch.setattr(pipeline.stockanalysis, "fetch_quarterly_income", patlarsa_hata_ver)
+    pipeline._standardize_to_records_us_gaap(raw)  # patlamamali
+
+
+def test_standardize_to_records_us_gaap_stockanalysis_hata_verirse_alan_none_kalir(monkeypatch) -> None:
+    """Kural 9: yardimci/ikincil veri kaynagi HATA verirse ana boru hatti
+    ASLA bloklanmaz -- eksik alanlar SESSIZCE N/A kalmaya devam eder."""
+    raw = _fake_raw_us_gaap_eksik_gp_opinc()
+
+    def patlayan_fetch(ticker: str) -> list:
+        raise stockanalysis.StockAnalysisNetworkError("baglanti hatasi")
+
+    monkeypatch.setattr(pipeline.stockanalysis, "fetch_quarterly_income", patlayan_fetch)
+
+    records = pipeline._standardize_to_records_us_gaap(raw)  # patlamamali
+    codes = {code for (_y, _p, code, _n, _v) in records}
+    assert "gross_profit" not in codes
+    assert "operating_profit" not in codes
 
 
 # --- _resolve_raw_financials: temel akis -----------------------------------------------------

@@ -57,6 +57,28 @@ def clear_bekleyen_islem(user_data: dict) -> None:
     user_data.pop("bekleyen_islem", None)
 
 
+# --- "Son kullanılan piyasa" hafızası (TTL'siz, §B18) -----------------------------------------------------
+#
+# CANLI KULLANICI GERİ BİLDİRİMİ (§B18, 06_BILINEN_SORUNLAR.md): her NASDAQ
+# hissesi ararken /menu -> Bilanço Analizi -> NASDAQ -> ticker yazma akışını
+# HER SEFERİNDE baştan yapmak yorucu bulunuyordu. bekleyen_islem (yukarısı)
+# TTL'li ve TEK SEFERLİK -- bir arama SONRASI hemen unutulur. Bu ayrı,
+# TTL'siz anahtar en son hangi piyasanın seçildiğini/kullanıldığını KALICI
+# tutar (surec/bot yeniden baslasa bile Telegram user_data persistence'i
+# ile hayatta kalir) ve handle_ticker_message'in varsayilan piyasa
+# secimini ("menusuz dogrudan ticker yazma" akisi) buna gore yapar --
+# eskiden HER ZAMAN sabit "BIST" varsayiliyordu.
+_SON_MARKET_KEY = "son_market"
+
+
+def set_son_market(user_data: dict, market: str) -> None:
+    user_data[_SON_MARKET_KEY] = market
+
+
+def get_son_market(user_data: dict) -> str:
+    return user_data.get(_SON_MARKET_KEY, "BIST")
+
+
 # --- Menu ekranlari (InlineKeyboardMarkup) -----------------------------------------------------
 
 
@@ -107,6 +129,22 @@ def build_takvim_iskelet_menu() -> InlineKeyboardMarkup:
 def build_alt_ekran_menu() -> InlineKeyboardMarkup:
     """Son Kartlar / Hakkında gibi tek seviyeli alt ekranlar icin -- Geri ana menuye doner."""
     return _geri_menu("menu:root")
+
+
+def build_sonuc_sonrasi_menu() -> InlineKeyboardMarkup:
+    """Her analiz SONUCUNUN altina eklenir (§B18) -- kullanici /menu ->
+    Bilanço Analizi -> piyasa akisini BASTAN gezmeden tek dokunusla yeni
+    bir aramaya baslayabilsin diye. Callback_data'lar MEVCUT "menu:analiz:
+    bist/nasdaq" ile AYNI (yeni bir handler GEREKMEDI, handle_menu_callback
+    zaten herhangi bir bot mesaji uzerinde edit_message_text ile calisir)."""
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("🇹🇷 BİST'te Ara", callback_data="menu:analiz:bist"),
+                InlineKeyboardButton("🇺🇸 NASDAQ'ta Ara", callback_data="menu:analiz:nasdaq"),
+            ]
+        ]
+    )
 
 
 # --- Sabit metinler -----------------------------------------------------

@@ -124,3 +124,33 @@ def test_set_bekleyen_islem_eskisinin_uzerine_yazar() -> None:
     menu.set_bekleyen_islem(user_data, tip="analiz", market="NASDAQ")
     islem = menu.peek_bekleyen_islem(user_data)
     assert islem.market == "NASDAQ"
+
+
+# --- "son kullanılan piyasa" hafızası (§B18) -----------------------------------------------------
+
+
+def test_get_son_market_hic_secilmemisse_bist_varsayilan() -> None:
+    assert menu.get_son_market({}) == "BIST"
+
+
+def test_set_ve_get_son_market_degeri_korur() -> None:
+    user_data: dict = {}
+    menu.set_son_market(user_data, "NASDAQ")
+    assert menu.get_son_market(user_data) == "NASDAQ"
+
+
+def test_set_son_market_ttlsiz_zaman_gecmesiyle_silinmez(monkeypatch) -> None:
+    """bekleyen_islem'in AKSINE (10 dk TTL) son_market KALICIDIR -- zaman
+    ilerlese de degeri korumali."""
+    user_data: dict = {}
+    menu.set_son_market(user_data, "NASDAQ")
+    monkeypatch.setattr(time, "monotonic", lambda: time.monotonic() + 10_000.0)
+    assert menu.get_son_market(user_data) == "NASDAQ"
+
+
+# --- "sonuc sonrasi" hizli arama menusu (§B18) -----------------------------------------------------
+
+
+def test_build_sonuc_sonrasi_menu_bist_ve_nasdaq_butonlari_icerir() -> None:
+    grid = _callback_data_grid(menu.build_sonuc_sonrasi_menu())
+    assert grid == [["menu:analiz:bist", "menu:analiz:nasdaq"]]

@@ -1,12 +1,67 @@
-# Bilanco Radar
+# 📊 Bilanço Radar
 
-BIST hisseleri icin Telegram uzerinden calisan temel analiz botu. Kullanici bir
-hisse kodu yazar; sistem son ceyreklik finansal tablolari ceker, YoY/QoQ
-degisimlerini hesaplar, kural tabanli bir motorla 10 uzerinden skor uretir,
-Gemini API ile kisa sozel yorum ekler ve son 3 aydaki onemli KAP
-bildirimleriyle birlikte koyu temali bir PNG kart olarak Telegram'dan gonderir.
+**QuaxisLabs** ürünü — BİST ve NASDAQ hisseleri için Telegram üzerinden çalışan,
+**kural tabanlı** temel analiz botu. Kullanıcı bir hisse kodu yazar (veya bot
+menüsünden seçer); sistem son çeyreklik finansal tabloları çeker (İş Yatırım +
+KAP / SEC EDGAR), YoY/QoQ değişimlerini hesaplar, 10 üzerinden bir **Bilanço
+Skoru** üretir, Gemini ile kısa sözel bir yorum ekler ve koyu temalı bir PNG
+kart + paylaşıma hazır metin olarak Telegram'dan gönderir.
 
-## Kurulum
+> ⚠️ Bu proje/repo yatırım tavsiyesi vermez; ürettiği her kart ve metin bunu
+> açıkça belirtir. Amaç, dağınık finansal veriyi tek bakışta okunur hale
+> getirmek — yatırım kararı vermek değil.
+
+### 🧭 Öne çıkan ilke
+
+> **Hiçbir sayıyı yapay zeka üretmez.** Yüzde değişim, oran, puan, tahmin —
+> hepsinin arkasında test edilmiş, kural tabanlı Python matematiği var. Gemini
+> API'si SADECE bu zaten hesaplanmış, Türkçe biçimlendirilmiş sayıları kısa bir
+> cümleye çevirir; tek bir rakam bile üretmez, kopyalar. LLM devre dışı kalsa
+> bile (kota, ağ hatası) kart yine üretilir — kural tabanlı bir yedek metinle.
+
+## 🖼️ Ekran görüntüleri
+
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/ornek_bilanco_karti.png" alt="Bilanço analizi kartı örneği (THYAO)"></td>
+<td width="50%"><img src="docs/screenshots/ornek_takvim_karti.png" alt="Yaklaşan Bilanço Tarihleri kartı örneği (BİST)"></td>
+</tr>
+<tr>
+<td align="center"><b>Bilanço analizi kartı</b> — <code>THYAO</code> örneği:<br>gelir tablosu, bilanço, çeyreklik grafikler, artış/azalışlar, 6 bileşenli skor</td>
+<td align="center"><b>/takvim</b> — Yaklaşan Bilanço Tarihleri:<br>kesinleşen (KAP bildirimi) ve tahmini (geçmiş davranış medyanı) tarihler ayrı bölümlerde</td>
+</tr>
+</table>
+
+## ✅ Neler yapabiliyor
+
+| Alan | Durum |
+|---|---|
+| **BİST** | Sanayi/ticaret (XI_29), konvansiyonel banka (UFRS), katılım bankası, sigorta (UFRS_K) — dördü de KAP tazelik yamasıyla |
+| **NASDAQ/ABD** | SEC EDGAR üzerinden **herhangi bir ticker** (sabit bir listeyle sınırlı değil), $ para birimi, "FYyy Çn" mali dönem etiketi |
+| **Değerleme** | Piyasa Değeri, F/K, PD/DD, FD/FAVÖK, FD/Hasılat, PD/EFK |
+| **KAP entegrasyonu** | Son 90 günün önemli bildirimleri + kural tabanlı önem sınıflandırması |
+| **Yorum** | Gemini ile sözel özet, LLM olmadan da çalışan güvenli yedek mod |
+| **Takvim** | `/takvim` — kesinleşen (KAP) ve tahmini (istatistiksel) bilanço tarihleri, tek bakışta PNG kart |
+| **Telegram UX** | Buton menüsü (`/menu`) + serbest metin ticker girişi, otomatik BİST/NASDAQ yönlendirmesi |
+| **Kalite** | 569 test (gerçek Playwright render dahil), her yeni veri eşlemesi canlı bir referansla doğrulanır |
+
+## 🔄 Nasıl çalışıyor
+
+```mermaid
+flowchart LR
+    A["Kullanıcı<br>hisse kodu / menü"] --> B["İş Yatırım · KAP<br>SEC EDGAR"]
+    B --> C["calculator.py<br>saf Python matematiği"]
+    C --> D["scorer.py<br>kural tabanlı 0-10 skor"]
+    D --> E["Gemini<br>SADECE sözel yorum"]
+    E --> F["Jinja2 + Playwright<br>PNG kart"]
+    F --> G["Telegram<br>görsel + paylaşım metni"]
+```
+
+Hiçbir aşamada LLM'e ham finansal veri veya hesaplama görevi verilmez — 4.
+aşamaya (Gemini) giden tek şey, 3. aşamada zaten üretilmiş, biçimlendirilmiş
+bulgu listesidir.
+
+## 🚀 Kurulum
 
 ```bash
 cd bilanco-radar
@@ -14,20 +69,29 @@ python -m venv .venv
 .venv\Scripts\activate        # Windows
 pip install -r requirements.txt
 playwright install chromium
-copy .env.example .env        # ve API anahtarlarini gir
+copy .env.example .env        # ve API anahtarlarini gir (GEMINI_API_KEY, TELEGRAM_BOT_TOKEN)
 ```
 
-## Calistirma
+## ▶️ Çalıştırma
 
 ```bash
 python main.py
 ```
 
-## Test
+## 🧪 Test
 
 ```bash
 pytest tests/ -v
 ```
+
+## 📁 Daha fazla bilgi
+
+Bu README genel bir tanıtımdır. Aşağıdaki "Faz Durumu" bölümü projenin faz faz
+**detaylı değişiklik geçmişidir** — her fazda ne yapıldığı, hangi canlı hata
+bulunup nasıl çözüldüğü, hangi kaynakla (Fintables, KAP, SEC EDGAR, kullanıcı
+karşılaştırması) doğrulandığı satır satır kayıtlıdır. Modül modül mimari, veri
+kaynağı eşlemeleri ve iş kuralları bu repoya dahil olmayan, geliştirme
+sürecinde tutulan ayrı bir proje belleğinde tutulur.
 
 ## Faz Durumu
 

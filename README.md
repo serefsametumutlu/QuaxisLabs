@@ -421,6 +421,16 @@ pytest tests/ -v
       biçiminde) gönderiyor. Demo: `python scripts/demo_takvim_karti.py bist|nasdaq`.
       Test: `pytest tests/` (555 test, 18 yeni — `tests/test_calendar_card.py` +
       `tests/test_pipeline_takvim.py`, hiçbir regresyon yok).
+- [x] **Faz 13.1 (kullanıcı ortamında canlı çökme düzeltmesi, 2026-08-02)** —
+      `demo_takvim_karti.py nasdaq` **çöktü**: `fetch_upcoming_nasdaq()` NASDAQ-100 ile
+      SINIRLI olmadığı için (bkz. `06_BILINEN_SORUNLAR.md` §B15) 10 günlük bir pencerede
+      2287 kayıt döndü, Chromium bu kadar satırlı elementin ekran görüntüsünü alamadı
+      (`CardRenderError: Page.captureScreenshot: Unable to capture screenshot`).
+      `build_calendar_context(max_rows=60)` eklendi — tavanı aşan kayıtlar günü YARIDA
+      keserek kırpılır, hem karta hem paylaşım metnine "+N kayıt daha" notu düşer. Kök
+      sorun (NASDAQ kapsamının daraltılmaması) BİLEREK açık bırakıldı, bu sadece render
+      katmanını KALICI olarak çökmeye karşı korur. Test: `pytest tests/` (559 test, 4
+      yeni, hiçbir regresyon yok).
 
 ## Dizin Yapisi
 

@@ -92,6 +92,42 @@ def test_build_calendar_context_sadece_son_tarih_varsa_is_empty() -> None:
     assert context["is_empty"] is True
 
 
+def test_build_calendar_context_max_rows_kirpar() -> None:
+    """CANLI hata (2026-08-02): NASDAQ 10 gunluk pencerede 2287 kayit dondurdu,
+    Chromium bu kadar satirli bir #calendar-card'in ekran goruntusunu ALAMADI.
+    max_rows bu yuzden ZORUNLU bir tavan -- asan kisim kesilir, truncated_count
+    ile raporlanir."""
+    entries = [_entry(f"T{i}", f"Şirket {i}", date(2026, 8, 2), CONFIDENCE_KESIN) for i in range(5)]
+    context = calendar_card.build_calendar_context(entries, "BIST", now=_NOW, max_rows=3)
+
+    shown = sum(len(g["rows"]) for g in context["day_groups"])
+    assert shown == 3
+    assert context["is_truncated"] is True
+    assert context["truncated_count"] == 2
+    assert context["is_empty"] is False
+
+
+def test_build_calendar_context_max_rows_gun_sinirinda_keser() -> None:
+    """Tavan bir gunun ORTASINA denk gelirse o gun KISMEN gosterilir, bir
+    SONRAKI gunun TAMAMI hic eklenmez (bkz. build_calendar_context docstring'i)."""
+    entries = [
+        _entry("A", "A Şirketi", date(2026, 8, 2), CONFIDENCE_KESIN),
+        _entry("B", "B Şirketi", date(2026, 8, 2), CONFIDENCE_KESIN),
+        _entry("C", "C Şirketi", date(2026, 8, 3), CONFIDENCE_KESIN),
+    ]
+    context = calendar_card.build_calendar_context(entries, "BIST", now=_NOW, max_rows=1)
+
+    assert len(context["day_groups"]) == 1
+    assert len(context["day_groups"][0]["rows"]) == 1
+    assert context["truncated_count"] == 2
+
+
+def test_build_calendar_context_max_rows_asilmazsa_kirpma_yok() -> None:
+    context = calendar_card.build_calendar_context(_ornek_entries(), "BIST", now=_NOW, max_rows=60)
+    assert context["is_truncated"] is False
+    assert context["truncated_count"] == 0
+
+
 def test_build_calendar_context_lejant_iki_madde_icerir() -> None:
     """Kullanici karari: son_tarih hic gosterilmedigi icin lejant da SADECE
     kesin/tahmini aciklar (ucuncu, hic gorunmeyen bir rozet icin madde YOK)."""
@@ -134,6 +170,13 @@ def test_build_calendar_share_text_bos_liste_mesaji() -> None:
     context = calendar_card.build_calendar_context([], "BIST", now=_NOW)
     text = calendar_card.build_calendar_share_text(context)
     assert "bulunamadı" in text
+
+
+def test_build_calendar_share_text_kirpilmissa_not_ekler() -> None:
+    entries = [_entry(f"T{i}", f"Şirket {i}", date(2026, 8, 2), CONFIDENCE_KESIN) for i in range(5)]
+    context = calendar_card.build_calendar_context(entries, "BIST", now=_NOW, max_rows=3)
+    text = calendar_card.build_calendar_share_text(context)
+    assert "+2 kayıt daha" in text
 
 
 # --- render_card: gercek Playwright ile PNG uretimi (uctan uca) -----------------------------------------------------

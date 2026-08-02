@@ -210,6 +210,15 @@
     border-radius: 12px;
   }
 
+  .truncated-note {
+    padding: 12px 20px;
+    text-align: center;
+    color: var(--secondary);
+    font-size: 13px;
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+  }
+
   /* --- Lejant --- */
   .legend {
     display: flex;
@@ -279,6 +288,9 @@
       {% endfor %}
     </div>
     {% endfor %}
+    {% if is_truncated %}
+    <div class="truncated-note">+{{ truncated_count }} kayıt daha var, kart okunabilirliği için kısaltıldı</div>
+    {% endif %}
   </section>
 
   <section class="legend">

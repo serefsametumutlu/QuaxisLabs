@@ -31,6 +31,16 @@ from src.fetchers.earnings_calendar import CONFIDENCE_KESIN, CONFIDENCE_TAHMINI,
 
 _DEFAULT_CONFIDENCE_LEVELS: frozenset[str] = frozenset({CONFIDENCE_KESIN, CONFIDENCE_TAHMINI})
 
+# CANLI hata (kullanıcı raporu, 2026-08-02): NASDAQ için fetch_upcoming_nasdaq()
+# api.nasdaq.com'un döndürdüğü TÜM piyasayı (NASDAQ-100 ile SINIRLI değil, binlerce
+# küçük şirket dahil) tarıyor -- 10 günlük bir pencerede 2287 kayıt döndü. Chromium
+# bu kadar satırı içeren #calendar-card elementinin ekran görüntüsünü ALAMADI
+# ("Page.captureScreenshot: Unable to capture screenshot" -- elementin piksel
+# yüksekliği CDP'nin/GPU dokusunun kapasitesini aştı). `max_rows` bu yüzden
+# ZORUNLU bir güvenlik tavanı -- kartın "hızlı taranabilir bookmark" amacına da
+# uygun (200+ satırlık bir liste zaten okunabilir bir ürün DEĞİLDİR).
+_DEFAULT_MAX_ROWS = 60
+
 _AY_ADLARI_TR: dict[int, str] = {
     1: "Ocak", 2: "Şubat", 3: "Mart", 4: "Nisan", 5: "Mayıs", 6: "Haziran",
     7: "Temmuz", 8: "Ağustos", 9: "Eylül", 10: "Ekim", 11: "Kasım", 12: "Aralık",
@@ -90,11 +100,21 @@ def build_calendar_context(
     days_ahead: int = 30,
     confidence_levels: frozenset[str] = _DEFAULT_CONFIDENCE_LEVELS,
     now: datetime | None = None,
+    max_rows: int = _DEFAULT_MAX_ROWS,
 ) -> dict:
     """`entries`: src.fetchers.earnings_calendar.fetch_upcoming_bist()/
     fetch_upcoming_nasdaq() çıktısı (ya da repository.get_upcoming_earnings()
     satırlarından üretilmiş EarningsDate listesi) -- ÖNCEDEN hesaplanmış,
     burada hiçbir tarih/güven seviyesi mantığı TEKRAR ÜRETİLMEZ.
+
+    `max_rows`: gösterilecek TOPLAM satır (şirket) tavanı -- bkz. `_DEFAULT_MAX_ROWS`
+    yorumu (CANLI hata: NASDAQ'ta 2287 kayıt Chromium'un ekran görüntüsü alma
+    kapasitesini aştı). Tavan aşılırsa GÜN GRUPLARI en yeni tarihten başlayarak
+    doldurulur, tavana denk gelen günün İÇİNDE bile kalan kısım kesilir (bir sonraki
+    günün TAMAMI hiç eklenmez) -- `truncated_count` kalan (gösterilmeyen) satır
+    sayısını, `is_truncated` bunun >0 olup olmadığını taşır; şablon bir uyarı notu
+    gösterir. `build_calendar_share_text()` de AYNI (kesilmiş) `day_groups`'u
+    kullanır -- metin de sınırsız BÜYÜYEMEZ (Telegram mesaj uzunluğu sınırı).
 
     Dönen dict, calendar_card.html'in beklediği TAMAMEN ÖNCEDEN
     biçimlendirilmiş bir şemadır (bkz. modül üst notu -- render katmanı
@@ -103,6 +123,7 @@ def build_calendar_context(
     market_label = _MARKET_LABELS.get(market, market)
 
     filtered = sorted((e for e in entries if e.confidence in confidence_levels), key=lambda e: (e.expected_date, e.ticker))
+    total_candidates = len(filtered)
 
     today = now.date()
     by_date: dict[date, list[EarningsDate]] = defaultdict(list)
@@ -110,9 +131,15 @@ def build_calendar_context(
         by_date[e.expected_date].append(e)
 
     day_groups = []
+    shown = 0
     for day in sorted(by_date):
+        remaining_budget = max_rows - shown
+        if remaining_budget <= 0:
+            break
+        day_entries = by_date[day][:remaining_budget]
+
         rows = []
-        for e in by_date[day]:
+        for e in day_entries:
             badge = _BADGE_META[e.confidence]
             rows.append(
                 {
@@ -124,7 +151,9 @@ def build_calendar_context(
                 }
             )
         day_groups.append({"date_label": _turkish_date_label(day), "is_today": day == today, "rows": rows})
+        shown += len(day_entries)
 
+    truncated_count = total_candidates - shown
     period_label = _dominant_period_label(filtered)
 
     if market == "NASDAQ":
@@ -139,7 +168,9 @@ def build_calendar_context(
         "days_ahead": days_ahead,
         "report_timestamp": now.strftime("%d.%m.%Y %H:%M"),
         "day_groups": day_groups,
-        "is_empty": not day_groups,
+        "is_empty": total_candidates == 0,
+        "truncated_count": truncated_count,
+        "is_truncated": truncated_count > 0,
         "legend_items": _LEGEND_ITEMS,
         "data_sources_note": data_sources_note,
         "disclaimer": "Bu içerik yatırım tavsiyesi değildir; yatırım kararı için profesyonel danışmanlık alınmalıdır.",
@@ -170,6 +201,10 @@ def build_calendar_share_text(context: dict) -> str:
         gun_etiketi = group["date_label"] + (" (BUGÜN)" if group["is_today"] else "")
         tickers = ", ".join(f"${row['ticker']}" for row in group["rows"])
         lines.append(f"{gun_etiketi}: {tickers}")
+
+    if context["is_truncated"]:
+        lines.append("")
+        lines.append(f"(+{context['truncated_count']} kayıt daha var, okunabilirlik için kısaltıldı)")
 
     lines.append("")
     lines.append(f"Kaydet, önümüzdeki {context['days_ahead']} gün boyunca elinin altında olsun.")

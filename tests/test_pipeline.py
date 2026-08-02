@@ -322,6 +322,43 @@ def test_fetch_and_store_bilinmeyen_sema_unsupported_company_type(izole_db, monk
         pipeline._fetch_and_store("TESTAS", None)
 
 
+# --- _fetch_and_store_us_gaap: hata esleme -----------------------------------------------------
+
+
+def test_fetch_and_store_us_gaap_sirket_bulunamazsa_ticker_not_found(izole_db, monkeypatch) -> None:
+    monkeypatch.setattr(
+        sec_edgar, "fetch_financials",
+        lambda ticker, periods=None: (_ for _ in ()).throw(sec_edgar.CompanyNotFoundError("yok")),
+    )
+    with pytest.raises(pipeline.TickerNotFoundError):
+        pipeline._fetch_and_store_us_gaap("ZZZZZ", None)
+
+
+def test_fetch_and_store_us_gaap_veri_yoksa_financial_data_not_found(izole_db, monkeypatch) -> None:
+    """CANLI hata (kullanici raporu, 2026-08-02): 'SKHY' (SK hynix) SEC'te
+    KAYITLI (CIK cozuluyor) ama companyfacts'te hicbir donemde net_income
+    turetilemiyor (yabanci ozel ihracci, ABD GAAP/XBRL raporlamiyor).
+    TickerNotFoundError'dan AYRI bir hata (FinancialDataNotFoundError)
+    firlatilmali ki bot kullaniciya dogru sebebi soyleyebilsin."""
+    monkeypatch.setattr(
+        sec_edgar, "fetch_financials",
+        lambda ticker, periods=None: (_ for _ in ()).throw(
+            sec_edgar.FinancialDataNotAvailableError("'SKHY' (CIK0002120882) icin hicbir donemde net_income turetilemedi.")
+        ),
+    )
+    with pytest.raises(pipeline.FinancialDataNotFoundError):
+        pipeline._fetch_and_store_us_gaap("SKHY", None)
+
+
+def test_fetch_and_store_us_gaap_ag_hatasi_data_source_unavailable(izole_db, monkeypatch) -> None:
+    monkeypatch.setattr(
+        sec_edgar, "fetch_financials",
+        lambda ticker, periods=None: (_ for _ in ()).throw(sec_edgar.SecEdgarNetworkError("ag hatasi")),
+    )
+    with pytest.raises(pipeline.DataSourceUnavailableError):
+        pipeline._fetch_and_store_us_gaap("AAPL", None)
+
+
 def test_fetch_and_store_ufrs_k_semasi_sigorta_olarak_desteklenir(izole_db, monkeypatch) -> None:
     """UFRS_K (sigorta) semasi artik desteklenir -- _standardize_to_records_ufrs_k
     ile DB'ye yazilir ve Company.financial_group='UFRS_K' olarak kaydedilir."""

@@ -364,6 +364,18 @@ pytest tests/ -v
       canlı test edildi — ikisi de 5/5 metrikle uçtan uca başarılı. Test:
       `pytest tests/` (488 test, 3 yeni — `tests/test_sec_edgar.py`, hiçbir
       regresyon yok).
+- [x] **Faz 11.2 ("SKHY bulunamadı" mesaj netliği + AAPL logo araştırması, 2026-08-02)** —
+      Kullanıcı "SKHY" (SK hynix) arattığında bot "bulamadım" diyordu; kök neden SK
+      hynix'in SEC'te KAYITLI olması ama ABD GAAP/XBRL raporlamayan yabancı bir özel
+      ihraççı olması (gerçek bir veri sınırı, kod hatası değil) — eski mesaj bunu
+      "yazım hatası" gibi gösteriyordu. `pipeline.FinancialDataNotFoundError`
+      eklendi (`TickerNotFoundError`'dan ayrı), bot artık sebebi açıkça belirten
+      bir mesaj gösteriyor. AAPL logo şikayeti CANLI olarak reprodüklenemedi —
+      hem doğrudan hem tam pipeline testinde logo doğru geldi; muhtemelen
+      TradingView arama uç noktasının geçici bir hatasıydı (tasarım gereği
+      kalıcı önbelleğe yazılmaz, kendiliğinden düzelir), bu yüzden kod
+      değişikliği yapılmadı. Test: `pytest tests/` (491 test, 3 yeni —
+      `tests/test_pipeline.py`, hiçbir regresyon yok).
 
 ## Dizin Yapisi
 

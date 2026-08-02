@@ -149,7 +149,21 @@ class PipelineError(Exception):
 
 
 class TickerNotFoundError(PipelineError):
-    """Hisse kodu Is Yatirim'da bulunamadi."""
+    """Hisse kodu Is Yatirim'da (BIST) veya SEC company_tickers.json'da
+    (NASDAQ) hic BULUNAMADI -- muhtemelen bir yazim hatasi."""
+
+
+class FinancialDataNotFoundError(PipelineError):
+    """SADECE NASDAQ/US_GAAP: ticker SEC'te (company_tickers.json) KAYITLI
+    ama companyfacts'te HICBIR donemde net_income turetilemedi -- bkz.
+    sec_edgar.FinancialDataNotAvailableError. CANLI hata (kullanici raporu,
+    2026-08-02: 'SKHY' aratildi, bot 'bulamadim' dedi): SKHY -> SK hynix
+    Inc.'in CIK'i VAR ama companyfacts SADECE 'ffd' (Form D ucret verisi)
+    icin fact iceriyor, 'us-gaap' ad alani BOMBOS -- yabanci ozel ihracci
+    (foreign private issuer) genelde ABD GAAP/XBRL ile 10-Q/10-K raporlamaz.
+    TickerNotFoundError'dan AYRI tutulur ki bot kullaniciya "yazim hatasi mi"
+    yerine "bu sirket ABD SEC standardinda raporlamiyor olabilir" gibi
+    DOGRU bir aciklama versin (Kural: anlamli hata mesaji)."""
 
 
 class UnsupportedCompanyTypeError(PipelineError):
@@ -861,7 +875,8 @@ def _fetch_and_store_us_gaap(ticker: str, periods: list[Period] | None) -> None:
         et, yanlissa kaydir/ileri probe et" mantigina GEREK YOK.
 
     Hatalar:
-        TickerNotFoundError, DataSourceUnavailableError,
+        TickerNotFoundError, FinancialDataNotFoundError (bkz. sinif
+        docstring'i -- SKHY/SK hynix canli hatasi), DataSourceUnavailableError,
         repository.TickerMarketConflictError (BIST/NASDAQ sembol cakismasi
         -- bkz. repository.py docstring'i; BILEREK YUTULMAZ, cagiran tarafa
         GURULTULU sekilde iletilir, bkz. o sinifin "algila ve reddet"
@@ -872,7 +887,7 @@ def _fetch_and_store_us_gaap(ticker: str, periods: list[Period] | None) -> None:
     except sec_edgar.CompanyNotFoundError as exc:
         raise TickerNotFoundError(str(exc)) from exc
     except sec_edgar.FinancialDataNotAvailableError as exc:
-        raise TickerNotFoundError(str(exc)) from exc
+        raise FinancialDataNotFoundError(str(exc)) from exc
     except sec_edgar.SecEdgarNetworkError as exc:
         raise DataSourceUnavailableError(str(exc)) from exc
 

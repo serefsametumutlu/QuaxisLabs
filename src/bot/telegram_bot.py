@@ -247,6 +247,20 @@ async def _execute_and_send(
         await context.bot.send_message(chat_id, f"❌ {ticker} diye bir hisse bulamadım. Kodu kontrol eder misin?")
         logger.info("istek user=%s ticker=%s sure=%.1fs sonuc=bulunamadi", user_id, ticker, time.monotonic() - started)
 
+    except pipeline.FinancialDataNotFoundError:
+        # CANLI hata (kullanici raporu, 2026-08-02): "SKHY" (SK hynix) SEC'te
+        # KAYITLI ama hicbir finansal tablo (XBRL) verisi yok -- yabanci ozel
+        # ihracci ABD standardinda raporlamiyor. "bulamadim" (yazim hatasi
+        # izlenimi) yerine SEBEBI acikca belirten AYRI bir mesaj (bkz.
+        # pipeline.FinancialDataNotFoundError docstring'i).
+        await context.bot.send_message(
+            chat_id,
+            f"⚠️ {ticker} sembolünü SEC'te buldum ama hiçbir finansal tablo verisi yok. "
+            "Bu genelde yabancı bir şirketin (ABD SEC standardında XBRL raporlamayan) "
+            "sembolü olduğunda görülür. Farklı bir NASDAQ sembolü dener misin?",
+        )
+        logger.info("istek user=%s ticker=%s sure=%.1fs sonuc=veri_yok", user_id, ticker, time.monotonic() - started)
+
     except pipeline.PeriodNotAvailableError as exc:
         if exc.available_label is None:
             await context.bot.send_message(

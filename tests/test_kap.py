@@ -38,6 +38,31 @@ def test_normalize_ticker_strips_suffix_and_lowercases() -> None:
     assert normalize_ticker("  ThyaO  ") == "thyao"
 
 
+def test_normalize_ticker_turkce_i_harfi_kap_ile_ayni_kodu_uretir() -> None:
+    """CANLI hata (kullanıcı raporu, 2026-08-02 — Faz 13 takvim doğrulaması):
+    KAP'in arama API'si "I" harfini TÜRKÇE kurala göre NOKTASIZ "ı"ya çevirip
+    dönüyor (örn. BİM'in cmpOrFundCode'u "bımas" olarak geliyor, CANLI
+    doğrulandı) -- eski kod düz Python str.lower() kullandığı için "bimas"
+    (NOKTALI i) üretiyordu, bu da search_company()'nin eşleşmesini SESSİZCE
+    bozuyordu. "I" harfi içeren BİM/İş Bankası/Enka gibi büyük şirketler
+    KapCompanyNotFoundError ile pipeline'dan (takvim dahil) tamamen
+    DÜŞÜYORDU. Beklenen değerler KAP'in canlı yanıtından (search_company
+    ile) birebir alındı."""
+    assert normalize_ticker("BIMAS") == "bımas"
+    assert normalize_ticker("ISCTR") == "ısctr"
+    assert normalize_ticker("ENKAI") == "enkaı"
+    assert normalize_ticker("ISBTR") == "ısbtr"
+    assert normalize_ticker("SISE") == "sıse"
+
+
+def test_normalize_ticker_is_suffix_turkce_donusumden_etkilenmez() -> None:
+    """'.IS' suffix'i (ASCII borsa eki) Türkçe I->ı dönüşümünden ÖNCE
+    kaldırılmalı -- aksi halde '.IS' -> '.ıs' olur ve endswith kontrolü
+    KIRILIR (bu regresyonu önlemek için ayrı bir test)."""
+    assert normalize_ticker("BIMAS.IS") == "bımas"
+    assert normalize_ticker("bimas.is") == "bımas"
+
+
 def test_classify_importance_ihale_yuksek_onem() -> None:
     assert classify_importance("İhale Süreci / Sonucu", "Terminal 2 İhalesi") == IMPORTANCE_HIGH
 

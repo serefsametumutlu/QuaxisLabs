@@ -431,6 +431,17 @@ pytest tests/ -v
       sorun (NASDAQ kapsamının daraltılmaması) BİLEREK açık bırakıldı, bu sadece render
       katmanını KALICI olarak çökmeye karşı korur. Test: `pytest tests/` (559 test, 4
       yeni, hiçbir regresyon yok).
+- [x] **Faz 13.2 (KRİTİK — "Türkçe I" hatası düzeltmesi, kullanıcı raporu, 2026-08-02)** —
+      Kullanıcı gerçek bir X paylaşımıyla karşılaştırınca takvim kartımızda BİMAS/İş
+      Bankası/Enka gibi dev şirketlerin HİÇ olmadığını fark etti. Kök neden: KAP'in
+      arama API'si "I" harfini Türkçe kurala göre NOKTASIZ "ı"ya çevirip dönüyor
+      (`BIMAS` → `bımas`), `kap.normalize_ticker()` ise düz Python `.lower()`
+      kullandığı için `bimas` (NOKTALI i) üretiyordu — ikisi FARKLI karakter,
+      `search_company()` SESSİZCE başarısız oluyordu. "I" harfi içeren HER ticker
+      (BIMAS, ISCTR, ENKAI, ISBTR, SISE...) etkileniyordu. Modülde bu TAM sorunu
+      çözen `_turkish_lower()` zaten VARDI ama `normalize_ticker()` onu
+      KULLANMIYORDU. Düzeltildi + BİST önbelleği `--top 100` ile yeniden dolduruldu.
+      Test: `pytest tests/` (561 test, 2 yeni, hiçbir regresyon yok).
 
 ## Dizin Yapisi
 

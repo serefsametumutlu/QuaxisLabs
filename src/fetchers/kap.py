@@ -200,11 +200,29 @@ def _post_json(url: str, body: dict) -> object:
 
 
 def normalize_ticker(ticker: str) -> str:
-    """'THYAO.IS' -> 'thyao' seklinde KAP aramasinin bekledigi kucuk harfli koda cevirir."""
-    code = ticker.strip().lower()
-    if code.endswith(".is"):
-        code = code[: -len(".is")]
-    return code
+    """'THYAO.IS' -> 'thyao', 'BIMAS' -> 'bımas' seklinde KAP aramasinin
+    bekledigi kucuk harfli koda cevirir.
+
+    CANLI HATA (kullanıcı raporu, 2026-08-02 — Faz 13 takvim doğrulaması):
+    KAP'in arama API'si "I" harfini TÜRKÇE kurala göre NOKTASIZ "ı"ya çevirip
+    dönüyor (örn. BİM'in kodu "bımas" olarak geliyor, bkz. modül üst notu
+    ve `_turkish_lower()`), ama bu fonksiyon eskiden düz Python `.lower()`
+    kullanıyordu ("bimas", NOKTALI i) — ikisi BAYT OLARAK FARKLI karakter
+    olduğu için `search_company()`'deki eşleşme SESSİZCE hiç tutmuyordu.
+    Bu, "I" harfi içeren HER ticker'ı (BIMAS, ISCTR, ENKAI, ISBTR, SISE gibi
+    — Türkiye'nin en büyük şirketlerinden birçoğu) etkiliyordu:
+    `KapCompanyNotFoundError` fırlatılıyor, bu şirketler KAP'a bağlı HER
+    özellikten (bildirimler, takvim vb.) SESSİZCE düşüyordu. Suffix (".IS")
+    temizliği Türkçe dönüşümden ÖNCE yapılır (suffix ASCII'dir, ".is" ARAMASI
+    kendisi Türkçe dönüşümden ETKİLENMEMELİDİR — aksi halde ".IS" -> ".ıs"
+    olur ve endswith kontrolü KIRILIR). Girdi önce `.upper()` ile büyük
+    harfe çevrilir ki küçük harfle yazılmış bir ticker ("bimas") da büyük
+    harfli girdiyle ("BIMAS") AYNI sonucu üretsin — ticker'lar kanonik
+    olarak HER ZAMAN büyük harfle yazılır."""
+    code = ticker.strip().upper()
+    if code.endswith(".IS"):
+        code = code[:-3]
+    return _turkish_lower(code)
 
 
 def search_company(ticker: str) -> CompanyMatch:

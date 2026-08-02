@@ -51,6 +51,7 @@ Bilinen sinirlar (kasitli, "varsayimsal parser yazma" ilkesi geregi):
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -1128,7 +1129,27 @@ def run_pipeline(ticker: str, *, periods: list[Period] | None = None, market: st
 # 1-2 kez çalıştırılması ÖNERİLİR) doldurulur.
 
 
-def refresh_earnings_calendar(market: str, *, bist_limit: int = 100, days_ahead: int = 45) -> int:
+# CANLI hata (kullanıcı raporu, 2026-08-02 -- bkz. 06_BILINEN_SORUNLAR.md §B16):
+# 100 BIST şirketini TEK seferde (~15 dakikada, yüzlerce KAP isteği) taramak
+# KAP'ın TÜM isteklerimizi (ilgili şirketten BAĞIMSIZ) geçici olarak
+# `RemoteProtocolError: Server disconnected without sending a response` ile
+# düşürmesine sebep oldu -- AKBNK/GARAN/YKBNK/TOASO gibi devasa şirketler
+# bile bu yüzden takvimden DÜŞTÜ. Bu yüzden BIST taraması artık küçük
+# PARÇALAR (`batch_size`) halinde yapılır, parçalar arasında `batch_pause_seconds`
+# beklenir -- toplam süre uzar (100 şirket için ~25-30 dakika) ama KAP'a
+# "nezaket" göstererek bloklanma riski azaltılır.
+_BIST_BATCH_SIZE = 20
+_BIST_BATCH_PAUSE_SECONDS = 15.0
+
+
+def refresh_earnings_calendar(
+    market: str,
+    *,
+    bist_limit: int = 100,
+    days_ahead: int = 45,
+    batch_size: int = _BIST_BATCH_SIZE,
+    batch_pause_seconds: float = _BIST_BATCH_PAUSE_SECONDS,
+) -> int:
     """`market` ("BIST" | "NASDAQ") için canlı takvim verisini çeker ve
     DB önbelleğine (earnings_calendar tablosu) yazar. Dönen değer:
     upsert edilen (eklenen+güncellenen) satır sayısı.
@@ -1140,20 +1161,39 @@ def refresh_earnings_calendar(market: str, *, bist_limit: int = 100, days_ahead:
     eşit olsaydı, refresh'ten birkaç gün sonra sorgulanan bir tarih
     (görüntüleme anında hâlâ "yakında" olan ama refresh anında 30 günün
     dışında kaldığı için hiç ÇEKİLMEMİŞ bir tarih) sessizce eksik kalırdı.
-    """
+
+    `batch_size`/`batch_pause_seconds`: SADECE BIST için geçerli (NASDAQ
+    per-gün tek bir istekle TÜM piyasayı döndürüyor, ticker başına istek
+    YOK -- bkz. fetch_upcoming_nasdaq modül notu). BIST tarafında ise
+    `symbols` listesi bu boyuttaki parçalara bölünür, her parça ayrı ayrı
+    `fetch_upcoming_bist()`'e verilir (bkz. yukarıdaki CANLI hata notu)."""
     if market == "NASDAQ":
         entries = earnings_calendar.fetch_upcoming_nasdaq(days_ahead=days_ahead)
+        candidate_count = len(entries)
     else:
         symbols = earnings_calendar.get_bist_top_market_cap_tickers(limit=bist_limit)
-        ticker_pairs: list[tuple[str, str]] = []
-        for symbol in symbols:
-            try:
-                company = kap.search_company(symbol)
-                name = company.name
-            except kap.KapError:
-                name = symbol
-            ticker_pairs.append((symbol, name))
-        entries = earnings_calendar.fetch_upcoming_bist(ticker_pairs, days_ahead=days_ahead)
+        candidate_count = len(symbols)
+        entries = []
+        for batch_start in range(0, len(symbols), batch_size):
+            batch_symbols = symbols[batch_start : batch_start + batch_size]
+            ticker_pairs: list[tuple[str, str]] = []
+            for symbol in batch_symbols:
+                try:
+                    company = kap.search_company(symbol)
+                    name = company.name
+                except kap.KapError:
+                    name = symbol
+                ticker_pairs.append((symbol, name))
+            entries.extend(earnings_calendar.fetch_upcoming_bist(ticker_pairs, days_ahead=days_ahead))
+
+            taranan = batch_start + len(batch_symbols)
+            is_last_batch = taranan >= len(symbols)
+            if not is_last_batch:
+                logger.info(
+                    "BIST takvim taraması: %s/%s şirket tarandı, KAP'a nezaketen %.0f sn bekleniyor",
+                    taranan, len(symbols), batch_pause_seconds,
+                )
+                time.sleep(batch_pause_seconds)
 
     records = [
         (e.ticker, e.market, e.company_name, e.period[0], e.period[1], e.expected_date, e.confidence, e.source)
@@ -1161,7 +1201,10 @@ def refresh_earnings_calendar(market: str, *, bist_limit: int = 100, days_ahead:
     ]
     with repository.get_session() as session:
         count = repository.upsert_earnings_calendar(session, records)
-    logger.info("%s takvim önbelleği güncellendi: %s kayıt (%s aday şirket tarandı)", market, count, len(entries))
+    logger.info(
+        "%s takvim önbelleği güncellendi: %s kayıt (%s aday tarandı, %s eşleşme bulundu)",
+        market, count, candidate_count, len(entries),
+    )
     return count
 
 

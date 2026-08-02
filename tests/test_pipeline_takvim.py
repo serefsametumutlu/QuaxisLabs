@@ -72,6 +72,34 @@ def test_refresh_earnings_calendar_bist_sirket_adlarini_kap_tan_cozer(izole_db, 
     assert yakalanan_ticker_pairs == [("THYAO", "THYAO Gerçek Ad"), ("ASELS", "ASELS Gerçek Ad")]
 
 
+def test_refresh_earnings_calendar_bist_kucuk_parcalar_halinde_tarar(izole_db, monkeypatch) -> None:
+    """CANLI hata (kullanıcı raporu, 2026-08-02): 100 şirketi TEK seferde
+    taramak KAP'ı geçici olarak bloke etti (bkz. 06_BILINEN_SORUNLAR.md §B16).
+    BIST taraması artık `batch_size`'lık parçalara bölünür, parçalar arasında
+    `batch_pause_seconds` beklenir -- bu test 5 şirketi batch_size=2 ile
+    tarayıp TAM OLARAK 3 parça (2+2+1) ve parçalar arası 2 bekleme (SON
+    parçadan SONRA bekleme YOK) oluştuğunu doğrular."""
+    symbols = ["A", "B", "C", "D", "E"]
+    monkeypatch.setattr(ec, "get_bist_top_market_cap_tickers", lambda limit=100: symbols)
+    monkeypatch.setattr(kap, "search_company", lambda ticker: SimpleNamespace(name=ticker))
+
+    batch_calls: list[list[str]] = []
+    sleep_calls: list[float] = []
+
+    def sahte_fetch_upcoming_bist(ticker_pairs, days_ahead=30, today=None):
+        batch_calls.append([t for t, _ in ticker_pairs])
+        return [_sahte_bist_entry(t, 4) for t, _ in ticker_pairs]
+
+    monkeypatch.setattr(ec, "fetch_upcoming_bist", sahte_fetch_upcoming_bist)
+    monkeypatch.setattr(pipeline.time, "sleep", lambda seconds: sleep_calls.append(seconds))
+
+    count = pipeline.refresh_earnings_calendar("BIST", bist_limit=100, batch_size=2, batch_pause_seconds=15.0)
+
+    assert count == 5
+    assert batch_calls == [["A", "B"], ["C", "D"], ["E"]]
+    assert sleep_calls == [15.0, 15.0]  # 3 parca -> aralarinda 2 bekleme, SONUNCUDAN SONRA yok
+
+
 def test_refresh_earnings_calendar_ayni_donem_uzerine_yazar(izole_db, monkeypatch) -> None:
     """upsert_earnings_calendar (ticker, year, period) anahtarina gore
     calisir -- ayni donem icin IKINCI bir refresh, YENI satir DEGIL,

@@ -1,10 +1,10 @@
-"""src/render/calendar_card.py testleri (Faz 13).
+"""src/render/calendar_card.py testleri (Faz 13, v2 -- iki katmanlı/chip tasarımı).
 
 build_calendar_context()/build_calendar_share_text() saf fonksiyonlardir --
 src.fetchers.earnings_calendar'a hicbir AG istegi atmaz, elle kurulmus
 EarningsDate listeleri kullanilir (bkz. Kural 11: testlerde ag istegi
-atilmaz). Sadece test_render_calendar_card_gercek_png_uretir GERCEK
-Playwright render'i dogrular (card.py'deki AYNI desen, bkz. test_card.py
+atilmaz). Sadece test_render_calendar_card_* GERCEK Playwright render'i
+dogrular (card.py'deki AYNI desen, bkz. test_card.py
 test_render_card_gercek_png_uretir).
 """
 
@@ -53,97 +53,74 @@ def _ornek_entries() -> list[EarningsDate]:
     ]
 
 
-# --- build_calendar_context -----------------------------------------------------
+# --- _wrap_line_count (saf yardimci) -----------------------------------------------------
 
 
-def test_build_calendar_context_son_tarih_dislanir() -> None:
+def test_wrap_line_count_tam_bolunen() -> None:
+    assert calendar_card._wrap_line_count(10, 10) == 1
+    assert calendar_card._wrap_line_count(20, 10) == 2
+
+
+def test_wrap_line_count_yukari_yuvarlar() -> None:
+    assert calendar_card._wrap_line_count(11, 10) == 2
+    assert calendar_card._wrap_line_count(1, 10) == 1
+
+
+def test_wrap_line_count_sifir() -> None:
+    assert calendar_card._wrap_line_count(0, 10) == 0
+
+
+# --- build_calendar_context: katmanlara ayirma -----------------------------------------------------
+
+
+def test_build_calendar_context_iki_katmana_ayirir() -> None:
     context = calendar_card.build_calendar_context(_ornek_entries(), "BIST", now=_NOW)
 
-    all_tickers = {row["ticker"] for group in context["day_groups"] for row in group["rows"]}
-    assert all_tickers == {"THYAO", "ASELS", "TUPRS"}
+    kesin_tickers = {row["ticker"] for group in context["kesin_day_groups"] for row in group["rows"]}
+    tahmini_tickers = {row["ticker"] for group in context["tahmini_day_groups"] for row in group["rows"]}
+
+    assert kesin_tickers == {"THYAO", "TUPRS"}
+    assert tahmini_tickers == {"ASELS"}
+
+
+def test_build_calendar_context_son_tarih_hicbir_katmanda_yok() -> None:
+    context = calendar_card.build_calendar_context(_ornek_entries(), "BIST", now=_NOW)
+    all_tickers = {row["ticker"] for group in context["kesin_day_groups"] + context["tahmini_day_groups"] for row in group["rows"]}
     assert "KCHOL" not in all_tickers
 
 
 def test_build_calendar_context_tarihe_gore_gruplar() -> None:
     context = calendar_card.build_calendar_context(_ornek_entries(), "BIST", now=_NOW)
-
-    assert len(context["day_groups"]) == 2  # 2 ve 5 agustos
-    ilk_gun = context["day_groups"][0]
-    assert {row["ticker"] for row in ilk_gun["rows"]} == {"THYAO", "ASELS"}
-    ikinci_gun = context["day_groups"][1]
-    assert {row["ticker"] for row in ikinci_gun["rows"]} == {"TUPRS"}
+    assert len(context["kesin_day_groups"]) == 2  # 2 ve 5 agustos
+    assert context["kesin_day_groups"][0]["date_short"] == "02.08.2026"
+    assert context["kesin_day_groups"][1]["date_short"] == "05.08.2026"
 
 
 def test_build_calendar_context_bugun_isaretlenir() -> None:
     context = calendar_card.build_calendar_context(_ornek_entries(), "BIST", now=_NOW)
-
-    assert context["day_groups"][0]["is_today"] is True
-    assert context["day_groups"][1]["is_today"] is False
-
-
-def test_build_calendar_context_badge_eslemesi() -> None:
-    context = calendar_card.build_calendar_context(_ornek_entries(), "BIST", now=_NOW)
-    rows_by_ticker = {row["ticker"]: row for group in context["day_groups"] for row in group["rows"]}
-
-    assert rows_by_ticker["THYAO"]["badge_class"] == "kesin"
-    assert rows_by_ticker["THYAO"]["badge_label"] == "KESİN"
-    assert rows_by_ticker["ASELS"]["badge_class"] == "tahmini"
-    assert rows_by_ticker["ASELS"]["badge_label"] == "TAHMİNİ"
+    assert context["kesin_day_groups"][0]["is_today"] is True
+    assert context["kesin_day_groups"][1]["is_today"] is False
 
 
 def test_build_calendar_context_bos_liste_is_empty() -> None:
     context = calendar_card.build_calendar_context([], "BIST", now=_NOW)
     assert context["is_empty"] is True
-    assert context["day_groups"] == []
+    assert context["is_kesin_empty"] is True
+    assert context["is_tahmini_empty"] is True
+
+
+def test_build_calendar_context_sadece_kesin_varsa_tahmini_bos() -> None:
+    entries = [_entry("THYAO", "Türk Hava Yolları", date(2026, 8, 2), CONFIDENCE_KESIN)]
+    context = calendar_card.build_calendar_context(entries, "BIST", now=_NOW)
+    assert context["is_empty"] is False
+    assert context["is_kesin_empty"] is False
+    assert context["is_tahmini_empty"] is True
 
 
 def test_build_calendar_context_sadece_son_tarih_varsa_is_empty() -> None:
     entries = [_entry("KCHOL", "Koç Holding", date(2026, 8, 20), CONFIDENCE_SON_TARIH)]
     context = calendar_card.build_calendar_context(entries, "BIST", now=_NOW)
     assert context["is_empty"] is True
-
-
-def test_build_calendar_context_max_rows_kirpar() -> None:
-    """CANLI hata (2026-08-02): NASDAQ 10 gunluk pencerede 2287 kayit dondurdu,
-    Chromium bu kadar satirli bir #calendar-card'in ekran goruntusunu ALAMADI.
-    max_rows bu yuzden ZORUNLU bir tavan -- asan kisim kesilir, truncated_count
-    ile raporlanir."""
-    entries = [_entry(f"T{i}", f"Şirket {i}", date(2026, 8, 2), CONFIDENCE_KESIN) for i in range(5)]
-    context = calendar_card.build_calendar_context(entries, "BIST", now=_NOW, max_rows=3)
-
-    shown = sum(len(g["rows"]) for g in context["day_groups"])
-    assert shown == 3
-    assert context["is_truncated"] is True
-    assert context["truncated_count"] == 2
-    assert context["is_empty"] is False
-
-
-def test_build_calendar_context_max_rows_gun_sinirinda_keser() -> None:
-    """Tavan bir gunun ORTASINA denk gelirse o gun KISMEN gosterilir, bir
-    SONRAKI gunun TAMAMI hic eklenmez (bkz. build_calendar_context docstring'i)."""
-    entries = [
-        _entry("A", "A Şirketi", date(2026, 8, 2), CONFIDENCE_KESIN),
-        _entry("B", "B Şirketi", date(2026, 8, 2), CONFIDENCE_KESIN),
-        _entry("C", "C Şirketi", date(2026, 8, 3), CONFIDENCE_KESIN),
-    ]
-    context = calendar_card.build_calendar_context(entries, "BIST", now=_NOW, max_rows=1)
-
-    assert len(context["day_groups"]) == 1
-    assert len(context["day_groups"][0]["rows"]) == 1
-    assert context["truncated_count"] == 2
-
-
-def test_build_calendar_context_max_rows_asilmazsa_kirpma_yok() -> None:
-    context = calendar_card.build_calendar_context(_ornek_entries(), "BIST", now=_NOW, max_rows=60)
-    assert context["is_truncated"] is False
-    assert context["truncated_count"] == 0
-
-
-def test_build_calendar_context_lejant_iki_madde_icerir() -> None:
-    """Kullanici karari: son_tarih hic gosterilmedigi icin lejant da SADECE
-    kesin/tahmini aciklar (ucuncu, hic gorunmeyen bir rozet icin madde YOK)."""
-    context = calendar_card.build_calendar_context(_ornek_entries(), "BIST", now=_NOW)
-    assert [item["css_class"] for item in context["legend_items"]] == ["kesin", "tahmini"]
 
 
 def test_build_calendar_context_market_label_ve_kaynak_notu() -> None:
@@ -162,19 +139,55 @@ def test_build_calendar_context_disclaimer_zorunlu() -> None:
     assert "yatırım tavsiyesi değildir" in context["disclaimer"]
 
 
+# --- build_calendar_context: piksel butcesi / kirpma -----------------------------------------------------
+
+
+def test_build_calendar_context_max_rows_kesin_katmani_kirpar() -> None:
+    entries = [_entry(f"T{i}", f"Şirket {i}", date(2026, 8, 2), CONFIDENCE_KESIN) for i in range(5)]
+    context = calendar_card.build_calendar_context(entries, "BIST", now=_NOW, max_rows=3)
+
+    shown = sum(len(g["rows"]) for g in context["kesin_day_groups"])
+    assert shown == 3
+    assert context["kesin_truncated_count"] == 2
+
+
+def test_build_calendar_context_kesin_katmani_asla_kirpilmaz_tahmini_kirpilir() -> None:
+    """Kesin katmani ONCE doldurulur, kalan butce tahmini katmanina aktarilir
+    -- kullanici karari: kesin tarihler ONCELIKLI, kesilecekse ONCE tahmini
+    kesilmeli."""
+    kesin = [_entry(f"K{i}", f"Kesin {i}", date(2026, 8, 2), CONFIDENCE_KESIN) for i in range(3)]
+    tahmini = [_entry(f"T{i}", f"Tahmini {i}", date(2026, 8, 3), CONFIDENCE_TAHMINI) for i in range(500)]
+    context = calendar_card.build_calendar_context(kesin + tahmini, "BIST", now=_NOW)
+
+    assert context["kesin_truncated_count"] == 0
+    kesin_shown = sum(len(g["rows"]) for g in context["kesin_day_groups"])
+    assert kesin_shown == 3
+    assert context["tahmini_truncated_count"] > 0  # 500 tahmini kesinlikle butceyi asar
+
+
 # --- build_calendar_share_text -----------------------------------------------------
 
 
-def test_build_calendar_share_text_ticker_ve_tarihleri_icerir() -> None:
+def test_build_calendar_share_text_hashtag_formati() -> None:
     context = calendar_card.build_calendar_context(_ornek_entries(), "BIST", now=_NOW)
     text = calendar_card.build_calendar_share_text(context)
 
-    assert "$THYAO" in text
-    assert "$ASELS" in text
-    assert "$TUPRS" in text
-    assert "$KCHOL" not in text
+    assert "#THYAO" in text
+    assert "#TUPRS" in text
+    assert "#ASELS" in text
+    assert "$THYAO" not in text  # eski "$" formati ARTIK kullanilmiyor
+    assert "#KCHOL" not in text  # son_tarih dislanmali
+    assert "02.08.2026" in text
     assert "(BUGÜN)" in text
     assert "yatırım tavsiyesi değildir" in text
+
+
+def test_build_calendar_share_text_iki_bolum_basligi_icerir() -> None:
+    context = calendar_card.build_calendar_context(_ornek_entries(), "BIST", now=_NOW)
+    text = calendar_card.build_calendar_share_text(context)
+    assert "KESİNLEŞEN" in text
+    assert "TAHMİNİ" in text
+    assert text.index("KESİNLEŞEN") < text.index("TAHMİNİ")  # kesin ONCE gelir
 
 
 def test_build_calendar_share_text_bos_liste_mesaji() -> None:
@@ -183,11 +196,12 @@ def test_build_calendar_share_text_bos_liste_mesaji() -> None:
     assert "bulunamadı" in text
 
 
-def test_build_calendar_share_text_kirpilmissa_not_ekler() -> None:
-    entries = [_entry(f"T{i}", f"Şirket {i}", date(2026, 8, 2), CONFIDENCE_KESIN) for i in range(5)]
-    context = calendar_card.build_calendar_context(entries, "BIST", now=_NOW, max_rows=3)
+def test_build_calendar_share_text_sadece_kesin_varsa_tahmini_basligi_yok() -> None:
+    entries = [_entry("THYAO", "Türk Hava Yolları", date(2026, 8, 2), CONFIDENCE_KESIN)]
+    context = calendar_card.build_calendar_context(entries, "BIST", now=_NOW)
     text = calendar_card.build_calendar_share_text(context)
-    assert "+2 kayıt daha" in text
+    assert "KESİNLEŞEN" in text
+    assert "TAHMİNİ" not in text
 
 
 # --- render_card: gercek Playwright ile PNG uretimi (uctan uca) -----------------------------------------------------
@@ -207,22 +221,23 @@ def test_render_calendar_card_gercek_png_uretir(tmp_path) -> None:
     assert out_path.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
 
 
-def test_render_calendar_card_telegram_boyut_sinirini_asmaz(tmp_path) -> None:
-    """CANLI hata (kullanıcı raporu, 2026-08-02): 57 satır/16 gün grubu içeren
-    bir kart 2400x8924 piksele ulaştı, Telegram send_photo bunu
-    `Photo_invalid_dimensions` ile REDDETTİ (Telegram sınırı: genişlik+yükseklik
-    <= 10000). Bu test, o CANLI senaryoyu (çok gün grubuna yayılmış onlarca
-    kesin/tahmini kayıt, max_rows tavanını aşan) GERÇEK bir Playwright render'la
-    yeniden üretip üretilen PNG'nin Telegram sınırının İÇİNDE kaldığını
-    doğrular -- _predicted_height_px()'in kalibrasyon sabitleri BOZULURSA
-    (veya calendar_card.html'de bir CSS boyutu değişip sabitlerle UYUMSUZ
-    kalırsa) bu test KIRILIR."""
-    entries = [
-        _entry(f"T{i}", f"Şirket {i}", date(2026, 8, 1 + (i % 20)), CONFIDENCE_KESIN if i % 2 == 0 else CONFIDENCE_TAHMINI)
-        for i in range(80)
-    ]
-    context = calendar_card.build_calendar_context(entries, "BIST", now=_NOW)
-    assert context["is_truncated"] is True  # bu senaryo max_rows/piksel butcesini AŞMALI
+def test_render_calendar_card_telegram_boyut_sinirini_asmaz(tmp_path, monkeypatch) -> None:
+    """CANLI hata (kullanıcı raporu, 2026-08-02): eski "bir şirket bir satır"
+    tasarımında 57 satır/16 gün grubu 2400x8924 piksele ulaşmıştı, Telegram
+    send_photo bunu `Photo_invalid_dimensions` ile REDDETMİŞTİ (Telegram
+    sınırı: genişlik+yükseklik <= 10000). Bu test, çok sayıda kesin/tahmini
+    kayıt içeren GERÇEK bir Playwright render'ın (yeni "yan yana chip"
+    tasarımıyla) Telegram sınırının İÇİNDE kaldığını doğrular.
+
+    `company_logo.fetch_logo_data_uri` monkeypatch'lenir -- 100 UYDURMA
+    ticker (T0, K0, ...) için gerçek TradingView aramaları hem AĞ İSTEĞİ
+    ATMAMA kuralını (Kural 11) ihlal eder hem de testi YAVAŞLATIR (canlı
+    ölçüldü: ~165 saniye, monkeypatch'siz)."""
+    monkeypatch.setattr(calendar_card.company_logo, "fetch_logo_data_uri", lambda ticker, market="BIST": None)
+
+    kesin = [_entry(f"K{i}", f"Kesin Şirket {i}", date(2026, 8, 1 + (i % 15)), CONFIDENCE_KESIN) for i in range(20)]
+    tahmini = [_entry(f"T{i}", f"Tahmini Şirket {i}", date(2026, 8, 1 + (i % 25)), CONFIDENCE_TAHMINI) for i in range(80)]
+    context = calendar_card.build_calendar_context(kesin + tahmini, "BIST", now=_NOW)
 
     out_path = tmp_path / "test_takvim_buyuk.png"
     card.render_card(context, str(out_path), template_name="calendar_card.html", screenshot_selector="#calendar-card")

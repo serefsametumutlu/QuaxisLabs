@@ -452,6 +452,17 @@ pytest tests/ -v
       tavanı ve piksel bütçesinden hangisi önce dolarsa orada kesiliyor. Aynı 57
       satırlık veriyle şimdi 2400x7248 (toplam 9648) üretiliyor, sınırın altında.
       Test: `pytest tests/` (562 test, 1 yeni, hiçbir regresyon yok).
+- [x] **Faz 13.4 (kullanıcı geri bildirimiyle yeniden tasarım, 2026-08-02)** — Takvim
+      kartı "bir şirket bir satır" düzeninden "iki katmanlı + yan yana chip" düzenine
+      geçti: **KESİNLEŞEN TARİHLER** üstte/büyük/yeşil, **TAHMİNİ TARİHLER** altta/
+      küçük/amber, her gün içindeki şirketler logo+ticker "chip" olarak yan yana
+      (flex-wrap) diziliyor. Paylaşım metni `#TICKER` formatına (eski `$TICKER`
+      yerine) ve kullanıcının referans gösterdiği gerçek X paylaşımlarıyla aynı
+      "GG.AA.YYYY - #TICK, #TICK" kalıbına geçti. Sonuç: gerçek 67 kayıtlı BİST
+      verisiyle eski tasarım 2400x8924 piksele ulaşıp Telegram sınırını aşarken,
+      yeni tasarım 2400x2724'e sığıyor — hiçbir kırpma gerekmedi. Chip genişliği
+      CSS'te sabit tutularak piksel bütçesi deterministik hesaplanabiliyor.
+      Test: `pytest tests/` (566 test, hiçbir regresyon yok).
 
 ## Dizin Yapisi
 

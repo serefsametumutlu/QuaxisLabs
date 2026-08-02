@@ -1,26 +1,23 @@
 <!--
-  Bilanco Radar TAKVIM karti sablonu (Faz 13) -- "Yaklasan Bilanco
-  Tarihleri" icin dikey (4:5), paylasilabilir bir liste gorseli.
+  Bilanco Radar TAKVIM karti sablonu (Faz 13, v2 -- yan yana "chip" duzeni).
 
   ONEMLI: card.html ile AYNI ilke -- bu sablon HICBIR tarih/guven seviyesi
   HESAPLAMAZ. Butun degerler src.render.calendar_card.build_calendar_context()
-  tarafindan ONCEDEN Turkce bicimlendirilmis/gruplanmis olarak gelir; burada
-  sadece yerlestirilir. :root degiskenleri ve font yigini card.html'den
-  AYNEN kopyalandi (marka tutarliligi, bkz. PROJE_HAFIZASI/04_KART_VE_GORSEL.md).
+  tarafindan ONCEDEN Turkce bicimlendirilmis/gruplanmis olarak gelir.
 
-  Boyut: genislik 1200px CSS SABIT (referans oran 4:5 icin hedeflenen
-  1500px yukseklik tipik bir BIST100 taramasinda -- 15-25 gun/satir --
-  dogal olarak olusur), yukseklik ise TAMAMEN icerige gore DOGAL olusur
-  (sabit bir min-height YOK) -- az sayida kayit varken (orn. sadece ilk
-  15 ticker tarandi) kart KISA kalir, ARTIFICIAL bos alanla UZATILMAZ;
-  cok kayit varken ise DOGAL olarak 1500px'i asar. Font kucultme YAPILMAZ,
-  sayfalama (birden fazla PNG) YAPILMAZ. Gerekce: render_card() zaten
-  #calendar-card elementinin TAM boyutunu
-  yakalar (mevcut card.html'in kendisi de viewport'tan daha uzun render
-  edilip AYNI mekanizmayla eksiksiz yakalaniyor, bkz. card.py render_card
-  docstring'i) -- bu yuzden dinamik yukseklik EK bir kod karmasikligi
-  GETIRMEZ; sayfalama ise bot tarafinda "N adet PNG gonder" gibi ekstra
-  bir teslimat mantigi gerektirirdi (kullanici deneyimini karmasiklastirir).
+  TASARIM (kullanici geri bildirimiyle, 2026-08-02, iki tur):
+  - KESIN ve TAHMINI iki AYRI bolum: kesin USTTE/BUYUK/vurgulu, tahmini
+    ALTTA/KUCUK/soluk -- kullanici karti "kesinlesen sirketler" diye
+    paylasacagini belirtti, bu yuzden ikisi net olarak AYRISTIRILIYOR.
+  - Her gun icindeki sirketler YAN YANA "chip" (logo+ticker, sirket adi
+    OLMADAN -- referans tweet'lerdeki sade #TICKER listesine benzer)
+    olarak diziliyor, satir kirilimiyla (flex-wrap) COK daha az dikey yer
+    kaplıyor -- eski "bir sirket bir satir" tasarimi 57 satir/16 gun
+    grubuyla Telegram'in foto boyut sinirini asmisti (bkz.
+    06_BILINEN_SORUNLAR.md §A33).
+  - Chip GENISLIGI SABIT (bkz. .chip{width:...}) -- boylece
+    calendar_card.py'deki piksel butcesi hesaplamasi TICKER METNININ
+    gercek render genisligine BAGLI OLMADAN dogru kalir.
 -->
 <!DOCTYPE html>
 <html lang="tr">
@@ -57,10 +54,10 @@
     border: 1px solid var(--border);
     border-radius: 18px;
     overflow: hidden;
-    padding: 30px 34px 24px;
+    padding: 28px 32px 22px;
     display: flex;
     flex-direction: column;
-    gap: 22px;
+    gap: 18px;
   }
 
   .scanlines {
@@ -81,8 +78,8 @@
   .top-band {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    padding: 26px 30px;
+    gap: 14px;
+    padding: 22px 26px;
     border: 1px solid var(--border);
     border-top: 3px solid var(--accent);
     border-radius: 12px;
@@ -90,160 +87,149 @@
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
   }
 
-  .masthead { display: flex; align-items: center; gap: 14px; }
-  .masthead-logo { height: 56px; width: 56px; border-radius: 50%; display: block; }
-  .masthead-text { font-size: 20px; font-weight: 800; letter-spacing: 0.6px; }
+  .masthead { display: flex; align-items: center; gap: 12px; }
+  .masthead-logo { height: 48px; width: 48px; border-radius: 50%; display: block; }
+  .masthead-text { font-size: 18px; font-weight: 800; letter-spacing: 0.6px; }
   .masthead-brand { color: var(--heading); }
   .masthead-accent { color: #2dd4bf; }
   .masthead-product { color: var(--secondary); font-weight: 600; letter-spacing: 0.3px; }
 
-  .title-line { font-size: 34px; font-weight: 800; letter-spacing: 0.3px; color: var(--heading); }
+  .title-line { font-size: 30px; font-weight: 800; letter-spacing: 0.3px; color: var(--heading); }
   .subtitle-row { display: flex; align-items: center; gap: 14px; }
 
   .period-badge {
     display: inline-flex;
     align-items: center;
-    padding: 6px 16px;
+    padding: 5px 14px;
     border: 1px solid var(--border);
     border-radius: 999px;
     background: var(--panel);
-    font-size: 17px;
+    font-size: 15px;
     font-weight: 700;
     color: var(--heading);
     opacity: 0.9;
     line-height: 1;
   }
 
-  .meta-line { font-size: 14px; color: var(--secondary); letter-spacing: 0.3px; }
+  .meta-line { font-size: 13px; color: var(--secondary); letter-spacing: 0.3px; }
 
-  /* --- Gun gruplari --- */
-  .day-groups { display: flex; flex-direction: column; gap: 16px; }
+  /* --- Katman (tier) bolumleri --- */
+  .tier {
+    border-radius: 14px;
+    padding: 18px 22px;
+  }
 
-  .day-group {
+  .tier-kesin {
     border: 1px solid var(--border);
-    border-left: 3px solid var(--border-soft);
-    border-radius: 12px;
+    border-left: 4px solid var(--positive);
+    background: linear-gradient(180deg, rgba(34, 197, 94, 0.06), transparent 40%), var(--panel);
+  }
+
+  .tier-tahmini {
+    border: 1px solid var(--border-soft);
+    border-left: 4px solid var(--accent);
     background: var(--panel);
-    padding: 16px 20px;
+    opacity: 0.92;
   }
 
-  .day-group.is-today { border-left: 3px solid var(--accent); }
-
-  .day-header {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--heading);
-    letter-spacing: 0.2px;
-    margin-bottom: 10px;
+  .tier-heading {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     gap: 10px;
+    margin-bottom: 14px;
   }
+
+  .tier-kesin .tier-heading-text { font-size: 22px; font-weight: 800; color: var(--positive); letter-spacing: 0.3px; }
+  .tier-tahmini .tier-heading-text { font-size: 16px; font-weight: 800; color: var(--accent); letter-spacing: 0.3px; }
+
+  .tier-heading-sub { font-size: 12px; color: var(--secondary); }
+
+  .day-groups { display: flex; flex-direction: column; }
+  .tier-kesin .day-groups { gap: 12px; }
+  .tier-tahmini .day-groups { gap: 8px; }
+
+  .day-block { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px 14px; }
+  .day-block.is-today { padding-left: 8px; border-left: 2px solid var(--accent); }
+
+  .tier-kesin .day-label { font-size: 15px; font-weight: 700; color: var(--heading); white-space: nowrap; min-width: 108px; }
+  .tier-tahmini .day-label { font-size: 12.5px; font-weight: 700; color: var(--secondary); white-space: nowrap; min-width: 96px; }
 
   .today-tag {
-    font-size: 12px;
+    font-size: 10px;
     font-weight: 700;
     color: var(--accent);
     border: 1px solid var(--accent);
     border-radius: 999px;
-    padding: 2px 10px;
-    letter-spacing: 0.4px;
+    padding: 1px 7px;
+    margin-left: 6px;
+    letter-spacing: 0.3px;
   }
 
-  .company-row {
-    display: flex;
+  .chip-row { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+
+  /* Chip GENISLIGI SABIT -- bkz. calendar_card.py _KESIN_CHIPS_PER_ROW /
+     _TAHMINI_CHIPS_PER_ROW: piksel butce hesabi bu sabit genislige DAYANIR,
+     degistirilirse o sabitler de guncellenmeli. */
+  .chip {
+    display: inline-flex;
     align-items: center;
-    gap: 12px;
-    padding: 9px 0;
-    border-top: 1px solid var(--border-soft);
+    gap: 6px;
+    width: 104px;
+    padding: 5px 8px;
+    border-radius: 8px;
+    flex-shrink: 0;
   }
 
-  .company-row:first-of-type { border-top: none; }
+  .tier-kesin .chip { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.35); }
+  .tier-tahmini .chip { background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.22); width: 88px; padding: 3px 6px; }
 
-  .row-logo {
-    height: 30px;
-    width: 30px;
-    border-radius: 6px;
+  .chip-logo {
+    height: 20px;
+    width: 20px;
+    border-radius: 5px;
     object-fit: contain;
     background: var(--panel);
     flex-shrink: 0;
   }
+  .tier-tahmini .chip-logo { height: 16px; width: 16px; }
 
-  .row-logo-placeholder {
-    height: 30px;
-    width: 30px;
-    border-radius: 6px;
-    background: var(--panel);
-    border: 1px solid var(--border-soft);
-    flex-shrink: 0;
-  }
+  .chip-logo-placeholder { background: var(--panel); border: 1px solid var(--border-soft); }
 
-  .row-ticker { font-size: 18px; font-weight: 700; color: var(--heading); }
-  .row-company-name {
-    font-size: 15px;
-    color: var(--secondary);
-    flex: 1;
+  .chip-ticker {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--heading);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-
-  .badge {
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.4px;
-    padding: 4px 12px;
-    border-radius: 999px;
-    flex-shrink: 0;
-  }
-
-  .badge-kesin { background: rgba(34, 197, 94, 0.16); color: var(--positive); border: 1px solid var(--positive); }
-  .badge-tahmini { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
-  .badge-son_tarih { background: transparent; color: var(--secondary); border: 1px solid var(--border); }
+  .tier-tahmini .chip-ticker { font-size: 11.5px; font-weight: 600; color: var(--secondary); }
 
   .empty-state {
-    padding: 60px 20px;
+    padding: 24px 16px;
     text-align: center;
     color: var(--secondary);
-    font-size: 17px;
-    border: 1px dashed var(--border);
-    border-radius: 12px;
+    font-size: 14px;
   }
 
   .truncated-note {
-    padding: 12px 20px;
+    margin-top: 10px;
     text-align: center;
     color: var(--secondary);
-    font-size: 13px;
-    border: 1px dashed var(--border);
-    border-radius: 12px;
+    font-size: 12px;
   }
-
-  /* --- Lejant --- */
-  .legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 18px;
-    padding: 16px 20px;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    background: var(--panel);
-  }
-
-  .legend-item { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--secondary); }
-  .legend-item .badge { flex-shrink: 0; }
 
   /* --- Alt bant (footer) -- card.html ile AYNI dil --- */
   .bottom-band {
-    padding-top: 12px;
+    padding-top: 10px;
     border-top: 1px solid var(--border);
     display: flex;
     justify-content: space-between;
     align-items: baseline;
   }
 
-  .disclaimer { font-size: 12.5px; color: var(--secondary); letter-spacing: 0.2px; }
-  .footer-meta { font-size: 12px; color: var(--secondary); opacity: 0.75; }
+  .disclaimer { font-size: 11.5px; color: var(--secondary); letter-spacing: 0.2px; }
+  .footer-meta { font-size: 11px; color: var(--secondary); opacity: 0.75; }
   .footer-handle { color: var(--heading); font-weight: 700; opacity: 0.9; }
   .dot-sep { margin: 0 8px; color: var(--secondary); }
 </style>
@@ -264,43 +250,71 @@
     </div>
   </header>
 
-  <section class="day-groups">
-    {% if is_empty %}
-    <div class="empty-state">Bu aralıkta kesin/tahmini bir bilanço tarihi bulunamadı.</div>
-    {% endif %}
-    {% for group in day_groups %}
-    <div class="day-group{% if group.is_today %} is-today{% endif %}">
-      <div class="day-header">
-        {{ group.date_label }}
-        {% if group.is_today %}<span class="today-tag">BUGÜN</span>{% endif %}
-      </div>
-      {% for row in group.rows %}
-      <div class="company-row">
-        {% if row.logo_data_uri %}
-        <img class="row-logo" src="{{ row.logo_data_uri }}" alt="{{ row.ticker }}">
-        {% else %}
-        <div class="row-logo-placeholder"></div>
-        {% endif %}
-        <span class="row-ticker">{{ row.ticker }}</span>
-        <span class="row-company-name">{{ row.company_name }}</span>
-        <span class="badge badge-{{ row.badge_class }}">{{ row.badge_label }}</span>
+  {% if is_empty %}
+  <div class="empty-state">Bu aralıkta kesin/tahmini bir bilanço tarihi bulunamadı.</div>
+  {% endif %}
+
+  {% if not is_kesin_empty %}
+  <section class="tier tier-kesin">
+    <div class="tier-heading">
+      <span class="tier-heading-text">✅ KESİNLEŞEN TARİHLER</span>
+      <span class="tier-heading-sub">şirketin kendi KAP bildirimi</span>
+    </div>
+    <div class="day-groups">
+      {% for group in kesin_day_groups %}
+      <div class="day-block{% if group.is_today %} is-today{% endif %}">
+        <span class="day-label">{{ group.date_short }}{% if group.is_today %}<span class="today-tag">BUGÜN</span>{% endif %}</span>
+        <div class="chip-row">
+          {% for row in group.rows %}
+          <div class="chip">
+            {% if row.logo_data_uri %}
+            <img class="chip-logo" src="{{ row.logo_data_uri }}" alt="{{ row.ticker }}" title="{{ row.company_name }}">
+            {% else %}
+            <div class="chip-logo chip-logo-placeholder"></div>
+            {% endif %}
+            <span class="chip-ticker">{{ row.ticker }}</span>
+          </div>
+          {% endfor %}
+        </div>
       </div>
       {% endfor %}
     </div>
-    {% endfor %}
-    {% if is_truncated %}
-    <div class="truncated-note">+{{ truncated_count }} kayıt daha var, kart okunabilirliği için kısaltıldı</div>
+    {% if kesin_truncated_count %}
+    <div class="truncated-note">+{{ kesin_truncated_count }} kesinleşmiş kayıt daha var</div>
     {% endif %}
   </section>
+  {% endif %}
 
-  <section class="legend">
-    {% for item in legend_items %}
-    <div class="legend-item">
-      <span class="badge badge-{{ item.css_class }}">{{ item.label }}</span>
-      <span>{{ item.description }}</span>
+  {% if not is_tahmini_empty %}
+  <section class="tier tier-tahmini">
+    <div class="tier-heading">
+      <span class="tier-heading-text">〰️ TAHMİNİ TARİHLER</span>
+      <span class="tier-heading-sub">henüz kesinleşmedi -- geçmiş yayın davranışının medyanı</span>
     </div>
-    {% endfor %}
+    <div class="day-groups">
+      {% for group in tahmini_day_groups %}
+      <div class="day-block{% if group.is_today %} is-today{% endif %}">
+        <span class="day-label">{{ group.date_short }}{% if group.is_today %}<span class="today-tag">BUGÜN</span>{% endif %}</span>
+        <div class="chip-row">
+          {% for row in group.rows %}
+          <div class="chip">
+            {% if row.logo_data_uri %}
+            <img class="chip-logo" src="{{ row.logo_data_uri }}" alt="{{ row.ticker }}" title="{{ row.company_name }}">
+            {% else %}
+            <div class="chip-logo chip-logo-placeholder"></div>
+            {% endif %}
+            <span class="chip-ticker">{{ row.ticker }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% if tahmini_truncated_count %}
+    <div class="truncated-note">+{{ tahmini_truncated_count }} tahmini kayıt daha var</div>
+    {% endif %}
   </section>
+  {% endif %}
 
   <footer class="bottom-band">
     <div class="disclaimer">{{ disclaimer }}</div>

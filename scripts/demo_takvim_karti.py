@@ -50,10 +50,13 @@ def main() -> int:
     print(f"\nGösterim penceresi (30 gün) içinde {len(entries)} ham kayıt bulundu (kesin+tahmini+son_tarih dahil).")
 
     context = calendar_card.build_calendar_context(entries, market)
-    kesin_tahmini_sayisi = sum(len(g["rows"]) for g in context["day_groups"])
-    print(f"Kartta gösterilecek (kesin+tahmini) satır sayısı: {kesin_tahmini_sayisi}")
-    if context["is_truncated"]:
-        print(f"⚠️  {context['truncated_count']} kayıt kart okunabilirliği için KISALTILDI (max_rows tavanı aşıldı).")
+    kesin_sayisi = sum(len(g["rows"]) for g in context["kesin_day_groups"])
+    tahmini_sayisi = sum(len(g["rows"]) for g in context["tahmini_day_groups"])
+    print(f"Kartta gösterilecek: {kesin_sayisi} kesin + {tahmini_sayisi} tahmini şirket")
+    if context["kesin_truncated_count"]:
+        print(f"⚠️  {context['kesin_truncated_count']} KESİN kayıt kart okunabilirliği için KISALTILDI.")
+    if context["tahmini_truncated_count"]:
+        print(f"⚠️  {context['tahmini_truncated_count']} TAHMİNİ kayıt kart okunabilirliği için KISALTILDI.")
 
     out_path = config.DATA_DIR / "cards" / f"takvim_{market}.png"
     result_path = card.render_card(

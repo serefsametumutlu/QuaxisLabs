@@ -299,8 +299,22 @@ pytest tests/ -v
       logoları da düzeltildi: `company_logo.py` TradingView aramasını HER ZAMAN
       "BIST:" öneki ile yapıyordu, bu yüzden hiçbir NASDAQ kartında logo
       görünmüyordu — `market="NASDAQ"` için "NASDAQ:" sonra "NYSE:" fallback
-      eklendi (JPM SADECE NYSE ile bulunuyor). Test: `pytest tests/`
-      (427 test, 9 yeni, hiçbir regresyon yok).
+      eklendi (JPM SADECE NYSE ile bulunuyor).
+      **Devam eden düzeltmeler (kullanıcı yeniden istedi — "diğer 5 hissedeki
+      brüt kârı da türetip doğrula")**: GOOGL/AMZN/META/NFLX'te "Brüt Kâr"ın
+      HER ZAMAN N/A çıktığı bulundu (bu 4 şirket "GrossProfit" tag'ini güncel
+      dönemde hiç kullanmıyor) — `gross_profit_us_gaap()` eklendi: doğrudan
+      tag yoksa Hasılat − Maliyet (`CostOfRevenue`/`CostOfGoodsAndServicesSold`)
+      türetir, stockanalysis.com ile BİREBİR doğrulandı (GOOGL $73,853mr,
+      AMZN $104,828mr, NFLX $6,523mr). PYPL'de hiçbir maliyet tag'i yok, N/A
+      doğru kalıyor. Ayrıca **kritik bir çeyreklik-türetme hatası** bulundu:
+      GOOGL 2025 Ç1→Ç2 arasında XBRL etiketini değiştirmiş
+      (`RevenueFromContractWithCustomer...` → `Revenues`) — eski kod iki
+      dönemi AYNI tek etikette aradığı için "Satışlar (karşılaştırma)"
+      satırı sessizce "veri yok" gösteriyordu; `quarterly_standardized_value_us_gaap()`
+      artık her dönemi ayrı ayrı (tüm aday etiketleri deneyerek) çözüp SONRA
+      çıkarıyor, etiket değişikliğine dayanıklı. Test: `pytest tests/`
+      (432 test, 14 yeni, hiçbir regresyon yok).
 
 ## Dizin Yapisi
 

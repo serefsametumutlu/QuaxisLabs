@@ -26,7 +26,9 @@ from src.fetchers.sec_edgar import (
     _discover_available_periods,
     _extract_relevant_facts,
     _select_best_fact,
+    gross_profit_us_gaap,
     normalize_ticker,
+    quarterly_gross_profit_us_gaap,
     quarterly_standardized_value_us_gaap,
     quarterly_value_from_cumulative_us_gaap,
     standardized_value_us_gaap,
@@ -101,6 +103,35 @@ def test_quarterly_value_dorduncu_ceyrek_fp_fy_yillik_eksi_3_ceyrek() -> None:
 def test_quarterly_value_onceki_donem_eksikse_none_doner() -> None:
     facts = [_fact("2025-09-28", "2026-03-28", "250", "Q2", 2026)]
     assert quarterly_value_from_cumulative_us_gaap(facts, 2026, 6) is None
+
+
+def test_quarterly_standardized_value_sirket_ceyrekler_arasi_tag_degistirse_bile_calisir() -> None:
+    """CANLI HATA (kullanici raporu -- GOOGL kartinda 'Satislar (karsilastirma)'
+    satiri sessizce 'veri yok' gosteriyordu): GOOGL 2025 Ç1 10-Q'sunda
+    'RevenueFromContractWithCustomerExcludingAssessedTax' tag'ini kullanirken
+    2025 Ç2 10-Q'sunda (taksonomi degisikligiyle) 'Revenues' tag'ine GECTI --
+    HER IKI donem de kendi TEK tag'i icinde TAM/dogru veriye sahip, ama ESKI
+    (tek-tag icinde cikarma yapan) uygulama iki donemi AYNI tag'de ARADIGI
+    icin basarisiz oluyordu. quarterly_standardized_value_us_gaap() artik
+    HER DONEMI standardized_value_us_gaap() ile AYRI AYRI (TUM aday
+    tag'leri deneyerek) cozup SONRA cikarir -- tag degisikligine DAYANIKLI."""
+    facts_by_tag = {
+        "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax": [
+            _fact("2025-01-01", "2025-03-31", "90234000000", "Q1", 2025),
+        ],
+        "us-gaap:Revenues": [
+            _fact("2025-01-01", "2025-06-30", "186662000000", "Q2", 2025),
+        ],
+    }
+    raw = RawUsFinancials(
+        ticker="GOOGL", cik10="0001652044", company_name="Alphabet Inc.",
+        periods=[(2025, 6), (2025, 3)], facts_by_tag=facts_by_tag,
+    )
+    # standardized_value_us_gaap HER DONEMI ayri ayri (kendi tag'inden) bulur.
+    assert standardized_value_us_gaap(raw, "revenue", (2025, 3)) == Decimal("90234000000")
+    assert standardized_value_us_gaap(raw, "revenue", (2025, 6)) == Decimal("186662000000")
+    # ceyreklik turetme ARTIK basarili: 186.662.000.000 - 90.234.000.000
+    assert quarterly_standardized_value_us_gaap(raw, "revenue", (2025, 6)) == Decimal("96428000000")
 
 
 # --- _select_best_fact: CANLI HATA regresyonu (AAPL, bkz. sec_edgar.py modul notu) -----------------------------------------------------
@@ -213,6 +244,81 @@ def test_total_debt_us_gaap_iki_bileseni_toplar() -> None:
     short_debt = standardized_value_us_gaap(raw, "short_term_financial_debt", period)
     long_debt = standardized_value_us_gaap(raw, "long_term_financial_debt", period)
     assert total_debt_us_gaap(raw, period) == short_debt + long_debt
+
+
+# --- gross_profit_us_gaap: dogrudan tag varsa oncelikli, yoksa turetme -----------------------------------------------------
+
+
+def test_gross_profit_us_gaap_dogrudan_tag_varsa_onceliklidir() -> None:
+    # AAPL'de "GrossProfit" tag'i dogrudan mevcut -- turetme YAPILMAMALI.
+    raw = _build_raw("AAPL")
+    period = raw.periods[0]
+    direct = standardized_value_us_gaap(raw, "gross_profit", period)
+    assert direct is not None
+    assert gross_profit_us_gaap(raw, period) == direct
+
+
+def test_gross_profit_us_gaap_dogrudan_tag_yoksa_maliyetten_turetir() -> None:
+    """CANLI DOGRULANDI (kullanici raporu -- 10 resmi NASDAQ hissesi taramasi
+    sirasinda GOOGL/AMZN/META/NFLX'te 'GrossProfit' tag'inin GUNCEL donemde
+    HIC olmadigi bulundu): Hasilat - Satislarin Maliyeti = stockanalysis.com'un
+    raporladigi Brut Kar ile BIREBIR eslesti (GOOGL 2026 Ç2: $119,796mr -
+    $45,943mr = $73,853mr)."""
+    facts_by_tag = {
+        "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax": [
+            _fact("2026-01-01", "2026-06-30", "119796000000", "Q2", 2026),
+        ],
+        "us-gaap:CostOfRevenue": [
+            _fact("2026-04-01", "2026-06-30", "45943000000", "Q2", 2026),
+        ],
+    }
+    raw = RawUsFinancials(
+        ticker="GOOGL", cik10="0001652044", company_name="Alphabet Inc.",
+        periods=[(2026, 6)], facts_by_tag=facts_by_tag,
+    )
+    assert standardized_value_us_gaap(raw, "gross_profit", (2026, 6)) is None  # dogrudan tag YOK
+    assert gross_profit_us_gaap(raw, (2026, 6)) == Decimal("73853000000")
+
+
+def test_gross_profit_us_gaap_maliyet_verisi_de_yoksa_none_doner() -> None:
+    # PYPL senaryosu: ne GrossProfit ne CostOfRevenue/CostOfGoodsAndServicesSold var.
+    facts_by_tag = {
+        "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax": [
+            _fact("2026-01-01", "2026-03-31", "8353000000", "Q1", 2026),
+        ],
+    }
+    raw = RawUsFinancials(
+        ticker="PYPL", cik10="0001633917", company_name="PayPal Holdings, Inc.",
+        periods=[(2026, 3)], facts_by_tag=facts_by_tag,
+    )
+    assert gross_profit_us_gaap(raw, (2026, 3)) is None
+    assert quarterly_gross_profit_us_gaap(raw, (2026, 3)) is None
+
+
+def test_quarterly_gross_profit_us_gaap_kumulatiften_ceyreklik_turetir() -> None:
+    # Sentetik ama TUTARLI kumulatif degerler: Ç2 (6 aylik) kumulatif -
+    # Ç1 (3 aylik) kumulatif = TEK CEYREKLIK deger -- hem hasilat hem
+    # maliyet icin AYRI AYRI turetilip SONRA cikarilmali (quarterly_value_
+    # from_cumulative_us_gaap ile AYNI ilke, bkz. NFLX gercek 2026 Ç2
+    # dogrulamasi: test_gross_profit_us_gaap_dogrudan_tag_yoksa_maliyetten_turetir).
+    facts_by_tag = {
+        "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax": [
+            _fact("2026-01-01", "2026-03-31", "6000000000", "Q1", 2026),
+            _fact("2026-01-01", "2026-06-30", "12559938000", "Q2", 2026),
+        ],
+        "us-gaap:CostOfRevenue": [
+            _fact("2026-01-01", "2026-03-31", "5000000000", "Q1", 2026),
+            _fact("2026-01-01", "2026-06-30", "11925203000", "Q2", 2026),
+        ],
+    }
+    raw = RawUsFinancials(
+        ticker="NFLX", cik10="0001065280", company_name="NETFLIX INC",
+        periods=[(2026, 6), (2026, 3)], facts_by_tag=facts_by_tag,
+    )
+    # ceyreklik hasilat = 12.559.938.000 - 6.000.000.000 = 6.559.938.000
+    # ceyreklik maliyet = 11.925.203.000 - 5.000.000.000 = 6.925.203.000
+    beklenen = Decimal("6559938000") - Decimal("6925203000")
+    assert quarterly_gross_profit_us_gaap(raw, (2026, 6)) == beklenen
 
 
 def test_shares_outstanding_donem_ortalamasi_fallback_uzerinden_dogru_secilir() -> None:

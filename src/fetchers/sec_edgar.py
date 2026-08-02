@@ -183,7 +183,39 @@ STANDARD_ITEM_MAP_US_GAAP: dict[str, list[str]] = {
     # ikisi de JPM'nin XBRL faktlerinde YOK) -- BIST UFRS (banka) semasinda
     # da bu iki kavramin olmamasiyla AYNI durum, kart/analiz katmani (Faz 10)
     # bu alanlari None/N-A gostermeye HAZIR olmali.
+    #
+    # NOT (10 resmi NASDAQ hissesinin TAMAMI canli tarandi, 2026-08-02):
+    # GOOGL/AMZN/META/NFLX/PYPL de "GrossProfit" tag'ini GUNCEL donemde HIC
+    # kullanmiyor (AMZN/NFLX'te tag GECMISTE var ama YILLARDIR guncellenmemis
+    # -- son NFLX verisi 2020, son AMZN verisi 2009). Bu 5 sirket icin
+    # standardized_value_us_gaap("gross_profit", ...) YINE None doner (bu
+    # alan haritasi DEGISMEDI) -- DOGRU/DOGRULANMIS deger ISTEYEN caller
+    # `gross_profit_us_gaap()`/`quarterly_gross_profit_us_gaap()` fonksiyonlarini
+    # KULLANMALI (asagida, isyatirim.total_revenue() ile AYNI desen): once bu
+    # DOGRUDAN tag'i dener, yoksa Hasilat - Satislarin Maliyeti (asagidaki
+    # "cost_of_revenue" ic alani) turetir.
     "gross_profit": ["us-gaap:GrossProfit"],
+    # SADECE gross_profit_us_gaap() turetmesi icin ic (internal) alan --
+    # pipeline._standardize_to_records_us_gaap() bunu DOGRUDAN DB'ye YAZMAZ
+    # (isyatirim.py'deki "3CAC" finans segmenti geliri ic kalemiyle AYNI
+    # ilke). CANLI DOGRULANDI (stockanalysis.com ile BIREBIR eslesti):
+    #   GOOGL 2026 Ç2: Hasilat $119.796mr - CostOfRevenue $45.943mr =
+    #     $73.853mr Brut Kar (stockanalysis.com: $73.853mr)
+    #   NFLX  2026 Ç2: $12.560mr - $6.037mr = $6.523mr (stockanalysis.com: $6.523mr)
+    #   AMZN  2026 Ç2: $200.606mr - $95.778mr = $104.828mr (stockanalysis.com: $104.828mr)
+    #   META  2026 Ç1: $56.311mr - $10.218mr = $46.093mr (%81,85 brut marj --
+    #     stockanalysis.com'un Ç2 2026 icin raporladigi %81,36 marjla TUTARLI,
+    #     ayni ceyrek icin BIREBIR karsilastirma YAPILAMADI cunku SEC'in
+    #     companyfacts API'si META'nin Ç2 2026 10-Q'sunu HENUZ islememisti
+    #     -- bkz. 06_BILINEN_SORUNLAR.md, SEC verisi CANLI earnings
+    #     paylasimlarindan birkac gun GERIDE kalabiliyor).
+    #   PYPL: HICBIR maliyet tag'i (CostOfRevenue/CostOfGoodsAndServicesSold/
+    #     CostsAndExpenses) PYPL'in XBRL verisinde YOK -- turetme YAPILAMAZ,
+    #     None kalir (Kural 8: yanlis rakamdan iyidir).
+    "cost_of_revenue": [
+        "us-gaap:CostOfRevenue",  # GOOGL/META/NFLX
+        "us-gaap:CostOfGoodsAndServicesSold",  # AMZN
+    ],
     "operating_profit": ["us-gaap:OperatingIncomeLoss"],
     "net_income": ["us-gaap:NetIncomeLoss"],
     "depreciation_amortization": [
@@ -287,7 +319,7 @@ STANDARD_ITEM_MAP_US_GAAP: dict[str, list[str]] = {
 # adlari BIST XI_29 ile TUTARLI tutuldu (Faz 10'da calculator.py'nin
 # DOGRUDAN yeniden kullanilabilmesi icin).
 CUMULATIVE_FIELDS_US_GAAP: frozenset[str] = frozenset(
-    {"revenue", "gross_profit", "operating_profit", "net_income", "depreciation_amortization"}
+    {"revenue", "gross_profit", "cost_of_revenue", "operating_profit", "net_income", "depreciation_amortization"}
 )
 
 _STOCK_FIELDS_US_GAAP: frozenset[str] = frozenset(
@@ -659,23 +691,43 @@ def standardized_value_us_gaap(raw: RawUsFinancials, field_name: str, period: Pe
 
 
 def quarterly_standardized_value_us_gaap(raw: RawUsFinancials, field_name: str, period: Period) -> Decimal | None:
-    """quarterly_standardized_value_us_gaap()'in TEK CEYREKLIK karsiligi --
+    """standardized_value_us_gaap()'in TEK CEYREKLIK karsiligi --
     CUMULATIVE_FIELDS_US_GAAP alanlari icin kumulatiften ceyreklik turetme
-    uygular; STOK alanlar icin standardized_value_us_gaap ile AYNIDIR."""
-    candidates = _require_known_field(field_name)
-    fy, fiscal_period = period
+    uygular; STOK alanlar icin standardized_value_us_gaap ile AYNIDIR.
 
+    CANLI HATA (kullanici raporu -- GOOGL kartinda "Satislar (Ç2 2025,
+    karsilastirma)" satiri sessizce "veri yok" gosteriyordu, bkz.
+    06_BILINEN_SORUNLAR.md): ONCEKI uygulama, mevcut VE onceki donemin
+    kumulatif degerlerinin AYNI TEK tag'in fact listesinden gelmesini
+    ZORUNLU kiliyordu (quarterly_value_from_cumulative_us_gaap tek bir
+    `facts` listesi alir). GOOGL CANLI ornegi: 2025 Ç1 10-Q'su "RevenueFrom
+    ContractWithCustomerExcludingAssessedTax" tag'ini kullanirken, 2025 Ç2
+    10-Q'su (SEBEBI BILINMEYEN bir taksonomi/etiketleme degisikligiyle)
+    "Revenues" tag'ine GECIYOR -- iki donem de AYRI AYRI standardized_value_us_gaap()
+    ile (her biri KENDI donemi icin TUM aday tag'leri dener) basariyla
+    bulunuyor, ama TEK bir tag'in ICINDE HER IKI donem de YOK, bu yuzden
+    eski (tek-tag) cikarma HER IKI tag icin de basarisiz oluyordu.
+
+    Cozum: cikarma, HER DONEM icin AYRI AYRI (TUM aday tag'ler denenerek,
+    bkz. standardized_value_us_gaap) cozulen kumulatif degerler UZERINDEN
+    yapilir -- boylece bir sirket iki komsu ceyrek arasinda tag DEGISTIRSE
+    bile (ayni MUHASEBE kavramini temsil ettikleri surece, STANDARD_ITEM_MAP_US_GAAP'in
+    aday listesi geregi) ceyreklik turetme ÇALIŞMAYA devam eder."""
     if field_name not in CUMULATIVE_FIELDS_US_GAAP:
         return standardized_value_us_gaap(raw, field_name, period)
 
-    for tag in candidates:
-        facts = raw.facts_by_tag.get(tag)
-        if not facts:
-            continue
-        value = quarterly_value_from_cumulative_us_gaap(facts, fy, fiscal_period)
-        if value is not None:
-            return value
-    return None
+    fy, fiscal_period = period
+    current_cum = standardized_value_us_gaap(raw, field_name, period)
+    if current_cum is None:
+        return None
+    if fiscal_period == 3:  # mali yilin ilk ceyregi -- kumulatif zaten ceyregin kendisi
+        return current_cum
+
+    previous_period = (fy, fiscal_period - 3)
+    previous_cum = standardized_value_us_gaap(raw, field_name, previous_period)
+    if previous_cum is None:
+        return None
+    return current_cum - previous_cum
 
 
 def total_debt_us_gaap(raw: RawUsFinancials, period: Period) -> Decimal | None:
@@ -686,6 +738,36 @@ def total_debt_us_gaap(raw: RawUsFinancials, period: Period) -> Decimal | None:
     if short_debt is None and long_debt is None:
         return None
     return (short_debt or Decimal(0)) + (long_debt or Decimal(0))
+
+
+def gross_profit_us_gaap(raw: RawUsFinancials, period: Period) -> Decimal | None:
+    """Brut Kar (KUMULATIF) -- isyatirim.total_revenue() ile AYNI desen
+    (dogrudan tag ONCELIKLI, yoksa DOGRULANMIS bir turetme). Once
+    "us-gaap:GrossProfit" tag'i (AAPL/NVDA/MSFT/TSLA/AMD -- CANLI dogrulandi)
+    denenir; o donem icin YOKSA "Hasilat - Satislarin Maliyeti" turetilir
+    (GOOGL/AMZN/META/NFLX -- bkz. STANDARD_ITEM_MAP_US_GAAP 'cost_of_revenue'
+    ic alani ust notu, stockanalysis.com ile BIREBIR dogrulandi). PYPL gibi
+    HICBIR maliyet tag'i olmayan sirketlerde None doner (Kural 8)."""
+    direct = standardized_value_us_gaap(raw, "gross_profit", period)
+    if direct is not None:
+        return direct
+    revenue = standardized_value_us_gaap(raw, "revenue", period)
+    cost = standardized_value_us_gaap(raw, "cost_of_revenue", period)
+    if revenue is None or cost is None:
+        return None
+    return revenue - cost
+
+
+def quarterly_gross_profit_us_gaap(raw: RawUsFinancials, period: Period) -> Decimal | None:
+    """gross_profit_us_gaap()'in TEK CEYREKLIK karsiligi -- bkz. docstring'i."""
+    direct = quarterly_standardized_value_us_gaap(raw, "gross_profit", period)
+    if direct is not None:
+        return direct
+    revenue = quarterly_standardized_value_us_gaap(raw, "revenue", period)
+    cost = quarterly_standardized_value_us_gaap(raw, "cost_of_revenue", period)
+    if revenue is None or cost is None:
+        return None
+    return revenue - cost
 
 
 # --- Fiyat -----------------------------------------------------

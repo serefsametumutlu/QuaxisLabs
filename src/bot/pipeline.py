@@ -367,12 +367,21 @@ def _standardize_to_records_us_gaap(raw: sec_edgar.RawUsFinancials) -> list[repo
     records: list[repository.FinancialRecord] = []
     for period in raw.periods:
         for field in _US_GAAP_QUARTERLY_FIELDS:
-            value = sec_edgar.quarterly_standardized_value_us_gaap(raw, field, period)
+            if field == "gross_profit":
+                # bkz. sec_edgar.gross_profit_us_gaap() docstring'i: dogrudan
+                # "GrossProfit" tag'i (AAPL/NVDA/MSFT/TSLA/AMD) yoksa Hasilat -
+                # Satislarin Maliyeti turetilir (GOOGL/AMZN/META/NFLX --
+                # stockanalysis.com ile BIREBIR dogrulandi, PYPL'de HALA None).
+                value = sec_edgar.quarterly_gross_profit_us_gaap(raw, period)
+                cum_value = sec_edgar.gross_profit_us_gaap(raw, period)
+            else:
+                value = sec_edgar.quarterly_standardized_value_us_gaap(raw, field, period)
+                cum_value = sec_edgar.standardized_value_us_gaap(raw, field, period)
+
             if value is not None:
                 label = calculator.FIELD_LABELS_TR.get(field, field)
                 records.append((period[0], period[1], field, label, value))
 
-            cum_value = sec_edgar.standardized_value_us_gaap(raw, field, period)
             if cum_value is not None:
                 cum_label = calculator.FIELD_LABELS_TR.get(f"{field}_cum", field)
                 records.append((period[0], period[1], f"{field}_cum", cum_label, cum_value))

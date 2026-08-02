@@ -332,8 +332,13 @@ def test_handle_ticker_message_suresi_dolmus_bekleyen_islem_bist_varsayilanina_d
 # --- handle_menu_callback: her menu dali + geri butonu -----------------------------------------------------
 
 
-def _fake_callback_update(data: str):
-    query = SimpleNamespace(data=data, answer=AsyncMock(), edit_message_text=AsyncMock())
+def _fake_callback_update(data: str, chat_id: int = 12345):
+    query = SimpleNamespace(
+        data=data,
+        answer=AsyncMock(),
+        edit_message_text=AsyncMock(),
+        message=SimpleNamespace(chat_id=chat_id),
+    )
     return SimpleNamespace(callback_query=query), query
 
 
@@ -392,20 +397,35 @@ def test_handle_menu_callback_takvim_ust_menu_secenekleri_gosterir() -> None:
     assert grid == [["menu:takvim:bist"], ["menu:takvim:nasdaq"], ["menu:root"]]
 
 
-def test_handle_menu_callback_takvim_bist_iskelet_metni_gosterir() -> None:
-    update, query = _fake_callback_update("menu:takvim:bist")
+def test_handle_menu_callback_takvim_bist_hazirlaniyor_gosterir_ve_gonderir(monkeypatch) -> None:
+    """Faz 13: skeleton 'yakında eklenecek' metni yerine artık gerçek
+    _gonder_takvim() çağrılır (bkz. src/bot/pipeline.py::get_cached_earnings_calendar
+    -- DB önbelleğinden okur, canlı KAP isteği atmaz)."""
+    calls = AsyncMock()
+    monkeypatch.setattr(telegram_bot, "_gonder_takvim", calls)
+    update, query = _fake_callback_update("menu:takvim:bist", chat_id=555)
+
     _run_coro(telegram_bot.handle_menu_callback(update, _fake_context()))
 
     (text,), _ = query.edit_message_text.await_args
-    assert text == menu.TAKVIM_ISKELET_TEXT_BIST
+    assert "BIST" in text
+    calls.assert_awaited_once()
+    assert calls.await_args.args[0] == 555
+    assert calls.await_args.args[2] == "BIST"
 
 
-def test_handle_menu_callback_takvim_nasdaq_iskelet_metni_gosterir() -> None:
-    update, query = _fake_callback_update("menu:takvim:nasdaq")
+def test_handle_menu_callback_takvim_nasdaq_hazirlaniyor_gosterir_ve_gonderir(monkeypatch) -> None:
+    calls = AsyncMock()
+    monkeypatch.setattr(telegram_bot, "_gonder_takvim", calls)
+    update, query = _fake_callback_update("menu:takvim:nasdaq", chat_id=777)
+
     _run_coro(telegram_bot.handle_menu_callback(update, _fake_context()))
 
     (text,), _ = query.edit_message_text.await_args
-    assert text == menu.TAKVIM_ISKELET_TEXT_NASDAQ
+    assert "NASDAQ" in text
+    calls.assert_awaited_once()
+    assert calls.await_args.args[0] == 777
+    assert calls.await_args.args[2] == "NASDAQ"
 
 
 def test_handle_menu_callback_son_kartlar_metnini_gosterir(monkeypatch) -> None:

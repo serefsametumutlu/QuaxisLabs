@@ -67,7 +67,6 @@ logger = logging.getLogger(__name__)
 _TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
 _ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 _LOGO_PATH = _ASSETS_DIR / "quaxis_logo_badge.png"
-_DEBUG_HTML_PATH = config.DATA_DIR / "last_card.html"
 
 _env = jinja2.Environment(
     loader=jinja2.FileSystemLoader(_TEMPLATE_DIR),
@@ -859,27 +858,51 @@ def build_insurance_card_context(
     }
 
 
-def render_html(context: dict) -> str:
+def render_html(context: dict, template_name: str = "card.html") -> str:
     """context'ten HTML uretir (Playwright olmadan da test edilebilsin
-    diye render_card()'dan ayri tutuldu)."""
-    template = _env.get_template("card.html")
+    diye render_card()'dan ayri tutuldu). `template_name`: templates/
+    klasorundeki dosya adi -- varsayilan "card.html" ile mevcut TUM
+    cagrilar (render_html(context)) DEGISMEDEN calismaya devam eder."""
+    template = _env.get_template(template_name)
     return template.render(**context)
 
 
-def render_card(context: dict, out_path: str) -> str:
-    """context'i HTML'e render eder, debug icin data/last_card.html'e
-    yazar, sonra Playwright chromium (headless) ile #card elementinin
-    ekran goruntusunu device_scale_factor=2 (retina) ile out_path'e PNG
-    olarak kaydeder. Uretilen PNG dosya yolunu (out_path) doner.
+def _debug_html_path(template_name: str) -> Path:
+    """Her sablon TURU kendi debug HTML dosyasina yazar (orn.
+    'calendar_card.html' -> data/last_calendar_card.html) ki farkli
+    kart tipleri (Faz 13+) tasarim denerken birbirinin debug ciktisini
+    EZMESIN. Varsayilan "card.html" icin sonuc data/last_card.html --
+    Faz 13 ONCESI davranisla BIREBIR AYNI (geriye uyumlu)."""
+    return config.DATA_DIR / f"last_{Path(template_name).stem}.html"
+
+
+def render_card(
+    context: dict,
+    out_path: str,
+    template_name: str = "card.html",
+    screenshot_selector: str = "#card",
+) -> str:
+    """context'i HTML'e render eder, debug icin data/last_{sablon}.html'e
+    yazar, sonra Playwright chromium (headless) ile `screenshot_selector`
+    elementinin ekran goruntusunu device_scale_factor=2 (retina) ile
+    out_path'e PNG olarak kaydeder. Uretilen PNG dosya yolunu (out_path) doner.
+
+    `template_name`/`screenshot_selector`: Faz 13'te render altyapisi
+    GENELLESTIRILDI -- eskiden bu fonksiyon card.html/#card'a SABITTI, bu da
+    her yeni kart tipinin (takvim karti, Faz 14/16/19'daki teaser/derin/fon
+    kartlari) AYRI bir render fonksiyonu YAZMASINI gerektirirdi. Varsayilan
+    degerler MEVCUT TUM cagrilari (render_card(context, out_path) iki
+    pozisyonel argumanla) DEGISTIRMEDEN korur.
 
     Hatalar:
         CardRenderError: Playwright/chromium baslatilamadi (kurulu
             olmayabilir -- `playwright install chromium` calistirilmali).
     """
-    html = render_html(context)
+    html = render_html(context, template_name=template_name)
 
-    _DEBUG_HTML_PATH.parent.mkdir(parents=True, exist_ok=True)
-    _DEBUG_HTML_PATH.write_text(html, encoding="utf-8")
+    debug_path = _debug_html_path(template_name)
+    debug_path.parent.mkdir(parents=True, exist_ok=True)
+    debug_path.write_text(html, encoding="utf-8")
 
     out_path_obj = Path(out_path)
     out_path_obj.parent.mkdir(parents=True, exist_ok=True)
@@ -889,7 +912,7 @@ def render_card(context: dict, out_path: str) -> str:
         page = browser.new_page(viewport={"width": 1000, "height": 1200}, device_scale_factor=2)
         try:
             page.set_content(html, wait_until="load")
-            page.locator("#card").screenshot(path=str(out_path_obj))
+            page.locator(screenshot_selector).screenshot(path=str(out_path_obj))
         finally:
             page.close()
     except Exception as exc:  # playwright kendi hata siniflarini firlatir (Error, TimeoutError vb.)

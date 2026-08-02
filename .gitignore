@@ -4,7 +4,7 @@ __pycache__/
 .pytest_cache/
 data/*.db
 data/*.lock
-data/last_card.html
+data/last_*.html
 data/logs/*.log*
 data/cache/
 data/cards/*.png

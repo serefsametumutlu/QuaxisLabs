@@ -395,6 +395,32 @@ pytest tests/ -v
       `python scripts/demo_takvim.py bist|nasdaq`. Test: `pytest tests/`
       (537 test, 46 yeni — `tests/test_earnings_calendar.py` + `tests/test_db.py`
       genişletmesi, hiçbir regresyon yok).
+- [x] **Faz 13 (Takvim kartı görseli + bot entegrasyonu, 2026-08-02)** — Faz 12'deki
+      takvim verisi paylaşılabilir bir PNG'ye ve bota bağlandı.
+      **Render altyapısı genelleştirildi**: `card.render_card()`/`render_html()`
+      artık `template_name`/`screenshot_selector` parametreleri alıyor (varsayılan
+      `"card.html"`/`"#card"` ile TÜM mevcut çağrılar değişmeden çalışır) — bu,
+      Faz 14/16/19'un da tabanı. Yeni `src/render/templates/calendar_card.html` +
+      `src/render/calendar_card.py::build_calendar_context()`: 1200px sabit
+      genişlik, yükseklik TAMAMEN içeriğe göre doğal oluşuyor (sabit bir
+      min-height YOK — az kayıtla kart kısa kalır, boş alanla uzatılmaz; çok
+      kayıtla doğal olarak büyür). **Kapsam kararı (kullanıcıyla netleştirildi)**:
+      kart SADECE `kesin`+`tahmini` güven seviyelerini gösterir, `son_tarih`
+      (SPK yasal fallback — taranan HER şirket için her zaman hesaplanabilir)
+      BİLEREK dışlanır, yoksa kart pratikte taranan tüm evreni listeler ve
+      "gerçek beklenti" ile "yasal tavan" arasındaki fark kaybolurdu. Tarihe
+      göre gün gün gruplama, bugün amber sol bordürle vurgulanır, güven rozeti
+      (kesin=yeşil dolu, tahmini=amber çerçeveli) + lejant. Yeni orkestrasyon
+      (`src/bot/pipeline.py::refresh_earnings_calendar()`/`get_cached_earnings_calendar()`/
+      `is_earnings_calendar_fresh()`): BIST100 yaklaşımı ticker başına 1-4 KAP
+      isteği gerektirdiği için birkaç dakika sürebiliyor — bu yüzden **Telegram
+      botu bunu ASLA senkron tetiklemez**, sadece DB önbelleğini okur; önbellek
+      ayrı bir zamanlanmış script'le (`scripts/refresh_takvim_cache.py`, cron/Görev
+      Zamanlayıcı ile günde 1-2 kez) doldurulur. `/takvim` komutu + `menu:takvim:bist/nasdaq`
+      artık gerçek görsel + kopyala-yapıştır metni (X_BUYUME_RAPORU.md kalıp ⑤
+      biçiminde) gönderiyor. Demo: `python scripts/demo_takvim_karti.py bist|nasdaq`.
+      Test: `pytest tests/` (555 test, 18 yeni — `tests/test_calendar_card.py` +
+      `tests/test_pipeline_takvim.py`, hiçbir regresyon yok).
 
 ## Dizin Yapisi
 
@@ -410,7 +436,7 @@ bilanco-radar/
 │   ├── db/                   # models.py, repository.py
 │   ├── analysis/              # calculator.py, scorer.py
 │   ├── ai/                    # commentary.py
-│   ├── render/                 # templates/, card.py
+│   ├── render/                 # templates/, card.py, calendar_card.py (takvim kartı)
 │   └── bot/                    # pipeline.py (orkestrasyon), telegram_bot.py, menu.py (buton menü)
 └── tests/
 ```

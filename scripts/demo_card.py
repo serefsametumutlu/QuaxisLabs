@@ -158,7 +158,7 @@ def main() -> None:
     result_path = card.render_card(context, str(out_path))
 
     print(f"PNG üretildi: {result_path}")
-    print(f"Debug HTML  : {card._DEBUG_HTML_PATH}")
+    print(f"Debug HTML  : {card._debug_html_path('card.html')}")
 
 
 if __name__ == "__main__":

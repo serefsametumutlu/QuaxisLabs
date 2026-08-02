@@ -1,0 +1,299 @@
+<!--
+  Bilanco Radar TAKVIM karti sablonu (Faz 13) -- "Yaklasan Bilanco
+  Tarihleri" icin dikey (4:5), paylasilabilir bir liste gorseli.
+
+  ONEMLI: card.html ile AYNI ilke -- bu sablon HICBIR tarih/guven seviyesi
+  HESAPLAMAZ. Butun degerler src.render.calendar_card.build_calendar_context()
+  tarafindan ONCEDEN Turkce bicimlendirilmis/gruplanmis olarak gelir; burada
+  sadece yerlestirilir. :root degiskenleri ve font yigini card.html'den
+  AYNEN kopyalandi (marka tutarliligi, bkz. PROJE_HAFIZASI/04_KART_VE_GORSEL.md).
+
+  Boyut: genislik 1200px CSS SABIT (referans oran 4:5 icin hedeflenen
+  1500px yukseklik tipik bir BIST100 taramasinda -- 15-25 gun/satir --
+  dogal olarak olusur), yukseklik ise TAMAMEN icerige gore DOGAL olusur
+  (sabit bir min-height YOK) -- az sayida kayit varken (orn. sadece ilk
+  15 ticker tarandi) kart KISA kalir, ARTIFICIAL bos alanla UZATILMAZ;
+  cok kayit varken ise DOGAL olarak 1500px'i asar. Font kucultme YAPILMAZ,
+  sayfalama (birden fazla PNG) YAPILMAZ. Gerekce: render_card() zaten
+  #calendar-card elementinin TAM boyutunu
+  yakalar (mevcut card.html'in kendisi de viewport'tan daha uzun render
+  edilip AYNI mekanizmayla eksiksiz yakalaniyor, bkz. card.py render_card
+  docstring'i) -- bu yuzden dinamik yukseklik EK bir kod karmasikligi
+  GETIRMEZ; sayfalama ise bot tarafinda "N adet PNG gonder" gibi ekstra
+  bir teslimat mantigi gerektirirdi (kullanici deneyimini karmasiklastirir).
+-->
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Yaklaşan Bilanço Tarihleri · {{ market_label }}</title>
+<style>
+  :root {
+    --bg: #0a0e12;
+    --panel: rgba(255, 255, 255, 0.02);
+    --border: rgba(226, 232, 240, 0.09);
+    --border-soft: rgba(226, 232, 240, 0.06);
+    --heading: #e2e8f0;
+    --secondary: #64748b;
+    --positive: #22c55e;
+    --negative: #ef4444;
+    --accent: #f59e0b;
+    --mixed: #f97316;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body { background: var(--bg); }
+
+  .calendar-card {
+    position: relative;
+    width: 1200px;
+    background: radial-gradient(circle at 10% -10%, rgba(245, 158, 11, 0.05), transparent 40%),
+      radial-gradient(circle at 100% 0%, rgba(34, 197, 94, 0.04), transparent 35%),
+      var(--bg);
+    color: var(--heading);
+    font-family: "Cascadia Code", "Cascadia Mono", Consolas, "JetBrains Mono", "IBM Plex Mono",
+      "SFMono-Regular", Menlo, Monaco, ui-monospace, monospace;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    overflow: hidden;
+    padding: 30px 34px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+
+  .scanlines {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.018) 0px,
+      rgba(255, 255, 255, 0.018) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    mix-blend-mode: overlay;
+  }
+
+  /* --- Ust bant (masthead + baslik) -- card.html ile AYNI dil --- */
+  .top-band {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 26px 30px;
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--accent);
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(245, 158, 11, 0.05), transparent 55%), var(--panel);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  }
+
+  .masthead { display: flex; align-items: center; gap: 14px; }
+  .masthead-logo { height: 56px; width: 56px; border-radius: 50%; display: block; }
+  .masthead-text { font-size: 20px; font-weight: 800; letter-spacing: 0.6px; }
+  .masthead-brand { color: var(--heading); }
+  .masthead-accent { color: #2dd4bf; }
+  .masthead-product { color: var(--secondary); font-weight: 600; letter-spacing: 0.3px; }
+
+  .title-line { font-size: 34px; font-weight: 800; letter-spacing: 0.3px; color: var(--heading); }
+  .subtitle-row { display: flex; align-items: center; gap: 14px; }
+
+  .period-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 16px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--panel);
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--heading);
+    opacity: 0.9;
+    line-height: 1;
+  }
+
+  .meta-line { font-size: 14px; color: var(--secondary); letter-spacing: 0.3px; }
+
+  /* --- Gun gruplari --- */
+  .day-groups { display: flex; flex-direction: column; gap: 16px; }
+
+  .day-group {
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--border-soft);
+    border-radius: 12px;
+    background: var(--panel);
+    padding: 16px 20px;
+  }
+
+  .day-group.is-today { border-left: 3px solid var(--accent); }
+
+  .day-header {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--heading);
+    letter-spacing: 0.2px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .today-tag {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+    padding: 2px 10px;
+    letter-spacing: 0.4px;
+  }
+
+  .company-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 0;
+    border-top: 1px solid var(--border-soft);
+  }
+
+  .company-row:first-of-type { border-top: none; }
+
+  .row-logo {
+    height: 30px;
+    width: 30px;
+    border-radius: 6px;
+    object-fit: contain;
+    background: var(--panel);
+    flex-shrink: 0;
+  }
+
+  .row-logo-placeholder {
+    height: 30px;
+    width: 30px;
+    border-radius: 6px;
+    background: var(--panel);
+    border: 1px solid var(--border-soft);
+    flex-shrink: 0;
+  }
+
+  .row-ticker { font-size: 18px; font-weight: 700; color: var(--heading); }
+  .row-company-name {
+    font-size: 15px;
+    color: var(--secondary);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .badge {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    flex-shrink: 0;
+  }
+
+  .badge-kesin { background: rgba(34, 197, 94, 0.16); color: var(--positive); border: 1px solid var(--positive); }
+  .badge-tahmini { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  .badge-son_tarih { background: transparent; color: var(--secondary); border: 1px solid var(--border); }
+
+  .empty-state {
+    padding: 60px 20px;
+    text-align: center;
+    color: var(--secondary);
+    font-size: 17px;
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+  }
+
+  /* --- Lejant --- */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    padding: 16px 20px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--panel);
+  }
+
+  .legend-item { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--secondary); }
+  .legend-item .badge { flex-shrink: 0; }
+
+  /* --- Alt bant (footer) -- card.html ile AYNI dil --- */
+  .bottom-band {
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  .disclaimer { font-size: 12.5px; color: var(--secondary); letter-spacing: 0.2px; }
+  .footer-meta { font-size: 12px; color: var(--secondary); opacity: 0.75; }
+  .footer-handle { color: var(--heading); font-weight: 700; opacity: 0.9; }
+  .dot-sep { margin: 0 8px; color: var(--secondary); }
+</style>
+</head>
+<body>
+<div id="calendar-card" class="calendar-card">
+  <div class="scanlines"></div>
+
+  <header class="top-band">
+    <div class="masthead">
+      <img class="masthead-logo" src="{{ logo_data_uri }}" alt="QuaxisLabs">
+      <span class="masthead-text"><span class="masthead-brand">QUAXIS<span class="masthead-accent">LABS</span></span><span class="masthead-product"> · BİLANÇO RADAR</span></span>
+    </div>
+    <div class="title-line">YAKLAŞAN BİLANÇO TARİHLERİ · {{ market_label }}</div>
+    <div class="subtitle-row">
+      {% if period_label %}<span class="period-badge">{{ period_label }}</span>{% endif %}
+      <span class="meta-line">Üretim: {{ report_timestamp }} · önümüzdeki {{ days_ahead }} gün</span>
+    </div>
+  </header>
+
+  <section class="day-groups">
+    {% if is_empty %}
+    <div class="empty-state">Bu aralıkta kesin/tahmini bir bilanço tarihi bulunamadı.</div>
+    {% endif %}
+    {% for group in day_groups %}
+    <div class="day-group{% if group.is_today %} is-today{% endif %}">
+      <div class="day-header">
+        {{ group.date_label }}
+        {% if group.is_today %}<span class="today-tag">BUGÜN</span>{% endif %}
+      </div>
+      {% for row in group.rows %}
+      <div class="company-row">
+        {% if row.logo_data_uri %}
+        <img class="row-logo" src="{{ row.logo_data_uri }}" alt="{{ row.ticker }}">
+        {% else %}
+        <div class="row-logo-placeholder"></div>
+        {% endif %}
+        <span class="row-ticker">{{ row.ticker }}</span>
+        <span class="row-company-name">{{ row.company_name }}</span>
+        <span class="badge badge-{{ row.badge_class }}">{{ row.badge_label }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </section>
+
+  <section class="legend">
+    {% for item in legend_items %}
+    <div class="legend-item">
+      <span class="badge badge-{{ item.css_class }}">{{ item.label }}</span>
+      <span>{{ item.description }}</span>
+    </div>
+    {% endfor %}
+  </section>
+
+  <footer class="bottom-band">
+    <div class="disclaimer">{{ disclaimer }}</div>
+    <div class="footer-meta">Üretim: {{ report_timestamp }}<span class="dot-sep">·</span>Kaynaklar: {{ data_sources_note }}<span class="dot-sep">·</span><span class="footer-handle">@QuaxisLabs</span></div>
+  </footer>
+</div>
+</body>
+</html>

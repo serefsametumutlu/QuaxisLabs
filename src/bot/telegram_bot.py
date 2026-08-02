@@ -26,6 +26,7 @@ import config
 from src.bot import menu, pipeline
 from src.db import repository
 from src.formatting import format_number_tr
+from src.render import calendar_card, card
 
 logger = logging.getLogger(__name__)
 
@@ -179,6 +180,58 @@ async def cmd_hakkinda(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 async def cmd_son(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(await _son_kartlar_metni())
+
+
+async def cmd_takvim(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/takvim -- menu:takvim ekranıyla AYNI (BİST/NASDAQ seçim) ekranını açar."""
+    await update.message.reply_text(menu.TAKVIM_MENU_TEXT, reply_markup=menu.build_takvim_menu())
+
+
+# --- Takvim (Faz 13) -----------------------------------------------------
+
+
+async def _gonder_takvim(chat_id: int, context: ContextTypes.DEFAULT_TYPE, market: str) -> None:
+    """DB önbelleğinden (pipeline.get_cached_earnings_calendar -- CANLI KAP/NASDAQ
+    isteği ATMAZ, bkz. pipeline.py modül notu) okur, takvim kartını render eder
+    ve görsel + kopyala-yapıştır metnini AYRI try/except'lerle gönderir (bkz.
+    _execute_and_send'deki OTKAR dersi: biri başarısız olsa bile diğeri denenir)."""
+    entries = await asyncio.to_thread(pipeline.get_cached_earnings_calendar, market, 30)
+    takvim_context = calendar_card.build_calendar_context(entries, market)
+
+    if takvim_context["is_empty"]:
+        await context.bot.send_message(
+            chat_id,
+            f"📅 {takvim_context['market_label']} için şu an kesin/tahmini bir bilanço tarihi kaydı yok. "
+            "Önbellek henüz oluşturulmamış ya da yakın zamanda kesin/tahmini bir açıklama yok olabilir, "
+            "daha sonra tekrar dener misin?",
+        )
+        return
+
+    out_path = config.DATA_DIR / "cards" / f"takvim_{market}.png"
+    try:
+        png_path = await asyncio.to_thread(
+            card.render_card,
+            takvim_context,
+            str(out_path),
+            "calendar_card.html",
+            "#calendar-card",
+        )
+    except card.CardRenderError:
+        logger.exception("%s takvim kartı render edilemedi", market)
+        await context.bot.send_message(chat_id, "⚠️ Takvim görseli üretilemedi, birkaç dakika sonra tekrar dene.")
+        return
+
+    try:
+        with open(png_path, "rb") as png_file:
+            caption = f"📅 Yaklaşan Bilanço Tarihleri · {takvim_context['market_label']}"
+            await context.bot.send_photo(chat_id=chat_id, photo=png_file, caption=caption)
+    except Exception:
+        logger.exception("%s takvim görseli gönderilemedi (metin yine de denenecek)", market)
+
+    try:
+        await context.bot.send_message(chat_id=chat_id, text=calendar_card.build_calendar_share_text(takvim_context))
+    except Exception:
+        logger.exception("%s takvim metni gönderilemedi", market)
 
 
 # --- Analiz akisi -----------------------------------------------------
@@ -394,10 +447,12 @@ async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     if screen == "takvim":
-        if sub == "bist":
-            await query.edit_message_text(menu.TAKVIM_ISKELET_TEXT_BIST, reply_markup=menu.build_takvim_iskelet_menu())
-        elif sub == "nasdaq":
-            await query.edit_message_text(menu.TAKVIM_ISKELET_TEXT_NASDAQ, reply_markup=menu.build_takvim_iskelet_menu())
+        if sub in ("bist", "nasdaq"):
+            market = "BIST" if sub == "bist" else "NASDAQ"
+            await query.edit_message_text(
+                f"📅 {market} takvimi hazırlanıyor... (~birkaç saniye)", reply_markup=menu.build_takvim_iskelet_menu()
+            )
+            await _gonder_takvim(query.message.chat_id, context, market)
         else:
             await query.edit_message_text(menu.TAKVIM_MENU_TEXT, reply_markup=menu.build_takvim_menu())
         return
@@ -442,6 +497,7 @@ _BOT_COMMANDS = [
     BotCommand("start", "Botu tanıt, menüyü aç"),
     BotCommand("menu", "Buton menüsünü aç"),
     BotCommand("son", "Son üretilen 5 kartı listele"),
+    BotCommand("takvim", "Yaklaşan bilanço tarihleri (BİST/NASDAQ)"),
     BotCommand("hakkinda", "Veri kaynakları ve sorumluluk reddi"),
 ]
 
@@ -472,6 +528,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("start", cmd_start))
     application.add_handler(CommandHandler("menu", cmd_menu))
     application.add_handler(CommandHandler("son", cmd_son))
+    application.add_handler(CommandHandler("takvim", cmd_takvim))
     application.add_handler(CommandHandler("hakkinda", cmd_hakkinda))
     application.add_handler(CallbackQueryHandler(handle_period_callback, pattern=r"^oncekidonem:"))
     application.add_handler(CallbackQueryHandler(handle_menu_callback, pattern=r"^menu:"))

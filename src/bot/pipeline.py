@@ -61,7 +61,7 @@ import config
 from src.ai import commentary as commentary_module
 from src.analysis import calculator, scorer
 from src.db import models, repository
-from src.fetchers import isyatirim, kap, kap_financials, sec_edgar
+from src.fetchers import earnings_calendar, isyatirim, kap, kap_financials, sec_edgar
 from src.render import card
 
 logger = logging.getLogger(__name__)
@@ -1106,3 +1106,92 @@ def run_pipeline(ticker: str, *, periods: list[Period] | None = None, market: st
         ticker=ticker, analysis=analysis, score=score, commentary=yorum,
         png_path=png_path, company_name=company_name, sector=sector,
     )
+
+
+# --- Faz 13: Yaklaşan Bilanço Tarihleri orkestrasyonu -----------------------------------------------------
+#
+# earnings_calendar.py (Faz 12) SADECE canlı hesaplama fonksiyonlarını verir
+# (fetch_upcoming_bist/nasdaq) -- DB'ye YAZMAZ (katman kuralı: fetchers
+# repository'yi bilmez). Bu iki fonksiyon o boşluğu dolduran orkestrasyondur
+# (tıpkı run_pipeline'ın Is Yatirim/KAP + repository'yi birleştirmesi gibi).
+#
+# ⚠️ KRİTİK TASARIM KARARI: refresh_earnings_calendar(market="BIST") ticker
+# başına 1-4 KAP isteği (+ nezaket bekletmesi) yapar -- BIST100 yaklaşımı
+# (limit=100) için bu GERÇEKÇİ OLARAK BİRKAÇ DAKİKA sürer (bkz.
+# scripts/demo_takvim.py docstring'i: 15 ticker için "birkaç dakika").
+# Bu yüzden Telegram bot (/takvim, menu:takvim:*) BU fonksiyonu ASLA
+# doğrudan/senkron çağırmaz -- kullanıcı isteğine göre canlı 100 şirket
+# taraması, "ana boru hattını bloklamaz" ilkesini (bkz. CLAUDE.md kural 9)
+# açıkça ihlal ederdi. Bunun yerine bot SADECE get_cached_earnings_calendar()
+# ile DB önbelleğini okur; önbelleğin kendisi ayrı, zamanlanmış bir süreçle
+# (bkz. scripts/refresh_takvim_cache.py, cron/Görev Zamanlayıcı ile günde
+# 1-2 kez çalıştırılması ÖNERİLİR) doldurulur.
+
+
+def refresh_earnings_calendar(market: str, *, bist_limit: int = 100, days_ahead: int = 45) -> int:
+    """`market` ("BIST" | "NASDAQ") için canlı takvim verisini çeker ve
+    DB önbelleğine (earnings_calendar tablosu) yazar. Dönen değer:
+    upsert edilen (eklenen+güncellenen) satır sayısı.
+
+    `days_ahead=45` (bot tarafının varsayılan gösterim penceresi olan 30
+    günden GENİŞ) BİLEREK seçildi: refresh periyodik (örn. günde 1 kez)
+    çalıştığı için önbellek bir SONRAKİ refresh'e kadar (en kötü ~24-48
+    saat) kullanılacak -- pencere görüntüleme anındaki 30 güne TAM
+    eşit olsaydı, refresh'ten birkaç gün sonra sorgulanan bir tarih
+    (görüntüleme anında hâlâ "yakında" olan ama refresh anında 30 günün
+    dışında kaldığı için hiç ÇEKİLMEMİŞ bir tarih) sessizce eksik kalırdı.
+    """
+    if market == "NASDAQ":
+        entries = earnings_calendar.fetch_upcoming_nasdaq(days_ahead=days_ahead)
+    else:
+        symbols = earnings_calendar.get_bist_top_market_cap_tickers(limit=bist_limit)
+        ticker_pairs: list[tuple[str, str]] = []
+        for symbol in symbols:
+            try:
+                company = kap.search_company(symbol)
+                name = company.name
+            except kap.KapError:
+                name = symbol
+            ticker_pairs.append((symbol, name))
+        entries = earnings_calendar.fetch_upcoming_bist(ticker_pairs, days_ahead=days_ahead)
+
+    records = [
+        (e.ticker, e.market, e.company_name, e.period[0], e.period[1], e.expected_date, e.confidence, e.source)
+        for e in entries
+    ]
+    with repository.get_session() as session:
+        count = repository.upsert_earnings_calendar(session, records)
+    logger.info("%s takvim önbelleği güncellendi: %s kayıt (%s aday şirket tarandı)", market, count, len(entries))
+    return count
+
+
+def get_cached_earnings_calendar(
+    market: str, days_ahead: int = 30, today: date | None = None
+) -> list[earnings_calendar.EarningsDate]:
+    """DB önbelleğinden (repository.get_upcoming_earnings) okur ve
+    EarningsDate listesine geri çevirir -- bkz. yukarıdaki modül notu:
+    bu fonksiyon ASLA canlı bir KAP/NASDAQ isteği yapmaz, sadece en son
+    refresh_earnings_calendar() koşumunun sonucunu okur."""
+    with repository.get_session() as session:
+        rows = repository.get_upcoming_earnings(session, market, days_ahead=days_ahead, today=today)
+    return [
+        earnings_calendar.EarningsDate(
+            ticker=row.ticker,
+            company_name=row.company_name,
+            market=row.market,
+            period=(row.year, row.period),
+            expected_date=row.expected_date,
+            confidence=row.confidence,
+            source=row.source,
+        )
+        for row in rows
+    ]
+
+
+def is_earnings_calendar_fresh(market: str, max_age_hours: int = 24) -> bool:
+    """scripts/refresh_takvim_cache.py'nin bu marketi ne zamandır
+    güncellemediğini kontrol eder -- bot tarafı bunu SADECE kullanıcıya
+    "veriler ne kadar güncel" bilgisini göstermek için kullanır, refresh'i
+    TETİKLEMEZ (bkz. yukarıdaki modül notu)."""
+    with repository.get_session() as session:
+        return repository.is_earnings_calendar_fresh(session, market, max_age_hours=max_age_hours)

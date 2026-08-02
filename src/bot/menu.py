@@ -118,6 +118,3 @@ TAKVIM_MENU_TEXT = "📅 Yaklaşan Bilanço Tarihleri — hangi piyasa?"
 
 ANALIZ_BIST_PROMPT = "Hisse kodunu yaz (örn: THYAO)"
 ANALIZ_NASDAQ_PROMPT = "Sembolü yaz (örn: AAPL)"
-
-TAKVIM_ISKELET_TEXT_BIST = "📅 Yaklaşan Bilanço Tarihleri (BİST)\n\nBu özellik yakında eklenecek."
-TAKVIM_ISKELET_TEXT_NASDAQ = "📅 Yaklaşan Bilanço Tarihleri (NASDAQ)\n\nBu özellik yakında eklenecek."

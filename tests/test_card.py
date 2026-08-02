@@ -219,6 +219,52 @@ def test_score_row_dolu_skorda_deger_ve_katki_gosterir() -> None:
     assert row["contribution"] == "1,97"
 
 
+# --- _score_display_context -----------------------------------------------------
+
+
+def test_score_display_context_yeterli_veride_sayisal_skor_gosterilir() -> None:
+    sonuc = scorer.ScoreResult(
+        ticker="TESTAS", period=(2026, 3), template="sanayi_holding",
+        total_score=Decimal("7.5"), badge="DENGELİ",
+        data_coverage_pct=Decimal("80"), data_sufficient=True,
+    )
+    ctx = card._score_display_context(sonuc)
+    assert ctx["score_data_sufficient"] is True
+    assert ctx["score_total_display"] == "7,50"
+    assert ctx["score_badge"] == "DENGELİ"
+    assert ctx["score_badge_class"] == "dengeli"
+
+
+def test_score_display_context_yetersiz_veride_sayisal_skor_GIZLENIR() -> None:
+    """CANLI HATA (kullanici raporu, ASTS, §B17 -- ACİL): bilesenlerin
+    buyuk cogunlugu "veri yok" iken bile sayisal bir skor ("10,00/10
+    SAĞLAM") gosteriliyordu. data_sufficient=False oldugunda context
+    ARTIK score_data_sufficient=False dondurur -- card.html bu bayrakla
+    buyuk sayiyi TAMAMEN gizleyip sadece "YETERSİZ VERİ" rozetini gosterir."""
+    sonuc = scorer.ScoreResult(
+        ticker="ASTS", period=(2026, 3), template="sanayi_holding",
+        total_score=Decimal("10"), badge=scorer.YETERSIZ_VERI_ROZETI,
+        data_coverage_pct=Decimal("4"), data_sufficient=False,
+    )
+    ctx = card._score_display_context(sonuc)
+    assert ctx["score_data_sufficient"] is False
+    assert ctx["score_badge"] == scorer.YETERSIZ_VERI_ROZETI
+    assert ctx["score_badge_class"] == "yetersiz"
+
+
+def test_render_html_yetersiz_veride_sayisal_skor_html_disinda_kalir() -> None:
+    sonuc = scorer.ScoreResult(
+        ticker="ASTS", period=(2026, 3), template="sanayi_holding",
+        total_score=Decimal("10"), badge=scorer.YETERSIZ_VERI_ROZETI,
+        data_coverage_pct=Decimal("4"), data_sufficient=False,
+    )
+    analiz = calculator.analyze("TESTAS", _saglikli_finansallar())
+    context = card.build_card_context(analiz, sonuc, _ornek_commentary())
+    html = card.render_html(context)
+    assert "YETERSİZ VERİ" in html
+    assert "10,00" not in html
+
+
 # --- _build_chart -----------------------------------------------------
 
 
@@ -423,13 +469,20 @@ def test_build_card_context_sanayi_show_ebitda_true() -> None:
     assert context["charts"]["ebitda"] is not None
 
 
-def test_build_card_context_banka_show_ebitda_false() -> None:
+def test_build_card_context_ebitda_yoksa_satir_na_ile_gorunur_grafik_gizlenir() -> None:
+    """CANLI HATA (kullanici raporu, MSFT/ASTS, bkz. 06_BILINEN_SORUNLAR.md
+    §A29/§B17): FAVOK hesaplanamadiginda (eksik amortisman verisi vb.) gelir
+    tablosu satiri TAMAMEN GIZLENIYORDU (5 yerine 4 satir, kart eksik/dengesiz
+    gorunuyordu). Artik satir HER ZAMAN gorunur ("—"/"veri yok" ile) --
+    SADECE bos bir cubuk grafigi anlamsiz oldugu icin mini-grafik gizli kalir."""
     analiz = calculator.analyze("BANKAS", _banka_finansallari())
     skor = scorer.score_industrial(analiz)
     context = card.build_card_context(analiz, skor, _ornek_commentary())
 
     assert context["show_ebitda"] is False
-    assert context["income_rows"]["ebitda"] is None
+    assert context["income_rows"]["ebitda"] is not None
+    assert context["income_rows"]["ebitda"]["label"] == "FAVÖK"
+    assert context["income_rows"]["ebitda"]["change_display"] == "veri yok"
     assert context["charts"]["ebitda"] is None
 
 
@@ -632,17 +685,18 @@ def test_render_html_sanayi_favok_metnini_icerir() -> None:
     assert "None" not in html
 
 
-def test_render_html_banka_modunda_favok_gizlenir() -> None:
+def test_render_html_ebitda_yoksa_satir_na_ile_gorunur_grafik_gizlenir() -> None:
     # NOT: scorer'in "Nakit Üretimi (FAVÖK)" bilesen ADI skor tablosunda her
     # zaman gorunur (skoru "—" olsa bile) -- bu beklenen davranis. Burada
-    # ozel olarak dogrulanan, GELIR TABLOSU satirinin ve mini grafigin
-    # (show_ebitda=False oldugunda) hic render EDILMEMESI.
+    # ozel olarak dogrulanan: FAVOK hesaplanamadiginda (§B17) GELIR TABLOSU
+    # satiri "N/A" ile HER ZAMAN render edilir, SADECE mini grafik
+    # (show_ebitda=False oldugunda) hic render EDILMEZ.
     analiz = calculator.analyze("BANKAS", _banka_finansallari())
     skor = scorer.score_industrial(analiz)
     context = card.build_card_context(analiz, skor, _ornek_commentary())
     html = card.render_html(context)
-    assert '<td class="label-cell">FAVÖK</td>' not in html  # gelir tablosu satiri
-    assert '<div class="mini-chart-title">FAVÖK</div>' not in html  # mini grafik basligi
+    assert '<td class="label-cell">FAVÖK</td>' in html  # gelir tablosu satiri HER ZAMAN gorunur
+    assert '<span class="mini-chart-title">FAVÖK</span>' not in html  # mini grafik basligi gizli
 
 
 def test_render_html_kap_notu_yoksa_bolumu_gizler() -> None:

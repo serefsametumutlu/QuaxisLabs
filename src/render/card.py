@@ -140,6 +140,7 @@ _BADGE_CLASS: dict[str, str] = {
     "DENGELİ": "dengeli",
     "KARIŞIK": "karisik",
     "RİSKLİ": "riskli",
+    scorer.YETERSIZ_VERI_ROZETI: "yetersiz",
 }
 
 _MIN_BAR_PCT = 6  # cok kucuk degerler de gorsel olarak fark edilsin diye taban bar yuksekligi
@@ -185,7 +186,28 @@ def _ratio_or_na(value: Decimal | None, decimals: int = 2, suffix: str = "") -> 
     return f"{format_number_tr(value, decimals=decimals)}{suffix}" if value is not None else "N/A"
 
 
-def _line_item_row(item: calculator.LineItemChange, *, lower_is_better: bool = False, currency_symbol: str = "₺") -> dict:
+def _line_item_row(
+    item: calculator.LineItemChange | None,
+    *,
+    lower_is_better: bool = False,
+    currency_symbol: str = "₺",
+    field_label: str = "",
+) -> dict:
+    # FAVOK banka/sigortada VEYA eksik amortisman verisinde item'in KENDISI
+    # None doner (diger kalemler -- revenue/gross_profit/vb. -- her zaman
+    # bir LineItemChange nesnesidir, SADECE ICINDEKI current/comparison None
+    # olabilir) -- bkz. calculator.IncomeStatementSummary.ebitda docstring'i.
+    # Satir HER ZAMAN gorunsun istegi (§B17) icin diger "veri yok" satirlarla
+    # (orn. gross_profit) AYNI gorunumde bir satir uretilir.
+    if item is None:
+        return {
+            "label": field_label,
+            "current": "—",
+            "value_class": "",
+            "comparison": "—",
+            "change_display": "veri yok",
+            "color_class": "neutral",
+        }
     # Gecis etiketlerinde (zarardan kara gecti / kara karsin zarar / net
     # nakit<->net borc) BILEREK yuzde GOSTERILMEZ: (guncel-onceki)/|onceki|
     # formulu guncel deger onceki DEGERE GORE cok kucuk kaldiginda (orn.
@@ -276,6 +298,23 @@ def _score_row(c: scorer.ComponentScore) -> dict:
         "score_band_class": _score_band_class(c.score),
         "contribution": format_number_tr(c.contribution, decimals=2) if c.score is not None else "N/A",
         "reasoning": c.reasoning_tr,
+    }
+
+
+def _score_display_context(score: scorer.ScoreResult) -> dict:
+    """Kart baslik skorunun (BILANÇO SKORU buyuk rakami) context'ini uretir.
+
+    CANLI HATA (kullanici raporu, ASTS, §B17 -- 06_BILINEN_SORUNLAR.md):
+    bilesenlerin buyuk cogunlugu "veri yok" iken bile sayisal bir skor
+    ("10,00/10 SAĞLAM") gosteriliyordu -- YANILTICI. scorer.ScoreResult.
+    data_sufficient=False oldugunda (bkz. scorer.CONFIG["min_veri_agirlik_
+    yuzdesi"]) sayisal skor/10 HIC gosterilmez, SADECE "YETERSİZ VERİ"
+    rozeti gosterilir (Kural 3: yanlis/yanıltıcı rakamdan iyidir)."""
+    return {
+        "score_data_sufficient": score.data_sufficient,
+        "score_total_display": format_number_tr(score.total_score, decimals=2),
+        "score_badge": score.badge,
+        "score_badge_class": _BADGE_CLASS.get(score.badge, "karisik"),
     }
 
 
@@ -505,13 +544,19 @@ def build_card_context(
     disclosures = disclosures or []
     now = now or datetime.now()
 
+    # FAVÖK SATIRI her zaman gorunur (deger None ise _line_item_row "N/A"
+    # gosterir) -- CANLI HATA (kullanici raporu, MSFT/ASTS, bkz.
+    # 06_BILINEN_SORUNLAR.md §A29/§B17): satir tamamen GIZLENINCE kart
+    # gorsel olarak eksik/dengesiz gorunuyordu (5 yerine 4 metrik). SADECE
+    # grafik (asagida, show_ebitda) veri yoksa gizlenmeye devam eder --
+    # bos bir cubuk grafigi anlamsizdir, ama bir "N/A" satiri anlamlidir.
     show_ebitda = analysis.income_statement.ebitda is not None
 
     income_rows = {
         "revenue": _line_item_row(analysis.income_statement.revenue),
         "gross_profit": _line_item_row(analysis.income_statement.gross_profit),
         "operating_profit": _line_item_row(analysis.income_statement.operating_profit),
-        "ebitda": _line_item_row(analysis.income_statement.ebitda) if show_ebitda else None,
+        "ebitda": _line_item_row(analysis.income_statement.ebitda, field_label=calculator.FIELD_LABELS_TR["ebitda"]),
         "net_income": _line_item_row(analysis.income_statement.net_income),
     }
     # Fintables/Matriks referans kartlariyla (bkz. references/ klasoru,
@@ -560,9 +605,7 @@ def build_card_context(
         "charts": charts,
         "positives": commentary.positives,
         "negatives": commentary.negatives,
-        "score_total_display": format_number_tr(score.total_score, decimals=2),
-        "score_badge": score.badge,
-        "score_badge_class": _BADGE_CLASS.get(score.badge, "karisik"),
+        **_score_display_context(score),
         "score_rows": [_score_row(c) for c in score.components],
         "kap_note": commentary.kap_note,
         "disclosure_rows": disclosure_rows,
@@ -622,13 +665,17 @@ def build_us_card_context(
     disclosures = disclosures or []
     now = now or datetime.now()
 
+    # FAVÖK SATIRI her zaman gorunur -- bkz. build_card_context() yukaridaki
+    # ayni notu (§B17). SADECE grafik (show_ebitda) veri yoksa gizlenir.
     show_ebitda = analysis.income_statement.ebitda is not None
 
     income_rows = {
         "revenue": _line_item_row(analysis.income_statement.revenue, currency_symbol=_USD_SYMBOL),
         "gross_profit": _line_item_row(analysis.income_statement.gross_profit, currency_symbol=_USD_SYMBOL),
         "operating_profit": _line_item_row(analysis.income_statement.operating_profit, currency_symbol=_USD_SYMBOL),
-        "ebitda": _line_item_row(analysis.income_statement.ebitda, currency_symbol=_USD_SYMBOL) if show_ebitda else None,
+        "ebitda": _line_item_row(
+            analysis.income_statement.ebitda, currency_symbol=_USD_SYMBOL, field_label=calculator.FIELD_LABELS_TR["ebitda"]
+        ),
         "net_income": _line_item_row(analysis.income_statement.net_income, currency_symbol=_USD_SYMBOL),
     }
     balance_rows = {
@@ -670,9 +717,7 @@ def build_us_card_context(
         "charts": charts,
         "positives": commentary.positives,
         "negatives": commentary.negatives,
-        "score_total_display": format_number_tr(score.total_score, decimals=2),
-        "score_badge": score.badge,
-        "score_badge_class": _BADGE_CLASS.get(score.badge, "karisik"),
+        **_score_display_context(score),
         "score_rows": [_score_row(c) for c in score.components],
         "kap_note": None,
         "disclosure_rows": [],
@@ -764,9 +809,7 @@ def build_bank_card_context(
         "charts": charts,
         "positives": commentary.positives,
         "negatives": commentary.negatives,
-        "score_total_display": format_number_tr(score.total_score, decimals=2),
-        "score_badge": score.badge,
-        "score_badge_class": _BADGE_CLASS.get(score.badge, "karisik"),
+        **_score_display_context(score),
         "score_rows": [_score_row(c) for c in score.components],
         "kap_note": commentary.kap_note,
         "disclosure_rows": disclosure_rows,
@@ -846,9 +889,7 @@ def build_insurance_card_context(
         "charts": charts,
         "positives": commentary.positives,
         "negatives": commentary.negatives,
-        "score_total_display": format_number_tr(score.total_score, decimals=2),
-        "score_badge": score.badge,
-        "score_badge_class": _BADGE_CLASS.get(score.badge, "karisik"),
+        **_score_display_context(score),
         "score_rows": [_score_row(c) for c in score.components],
         "kap_note": commentary.kap_note,
         "disclosure_rows": disclosure_rows,

@@ -5,8 +5,10 @@
   ONEMLI: Bu sablon HICBIR sayi hesaplamaz veya bicimlendirmez. Butun
   degerler src.render.card.build_card_context() tarafindan ONCEDEN
   Turkce formatlanmis string olarak gelir; burada sadece yerlestirilir.
-  card.py'deki show_ebitda bayragi FAVOK satir/grafigini acikca bir
-  kosullu blokla gizler (banka/sigorta modu).
+  FAVOK SATIRI sanayi/US_GAAP modunda HER ZAMAN gorunur (deger yoksa N/A);
+  banka/sigorta modunda income_keys listesi zaten FAVOK icermez. SADECE
+  FAVOK GRAFIGI card.py'deki show_ebitda bayragiyla (deger var mi) kosullu
+  gizlenir -- bos bir grafik anlamsizdir (bkz. §B17, 06_BILINEN_SORUNLAR.md).
 -->
 <!DOCTYPE html>
 <html lang="tr">
@@ -691,6 +693,17 @@
   .badge-dengeli-text { color: var(--accent); }
   .badge-karisik-text { color: var(--mixed); }
   .badge-riskli-text { color: var(--negative); }
+  .badge-yetersiz-text { color: var(--secondary); }
+
+  /* CANLI HATA (kullanici raporu, ASTS, §B17): bilesenlerin buyuk cogunlugu
+     "veri yok" iken sayisal bir skor + SAGLAM rozeti YANILTICIYDI --
+     score_data_sufficient=False oldugunda buyuk rakam yerine bu rozet metni
+     gosterilir (bkz. card.py _score_display_context). Metin sayidan uzun
+     oldugu icin font kucultulur, tasmasin diye satir kirilabilir. */
+  .score-insufficient {
+    font-size: 32px;
+    letter-spacing: 0.02em;
+  }
 
   /* Kullanici geri bildirimi: "en onemli nokta olan BILANCO SKORU kismi
      cok kucuk kalmis, telefonda bile zor okunuyor" -- her bilesen ARTIK
@@ -882,7 +895,7 @@
   {% set income_keys = ["gross_written_premiums", "net_premiums_earned", "technical_income", "technical_balance"] %}
   {% set balance_keys = ["cash_and_financial_assets", "receivables_from_operations", "technical_provisions", "payables_from_operations"] %}
   {% else %}
-  {% set income_keys = ["revenue", "gross_profit", "operating_profit"] + (["ebitda"] if show_ebitda else []) %}
+  {% set income_keys = ["revenue", "gross_profit", "operating_profit", "ebitda"] %}
   {% set balance_keys = ["current_assets", "non_current_assets", "total_assets", "net_debt"] %}
   {% endif %}
   <section class="table-section income">
@@ -1016,7 +1029,11 @@
   <section class="score-section">
     <div class="score-header">
       <div class="section-title"><span class="title-text">BİLANÇO SKORU</span></div>
+      {% if score_data_sufficient %}
       <div class="score-big badge-{{ score_badge_class }}-text">{{ score_total_display }}<span class="score-max">/10</span></div>
+      {% else %}
+      <div class="score-big score-insufficient badge-{{ score_badge_class }}-text">{{ score_badge }}</div>
+      {% endif %}
     </div>
     <ul class="score-list">
       {% for row in score_rows %}

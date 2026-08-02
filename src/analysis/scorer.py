@@ -213,7 +213,21 @@ CONFIG: dict = {
         "dengeli": Decimal("6"),
         "karisik": Decimal("4"),
     },
+    # CANLI HATA (kullanici raporu, ASTS/AST SpaceMobile, §B17 -- 06_BILINEN_
+    # SORUNLAR.md): bilesenlerin NEREDEYSE TAMAMI (agirlik toplaminin %96'si)
+    # "veri yok" oldugunda, SADECE %4 agirlikli "Bilanço Kalitesi" bilesenin
+    # 10/10 almasi yeniden-dagitim yuzunden toplam skoru "10,00/10 SAĞLAM"
+    # gosteriyordu -- Kural 3'e ("yanlis rakamdan iyidir") DOGRUDAN aykiri.
+    # Cevaplanan bilesenlerin NOMINAL agirlik toplami bu esigin ALTINDAYSA
+    # (_agirlik_dagit_ve_hesapla, bkz. asagisi) rozet normal SAGLAM/DENGELI/
+    # KARISIK/RISKLI OLCEGINE GIRMEZ, "YETERSİZ VERİ" doner -- olcum orneklemi
+    # cok kucukken olumlu (ozellikle "SAGLAM") bir etiket ASLA uretilmez. %50
+    # (agirlik toplaminin en az yarisi cevaplanmis olmali) muhafazakar/
+    # kasitli secildi -- kullanicinin onerdigi %40-50 araliginin UST ucu.
+    "min_veri_agirlik_yuzdesi": Decimal("50"),
 }
+
+YETERSIZ_VERI_ROZETI = "YETERSİZ VERİ"
 
 
 # --- Veri modelleri -----------------------------------------------------
@@ -245,6 +259,8 @@ class ScoreResult:
     template: str  # "sanayi_holding" | "sigorta" | "banka"
     total_score: Decimal
     badge: str
+    data_coverage_pct: Decimal  # cevaplanan bilesenlerin NOMINAL agirlik toplami (0-100)
+    data_sufficient: bool  # False ise badge=YETERSIZ_VERI_ROZETI, total_score GUVENILIR DEGIL
     components: list[ComponentScore] = field(default_factory=list)
 
 
@@ -415,12 +431,15 @@ def _agirlik_dagit_ve_hesapla(
         )
 
     toplam_puan = _clamp(toplam_puan, Decimal(0), Decimal(10))
+    veri_yeterli = mevcut_nominal_toplam >= CONFIG["min_veri_agirlik_yuzdesi"]
     return ScoreResult(
         ticker=ticker,
         period=period,
         template=template_adi,
         total_score=toplam_puan,
-        badge=_badge(toplam_puan),
+        badge=_badge(toplam_puan) if veri_yeterli else YETERSIZ_VERI_ROZETI,
+        data_coverage_pct=mevcut_nominal_toplam,
+        data_sufficient=veri_yeterli,
         components=components,
     )
 

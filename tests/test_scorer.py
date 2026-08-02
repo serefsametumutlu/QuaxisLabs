@@ -258,7 +258,64 @@ def test_agirlik_dagit_hicbir_bilesen_yoksa_sifir_donmez_hata_vermez() -> None:
     ]
     sonuc = scorer._agirlik_dagit_ve_hesapla("TEST", (2026, 3), "sanayi_holding", bilesenler)
     assert sonuc.total_score == Decimal("0")
-    assert sonuc.badge == "RİSKLİ"
+    # CANLI HATA (kullanici raporu, ASTS, §B17): veri kapsamı esigin
+    # (min_veri_agirlik_yuzdesi) ALTINDAYSA normal SAGLAM/DENGELI/KARISIK/
+    # RISKLI olcegine GIRILMEZ -- burada kapsam %0, "RİSKLİ" bile YANILTICI
+    # olurdu (hicbir sey OLCULEMEDI, "riskli" OLDUGU anlamina gelmez).
+    assert sonuc.data_sufficient is False
+    assert sonuc.badge == scorer.YETERSIZ_VERI_ROZETI
+
+
+def test_agirlik_dagit_asts_benzeri_tek_kucuk_bilesen_yeterli_veri_degil() -> None:
+    """CANLI HATA (kullanici raporu, ASTS/AST SpaceMobile, §B17 -- ACİL):
+    SADECE %4 agirlikli "Bilanço Kalitesi" bileseni 10/10 alirken diger
+    6 bilesen (toplam %96 agirlik) "veri yok" oldugunda, eski kod bunu
+    "10,00/10 SAĞLAM" olarak raporluyordu -- yeniden-dagitim SADECE tek
+    bilesenin agirligini %100'e tasidigi icin. Artik kapsam (%4) esigin
+    (%50) COK altinda kaldigi icin YETERSIZ_VERI_ROZETI donmeli, SAGLAM
+    ASLA uretilmemeli."""
+    bilesenler = [
+        ("Nakit Üretimi (FAVÖK)", Decimal("21"), (None, "veri yok")),
+        ("Kaldıraç", Decimal("17"), (None, "veri yok")),
+        ("Özkaynak Kârlılığı (ROE)", Decimal("15"), (None, "veri yok")),
+        ("Kârlılık", Decimal("13"), (None, "veri yok")),
+        ("Büyüme", Decimal("13"), (None, "veri yok")),
+        ("Değerleme", Decimal("17"), (None, "veri yok")),
+        ("Bilanço Kalitesi", Decimal("4"), (Decimal("10"), "cari oran çok güçlü")),
+    ]
+    sonuc = scorer._agirlik_dagit_ve_hesapla("ASTS", (2026, 3), "sanayi_holding", bilesenler)
+
+    assert sonuc.data_coverage_pct == Decimal("4")
+    assert sonuc.data_sufficient is False
+    assert sonuc.badge == scorer.YETERSIZ_VERI_ROZETI
+    assert sonuc.badge != "SAĞLAM"
+    # Yeniden-dagitim ic hesabi HALA calisir (bilesen listesi/gerekceler
+    # icin) -- SADECE dis rozet "SAĞLAM" yerine YETERSIZ_VERI_ROZETI olur.
+    assert sonuc.total_score == Decimal("10")
+
+
+def test_agirlik_dagit_esik_siniri_tam_ellide_yeterli_sayilir() -> None:
+    # min_veri_agirlik_yuzdesi=50 -- kapsam TAM ellideyse (esik dahil, "sol
+    # kapali" degil "esitse yeterli" ilkesiyle) normal rozet uretilmeli.
+    bilesenler = [
+        ("A", Decimal("50"), (Decimal("8"), "x")),
+        ("B", Decimal("50"), (None, "veri yok")),
+    ]
+    sonuc = scorer._agirlik_dagit_ve_hesapla("TEST", (2026, 3), "sanayi_holding", bilesenler)
+    assert sonuc.data_coverage_pct == Decimal("50")
+    assert sonuc.data_sufficient is True
+    assert sonuc.badge != scorer.YETERSIZ_VERI_ROZETI
+
+
+def test_agirlik_dagit_esik_altinda_kalinca_yetersiz_veri() -> None:
+    bilesenler = [
+        ("A", Decimal("49"), (Decimal("10"), "x")),
+        ("B", Decimal("51"), (None, "veri yok")),
+    ]
+    sonuc = scorer._agirlik_dagit_ve_hesapla("TEST", (2026, 3), "sanayi_holding", bilesenler)
+    assert sonuc.data_coverage_pct == Decimal("49")
+    assert sonuc.data_sufficient is False
+    assert sonuc.badge == scorer.YETERSIZ_VERI_ROZETI
 
 
 # --- Tam entegrasyon: calculator.analyze() -> scorer.score_industrial() -----------------------------------------------------

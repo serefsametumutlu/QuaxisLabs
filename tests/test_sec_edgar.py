@@ -136,6 +136,27 @@ def test_quarterly_standardized_value_sirket_ceyrekler_arasi_tag_degistirse_bile
     assert quarterly_standardized_value_us_gaap(raw, "revenue", (2025, 6)) == Decimal("96428000000")
 
 
+def test_standardized_value_asts_ucuncu_revenue_tag_ile_bulunur() -> None:
+    """CANLI HATA (kullanici raporu, §B17): ASTS (AST SpaceMobile) kartinda
+    Satislar/Brut Kar/Esas Faaliyet Kari 'veri yok' gosteriyordu. Kok neden:
+    ASTS 2025 Ç1'den itibaren "ExcludingAssessedTax" VE "Revenues" tag'lerini
+    birakip SADECE "RevenueFromContractWithCustomerIncludingAssessedTax"
+    kullanmaya basladi (CANLI dogrulandi: data/exploration/ASTS_companyfacts_
+    *.json -- ilk iki tag FY2024'te kesiliyor). Bu tag adaya EKLENENE kadar
+    quarterly_standardized_value_us_gaap None donuyordu."""
+    facts_by_tag = {
+        "us-gaap:RevenueFromContractWithCustomerIncludingAssessedTax": [
+            _fact("2026-01-01", "2026-03-31", "14735000", "Q1", 2026),
+        ],
+    }
+    raw = RawUsFinancials(
+        ticker="ASTS", cik10="0001780312", company_name="AST SpaceMobile, Inc.",
+        periods=[(2026, 3)], facts_by_tag=facts_by_tag,
+    )
+    assert standardized_value_us_gaap(raw, "revenue", (2026, 3)) == Decimal("14735000")
+    assert quarterly_standardized_value_us_gaap(raw, "revenue", (2026, 3)) == Decimal("14735000")
+
+
 # --- _select_best_fact: CANLI HATA regresyonu (AAPL, bkz. sec_edgar.py modul notu) -----------------------------------------------------
 
 

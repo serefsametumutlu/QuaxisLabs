@@ -177,6 +177,17 @@ STANDARD_ITEM_MAP_US_GAAP: dict[str, list[str]] = {
         # kullaniyor -- CANLI dogrulandi (JPM'de "RevenueFromContractWith
         # Customer..." HIC yok, sadece bu tag var).
         "us-gaap:Revenues",
+        # ASTS (genc/kucuk NASDAQ sirketi, §B17) 2025 Ç1'den itibaren YUKARIDAKI
+        # IKI tag'i de birakip bu ucuncu varyanta GECTI -- CANLI dogrulandi
+        # (data/exploration/ASTS_companyfacts_*.json): "ExcludingAssessedTax"
+        # VE "Revenues" ikisi de FY2024'te KESILIYOR (son veri noktasi
+        # 2024-12-31), 2025/2026 verisi SADECE bu tag'de var (2026 Ç1 icin
+        # 14.735.000 USD, dogrudan ceyreklik sure ile). "IncludingAssessedTax"
+        # (satis vergisi DAHIL) "Excluding" ile ayni muhasebe kavramini
+        # (hasilat) temsil eder, sadece vergi dahil/haric ayrimi degisir --
+        # ExcludingAssessedTax/Revenues zaten YOKSA (o donem icin) burada
+        # kullanilir, bu yuzden cift sayim riski yok.
+        "us-gaap:RevenueFromContractWithCustomerIncludingAssessedTax",
     ],
     # NOT: "gross_profit"/"operating_profit" JPM'de (banka) HIC raporlanmiyor
     # (CANLI dogrulandi: us-gaap:GrossProfit VE us-gaap:OperatingIncomeLoss

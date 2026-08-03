@@ -446,6 +446,40 @@ def _trailing_12m_from_cumulative(
     return current_ytd + prior_year_full - prior_year_same_period
 
 
+# --- Çok dönemli trend serileri için PUBLIC sarmalayıcılar (Derin Kart, 2026-08-03) -----------------------------------------------------
+#
+# src/analysis/trends.py (analysis/ katmanının içinde, saf matematik) bu
+# ÜÇ hesaplamayı TEK bir dönem yerine BİRDEN FAZLA geçmiş dönem için tekrar
+# tekrar çağırır (marj/kaldıraç/ROE trendi). Mantığı KOPYALAMAK yerine
+# (ikinci bir yerde TERA/BORSK tarzı bir hatanın SESSİZCE tekrarlanması
+# riski) burada zaten var olan `_safe_div`/`_net_debt`/`_trailing_12m_from_cumulative`'e
+# ince PUBLIC sarmalayıcılar eklendi -- iç mantık TEK yerde (yukarıdaki
+# private fonksiyonlar) kalır, DEĞİŞTİRİLMEDİ.
+
+
+def safe_div(numerator: Decimal | None, denominator: Decimal | None) -> Decimal | None:
+    """_safe_div()'in PUBLIC sarmalayıcısı."""
+    return _safe_div(numerator, denominator)
+
+
+def margin_pct(numerator: Decimal | None, denominator: Decimal | None) -> Decimal | None:
+    """_margin_pct()'in PUBLIC sarmalayıcısı."""
+    return _margin_pct(numerator, denominator)
+
+
+def net_debt(financial_debt: Decimal | None, cash: Decimal | None, financial_investments: Decimal | None) -> Decimal | None:
+    """_net_debt()'in PUBLIC sarmalayıcısı."""
+    return _net_debt(financial_debt, cash, financial_investments)
+
+
+def trailing_12m_from_cumulative(financials_by_period: FinancialsByPeriod, period: Period, cum_getter) -> Decimal | None:
+    """_trailing_12m_from_cumulative()'in PUBLIC sarmalayıcısı -- `period`
+    illa en GÜNCEL dönem olmak ZORUNDA değildir, `financials_by_period`
+    içindeki HERHANGİ bir dönem için TTM türetmede kullanılabilir (bkz.
+    trends.py -- geçmiş her çeyrek için "o ana kadarki TTM" hesaplanır)."""
+    return _trailing_12m_from_cumulative(financials_by_period, period, cum_getter)
+
+
 # --- Ana giris noktasi -----------------------------------------------------
 
 

@@ -16,6 +16,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from src.ai.commentary import Commentary
+from src.analysis import calculator
 from src.bot import menu, telegram_bot
 
 
@@ -550,27 +551,27 @@ def test_handle_teknik_callback_eksik_veri_sessizce_gecer(monkeypatch) -> None:
     calls.assert_not_awaited()
 
 
-# --- Temel Analiz callback (handle_teknik_callback'in simetrigi) -----------------------------------------------------
+# --- Derin Analiz callback (handle_teknik_callback'in simetrigi) -----------------------------------------------------
 
 
-def test_handle_temel_callback_market_ve_ticker_ayristirir_ve_execute_and_send_cagirir(monkeypatch) -> None:
+def test_handle_derin_analiz_callback_market_ve_ticker_ayristirir_ve_gonderir(monkeypatch) -> None:
     calls = AsyncMock()
-    monkeypatch.setattr(telegram_bot, "_execute_and_send", calls)
-    update, query = _fake_callback_update("temel:NASDAQ:AAPL", chat_id=999, user_id=42)
+    monkeypatch.setattr(telegram_bot, "_gonder_derin_analiz", calls)
+    update, query = _fake_callback_update("derin:NASDAQ:AAPL", chat_id=999, user_id=42)
     context = _fake_context_with_bot()
 
-    _run_coro(telegram_bot.handle_temel_callback(update, context))
+    _run_coro(telegram_bot.handle_derin_analiz_callback(update, context))
 
     query.answer.assert_awaited_once()
-    calls.assert_awaited_once_with("AAPL", update, context, market="NASDAQ")
+    calls.assert_awaited_once_with(999, context, "AAPL", "NASDAQ")
 
 
-def test_handle_temel_callback_eksik_veri_sessizce_gecer(monkeypatch) -> None:
+def test_handle_derin_analiz_callback_eksik_veri_sessizce_gecer(monkeypatch) -> None:
     calls = AsyncMock()
-    monkeypatch.setattr(telegram_bot, "_execute_and_send", calls)
-    update, query = _fake_callback_update("temel:BIST")
+    monkeypatch.setattr(telegram_bot, "_gonder_derin_analiz", calls)
+    update, query = _fake_callback_update("derin:BIST")
 
-    _run_coro(telegram_bot.handle_temel_callback(update, _fake_context_with_bot()))
+    _run_coro(telegram_bot.handle_derin_analiz_callback(update, _fake_context_with_bot()))
 
     calls.assert_not_awaited()
 
@@ -646,6 +647,28 @@ def test_execute_and_send_basarida_son_market_yazar_ve_hizli_menu_ekler(tmp_path
     assert menu.get_son_market(context.user_data) == "BIST"
     _, kwargs = context.bot.send_message.await_args
     assert kwargs["reply_markup"] == menu.build_sonuc_sonrasi_menu(ticker="THYAO", market="BIST")
+
+
+def test_execute_and_send_sanayi_analizinde_detayli_analiz_butonu_eklenir(tmp_path, monkeypatch) -> None:
+    """Derin Kart: `sonuc.analysis` GERÇEK bir calculator.AnalysisResult ise
+    (sanayi/US_GAAP -- analyze()/analyze_us() AYNI tipi döner) özet
+    mesajına "🔬 Detaylı Analiz" butonu da eklenmeli."""
+    monkeypatch.setattr(telegram_bot.asyncio, "to_thread", _fake_to_thread)
+
+    png_path = tmp_path / "thyao.png"
+    png_path.write_bytes(b"\x89PNG\r\n\x1a\n" + b"0" * 20)
+    real_analysis = calculator.analyze("THYAO", {(2026, 3): {"revenue": Decimal("100")}})
+    sonuc = _fake_pipeline_result("THYAO", png_path)
+    sonuc.analysis = real_analysis
+    monkeypatch.setattr(telegram_bot.pipeline, "run_pipeline", lambda ticker, periods=None, market="BIST": sonuc)
+
+    update, context = _fake_bot_context_for_execute()
+    _run_coro(telegram_bot._execute_and_send("THYAO", update, context, market="BIST"))
+
+    _, kwargs = context.bot.send_message.await_args
+    assert kwargs["reply_markup"] == menu.build_sonuc_sonrasi_menu(ticker="THYAO", market="BIST", show_derin_analiz=True)
+    grid = [[b.callback_data for b in row] for row in kwargs["reply_markup"].inline_keyboard]
+    assert grid[0] == ["teknik:BIST:THYAO", "derin:BIST:THYAO"]
 
 
 def test_execute_and_send_bist_basarisizsa_nasdaqta_dener(tmp_path, monkeypatch) -> None:

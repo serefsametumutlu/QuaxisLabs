@@ -150,7 +150,9 @@ def build_alt_ekran_menu() -> InlineKeyboardMarkup:
     return _geri_menu("menu:root")
 
 
-def build_sonuc_sonrasi_menu(ticker: str | None = None, market: str | None = None) -> InlineKeyboardMarkup:
+def build_sonuc_sonrasi_menu(
+    ticker: str | None = None, market: str | None = None, show_derin_analiz: bool = False
+) -> InlineKeyboardMarkup:
     """Her analiz SONUCUNUN altina eklenir (§B18) -- kullanici /menu ->
     Bilanço Analizi -> piyasa akisini BASTAN gezmeden tek dokunusla yeni
     bir aramaya baslayabilsin diye. Callback_data'lar MEVCUT "menu:analiz:
@@ -160,10 +162,19 @@ def build_sonuc_sonrasi_menu(ticker: str | None = None, market: str | None = Non
     `ticker`/`market` verilirse (Faz 15) en uste "📈 Teknik Görünüm" butonu
     eklenir -- callback_data "teknik:{market}:{ticker}" formatinda, AYRI bir
     handler'a (handle_teknik_callback) gider. Ikisi de None ise (eski
-    cagiranlar/testler) buton EKLENMEZ -- geriye uyumlu."""
+    cagiranlar/testler) buton EKLENMEZ -- geriye uyumlu.
+
+    `show_derin_analiz=True` ise (SADECE sanayi/US_GAAP -- bkz.
+    src/analysis/trends.py modul notu, banka/sigortada anlamsiz) AYNI
+    satira "🔬 Detaylı Analiz" butonu da eklenir -- callback_data
+    "derin:{market}:{ticker}", handle_derin_analiz_callback'e gider (kullanici
+    isteği: tek çeyreklik kart YERİNE çok dönemli/farklı bir içerik)."""
     rows = []
     if ticker is not None and market is not None:
-        rows.append([InlineKeyboardButton("📈 Teknik Görünüm", callback_data=f"teknik:{market}:{ticker}")])
+        top_row = [InlineKeyboardButton("📈 Teknik Görünüm", callback_data=f"teknik:{market}:{ticker}")]
+        if show_derin_analiz:
+            top_row.append(InlineKeyboardButton("🔬 Detaylı Analiz", callback_data=f"derin:{market}:{ticker}"))
+        rows.append(top_row)
     rows.append(
         [
             InlineKeyboardButton("🇹🇷 BİST'te Ara", callback_data="menu:analiz:bist"),
@@ -176,12 +187,16 @@ def build_sonuc_sonrasi_menu(ticker: str | None = None, market: str | None = Non
 def build_teknik_sonrasi_menu(ticker: str, market: str) -> InlineKeyboardMarkup:
     """Her Teknik Görünüm kartının ALTINA eklenir -- build_sonuc_sonrasi_menu()'nun
     SİMETRİĞİ (kullanıcı isteği: temel analizden teknik görünüme tek dokunuşla
-    geçiş vardı, TERSİ yoktu). Callback_data "temel:{market}:{ticker}" formatinda,
-    AYRI bir handler'a (handle_temel_callback) gider -- "teknik:..." ile
-    KARIŞMASIN diye farklı bir öncelik ismi kullanılır."""
+    geçiş vardı, TERSİ yoktu). Callback_data "derin:{market}:{ticker}"
+    formatinda -- build_sonuc_sonrasi_menu'nun "🔬 Detaylı Analiz" butonuyla
+    AYNI handler'a (handle_derin_analiz_callback) gider: kullanıcı geri
+    bildirimi ("Temel Analiz butonu Bilanço Analizi ile AYNI görseli
+    tekrarlıyor") üzerine bu buton artık tek çeyreklik kart YERİNE çok
+    dönemli "Derin Kart"ı üretir -- "teknik:..." ile KARIŞMASIN diye farklı
+    bir öncelik ismi kullanılır."""
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("📊 Temel Analiz", callback_data=f"temel:{market}:{ticker}")],
+            [InlineKeyboardButton("📊 Temel Analiz", callback_data=f"derin:{market}:{ticker}")],
             [
                 InlineKeyboardButton("🇹🇷 BİST'te Ara", callback_data="menu:teknikanaliz:bist"),
                 InlineKeyboardButton("🇺🇸 NASDAQ'ta Ara", callback_data="menu:teknikanaliz:nasdaq"),

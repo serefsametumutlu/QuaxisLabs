@@ -23,12 +23,12 @@ from telegram.ext import Application, CallbackQueryHandler, CommandHandler, Cont
 from telegram.request import HTTPXRequest
 
 import config
-from src.analysis import technical
+from src.analysis import calculator, technical, trends
 from src.bot import menu, pipeline
-from src.db import repository
+from src.db import models, repository
 from src.fetchers import price_history
 from src.formatting import format_number_tr
-from src.render import calendar_card, card, technical_card
+from src.render import calendar_card, card, deep_card, technical_card
 
 logger = logging.getLogger(__name__)
 
@@ -310,12 +310,74 @@ async def handle_teknik_callback(update: Update, context: ContextTypes.DEFAULT_T
     await _gonder_teknik(chat_id, context, ticker, market)
 
 
-async def handle_temel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """callback_data: 'temel:{market}:{ticker}' (bkz. menu.build_teknik_sonrasi_menu) --
-    handle_teknik_callback'in SİMETRİĞİ: Teknik Görünüm kartının altındaki
-    '📊 Temel Analiz' butonuna basılınca aynı ticker/market için normal
-    Bilanço Analizi akışı (_execute_and_send, fiyat/skor/yorum dahil tam
-    pipeline) tetiklenir."""
+# --- Derin Kart (çok dönemli temel analiz) -----------------------------------------------------
+
+# SADECE bu iki financial_group icin anlamli -- calculator.analyze()/analyze_us()
+# (ikisi de AYNI AnalysisResult tipini doner) sanayi/ticaret alan adlarini
+# (revenue/gross_profit/... ) kullanir; banka/sigorta (UFRS/UFRS_K/UFRS_KATILIM)
+# TAMAMEN farkli alan semasina sahiptir (bkz. trends.py modul notu).
+_DERIN_ANALIZ_DESTEKLENEN_GRUPLAR = ("XI_29", "US_GAAP")
+
+
+async def _gonder_derin_analiz(chat_id: int, context: ContextTypes.DEFAULT_TYPE, ticker: str, market: str) -> None:
+    """'🔬 Detaylı Analiz' (Bilanço kartı altı) VEYA '📊 Temel Analiz' (Teknik
+    kartı altı, handle_teknik_callback'in simetriği) butonuna basılınca AYNI
+    ticker/market için çok dönemli "Derin Kart"ı üretir ve gönderir.
+
+    Bu kart DB'de ZATEN biriken (repository.get_financials -- bkz.
+    src/analysis/trends.py modül notu) geçmiş dönemleri kullanır, YENİ bir
+    ağ isteği ATMAZ -- bu yüzden ticker DAHA ÖNCE bir Bilanço Analizi ile
+    en az bir kez sorgulanmış OLMALIDIR (yoksa DB'de veri yoktur)."""
+    with repository.get_session() as session:
+        company = session.get(models.Company, ticker)
+        if company is None or company.financial_group not in _DERIN_ANALIZ_DESTEKLENEN_GRUPLAR:
+            await context.bot.send_message(
+                chat_id,
+                f"⚠️ {ticker} için detaylı (çok dönemli) analiz üretilemedi -- önce bir Bilanço Analizi "
+                "çalıştırılmış olmalı ve şirket sanayi/ticaret (banka/sigorta desteklenmiyor) sınıfında olmalı.",
+            )
+            return
+        financials_by_period = repository.get_financials(session, ticker, n_periods=trends.MAX_TREND_PERIODS)
+        score_history = repository.get_score_history(session, ticker)
+        company_name = company.name or ticker
+
+    trend = trends.compute_multi_period_trend(financials_by_period)
+    deep_context = deep_card.build_deep_card_context(trend, score_history, ticker, market, company_name=company_name)
+
+    if not deep_context["has_data"]:
+        await context.bot.send_message(chat_id, f"⚠️ {ticker} için çok dönemli trend analizi için yeterli veri yok.")
+        return
+
+    out_path = config.DATA_DIR / "cards" / f"{ticker}_derin.png"
+    try:
+        png_path = await asyncio.to_thread(
+            card.render_card, deep_context, str(out_path), "deep_card.html", "#deep-card"
+        )
+    except card.CardRenderError:
+        logger.exception("%s derin kart render edilemedi", ticker)
+        await context.bot.send_message(chat_id, "⚠️ Detaylı analiz görseli üretilemedi, birkaç dakika sonra tekrar dene.")
+        return
+
+    try:
+        with open(png_path, "rb") as png_file:
+            caption = (
+                f"🔬 #{ticker} Detaylı Analiz — {deep_context['period_count']} çeyrek\n\n"
+                "Bu içerik yatırım tavsiyesi değildir; yatırım kararı için profesyonel danışmanlık alınmalıdır."
+            )
+            await context.bot.send_photo(
+                chat_id=chat_id,
+                photo=png_file,
+                caption=caption,
+                reply_markup=menu.build_sonuc_sonrasi_menu(ticker=ticker, market=market),
+            )
+    except Exception:
+        logger.exception("%s derin kart gönderilemedi", ticker)
+
+
+async def handle_derin_analiz_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """callback_data: 'derin:{market}:{ticker}' (bkz. menu.build_sonuc_sonrasi_menu
+    '🔬 Detaylı Analiz' butonu VE menu.build_teknik_sonrasi_menu '📊 Temel
+    Analiz' butonu -- İKİSİ DE aynı hedefe gider, bkz. _gonder_derin_analiz)."""
     query = update.callback_query
     await query.answer()
 
@@ -326,7 +388,7 @@ async def handle_temel_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
     chat_id = query.message.chat_id
     await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
-    await _execute_and_send(ticker, update, context, market=market)
+    await _gonder_derin_analiz(chat_id, context, ticker, market)
 
 
 # --- Analiz akisi -----------------------------------------------------
@@ -498,10 +560,18 @@ async def _execute_and_send(
             # §B18: ozet mesajina "tek dokunusla yeni arama" butonlari
             # eklenir -- kullanici /menu -> Bilanço Analizi akisini BASTAN
             # gezmeden hemen baska bir piyasada/hissede arama baslatabilsin.
+            # show_derin_analiz: SADECE sanayi/US_GAAP (analyze()/analyze_us()
+            # AYNI AnalysisResult tipini doner) -- banka/sigorta farkli alan
+            # semasina sahip oldugu icin Derin Kart onlarda ANLAMSIZ olurdu
+            # (bkz. trends.py modul notu).
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=_bilanco_ozeti_metni(sonuc),
-                reply_markup=menu.build_sonuc_sonrasi_menu(ticker=sonuc.ticker, market=market),
+                reply_markup=menu.build_sonuc_sonrasi_menu(
+                    ticker=sonuc.ticker,
+                    market=market,
+                    show_derin_analiz=isinstance(sonuc.analysis, calculator.AnalysisResult),
+                ),
             )
         except Exception:
             logger.exception("istek user=%s ticker=%s: özet metni gönderilemedi", user_id, ticker)
@@ -706,7 +776,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("hakkinda", cmd_hakkinda))
     application.add_handler(CallbackQueryHandler(handle_period_callback, pattern=r"^oncekidonem:"))
     application.add_handler(CallbackQueryHandler(handle_teknik_callback, pattern=r"^teknik:"))
-    application.add_handler(CallbackQueryHandler(handle_temel_callback, pattern=r"^temel:"))
+    application.add_handler(CallbackQueryHandler(handle_derin_analiz_callback, pattern=r"^derin:"))
     application.add_handler(CallbackQueryHandler(handle_menu_callback, pattern=r"^menu:"))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_ticker_message))
     application.add_error_handler(_on_error)

@@ -179,17 +179,34 @@ def test_build_sonuc_sonrasi_menu_ticker_market_verilirse_teknik_butonu_ekler() 
     assert grid == [["teknik:BIST:THYAO"], ["menu:analiz:bist", "menu:analiz:nasdaq"]]
 
 
+def test_build_sonuc_sonrasi_menu_show_derin_analiz_ikinci_buton_ekler() -> None:
+    """Derin Kart: SADECE show_derin_analiz=True iken teknik butonunun
+    YANINA (ayni satirda) 'derin:{market}:{ticker}' callback'li buton eklenir."""
+    grid = _callback_data_grid(
+        menu.build_sonuc_sonrasi_menu(ticker="THYAO", market="BIST", show_derin_analiz=True)
+    )
+    assert grid == [["teknik:BIST:THYAO", "derin:BIST:THYAO"], ["menu:analiz:bist", "menu:analiz:nasdaq"]]
+
+
+def test_build_sonuc_sonrasi_menu_show_derin_analiz_varsayilan_false() -> None:
+    grid = _callback_data_grid(menu.build_sonuc_sonrasi_menu(ticker="THYAO", market="BIST"))
+    assert grid[0] == ["teknik:BIST:THYAO"]
+
+
 # --- "teknik sonrasi" temel analiz butonu (build_sonuc_sonrasi_menu'nun simetrigi) -----------------------------------------------------
 
 
-def test_build_teknik_sonrasi_menu_temel_butonu_ve_teknikanaliz_arama_butonlarini_icerir() -> None:
+def test_build_teknik_sonrasi_menu_derin_analiz_butonu_ve_teknikanaliz_arama_butonlarini_icerir() -> None:
+    """'📊 Temel Analiz' butonu artik 'derin:...' callback'ine gider --
+    Bilanço kartindaki '🔬 Detaylı Analiz' butonuyla AYNI hedef (kullanici
+    sikayeti: eskiden tek ceyreklik karti tekrarliyordu)."""
     grid = _callback_data_grid(menu.build_teknik_sonrasi_menu(ticker="THYAO", market="BIST"))
-    assert grid == [["temel:BIST:THYAO"], ["menu:teknikanaliz:bist", "menu:teknikanaliz:nasdaq"]]
+    assert grid == [["derin:BIST:THYAO"], ["menu:teknikanaliz:bist", "menu:teknikanaliz:nasdaq"]]
 
 
 def test_build_teknik_sonrasi_menu_nasdaq_ticker_ile_dogru_callback_uretir() -> None:
     grid = _callback_data_grid(menu.build_teknik_sonrasi_menu(ticker="AAPL", market="NASDAQ"))
-    assert grid[0] == ["temel:NASDAQ:AAPL"]
+    assert grid[0] == ["derin:NASDAQ:AAPL"]
 
 
 @pytest.mark.parametrize("ticker,market", [("THYAO", "BIST"), ("AAPL", "NASDAQ"), ("BRK.B", "NASDAQ")])

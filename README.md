@@ -628,6 +628,40 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       implementasyonuyla, cross durumu elle kurgulanan senaryolarla
       doğrulandı, hiçbir regresyon yok). Demo: `python scripts/demo_teknik.py
       THYAO` ile canlı veriyle uçtan uca doğrulandı.
+- [x] **Faz 16 (Derin Kart — Çok Dönemli Temel Analiz, 2026-08-03)** —
+      kullanıcı geri bildirimi ("Temel Analiz butonu Bilanço Analizi ile
+      AYNI görseli tekrarlıyor, içeriği farklı olsa daha iyi olur mu?")
+      üzerine: "bu çeyrek ne oldu" sorusunu cevaplayan tek çeyreklik karta
+      EK olarak, "bu şirket ZAMAN İÇİNDE nasıl bir seyir izliyor" sorusunu
+      cevaplayan çok dönemli (8-12 çeyrek) bir kart eklendi. YENİ bir ağ
+      isteği ATILMADI — DB'de zaten biriken (`repository.get_financials`)
+      geçmiş dönemler kullanıldı. `src/analysis/trends.py` (SAF matematik,
+      I/O yok): `compute_multi_period_trend()` — her çeyrek için Hasılat/
+      FAVÖK/Net Kâr/Özkaynak, marj trendi (brüt/FAVÖK/net), TTM-bazlı
+      Kaldıraç (Net Borç/FAVÖK) ve ROE trendi, mevsimsellik (aynı çeyreğin
+      yıllar arası karşılaştırması, en az 2 GERÇEK veri noktası şartıyla).
+      Hesaplama mantığı KOPYALANMADI — `calculator.py`'ye eklenen PUBLIC
+      sarmalayıcılar (`net_debt`, `margin_pct`, `safe_div`,
+      `trailing_12m_from_cumulative`) zaten doğrulanmış tek kaynağı
+      yeniden kullanır (bir TERA/BORSK tarzı hatanın ikinci bir yerde
+      sessizce tekrarlanması riskini önler). `repository.get_score_history()`
+      (YENİ) `generated_card` tablosundan skor geçmişini okur.
+      `src/render/deep_card.py` + `deep_card.html` — card.html AİLESİNDEN
+      (amber aksan, koyu tema) 1200px genişlikte, dikey/uzun, bölüm bölüm
+      (Genel Görünüm 2x2 grafik, Marj Trendi, Kaldıraç/ROE Trendi, Skor
+      Geçmişi, Mevsimsellik) SAF SVG çizgi grafikleri. Bot: Bilanço Analizi
+      sonucuna (SADECE sanayi/US_GAAP'te) "🔬 Detaylı Analiz" butonu +
+      Teknik Görünüm kartındaki "📊 Temel Analiz" butonu ARTIK BU karta
+      gidiyor (`derin:{market}:{ticker}` callback, `handle_derin_analiz_callback`
+      — eskiden tek çeyreklik kartı tekrarlıyordu, kullanıcı şikayetinin
+      kök çözümü). BİLEREK kapsam dışı bırakılan bölüm: değerleme
+      çarpanlarının tarihsel bandı (güvenilir bir yöntem bu oturumda
+      kurulamadı, bkz. `06_BILINEN_SORUNLAR.md` §B22). Test: `pytest
+      tests/` (762 test, 37 yeni, hiçbir regresyon yok). Demo: `python
+      scripts/demo_derin_kart.py THYAO` / `AAPL --market NASDAQ` ile canlı
+      DB verisiyle uçtan uca doğrulandı (görsel incelendi, bir kenar durumu
+      — mevsimsellik grubunda tek gerçek veri noktası varken yanıltıcı düz
+      çizgi — canlı yakalanıp düzeltildi).
 
 ## Dizin Yapisi
 

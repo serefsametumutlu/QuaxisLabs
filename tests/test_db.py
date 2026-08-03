@@ -174,6 +174,44 @@ def test_save_generated_card_her_cagrida_yeni_satir_ekler(session) -> None:
     assert len(rows) == 2
 
 
+# --- get_score_history (Derin Kart, skor geçmişi) -----------------------------------------------------
+
+
+def test_get_score_history_eskiden_yeniye_sirali_doner(session) -> None:
+    repository.save_generated_card(session, "THYAO", "data/cards/1.png", 5.0)
+    repository.save_generated_card(session, "THYAO", "data/cards/2.png", 7.5)
+    repository.save_generated_card(session, "THYAO", "data/cards/3.png", 6.0)
+
+    history = repository.get_score_history(session, "THYAO")
+
+    assert [score for _, score in history] == [5.0, 7.5, 6.0]
+    # created_at artan sirada olmali (grafik/cizgi icin dogal sira)
+    assert history[0][0] <= history[1][0] <= history[2][0]
+
+
+def test_get_score_history_baska_sirketi_karistirmaz(session) -> None:
+    repository.save_generated_card(session, "THYAO", "data/cards/1.png", 5.0)
+    repository.save_generated_card(session, "ASELS", "data/cards/2.png", 9.0)
+
+    history = repository.get_score_history(session, "THYAO")
+
+    assert [score for _, score in history] == [5.0]
+
+
+def test_get_score_history_kayit_yoksa_bos_liste_doner(session) -> None:
+    assert repository.get_score_history(session, "YOKTUR") == []
+
+
+def test_get_score_history_limit_en_yeni_n_kaydi_tutar(session) -> None:
+    for i, score in enumerate([1.0, 2.0, 3.0, 4.0, 5.0]):
+        repository.save_generated_card(session, "THYAO", f"data/cards/{i}.png", score)
+
+    history = repository.get_score_history(session, "THYAO", limit=2)
+
+    # limit=2 -> en YENI 2 kayit, ama yine ESKIDEN YENIYE sirali donmeli
+    assert [score for _, score in history] == [4.0, 5.0]
+
+
 # --- market / Faz 9 (NASDAQ) -----------------------------------------------------
 
 

@@ -19,12 +19,17 @@ from src.analysis.calculator import (
     compute_valuation_bank,
     compute_valuation_insurance,
     ebitda,
+    ebitda_cum,
     analyze,
     analyze_bank,
     analyze_insurance,
     classify_change,
     classify_debt_change,
+    margin_pct,
+    net_debt,
     previous_quarter_period,
+    safe_div,
+    trailing_12m_from_cumulative,
     year_ago_period,
 )
 
@@ -47,6 +52,35 @@ def test_previous_quarter_period_yil_ici() -> None:
 
 def test_previous_quarter_period_yil_basi_geriye_sarar() -> None:
     assert previous_quarter_period((2026, 3)) == (2025, 12)
+
+
+# --- PUBLIC sarmalayıcılar (Derin Kart, trends.py tarafından kullanılır) -----------------------------------------------------
+
+
+def test_safe_div_elle_dogrulanir() -> None:
+    assert safe_div(Decimal("10"), Decimal("4")) == Decimal("2.5")
+
+
+def test_safe_div_payda_sifir_veya_none_ise_none() -> None:
+    assert safe_div(Decimal("10"), Decimal("0")) is None
+    assert safe_div(Decimal("10"), None) is None
+    assert safe_div(None, Decimal("10")) is None
+
+
+def test_margin_pct_elle_dogrulanir() -> None:
+    assert margin_pct(Decimal("30"), Decimal("120")) == Decimal("30") / Decimal("120") * 100
+
+
+def test_net_debt_elle_dogrulanir() -> None:
+    assert net_debt(Decimal("300"), Decimal("200"), None) == Decimal("100")
+    assert net_debt(Decimal("300"), Decimal("200"), Decimal("50")) == Decimal("50")
+
+
+def test_trailing_12m_from_cumulative_sample_financials_ile_ayni_sonucu_verir() -> None:
+    """test_analyze_net_borc_favok_ttm ile AYNI (zaten dogrulanmis) TTM
+    degerini, PUBLIC sarmalayici uzerinden de uretir."""
+    result = trailing_12m_from_cumulative(_sample_financials(), _LATEST, ebitda_cum)
+    assert result == Decimal("30") + Decimal("36") - Decimal("20")  # 46
 
 
 # --- classify_change: normal esikler -----------------------------------------------------

@@ -359,6 +359,25 @@ def save_generated_card(session: Session, ticker: str, png_path: str, score: flo
     return card
 
 
+def get_score_history(session: Session, ticker: str, limit: int = 20) -> list[tuple[datetime, float]]:
+    """Derin Kart'in "Skor Geçmişi" bölümü için: bir şirketin ZATEN
+    `save_generated_card()` ile kaydedilmiş geçmiş skorlarını (created_at,
+    score) çiftleri olarak ESKIDEN YENIYE döner (grafik/çizgi için doğal
+    sıra). YENİ bir hesaplama YAPILMAZ -- sadece var olan `generated_card`
+    tablosunu okur (bkz. models.GeneratedCard, Faz 3'ten beri her analizde
+    doldurulur)."""
+    rows = (
+        session.execute(
+            select(GeneratedCard.created_at, GeneratedCard.score)
+            .where(GeneratedCard.ticker == ticker)
+            .order_by(GeneratedCard.created_at.desc())
+            .limit(limit)
+        )
+        .all()
+    )
+    return [(created_at, score) for created_at, score in reversed(rows)]
+
+
 # --- Faz 12: Yaklaşan Bilanço Tarihleri (earnings_calendar) -----------------------------------------------------
 
 

@@ -61,7 +61,7 @@ import json
 import logging
 import time
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
@@ -884,3 +884,98 @@ def fetch_latest_price(ticker: str) -> Decimal | None:
         return None
 
     return _parse_decimal(price)
+
+
+@retry(
+    reraise=True,
+    stop=stop_after_attempt(config.HTTP_MAX_RETRIES),
+    wait=wait_fixed(config.HTTP_RATE_LIMIT_DELAY_SECONDS),
+    retry=retry_if_exception_type(httpx.RequestError),
+)
+def _request_price_chart_history(ticker: str, range_label: str) -> dict:
+    url = PRICE_ENDPOINT.format(ticker=ticker)
+    try:
+        response = httpx.get(
+            url,
+            params={"range": range_label, "interval": "1d"},
+            headers=_PRICE_HEADERS,
+            timeout=config.HTTP_TIMEOUT_SECONDS,
+        )
+    except httpx.RequestError as exc:
+        logger.warning("Fiyat gecmisi istegi basarisiz, yeniden denenecek: %s", exc)
+        raise
+    if response.status_code != 200:
+        raise SecEdgarNetworkError(f"Fiyat gecmisi uc noktasi beklenmeyen HTTP durum kodu dondurdu: {response.status_code}")
+    try:
+        return response.json()
+    except ValueError as exc:
+        raise SecEdgarNetworkError("Fiyat gecmisi yaniti JSON olarak ayristirilamadi.") from exc
+
+
+def fetch_price_history(ticker: str, days: int = 400) -> list[dict]:
+    """Son `days` gunun GUNLUK OHLCV serisini doner (Faz 15 - teknik analiz).
+
+    Kesif (scripts/explore_price_history.py AAPL --market NASDAQ --days 400,
+    2026-08-03) CANLI olarak dogruladi: ayni Yahoo chart uc noktasi
+    (fetch_latest_price'in kullandigi PRICE_ENDPOINT) 'range' parametresi
+    genisletilince TAM bir gunluk OHLCV serisi donuyor --
+    result.indicators.quote[0] icinde 'open'/'high'/'low'/'close'/'volume'
+    dizileri, result.timestamp icinde UNIX epoch (saniye) tarihleri VAR.
+    Bu, Is Yatirim'in aksine 'acilis' fiyatini da icerir.
+    'range' Yahoo'da GUN SAYISI degil ONCEDEN TANIMLI etiketler alir
+    (1y/2y/...); istenen `days` kadar tampon icin en yakin BUYUK etiket
+    secilir (>365 gun icin '2y', aksi halde '1y').
+
+    Doner: [{"date": date, "open": Decimal|None, "high": Decimal|None,
+             "low": Decimal|None, "close": Decimal|None, "volume": Decimal|None}, ...]
+    artan tarih sirasinda. Bir bar'in HERHANGI bir OHLC alani None ise
+    (Yahoo bazi kismi/tatil gunlerinde null doner, canli gozlemlendi)
+    o bar TAMAMEN atlanir -- eksik bir mumu yariya tamamlamak Kural 3'e
+    aykiri bir uydurma olurdu.
+    Sirket icin veri yoksa BOS liste doner -- bu supplementary bir veridir,
+    cagiran taraf (price_history.py) ASLA bunun icin pipeline'i BLOKE ETMEMELIDIR.
+
+    Hatalar: FIRLATMAZ -- ag/parse hatalari yakalanip loglanir, bos liste doner.
+    """
+    ticker = normalize_ticker(ticker)
+    range_label = "2y" if days > 365 else "1y"
+    try:
+        payload = _request_price_chart_history(ticker, range_label)
+    except (SecEdgarNetworkError, httpx.RequestError) as exc:
+        logger.warning("%s icin fiyat gecmisi cekilemedi: %s", ticker, exc)
+        return []
+
+    try:
+        result = payload["chart"]["result"][0]
+        timestamps = result.get("timestamp") or []
+        quote = (result.get("indicators", {}).get("quote") or [{}])[0]
+    except (KeyError, IndexError, TypeError) as exc:
+        logger.warning("%s icin fiyat gecmisi yaniti beklenmeyen bicimde: %s", ticker, exc)
+        return []
+
+    opens = quote.get("open") or []
+    highs = quote.get("high") or []
+    lows = quote.get("low") or []
+    closes = quote.get("close") or []
+    volumes = quote.get("volume") or []
+
+    bars: list[dict] = []
+    for idx, ts in enumerate(timestamps):
+        high = _parse_decimal(highs[idx]) if idx < len(highs) else None
+        low = _parse_decimal(lows[idx]) if idx < len(lows) else None
+        close = _parse_decimal(closes[idx]) if idx < len(closes) else None
+        if high is None or low is None or close is None:
+            continue
+        open_ = _parse_decimal(opens[idx]) if idx < len(opens) else None
+        volume = _parse_decimal(volumes[idx]) if idx < len(volumes) else None
+        bars.append(
+            {
+                "date": datetime.fromtimestamp(ts, tz=timezone.utc).date(),
+                "open": open_,
+                "high": high,
+                "low": low,
+                "close": close,
+                "volume": volume if volume is not None else Decimal(0),
+            }
+        )
+    return bars

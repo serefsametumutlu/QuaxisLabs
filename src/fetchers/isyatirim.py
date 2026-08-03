@@ -34,7 +34,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
 import httpx
@@ -1013,3 +1013,75 @@ def fetch_latest_price(ticker: str, lookback_days: int = 10) -> Decimal | None:
 
     latest_row = rows[-1]  # API artan tarih sirasinda doner, sonuncusu en guncel
     return _parse_decimal(latest_row.get("HGDG_KAPANIS"))
+
+
+def fetch_price_history(ticker: str, days: int = 400) -> list[dict]:
+    """Son `days` gunun GUNLUK OHLCV serisini doner (Faz 15 - teknik analiz).
+
+    Kesif (scripts/explore_price_history.py THYAO --market BIST --days 400,
+    2026-08-03) CANLI olarak dogruladi: HisseTekil uc noktasi sadece kapanis
+    DEGIL, tam bir gunluk seri donuyor -- her satirda IKI ayri fiyat ailesi var:
+      - 'HGDG_*' (KAPANIS/AOF/MIN/MAX/HACIM): sermaye artirimi/temettu gibi
+        kurumsal aksiyonlara gore GERIYE DUZELTILMIS (adjusted) seri --
+        THYAO'da 400 gunluk pencerede eski bir HGDG_KAPANIS (280,6087) ile
+        HG_KAPANIS'in (283,5) FARKLI oldugu, en guncel satirda ikisinin
+        AYNI (314,0) oldugu canli gozlemlendi (araya bir kurumsal aksiyon
+        girmis). Teknik analiz (SMA/EMA sureklilik, grafik) icin DOGRU
+        secim budur -- duzeltilmemis seri kullanilirsa aksiyon gunu sahte
+        bir fiyat "sicramasi" gosterir.
+      - 'HG_*': DUZELTILMEMIS (nominal, o gunku gercek islem fiyati) seri --
+        BU FONKSIYONDA KULLANILMAZ.
+    ⚠️ 'AÇILIŞ' (open) alani uc noktada YOK (ne HGDG_ ne HG_ ailesinde acilis
+    fiyati donuyor) -- bu yuzden her satirin 'open' anahtari HER ZAMAN None
+    (Kural 8: veri yoksa uydurma). Faz 15'in istedigi hicbir gosterge (SMA/
+    EMA/RSI/MACD/Bollinger/ATR/52 hafta/hacim) acilis fiyatina ihtiyac
+    DUYMADIGI icin bu eksiklik hesaplamalari ETKILEMEZ.
+    ⚠️ 'HGDG_HACIM'/'HG_HACIM' LOT/ADET DEGIL, TL cinsinden islem hacmidir
+    (kesifte dogrulandi) -- mutlak degeri BIST'e ozgudur, NASDAQ'in hisse-
+    adedi hacmiyle DOGRUDAN KARSILASTIRILAMAZ. Teknik analiz SADECE ayni
+    hisse icindeki GORECELI (son hacim / 20 gunluk ortalama) kullanimla
+    sinirli oldugu icin bu birim farki bir sorun TESKIL ETMEZ.
+
+    Doner: [{"date": date, "open": None, "high": Decimal, "low": Decimal,
+             "close": Decimal, "volume": Decimal}, ...] artan tarih sirasinda.
+    Sirket icin veri yoksa (yanlis kod, yeni halka arz) BOS liste doner --
+    bu supplementary bir veridir, cagiran taraf (price_history.py) ASLA
+    bunun icin pipeline'i bloke ETMEMELIDIR.
+
+    Hatalar: FIRLATMAZ -- ag/parse hatalari yakalanip loglanir, bos liste doner.
+    """
+    company_code = normalize_company_code(ticker)
+    end = date.today()
+    start = end - timedelta(days=days)
+    try:
+        payload = _request_price_history(company_code, start, end)
+    except (IsYatirimNetworkError, httpx.RequestError) as exc:
+        logger.warning("%s icin fiyat gecmisi cekilemedi: %s", company_code, exc)
+        return []
+
+    rows = payload.get("value") or []
+    bars: list[dict] = []
+    for row in rows:
+        raw_date = row.get("HGDG_TARIH")
+        high = _parse_decimal(row.get("HGDG_MAX"))
+        low = _parse_decimal(row.get("HGDG_MIN"))
+        close = _parse_decimal(row.get("HGDG_KAPANIS"))
+        volume = _parse_decimal(row.get("HGDG_HACIM"))
+        if not raw_date or high is None or low is None or close is None:
+            continue
+        try:
+            bar_date = datetime.strptime(raw_date, "%d-%m-%Y").date()
+        except ValueError:
+            logger.warning("Fiyat gecmisinde ayristirilamayan tarih atlandi: %r", raw_date)
+            continue
+        bars.append(
+            {
+                "date": bar_date,
+                "open": None,
+                "high": high,
+                "low": low,
+                "close": close,
+                "volume": volume if volume is not None else Decimal(0),
+            }
+        )
+    return bars

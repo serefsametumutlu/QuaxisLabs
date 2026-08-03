@@ -42,6 +42,7 @@ kart + paylaşıma hazır metin olarak Telegram'dan gönderir.
 | **KAP entegrasyonu** | Son 90 günün önemli bildirimleri + kural tabanlı önem sınıflandırması |
 | **Yorum** | Gemini ile sözel özet, LLM olmadan da çalışan güvenli yedek mod |
 | **Takvim** | `/takvim` — kesinleşen (KAP) ve tahmini (istatistiksel) bilanço tarihleri, tek bakışta PNG kart |
+| **Teknik Görünüm** | SMA/EMA/RSI/MACD/Bollinger/ATR/52 hafta/hacim — SKORSUZ, sinyalsiz, sadece olgu; temel analiz kartından görsel olarak ayrı bir kart |
 | **Telegram UX** | Buton menüsü (`/menu`) + serbest metin ticker girişi, otomatik BİST/NASDAQ yönlendirmesi |
 | **Kalite** | 569 test (gerçek Playwright render dahil), her yeni veri eşlemesi canlı bir referansla doğrulanır |
 
@@ -545,6 +546,30 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       dokunuşla yeni arama" butonları eklendi (kullanıcı geri bildirimi: menü
       akışı çok adımlıydı). Test: `pytest tests/` (594 test, 28 yeni, hiçbir
       regresyon yok).
+- [x] **Faz 15 (Teknik Analiz Katmanı ve Kartı, 2026-08-03)** — BİST/NASDAQ
+      için ayrı bir **teknik görünüm** hattı: `src/fetchers/price_history.py`
+      (`fetch_ohlcv()`) BİST'te İş Yatırım HisseTekil'in düzeltilmiş
+      (HGDG_*) OHLCV serisini, NASDAQ'ta Yahoo chart API'sini birleşik bir
+      `OhlcvBar` tipine çevirir (keşif: `scripts/explore_price_history.py`).
+      `src/analysis/technical.py` — SAF matematik (I/O yok, Decimal): SMA
+      20/50/200, EMA 12/26, RSI(14) Wilder yumuşatması, MACD(12,26,9),
+      Bollinger Bantları(20,2σ), ATR(14) Wilder, 52 hafta yüksek/düşük +
+      konum%, 20 günlük ortalama hacim + oran, fiyat/SMA200 mesafesi — her
+      formül docstring'inde kaynağıyla (Wilder 1978, Appel, Bollinger 2001)
+      belgeli. **BAĞLAYICI KISITLAR**: hiçbir SKOR üretilmez (temel analiz
+      skoruyla KARIŞTIRILMAZ), "Al/Sat/Tut" sinyali YOK — sadece olgu +
+      RSI/Bollinger için klasik eşiklere göre nötr/aşırı bölge etiketi.
+      `src/render/technical_card.py` + `technical_card.html` — temel analiz
+      kartından GÖRSEL OLARAK AÇIKÇA AYRI kimlik (mor/indigo aksan,
+      "TEKNİK GÖRÜNÜM" başlığı): son 6 aylık SAF SVG çizgi grafiği
+      (SMA50/SMA200 overlay), gösterge tablosu, 52 hafta aralığı çubuğu,
+      hacim şeridi, yasal uyarıya EK "geçmiş performans gelecekteki
+      getirinin göstergesi değildir" uyarısı. Demo: `python
+      scripts/demo_teknik.py THYAO` / `AAPL --market NASDAQ` (ikisi de
+      canlı veriyle uçtan uca doğrulandı). Test: `pytest tests/` (649 test,
+      52 yeni — RSI elle hesaplanmış kesir aritmetiğiyle, SMA/EMA/MACD/
+      Bollinger/ATR bağımsız referans implementasyonlarıyla doğrulandı,
+      hiçbir regresyon yok).
 
 ## Dizin Yapisi
 
@@ -556,11 +581,11 @@ bilanco-radar/
 ├── main.py                  # Giris noktasi
 ├── data/                    # SQLite dosyasi + loglar + onbellek
 ├── src/
-│   ├── fetchers/             # isyatirim.py, kap.py, sec_edgar.py (NASDAQ), earnings_calendar.py (takvim)
+│   ├── fetchers/             # isyatirim.py, kap.py, sec_edgar.py (NASDAQ), earnings_calendar.py (takvim), price_history.py (teknik)
 │   ├── db/                   # models.py, repository.py
-│   ├── analysis/              # calculator.py, scorer.py
+│   ├── analysis/              # calculator.py, scorer.py, technical.py (teknik göstergeler)
 │   ├── ai/                    # commentary.py
-│   ├── render/                 # templates/, card.py, calendar_card.py (takvim kartı)
+│   ├── render/                 # templates/, card.py, calendar_card.py (takvim kartı), technical_card.py (teknik kart)
 │   └── bot/                    # pipeline.py (orkestrasyon), telegram_bot.py, menu.py (buton menü)
 └── tests/
 ```

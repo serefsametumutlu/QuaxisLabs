@@ -120,6 +120,14 @@
      AKSİNE) dinamik bir kırpma/bütçe sistemi GEREKMEDİ -- her bloğun
      yüksekliği küçültülüp CANLI CIMSA verisiyle yeniden ölçüldü (bkz.
      06_BILINEN_SORUNLAR.md §A38).
+
+     GÜNCELLEME (kullanıcı geri bildirimi, 2026-08-03, §B24): 2 sütunlu
+     ızgaraya geçince (aşağıdaki .metric-grid) satır sayısı yarıya
+     düştüğü için doğan yükseklik payı, references/temel.png'deki gibi
+     daha "kare"ye yakın bir orana dönmek için buraya geri harcandı
+     (145px -> 230px). Yeni tavan senaryo (7 metrik + skor geçmişi +
+     4/4 mevsimsellik) yine de 10000 sınırının belirgin altında kalıyor
+     -- bkz. test_render_deep_card_en_kotu_durumda_telegram_boyut_sinirini_asmaz.
   */
   .metric-chart {
     border: 1px solid var(--border);
@@ -129,7 +137,7 @@
   }
   .metric-chart-title { font-size: 14px; font-weight: 800; color: var(--heading); }
   .metric-chart-subtitle { font-size: 11px; color: var(--secondary); margin-top: 1px; margin-bottom: 3px; }
-  .chart-svg { width: 100%; height: 145px; display: block; }
+  .chart-svg { width: 100%; height: 230px; display: block; }
   .grid-line { stroke: var(--border-soft); stroke-width: 1; }
   .grid-label { font-size: 12px; fill: var(--secondary); font-family: inherit; }
   .x-label { font-size: 11.5px; fill: var(--secondary); font-family: inherit; text-anchor: middle; }
@@ -146,7 +154,15 @@
   .legend-dot.line-key-self { background: var(--self-line); }
   .legend-dot.line-key-sector { background: var(--sector-line); }
 
-  .metric-grid { display: flex; flex-direction: column; gap: 10px; }
+  /* 2 sutunlu izgara (kullanici geri bildirimi, 2026-08-03, bkz.
+     PROJE_HAFIZASI/06_BILINEN_SORUNLAR.md §B24): eskiden tek sutunda alt
+     alta dizilen 7 metrik + 4 mevsimsellik grafigi karti asiri
+     uzatiyordu -- references/temel.png'deki gibi 2 sutun, kart hem daha
+     kisa hem daha "kare"ye yakin bir orana kavusuyor. Son grafik tek
+     basina kalirsa (tek sayida grafik) tam genislik kaplar ki bos hucre
+     kalmasin. */
+  .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; }
+  .metric-grid > .metric-chart:last-child:nth-child(odd) { grid-column: 1 / -1; }
 
   /* --- Uyarilar --- */
   .warnings { display: flex; flex-direction: column; gap: 4px; }

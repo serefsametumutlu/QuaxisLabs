@@ -207,6 +207,39 @@ async def cmd_temel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(menu.DERIN_MENU_TEXT, reply_markup=menu.build_derin_menu())
 
 
+async def _send_card_photo(
+    context: ContextTypes.DEFAULT_TYPE,
+    chat_id: int,
+    png_path: str,
+    caption: str,
+    reply_markup=None,
+) -> None:
+    """Karti HEM send_photo (sohbet-ici hizli onizleme) HEM send_document
+    (orijinal PNG, sikistirmadan) ile gonderir.
+
+    Kok neden (kullanici raporu + kod incelemesi, 2026-08-03, bkz.
+    PROJE_HAFIZASI/06_BILINEN_SORUNLAR.md §B25): Telegram `sendPhoto`
+    gonderilen gorseli sunucu tarafinda otomatik JPEG'e cevirip sikistirir
+    (orijinal byte'lar KORUNMAZ). Kullanici bu ZATEN sikistirilmis gorseli
+    telefonuna kaydedip X'e (Twitter) yukleyince X kendi sikistirmasini da
+    UZERINE ekliyordu -- cift kayipli sikistirma, ince izgara cizgileri/
+    monospace font kenarlarinda gozle gorulur bulanikliga yol aciyordu.
+    `sendDocument` dosyayi ORIJINAL BAYT BAZINDA iletir; kullanici oradan
+    kaydedip paylasinca sadece TEK (X'in kendi) sikistirmasi uygulanir.
+
+    Ikisi TEK try/except altinda: gorsel gonderimi (hangi yontemle olursa
+    olsun) basarisiz olursa cagiran taraf zaten kendi try/except'inde
+    loglayip devam ediyor (ozet metni yine de denenir)."""
+    with open(png_path, "rb") as photo_file:
+        await context.bot.send_photo(chat_id=chat_id, photo=photo_file, caption=caption, reply_markup=reply_markup)
+    with open(png_path, "rb") as document_file:
+        await context.bot.send_document(
+            chat_id=chat_id,
+            document=document_file,
+            caption="🖼️ Orijinal kalite (X/Twitter'da paylaşmadan önce bunu kaydet)",
+        )
+
+
 # --- Takvim (Faz 13) -----------------------------------------------------
 
 
@@ -242,9 +275,8 @@ async def _gonder_takvim(chat_id: int, context: ContextTypes.DEFAULT_TYPE, marke
         return
 
     try:
-        with open(png_path, "rb") as png_file:
-            caption = f"📅 Yaklaşan Bilanço Tarihleri · {takvim_context['market_label']}"
-            await context.bot.send_photo(chat_id=chat_id, photo=png_file, caption=caption)
+        caption = f"📅 Yaklaşan Bilanço Tarihleri · {takvim_context['market_label']}"
+        await _send_card_photo(context, chat_id, png_path, caption)
     except Exception:
         logger.exception("%s takvim görseli gönderilemedi (metin yine de denenecek)", market)
 
@@ -289,18 +321,14 @@ async def _gonder_teknik(chat_id: int, context: ContextTypes.DEFAULT_TYPE, ticke
         return
 
     try:
-        with open(png_path, "rb") as png_file:
-            caption = (
-                f"📈 #{ticker} Teknik Görünüm\n\n"
-                "Bu içerik yatırım tavsiyesi değildir; geçmiş performans gelecekteki "
-                "getirinin göstergesi değildir."
-            )
-            await context.bot.send_photo(
-                chat_id=chat_id,
-                photo=png_file,
-                caption=caption,
-                reply_markup=menu.build_teknik_sonrasi_menu(ticker=ticker, market=market),
-            )
+        caption = (
+            f"📈 #{ticker} Teknik Görünüm\n\n"
+            "Bu içerik yatırım tavsiyesi değildir; geçmiş performans gelecekteki "
+            "getirinin göstergesi değildir."
+        )
+        await _send_card_photo(
+            context, chat_id, png_path, caption, reply_markup=menu.build_teknik_sonrasi_menu(ticker=ticker, market=market)
+        )
     except Exception:
         logger.exception("%s teknik görünüm görseli gönderilemedi", ticker)
 
@@ -397,17 +425,13 @@ async def _gonder_derin_analiz(chat_id: int, context: ContextTypes.DEFAULT_TYPE,
         return
 
     try:
-        with open(png_path, "rb") as png_file:
-            caption = (
-                f"🔬 #{ticker} Detaylı Analiz — {deep_context['period_count']} çeyrek\n\n"
-                "Bu içerik yatırım tavsiyesi değildir; yatırım kararı için profesyonel danışmanlık alınmalıdır."
-            )
-            await context.bot.send_photo(
-                chat_id=chat_id,
-                photo=png_file,
-                caption=caption,
-                reply_markup=menu.build_sonuc_sonrasi_menu(ticker=ticker, market=market),
-            )
+        caption = (
+            f"🔬 #{ticker} Detaylı Analiz — {deep_context['period_count']} çeyrek\n\n"
+            "Bu içerik yatırım tavsiyesi değildir; yatırım kararı için profesyonel danışmanlık alınmalıdır."
+        )
+        await _send_card_photo(
+            context, chat_id, png_path, caption, reply_markup=menu.build_sonuc_sonrasi_menu(ticker=ticker, market=market)
+        )
     except Exception:
         logger.exception("%s derin kart gönderilemedi", ticker)
 
@@ -623,8 +647,7 @@ async def _execute_and_send(
         # try/except ile korunur: biri basarisiz olsa bile digeri yine de
         # denenir, kullanici EN AZINDAN birini alir.
         try:
-            with open(sonuc.png_path, "rb") as png_file:
-                await context.bot.send_photo(chat_id=chat_id, photo=png_file, caption=_score_caption(sonuc))
+            await _send_card_photo(context, chat_id, sonuc.png_path, _score_caption(sonuc))
         except Exception:
             logger.exception("istek user=%s ticker=%s: kart fotoğrafı gönderilemedi (özet metni yine de denenecek)", user_id, ticker)
 

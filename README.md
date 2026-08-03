@@ -698,6 +698,32 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       boyutları küçültülüp 12 blokluk TAVAN senaryo için güvenli marjla
       yeniden kalibre edildi, regresyon: `test_render_deep_card_en_kotu_durumda_telegram_boyut_sinirini_asmaz`).
 
+- [x] **Faz 16.1 (Derin Kart 2 sütunlu ızgara + oran düzeltmesi + Telegram
+      orijinal kalite, kullanıcı geri bildirimi, 2026-08-03)** — iki bağımsız
+      düzeltme: (1) `deep_card.html` `.metric-grid`'i tek sütun
+      (`flex-direction: column`) yerine 2 sütunlu bir `grid`'e çevrildi
+      (`references/temel.png` referans alındı) — kart artık çok daha kısa;
+      2 sütuna geçince satır sayısı yarıya indiği için doğan yükseklik payı
+      `.chart-svg` yüksekliğini (CIMSA acil küçültmesinden kalan 145px'ten)
+      230px'e geri çıkarmaya harcandı — her grafik artık references/temel.png'ye
+      çok daha yakın, "kare"ye yakın bir oranda (tek grafiğin kalan tek
+      satırda tam genişlik kaplaması için `:last-child:nth-child(odd)` kuralı
+      eklendi); sektör ortalaması (2. çizgi) mantığına DOKUNULMADI. En-kötü-
+      durum (7 metrik + skor geçmişi + 4/4 mevsimsellik) artık 2400x5260 —
+      hâlâ Telegram'ın 10000 sınırının belirgin altında (regresyon:
+      `test_render_deep_card_en_kotu_durumda_telegram_boyut_sinirini_asmaz`).
+      (2) `telegram_bot.py`'deki 4 kart gönderim noktası (`send_photo`) —
+      Telegram `sendPhoto`'nun görseli sunucu tarafında otomatik JPEG'e
+      çevirip sıkıştırdığı, kullanıcının bunu X'e (Twitter) yeniden yükleyince
+      ÇİFT kayıplı sıkıştırmaya (bulanıklaşmaya) yol açtığı tespit edildi —
+      ortak `_send_card_photo()` yardımcı fonksiyonu eklendi: her kart artık
+      `send_photo` (hızlı önizleme) YANINDA orijinal, sıkıştırılmamış dosyayı
+      `send_document` ile de gönderiyor. Test: `pytest tests/` (803 test,
+      regresyon yok). Demo: `python scripts/demo_derin_kart.py TOASO` (2
+      sektör peer'iyle — canlı DB verisiyle uçtan uca render edilip ekran
+      görüntüsü incelendi, 2400x5316). Bkz. `06_BILINEN_SORUNLAR.md` §B24/§B25
+      (ikisi de artık ÇÖZÜLDÜ olarak işaretlendi).
+
 ## Dizin Yapisi
 
 ```

@@ -452,6 +452,37 @@ def test_handle_menu_callback_takvim_nasdaq_hazirlaniyor_gosterir_ve_gonderir(mo
     assert calls.await_args.args[2] == "NASDAQ"
 
 
+# --- Teknik Görünüm callback (Faz 15) -----------------------------------------------------
+
+
+def _fake_context_with_bot():
+    return SimpleNamespace(bot=SimpleNamespace(send_chat_action=AsyncMock()), user_data={})
+
+
+def test_handle_teknik_callback_market_ve_ticker_ayristirir_ve_gonderir(monkeypatch) -> None:
+    calls = AsyncMock()
+    monkeypatch.setattr(telegram_bot, "_gonder_teknik", calls)
+    update, query = _fake_callback_update("teknik:BIST:THYAO", chat_id=999)
+    context = _fake_context_with_bot()
+
+    _run_coro(telegram_bot.handle_teknik_callback(update, context))
+
+    query.answer.assert_awaited_once()
+    calls.assert_awaited_once_with(999, context, "THYAO", "BIST")
+
+
+def test_handle_teknik_callback_eksik_veri_sessizce_gecer(monkeypatch) -> None:
+    """callback_data beklenen 3 parcadan azsa (bozuk/eski veri) handler
+    sessizce cikar -- _gonder_teknik cagirilmaz."""
+    calls = AsyncMock()
+    monkeypatch.setattr(telegram_bot, "_gonder_teknik", calls)
+    update, query = _fake_callback_update("teknik:BIST")
+
+    _run_coro(telegram_bot.handle_teknik_callback(update, _fake_context_with_bot()))
+
+    calls.assert_not_awaited()
+
+
 def test_handle_menu_callback_son_kartlar_metnini_gosterir(monkeypatch) -> None:
     monkeypatch.setattr(telegram_bot, "_son_kartlar_metni", AsyncMock(return_value="sahte kart listesi"))
     update, query = _fake_callback_update("menu:son")
@@ -522,7 +553,7 @@ def test_execute_and_send_basarida_son_market_yazar_ve_hizli_menu_ekler(tmp_path
 
     assert menu.get_son_market(context.user_data) == "BIST"
     _, kwargs = context.bot.send_message.await_args
-    assert kwargs["reply_markup"] == menu.build_sonuc_sonrasi_menu()
+    assert kwargs["reply_markup"] == menu.build_sonuc_sonrasi_menu(ticker="THYAO", market="BIST")
 
 
 def test_execute_and_send_bist_basarisizsa_nasdaqta_dener(tmp_path, monkeypatch) -> None:

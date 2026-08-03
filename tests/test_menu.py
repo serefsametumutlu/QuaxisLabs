@@ -154,3 +154,10 @@ def test_set_son_market_ttlsiz_zaman_gecmesiyle_silinmez(monkeypatch) -> None:
 def test_build_sonuc_sonrasi_menu_bist_ve_nasdaq_butonlari_icerir() -> None:
     grid = _callback_data_grid(menu.build_sonuc_sonrasi_menu())
     assert grid == [["menu:analiz:bist", "menu:analiz:nasdaq"]]
+
+
+def test_build_sonuc_sonrasi_menu_ticker_market_verilirse_teknik_butonu_ekler() -> None:
+    """Faz 15: ticker/market verildiginde en uste 'teknik:{market}:{ticker}'
+    callback_data'li bir buton eklenir, mevcut BIST/NASDAQ butonlari korunur."""
+    grid = _callback_data_grid(menu.build_sonuc_sonrasi_menu(ticker="THYAO", market="BIST"))
+    assert grid == [["teknik:BIST:THYAO"], ["menu:analiz:bist", "menu:analiz:nasdaq"]]

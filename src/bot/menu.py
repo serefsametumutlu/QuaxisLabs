@@ -131,20 +131,27 @@ def build_alt_ekran_menu() -> InlineKeyboardMarkup:
     return _geri_menu("menu:root")
 
 
-def build_sonuc_sonrasi_menu() -> InlineKeyboardMarkup:
+def build_sonuc_sonrasi_menu(ticker: str | None = None, market: str | None = None) -> InlineKeyboardMarkup:
     """Her analiz SONUCUNUN altina eklenir (§B18) -- kullanici /menu ->
     Bilanço Analizi -> piyasa akisini BASTAN gezmeden tek dokunusla yeni
     bir aramaya baslayabilsin diye. Callback_data'lar MEVCUT "menu:analiz:
     bist/nasdaq" ile AYNI (yeni bir handler GEREKMEDI, handle_menu_callback
-    zaten herhangi bir bot mesaji uzerinde edit_message_text ile calisir)."""
-    return InlineKeyboardMarkup(
+    zaten herhangi bir bot mesaji uzerinde edit_message_text ile calisir).
+
+    `ticker`/`market` verilirse (Faz 15) en uste "📈 Teknik Görünüm" butonu
+    eklenir -- callback_data "teknik:{market}:{ticker}" formatinda, AYRI bir
+    handler'a (handle_teknik_callback) gider. Ikisi de None ise (eski
+    cagiranlar/testler) buton EKLENMEZ -- geriye uyumlu."""
+    rows = []
+    if ticker is not None and market is not None:
+        rows.append([InlineKeyboardButton("📈 Teknik Görünüm", callback_data=f"teknik:{market}:{ticker}")])
+    rows.append(
         [
-            [
-                InlineKeyboardButton("🇹🇷 BİST'te Ara", callback_data="menu:analiz:bist"),
-                InlineKeyboardButton("🇺🇸 NASDAQ'ta Ara", callback_data="menu:analiz:nasdaq"),
-            ]
+            InlineKeyboardButton("🇹🇷 BİST'te Ara", callback_data="menu:analiz:bist"),
+            InlineKeyboardButton("🇺🇸 NASDAQ'ta Ara", callback_data="menu:analiz:nasdaq"),
         ]
     )
+    return InlineKeyboardMarkup(rows)
 
 
 # --- Sabit metinler -----------------------------------------------------

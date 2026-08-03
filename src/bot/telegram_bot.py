@@ -23,10 +23,12 @@ from telegram.ext import Application, CallbackQueryHandler, CommandHandler, Cont
 from telegram.request import HTTPXRequest
 
 import config
+from src.analysis import technical
 from src.bot import menu, pipeline
 from src.db import repository
+from src.fetchers import price_history
 from src.formatting import format_number_tr
-from src.render import calendar_card, card
+from src.render import calendar_card, card, technical_card
 
 logger = logging.getLogger(__name__)
 
@@ -234,6 +236,67 @@ async def _gonder_takvim(chat_id: int, context: ContextTypes.DEFAULT_TYPE, marke
         logger.exception("%s takvim metni gönderilemedi", market)
 
 
+# --- Teknik Görünüm (Faz 15) -----------------------------------------------------
+
+
+async def _gonder_teknik(chat_id: int, context: ContextTypes.DEFAULT_TYPE, ticker: str, market: str) -> None:
+    """'📈 Teknik Görünüm' butonuna basılınca AYNI ticker/market için Faz 15
+    teknik analiz kartını üretir ve gönderir. Bu kart temel analiz kartından
+    TAMAMEN BAĞIMSIZ bir veri kaynağı (price_history) ve hesap zinciri
+    (src/analysis/technical.py) kullanır (bkz. K1: skor/puan İÇERMEZ) --
+    burada bir hata olsa bile temel analiz akışını ETKİLEMEZ."""
+    bars = await asyncio.to_thread(price_history.fetch_ohlcv, ticker, market, 400)
+    price_bars = [
+        technical.PriceBar(trade_date=bar.trade_date, high=bar.high, low=bar.low, close=bar.close, volume=bar.volume)
+        for bar in bars
+    ]
+    snapshot = technical.compute_snapshot(price_bars)
+    teknik_context = technical_card.build_technical_context(snapshot, ticker, market)
+
+    if not teknik_context["has_data"]:
+        await context.bot.send_message(
+            chat_id,
+            f"⚠️ {ticker} için yeterli fiyat geçmişi bulamadım, teknik görünüm üretilemedi.",
+        )
+        return
+
+    out_path = config.DATA_DIR / "cards" / f"{ticker}_teknik.png"
+    try:
+        png_path = await asyncio.to_thread(
+            card.render_card, teknik_context, str(out_path), "technical_card.html", "#technical-card"
+        )
+    except card.CardRenderError:
+        logger.exception("%s teknik kartı render edilemedi", ticker)
+        await context.bot.send_message(chat_id, "⚠️ Teknik görünüm görseli üretilemedi, birkaç dakika sonra tekrar dene.")
+        return
+
+    try:
+        with open(png_path, "rb") as png_file:
+            caption = (
+                f"📈 #{ticker} Teknik Görünüm\n\n"
+                "Bu içerik yatırım tavsiyesi değildir; geçmiş performans gelecekteki "
+                "getirinin göstergesi değildir."
+            )
+            await context.bot.send_photo(chat_id=chat_id, photo=png_file, caption=caption)
+    except Exception:
+        logger.exception("%s teknik görünüm görseli gönderilemedi", ticker)
+
+
+async def handle_teknik_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """callback_data: 'teknik:{market}:{ticker}' (bkz. menu.build_sonuc_sonrasi_menu)."""
+    query = update.callback_query
+    await query.answer()
+
+    parts = (query.data or "").split(":")
+    if len(parts) < 3:
+        return
+    market, ticker = parts[1], parts[2]
+
+    chat_id = query.message.chat_id
+    await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
+    await _gonder_teknik(chat_id, context, ticker, market)
+
+
 # --- Analiz akisi -----------------------------------------------------
 
 
@@ -404,7 +467,9 @@ async def _execute_and_send(
             # eklenir -- kullanici /menu -> Bilanço Analizi akisini BASTAN
             # gezmeden hemen baska bir piyasada/hissede arama baslatabilsin.
             await context.bot.send_message(
-                chat_id=chat_id, text=_bilanco_ozeti_metni(sonuc), reply_markup=menu.build_sonuc_sonrasi_menu()
+                chat_id=chat_id,
+                text=_bilanco_ozeti_metni(sonuc),
+                reply_markup=menu.build_sonuc_sonrasi_menu(ticker=sonuc.ticker, market=market),
             )
         except Exception:
             logger.exception("istek user=%s ticker=%s: özet metni gönderilemedi", user_id, ticker)
@@ -579,6 +644,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("takvim", cmd_takvim))
     application.add_handler(CommandHandler("hakkinda", cmd_hakkinda))
     application.add_handler(CallbackQueryHandler(handle_period_callback, pattern=r"^oncekidonem:"))
+    application.add_handler(CallbackQueryHandler(handle_teknik_callback, pattern=r"^teknik:"))
     application.add_handler(CallbackQueryHandler(handle_menu_callback, pattern=r"^menu:"))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_ticker_message))
     application.add_error_handler(_on_error)

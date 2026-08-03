@@ -197,6 +197,16 @@ async def cmd_teknik(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     await update.message.reply_text(menu.TEKNIK_MENU_TEXT, reply_markup=menu.build_teknik_menu())
 
 
+async def cmd_temel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/temel -- Faz 16 Derin Kart için BİST/NASDAQ seçim ekranını açar.
+    CANLI KULLANICI GERİ BİLDİRİMİ (2026-08-03): Derin Kart'a eskiden SADECE
+    bir Bilanço Analizi/Teknik Görünüm sonucunun altındaki butondan
+    erişilebiliyordu ("bilanço bakmadan bu temel analiz kısmına
+    gelemiyorum") -- bu komut önce Bilanço Analizi'ne HİÇ uğramadan
+    doğrudan (gerekirse önce fetch tetikleyerek) Derin Kart'a gider."""
+    await update.message.reply_text(menu.DERIN_MENU_TEXT, reply_markup=menu.build_derin_menu())
+
+
 # --- Takvim (Faz 13) -----------------------------------------------------
 
 
@@ -341,8 +351,36 @@ async def _gonder_derin_analiz(chat_id: int, context: ContextTypes.DEFAULT_TYPE,
         score_history = repository.get_score_history(session, ticker)
         company_name = company.name or ticker
 
+        # Sektör ortalaması (2. çizgi) -- SADECE Company.sector DOLU ise (bkz.
+        # scripts/refresh_sector_cache.py) mümkündür. Boşsa (henüz cache
+        # çalıştırılmamışsa) sector_average boş kalır, kart otomatik olarak
+        # TEK çizgiye düşer (bkz. deep_card.py K4 mantığı) -- YENİ bir ağ
+        # isteği ATILMAZ, sadece DB'de zaten var olan peer'ler okunur.
+        sector_average: dict = {}
+        sector_name = company.sector
+        peer_count = 0
+        if sector_name:
+            peer_tickers = repository.get_sector_peer_tickers(
+                session, sector_name, company.financial_group, exclude_ticker=ticker
+            )
+            peer_count = len(peer_tickers)
+            peer_financials_list = [
+                repository.get_financials(session, peer, n_periods=trends.MAX_TREND_PERIODS) for peer in peer_tickers
+            ]
+            if peer_financials_list:
+                sector_average = trends.compute_sector_average(peer_financials_list)
+
     trend = trends.compute_multi_period_trend(financials_by_period)
-    deep_context = deep_card.build_deep_card_context(trend, score_history, ticker, market, company_name=company_name)
+    deep_context = deep_card.build_deep_card_context(
+        trend,
+        score_history,
+        ticker,
+        market,
+        company_name=company_name,
+        sector_average=sector_average,
+        sector_name=sector_name,
+        peer_count=peer_count,
+    )
 
     if not deep_context["has_data"]:
         await context.bot.send_message(chat_id, f"⚠️ {ticker} için çok dönemli trend analizi için yeterli veri yok.")
@@ -463,7 +501,16 @@ async def _execute_and_send(
     periods=None,
     market: str = "BIST",
     allow_market_fallback: bool = False,
+    output_mode: str = "temel",
 ) -> None:
+    """`output_mode="derin"` (bkz. cmd_temel/menu:derinanaliz -- kullanıcı
+    isteği: "bilanço bakmadan bu temel analiz kısmına gelemiyorum"): pipeline
+    YİNE çalışır (DB'de veri YOKSA/eskiyse tam fetch tetiklenir -- Derin
+    Kart'ın "ticker daha önce analiz edilmiş olmalı" ön koşulu BURADA
+    otomatik sağlanır) ama BAŞARI durumunda tek çeyreklik kart/özet metin
+    YERİNE doğrudan _gonder_derin_analiz() çağrılır (aynı fonksiyon "🔬
+    Detaylı Analiz" butonuyla da kullanılır, DB'yi ZATEN taze haliyle
+    tekrar okur)."""
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
     started = time.monotonic()
@@ -552,6 +599,22 @@ async def _execute_and_send(
         await context.bot.send_message(chat_id, "Beklenmeyen bir hata oluştu, birkaç dakika sonra tekrar dener misin?")
 
     else:
+        # §B18: en son basarili aramanin piyasasi (fallback ile degismis
+        # olabilir, orn. BIST->NASDAQ) kalici hafizaya yazilir -- bir
+        # sonraki menusuz/dogrudan ticker yazma varsayilani bunu kullanir.
+        menu.set_son_market(context.user_data, market)
+
+        if output_mode == "derin":
+            # cmd_temel/menu:derinanaliz akışı: pipeline BAŞARIYLA çalıştı
+            # (DB artık taze) -- tek çeyreklik kart/özet metin YERİNE
+            # doğrudan Derin Kart'a geç (bkz. _execute_and_send docstring'i).
+            await _gonder_derin_analiz(chat_id, context, sonuc.ticker, market)
+            logger.info(
+                "istek user=%s ticker=%s sure=%.1fs sonuc=basarili (derin kart)",
+                user_id, ticker, time.monotonic() - started,
+            )
+            return
+
         # CANLI hata (kullanici raporu, OTKAR): "gorsel geldi ama metin
         # gelmedi" -- eskiden send_photo/send_message TEK bir try/except
         # ALTINDA DEGILDI (hic try/except yoktu), send_photo bir
@@ -564,11 +627,6 @@ async def _execute_and_send(
                 await context.bot.send_photo(chat_id=chat_id, photo=png_file, caption=_score_caption(sonuc))
         except Exception:
             logger.exception("istek user=%s ticker=%s: kart fotoğrafı gönderilemedi (özet metni yine de denenecek)", user_id, ticker)
-
-        # §B18: en son basarili aramanin piyasasi (fallback ile degismis
-        # olabilir, orn. BIST->NASDAQ) kalici hafizaya yazilir -- bir
-        # sonraki menusuz/dogrudan ticker yazma varsayilani bunu kullanir.
-        menu.set_son_market(context.user_data, market)
 
         try:
             # §B18: ozet mesajina "tek dokunusla yeni arama" butonlari
@@ -624,6 +682,7 @@ async def handle_ticker_message(update: Update, context: ContextTypes.DEFAULT_TY
         return
 
     teknik_istegi = islem is not None and islem.tip == "teknik"
+    derin_istegi = islem is not None and islem.tip == "derin"
 
     if islem is not None:
         menu.clear_bekleyen_islem(context.user_data)
@@ -647,6 +706,16 @@ async def handle_ticker_message(update: Update, context: ContextTypes.DEFAULT_TY
             chat_id = update.effective_chat.id
             await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
             await _gonder_teknik(chat_id, context, ticker, market)
+            return
+
+        if derin_istegi:
+            # /temel komutuyla (veya menu:derinanaliz butonuyla) baslatilan
+            # akis -- teknik'in AKSINE pipeline'a UGRAR (Derin Kart'in "DB'de
+            # veri olmali" on kosulunu burada otomatik saglamak icin, bkz.
+            # _execute_and_send docstring'i) ama basari durumunda tek
+            # ceyreklik kart YERINE dogrudan Derin Kart gonderilir.
+            await update.message.reply_text(f"🔬 {ticker} için detaylı analiz hazırlanıyor... (~20 sn)")
+            await _execute_and_send(ticker, update, context, market=market, output_mode="derin")
             return
 
         await update.message.reply_text(f"🔍 {ticker} analiz ediliyor... (~20 sn)")
@@ -702,6 +771,20 @@ async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             await query.edit_message_text(menu.TEKNIK_MENU_TEXT, reply_markup=menu.build_teknik_menu())
         return
 
+    if screen == "derinanaliz":
+        if sub == "bist":
+            menu.set_bekleyen_islem(context.user_data, tip="derin", market="BIST")
+            menu.set_son_market(context.user_data, "BIST")
+            await query.edit_message_text(menu.DERIN_BIST_PROMPT, reply_markup=menu.build_derin_bekleniyor_menu())
+        elif sub == "nasdaq":
+            menu.set_bekleyen_islem(context.user_data, tip="derin", market="NASDAQ")
+            menu.set_son_market(context.user_data, "NASDAQ")
+            await query.edit_message_text(menu.DERIN_NASDAQ_PROMPT, reply_markup=menu.build_derin_bekleniyor_menu())
+        else:
+            menu.clear_bekleyen_islem(context.user_data)
+            await query.edit_message_text(menu.DERIN_MENU_TEXT, reply_markup=menu.build_derin_menu())
+        return
+
     if screen == "takvim":
         if sub in ("bist", "nasdaq"):
             market = "BIST" if sub == "bist" else "NASDAQ"
@@ -753,6 +836,7 @@ _BOT_COMMANDS = [
     BotCommand("start", "Botu tanıt, menüyü aç"),
     BotCommand("menu", "Buton menüsünü aç"),
     BotCommand("teknik", "Teknik görünüm kartı için piyasa seç"),
+    BotCommand("temel", "Detaylı (çok dönemli) analiz için piyasa seç"),
     BotCommand("son", "Son üretilen 5 kartı listele"),
     BotCommand("takvim", "Yaklaşan bilanço tarihleri (BİST/NASDAQ)"),
     BotCommand("hakkinda", "Veri kaynakları ve sorumluluk reddi"),
@@ -785,6 +869,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("start", cmd_start))
     application.add_handler(CommandHandler("menu", cmd_menu))
     application.add_handler(CommandHandler("teknik", cmd_teknik))
+    application.add_handler(CommandHandler("temel", cmd_temel))
     application.add_handler(CommandHandler("son", cmd_son))
     application.add_handler(CommandHandler("takvim", cmd_takvim))
     application.add_handler(CommandHandler("hakkinda", cmd_hakkinda))

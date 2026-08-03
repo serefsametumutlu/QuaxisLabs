@@ -628,40 +628,70 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       implementasyonuyla, cross durumu elle kurgulanan senaryolarla
       doğrulandı, hiçbir regresyon yok). Demo: `python scripts/demo_teknik.py
       THYAO` ile canlı veriyle uçtan uca doğrulandı.
-- [x] **Faz 16 (Derin Kart — Çok Dönemli Temel Analiz, 2026-08-03)** —
+- [x] **Faz 16 (Derin Kart — Çok Dönemli Temel Analiz, 2026-08-03, iki tur)** —
       kullanıcı geri bildirimi ("Temel Analiz butonu Bilanço Analizi ile
       AYNI görseli tekrarlıyor, içeriği farklı olsa daha iyi olur mu?")
       üzerine: "bu çeyrek ne oldu" sorusunu cevaplayan tek çeyreklik karta
       EK olarak, "bu şirket ZAMAN İÇİNDE nasıl bir seyir izliyor" sorusunu
       cevaplayan çok dönemli (8-12 çeyrek) bir kart eklendi. YENİ bir ağ
-      isteği ATILMADI — DB'de zaten biriken (`repository.get_financials`)
-      geçmiş dönemler kullanıldı. `src/analysis/trends.py` (SAF matematik,
-      I/O yok): `compute_multi_period_trend()` — her çeyrek için Hasılat/
-      FAVÖK/Net Kâr/Özkaynak, marj trendi (brüt/FAVÖK/net), TTM-bazlı
-      Kaldıraç (Net Borç/FAVÖK) ve ROE trendi, mevsimsellik (aynı çeyreğin
-      yıllar arası karşılaştırması, en az 2 GERÇEK veri noktası şartıyla).
-      Hesaplama mantığı KOPYALANMADI — `calculator.py`'ye eklenen PUBLIC
-      sarmalayıcılar (`net_debt`, `margin_pct`, `safe_div`,
-      `trailing_12m_from_cumulative`) zaten doğrulanmış tek kaynağı
-      yeniden kullanır (bir TERA/BORSK tarzı hatanın ikinci bir yerde
-      sessizce tekrarlanması riskini önler). `repository.get_score_history()`
-      (YENİ) `generated_card` tablosundan skor geçmişini okur.
-      `src/render/deep_card.py` + `deep_card.html` — card.html AİLESİNDEN
-      (amber aksan, koyu tema) 1200px genişlikte, dikey/uzun, bölüm bölüm
-      (Genel Görünüm 2x2 grafik, Marj Trendi, Kaldıraç/ROE Trendi, Skor
-      Geçmişi, Mevsimsellik) SAF SVG çizgi grafikleri. Bot: Bilanço Analizi
-      sonucuna (SADECE sanayi/US_GAAP'te) "🔬 Detaylı Analiz" butonu +
-      Teknik Görünüm kartındaki "📊 Temel Analiz" butonu ARTIK BU karta
-      gidiyor (`derin:{market}:{ticker}` callback, `handle_derin_analiz_callback`
-      — eskiden tek çeyreklik kartı tekrarlıyordu, kullanıcı şikayetinin
-      kök çözümü). BİLEREK kapsam dışı bırakılan bölüm: değerleme
-      çarpanlarının tarihsel bandı (güvenilir bir yöntem bu oturumda
-      kurulamadı, bkz. `06_BILINEN_SORUNLAR.md` §B22). Test: `pytest
-      tests/` (762 test, 37 yeni, hiçbir regresyon yok). Demo: `python
-      scripts/demo_derin_kart.py THYAO` / `AAPL --market NASDAQ` ile canlı
-      DB verisiyle uçtan uca doğrulandı (görsel incelendi, bir kenar durumu
-      — mevsimsellik grubunda tek gerçek veri noktası varken yanıltıcı düz
-      çizgi — canlı yakalanıp düzeltildi).
+      isteği ATILMADI (sektör verisi HARİÇ, aşağıya bkz.) — DB'de zaten
+      biriken (`repository.get_financials`) geçmiş dönemler kullanıldı.
+
+      **1. tur:** `src/analysis/trends.py` (SAF matematik, I/O yok):
+      `compute_multi_period_trend()` — her çeyrek için Hasılat/FAVÖK/Net
+      Kâr/Özkaynak, marj trendi (brüt/FAVÖK/net), Cari Oran, TTM-bazlı
+      Kaldıraç (Net Borç/FAVÖK) ve ROE trendi, mevsimsellik. Hesaplama
+      mantığı KOPYALANMADI — `calculator.py`'ye eklenen PUBLIC sarmalayıcılar
+      (`net_debt`, `margin_pct`, `safe_div`, `trailing_12m_from_cumulative`)
+      zaten doğrulanmış tek kaynağı yeniden kullanır. `repository.
+      get_score_history()` (YENİ) skor geçmişini okur.
+
+      **2. tur (kullanıcının referans görseli — grafikler tam istenen
+      stilde olsun + sektör ortalaması çizgisi + hızlı erişim komutu):**
+      Grafikler TAMAMEN yeniden tasarlandı — her metrik (Çeyreklik
+      Satışlar, Brüt/FAVÖK/Net Marj, Cari Oran, Kaldıraç Oranı, ROE) AYRI
+      başlıklı bir grafik kartı; TAM ızgara (yatay+dikey), her noktada
+      daire işaretleyici, x-ekseninde HER çeyrek etiketi, y-ekseninde
+      "güzel" (1/2/5/10 katları) yuvarlak sayılarla tam eksen (`_nice_ticks()`
+      — card.py'nin `_nice_axis_step()`'iyle AYNI ilke, ama negatif değerli
+      serilere de genelleştirildi). **Sektör ortalaması (2. çizgi)**: KAP'ın
+      `kap.org.tr/tr/Sektorler` sayfasının (ayrı bir API'si YOK, veri
+      Next.js sunucu-taraflı render'a gömülü geliyor — canlı keşfedildi,
+      bkz. `scripts/explore_kap_sektor.py`) 642 BIST şirketlik ince sektör
+      sınıflandırmasından `src/fetchers/kap.py::fetch_sector_map()` +
+      `scripts/refresh_sector_cache.py` (refresh_takvim_cache.py ile AYNI
+      ilke — ayrı/zamanlanmış süreç, ana pipeline'ı BLOKLAMAZ) ile
+      `Company.sector` dolduruluyor; `repository.get_sector_peer_tickers()`
+      + `trends.compute_sector_average()` AYNI sektör+financial_group'taki
+      DB'de zaten taranmış diğer şirketlerin ortalamasını (SADECE oran/marj
+      alanları — mutlak/para birimi değerler KASITLI OLARAK hariç, bkz.
+      modül notu) hesaplıyor; peer yoksa (henüz cache çalıştırılmamış/tek
+      şirket taranmış) grafik otomatik TEK çizgiye düşüyor. **`/temel`
+      komutu (YENİ)**: kullanıcı geri bildirimi ("bilanço bakmadan bu temel
+      analiz kısmına gelemiyorum") üzerine — `/teknik`'in Derin Kart
+      karşılığı, gerekirse önce fetch tetikleyip DOĞRUDAN Derin Kart'a
+      gider (`_execute_and_send(..., output_mode="derin")`).
+
+      Ayrıca AYNI oturumda kullanıcının canlı bot loglarından bildirdiği
+      İKİ ayrı, önceden var olan hata bulunup düzeltildi: (1) `CONFIG["banka"]`/
+      `CONFIG["sigorta"]["degerleme"]`'de F/K-PD/DD eşikleri hiç yoktu —
+      fiyat verisi olan HERHANGİ bir banka/sigortada (ISCTR ile canlı
+      doğrulandı) `KeyError: 'fk_ucuz'` ile çöküyordu; (2) `sonuc.analysis.
+      is_annual_only`'ye koşulsuz erişim `BankAnalysisResult`/
+      `InsuranceAnalysisResult`'ta bu alan OLMADIĞI için hem kart fotoğrafını
+      hem özet metnini çökertiyordu — ikisi de düzeltildi, regresyon testleri
+      eklendi (bkz. `06_BILINEN_SORUNLAR.md`).
+
+      BİLEREK kapsam dışı bırakılan bölüm: değerleme çarpanlarının tarihsel
+      bandı (güvenilir bir yöntem bu oturumda kurulamadı, bkz.
+      `06_BILINEN_SORUNLAR.md` §B23). Test: `pytest tests/` (802 test,
+      hiçbir regresyon yok). Demo: `python scripts/demo_derin_kart.py THYAO`
+      / `TATGD` (gerçek 2 sektör peer'iyle, EFOR/BORSK) / `AAPL --market
+      NASDAQ` ile canlı DB verisiyle uçtan uca doğrulandı; canlı görsel
+      incelemede İKİ kenar durumu yakalanıp düzeltildi (mevsimsellik
+      grubunda tek gerçek nokta varken yanıltıcı düz çizgi; sektör
+      ortalaması peer sayısı dönem-bazlı örtüşmeme yüzünden başlıkta
+      yanlış/düşük gösteriliyordu).
 
 ## Dizin Yapisi
 

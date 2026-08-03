@@ -20,11 +20,12 @@ def _callback_data_grid(markup) -> list[list[str]]:
     return [[button.callback_data for button in row] for row in markup.inline_keyboard]
 
 
-def test_build_root_menu_bes_dal_icerir() -> None:
+def test_build_root_menu_alti_dal_icerir() -> None:
     grid = _callback_data_grid(menu.build_root_menu())
     assert grid == [
         ["menu:analiz"],
         ["menu:teknikanaliz"],
+        ["menu:derinanaliz"],
         ["menu:takvim"],
         ["menu:son"],
         ["menu:hakkinda"],
@@ -44,6 +45,16 @@ def test_build_teknik_menu_bist_nasdaq_ve_geri_icerir() -> None:
 def test_build_teknik_bekleniyor_menu_teknikanaliz_ekranina_doner() -> None:
     grid = _callback_data_grid(menu.build_teknik_bekleniyor_menu())
     assert grid == [["menu:teknikanaliz"]]
+
+
+def test_build_derin_menu_bist_nasdaq_ve_geri_icerir() -> None:
+    grid = _callback_data_grid(menu.build_derin_menu())
+    assert grid == [["menu:derinanaliz:bist"], ["menu:derinanaliz:nasdaq"], ["menu:root"]]
+
+
+def test_build_derin_bekleniyor_menu_derinanaliz_ekranina_doner() -> None:
+    grid = _callback_data_grid(menu.build_derin_bekleniyor_menu())
+    assert grid == [["menu:derinanaliz"]]
 
 
 def test_build_takvim_menu_bist_nasdaq_ve_geri_icerir() -> None:
@@ -72,6 +83,12 @@ def test_build_alt_ekran_menu_geri_ana_menuye_doner() -> None:
         "menu:analiz",
         "menu:analiz:bist",
         "menu:analiz:nasdaq",
+        "menu:teknikanaliz",
+        "menu:teknikanaliz:bist",
+        "menu:teknikanaliz:nasdaq",
+        "menu:derinanaliz",
+        "menu:derinanaliz:bist",
+        "menu:derinanaliz:nasdaq",
         "menu:takvim",
         "menu:takvim:bist",
         "menu:takvim:nasdaq",

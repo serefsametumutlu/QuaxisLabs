@@ -18,6 +18,7 @@ from src.fetchers.kap import (
     get_top_disclosures,
     normalize_ticker,
     _parse_publish_date,
+    _parse_sector_map,
     _row_to_disclosure,
     _turkish_lower,
 )
@@ -136,3 +137,52 @@ def test_get_top_disclosures_limit_uygular() -> None:
     disclosures = [_make_disclosure(d, IMPORTANCE_LOW) for d in range(1, 8)]
     top = get_top_disclosures(disclosures, limit=5)
     assert len(top) == 5
+
+
+# --- _parse_sector_map (Faz 16, Derin Kart -- sektör ortalaması) -----------------------------------------------------
+
+
+def _fake_sektorler_html(*entries: tuple[str, str]) -> str:
+    """(stockCode, sectorName) çiftlerinden kap.org.tr/tr/Sektorler
+    sayfasının GERÇEK biçimine (Next.js RSC push, ÇİFT ESCAPED JSON)
+    uygun sentetik bir HTML gövdesi üretir -- bkz. _parse_sector_map()."""
+    objs = []
+    for stock_code, sector_name in entries:
+        obj = (
+            '{\\"sectorName\\":\\"' + sector_name + '\\",\\"sectorOid\\":\\"OID1\\",'
+            '\\"sectorNo\\":\\"001000.\\",\\"mkkMemberOid\\":\\"OID2\\",'
+            '\\"stockCode\\":\\"' + stock_code + '\\",\\"title\\":\\"X A.S.\\",'
+            '\\"kapTypes\\":[\\"IGS\\"]}'
+        )
+        objs.append(obj)
+    return 'self.__next_f.push([1,"15:[\\"$\\",...' + ",".join(objs) + '..."])'
+
+
+def test_parse_sector_map_tek_sirket_dogru_ayristirilir() -> None:
+    html = _fake_sektorler_html(("THYAO", "ULAŞTIRMA VE DEPOLAMA"))
+    assert _parse_sector_map(html) == {"THYAO": "ULAŞTIRMA VE DEPOLAMA"}
+
+
+def test_parse_sector_map_birden_fazla_sirket() -> None:
+    html = _fake_sektorler_html(
+        ("THYAO", "ULAŞTIRMA VE DEPOLAMA"),
+        ("TUPRS", "KİMYA İLAÇ PETROL LASTİK VE PLASTİK ÜRÜNLER"),
+        ("EREGL", "ANA METAL SANAYİ"),
+    )
+    result = _parse_sector_map(html)
+    assert result["THYAO"] == "ULAŞTIRMA VE DEPOLAMA"
+    assert result["TUPRS"] == "KİMYA İLAÇ PETROL LASTİK VE PLASTİK ÜRÜNLER"
+    assert result["EREGL"] == "ANA METAL SANAYİ"
+
+
+def test_parse_sector_map_coklu_pay_sinifi_virgullu_kod_ayristirilir() -> None:
+    """cmpOrFundCode ile AYNI ilke -- coklu pay sinifli sirketlerde
+    stockCode virgulle ayrilmis birden fazla kod icerebilir (orn. TVB, VAKBN)."""
+    html = _fake_sektorler_html(("TVB,VAKBN", "BANKALAR"))
+    result = _parse_sector_map(html)
+    assert result["TVB"] == "BANKALAR"
+    assert result["VAKBN"] == "BANKALAR"
+
+
+def test_parse_sector_map_bos_sayfada_bos_sozluk_doner() -> None:
+    assert _parse_sector_map("hicbir sirket verisi yok") == {}

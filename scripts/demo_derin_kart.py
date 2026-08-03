@@ -50,6 +50,23 @@ def main() -> int:
         score_history = repository.get_score_history(session, ticker)
         company_name = args.company_name or company.name or ticker
 
+        sector_average = {}
+        sector_name = company.sector
+        peer_count = 0
+        if sector_name:
+            peer_tickers = repository.get_sector_peer_tickers(
+                session, sector_name, company.financial_group, exclude_ticker=ticker
+            )
+            peer_count = len(peer_tickers)
+            print(f"Sektör: {sector_name} -- {peer_count} karşılaştırma şirketi: {peer_tickers}")
+            peer_financials_list = [
+                repository.get_financials(session, peer, n_periods=trends.MAX_TREND_PERIODS) for peer in peer_tickers
+            ]
+            if peer_financials_list:
+                sector_average = trends.compute_sector_average(peer_financials_list)
+        else:
+            print("Sektör bilgisi yok (scripts/refresh_sector_cache.py çalıştırılmamış olabilir) -- tek çizgi.")
+
     print(f"{len(financials_by_period)} dönem finansal veri bulundu: {sorted(financials_by_period.keys())}")
     print(f"{len(score_history)} skor geçmişi kaydı bulundu.")
 
@@ -69,7 +86,10 @@ def main() -> int:
     else:
         print("\nTrend üretilemedi (yeterli veri yok).")
 
-    context = deep_card.build_deep_card_context(trend, score_history, ticker, args.market, company_name=company_name)
+    context = deep_card.build_deep_card_context(
+        trend, score_history, ticker, args.market, company_name=company_name,
+        sector_average=sector_average, sector_name=sector_name, peer_count=peer_count,
+    )
 
     out_path = config.DATA_DIR / "cards" / f"{ticker}_derin.png"
     result_path = card.render_card(context, str(out_path), template_name="deep_card.html", screenshot_selector="#deep-card")

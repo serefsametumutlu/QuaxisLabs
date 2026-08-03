@@ -429,6 +429,35 @@ def test_handle_ticker_message_teknik_bekleyen_islem_dogrudan_teknik_gonderir(mo
     assert "bekleyen_islem" not in user_data
 
 
+def test_handle_ticker_message_derin_bekleyen_islem_execute_and_send_derin_modunda_cagirir(monkeypatch) -> None:
+    """/temel -> BİST seçildikten sonra ticker yazılınca (teknik'in AKSİNE)
+    _execute_and_send YİNE çağrılır ama output_mode="derin" ile -- Derin
+    Kart'ın "DB'de veri olmalı" ön koşulu pipeline'ın kendisiyle sağlanır
+    (bkz. cmd_temel/menu:derinanaliz -- BekleyenIslem.tip="derin")."""
+    execute_calls = AsyncMock()
+    monkeypatch.setattr(telegram_bot, "_execute_and_send", execute_calls)
+
+    user_data: dict = {}
+    menu.set_bekleyen_islem(user_data, tip="derin", market="BIST")
+
+    message = SimpleNamespace(text="THYAO", reply_text=AsyncMock())
+    update = SimpleNamespace(
+        message=message,
+        effective_user=SimpleNamespace(id=9101),
+        effective_chat=SimpleNamespace(id=4242),
+    )
+    context = SimpleNamespace(user_data=user_data, bot=SimpleNamespace(send_chat_action=AsyncMock()))
+
+    _run_coro(telegram_bot.handle_ticker_message(update, context))
+
+    execute_calls.assert_awaited_once()
+    args, kwargs = execute_calls.await_args
+    assert args[0] == "THYAO"
+    assert kwargs["market"] == "BIST"
+    assert kwargs["output_mode"] == "derin"
+    assert "bekleyen_islem" not in user_data
+
+
 def test_handle_menu_callback_analiz_ust_menu_secenekleri_gosterir() -> None:
     update, query = _fake_callback_update("menu:analiz")
     _run_coro(telegram_bot.handle_menu_callback(update, _fake_context()))
@@ -490,6 +519,38 @@ def test_handle_menu_callback_teknikanaliz_nasdaq_bekleyen_islem_ayarlar_ve_prom
     (text,), _ = query.edit_message_text.await_args
     assert text == menu.TEKNIK_NASDAQ_PROMPT
     assert user_data["bekleyen_islem"].tip == "teknik"
+    assert user_data["bekleyen_islem"].market == "NASDAQ"
+
+
+def test_handle_menu_callback_derinanaliz_ust_menu_secenekleri_gosterir() -> None:
+    update, query = _fake_callback_update("menu:derinanaliz")
+    _run_coro(telegram_bot.handle_menu_callback(update, _fake_context()))
+
+    (text,), kwargs = query.edit_message_text.await_args
+    assert text == menu.DERIN_MENU_TEXT
+    grid = [[b.callback_data for b in row] for row in kwargs["reply_markup"].inline_keyboard]
+    assert grid == [["menu:derinanaliz:bist"], ["menu:derinanaliz:nasdaq"], ["menu:root"]]
+
+
+def test_handle_menu_callback_derinanaliz_bist_bekleyen_islem_ayarlar_ve_prompt_gosterir() -> None:
+    user_data: dict = {}
+    update, query = _fake_callback_update("menu:derinanaliz:bist")
+    _run_coro(telegram_bot.handle_menu_callback(update, _fake_context(user_data)))
+
+    (text,), _ = query.edit_message_text.await_args
+    assert text == menu.DERIN_BIST_PROMPT
+    assert user_data["bekleyen_islem"].tip == "derin"
+    assert user_data["bekleyen_islem"].market == "BIST"
+
+
+def test_handle_menu_callback_derinanaliz_nasdaq_bekleyen_islem_ayarlar_ve_prompt_gosterir() -> None:
+    user_data: dict = {}
+    update, query = _fake_callback_update("menu:derinanaliz:nasdaq")
+    _run_coro(telegram_bot.handle_menu_callback(update, _fake_context(user_data)))
+
+    (text,), _ = query.edit_message_text.await_args
+    assert text == menu.DERIN_NASDAQ_PROMPT
+    assert user_data["bekleyen_islem"].tip == "derin"
     assert user_data["bekleyen_islem"].market == "NASDAQ"
 
 
@@ -661,6 +722,29 @@ def test_execute_and_send_basarida_son_market_yazar_ve_hizli_menu_ekler(tmp_path
     assert menu.get_son_market(context.user_data) == "BIST"
     _, kwargs = context.bot.send_message.await_args
     assert kwargs["reply_markup"] == menu.build_sonuc_sonrasi_menu(ticker="THYAO", market="BIST")
+
+
+def test_execute_and_send_derin_modunda_tek_ceyreklik_kart_yerine_derin_kart_gonderir(tmp_path, monkeypatch) -> None:
+    """output_mode="derin" (bkz. /temel): pipeline BAŞARIYLA çalıştıktan
+    sonra tek çeyreklik kart/özet metin YERİNE doğrudan _gonder_derin_analiz
+    çağrılmalı -- send_photo/send_message (temel akışın kendi gönderimi)
+    HİÇ tetiklenmemeli."""
+    monkeypatch.setattr(telegram_bot.asyncio, "to_thread", _fake_to_thread)
+
+    png_path = tmp_path / "thyao.png"
+    png_path.write_bytes(b"\x89PNG\r\n\x1a\n" + b"0" * 20)
+    sonuc = _fake_pipeline_result("THYAO", png_path)
+    monkeypatch.setattr(telegram_bot.pipeline, "run_pipeline", lambda ticker, periods=None, market="BIST": sonuc)
+    derin_calls = AsyncMock()
+    monkeypatch.setattr(telegram_bot, "_gonder_derin_analiz", derin_calls)
+
+    update, context = _fake_bot_context_for_execute(chat_id=777)
+    _run_coro(telegram_bot._execute_and_send("THYAO", update, context, market="BIST", output_mode="derin"))
+
+    derin_calls.assert_awaited_once_with(777, context, "THYAO", "BIST")
+    context.bot.send_photo.assert_not_awaited()
+    context.bot.send_message.assert_not_awaited()
+    assert menu.get_son_market(context.user_data) == "BIST"
 
 
 def test_execute_and_send_sanayi_analizinde_detayli_analiz_butonu_eklenir(tmp_path, monkeypatch) -> None:

@@ -212,6 +212,68 @@ def test_get_score_history_limit_en_yeni_n_kaydi_tutar(session) -> None:
     assert [score for _, score in history] == [4.0, 5.0]
 
 
+# --- update_company_sectors / get_sector_peer_tickers (Faz 16, Derin Kart) -----------------------------------------------------
+
+
+def test_update_company_sectors_eslesen_sirketleri_gunceller(session) -> None:
+    repository.upsert_financials(session, "THYAO", [(2026, 3, "revenue", "Satislar", Decimal("100"))])
+    repository.upsert_financials(session, "TUPRS", [(2026, 3, "revenue", "Satislar", Decimal("100"))])
+
+    updated = repository.update_company_sectors(session, {"THYAO": "ULAŞTIRMA VE DEPOLAMA", "TUPRS": "KİMYA"})
+
+    assert updated == 2
+    assert session.get(Company, "THYAO").sector == "ULAŞTIRMA VE DEPOLAMA"
+    assert session.get(Company, "TUPRS").sector == "KİMYA"
+
+
+def test_update_company_sectors_haritada_olmayan_sirket_degismez(session) -> None:
+    repository.upsert_financials(session, "THYAO", [(2026, 3, "revenue", "Satislar", Decimal("100"))])
+    updated = repository.update_company_sectors(session, {"BASKA": "X"})
+    assert updated == 0
+    assert session.get(Company, "THYAO").sector is None
+
+
+def test_update_company_sectors_zaten_ayni_sektorse_sayilmaz(session) -> None:
+    repository.upsert_financials(session, "THYAO", [(2026, 3, "revenue", "Satislar", Decimal("100"))])
+    repository.update_company_sectors(session, {"THYAO": "ULAŞTIRMA"})
+    updated_again = repository.update_company_sectors(session, {"THYAO": "ULAŞTIRMA"})
+    assert updated_again == 0
+
+
+def test_get_sector_peer_tickers_ayni_sektor_ve_grubu_bulur(session) -> None:
+    for ticker in ("THYAO", "PGSUS", "TUPRS"):
+        repository.upsert_financials(session, ticker, [(2026, 3, "revenue", "Satislar", Decimal("100"))])
+    repository.set_company_info(session, "THYAO", financial_group="XI_29")
+    repository.set_company_info(session, "PGSUS", financial_group="XI_29")
+    repository.set_company_info(session, "TUPRS", financial_group="XI_29")
+    repository.update_company_sectors(
+        session, {"THYAO": "ULAŞTIRMA", "PGSUS": "ULAŞTIRMA", "TUPRS": "KİMYA"}
+    )
+
+    peers = repository.get_sector_peer_tickers(session, "ULAŞTIRMA", "XI_29", exclude_ticker="THYAO")
+
+    assert peers == ["PGSUS"]
+
+
+def test_get_sector_peer_tickers_farkli_financial_group_haric_tutulur(session) -> None:
+    for ticker in ("THYAO", "FAKEBANK"):
+        repository.upsert_financials(session, ticker, [(2026, 3, "revenue", "Satislar", Decimal("100"))])
+    repository.set_company_info(session, "THYAO", financial_group="XI_29")
+    repository.set_company_info(session, "FAKEBANK", financial_group="UFRS")
+    repository.update_company_sectors(session, {"THYAO": "ULAŞTIRMA", "FAKEBANK": "ULAŞTIRMA"})
+
+    peers = repository.get_sector_peer_tickers(session, "ULAŞTIRMA", "XI_29", exclude_ticker="THYAO")
+
+    assert peers == []
+
+
+def test_get_sector_peer_tickers_sektor_bossa_bos_liste(session) -> None:
+    repository.upsert_financials(session, "THYAO", [(2026, 3, "revenue", "Satislar", Decimal("100"))])
+    repository.set_company_info(session, "THYAO", financial_group="XI_29")
+    peers = repository.get_sector_peer_tickers(session, "ULAŞTIRMA", "XI_29", exclude_ticker="THYAO")
+    assert peers == []
+
+
 # --- market / Faz 9 (NASDAQ) -----------------------------------------------------
 
 

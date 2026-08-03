@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from src.analysis.trends import compute_multi_period_trend
+from src.analysis.trends import compute_multi_period_trend, compute_sector_average
 
 _LATEST = (2026, 3)
 _QOQ_PRIOR = (2025, 12)
@@ -153,6 +153,14 @@ def test_compute_multi_period_trend_guncel_donem_kaldirac_ve_roe():
     assert latest_point.roe_pct == Decimal("38") / Decimal("400") * 100
 
 
+def test_compute_multi_period_trend_guncel_donem_cari_oran():
+    """test_calculator.py::test_analyze_cari_oran_ve_borc_ozkaynak ile AYNI
+    (zaten doğrulanmış) 500/250=2 rakamıyla ÇAPRAZ tutarlı olmalı."""
+    trend = compute_multi_period_trend(_sample_financials())
+    latest_point = trend.points[-1]
+    assert latest_point.current_ratio == Decimal("500") / Decimal("250")
+
+
 def test_compute_multi_period_trend_eksik_bilanco_alanlarinda_kaldirac_roe_none():
     """_TTM_3/_TTM_4 donemlerinde bilanco (cash/financial_debt/equity) HİÇ
     yok -- kaldıraç/ROE bu donemler icin None kalmali (K4), ama marj/hasilat
@@ -209,3 +217,83 @@ def test_compute_multi_period_trend_mevsimsellik_sadece_bir_gercek_deger_varsa_d
     }
     trend = compute_multi_period_trend(financials)
     assert trend.seasonality == ()
+
+
+# --- compute_sector_average (Faz 16, "Karşılaştırma Ortalaması" çizgisi) -----------------------------------------------------
+
+
+def _peer_financials(revenue, gross_profit, ebitda_base, da, net_income, period=_LATEST) -> dict:
+    """Tek dönemlik, sadece marj hesaplamak için yeterli MİNİMAL bir peer
+    finansal sözlüğü (current_ratio/kaldıraç/ROE bilerek dışarıda -- bu
+    testler sadece marj ortalamasını doğruluyor)."""
+    return {
+        period: {
+            "revenue": Decimal(str(revenue)),
+            "gross_profit": Decimal(str(gross_profit)),
+            "operating_profit_ebitda_base": Decimal(str(ebitda_base)),
+            "depreciation_amortization": Decimal(str(da)),
+            "net_income": Decimal(str(net_income)),
+        }
+    }
+
+
+def test_compute_sector_average_bos_peer_listesinde_bos_sozluk():
+    assert compute_sector_average([]) == {}
+
+
+def test_compute_sector_average_tek_peer_kendisidir():
+    peer = _peer_financials(100, 40, 20, 5, 10)
+    result = compute_sector_average([peer])
+
+    point = result[_LATEST]
+    assert point.peer_count == 1
+    assert point.gross_margin_pct == Decimal("40") / Decimal("100") * 100
+    assert point.ebitda_margin_pct == Decimal("25") / Decimal("100") * 100  # (20+5)/100
+    assert point.net_margin_pct == Decimal("10") / Decimal("100") * 100
+
+
+def test_compute_sector_average_iki_peer_basit_ortalama():
+    peer_a = _peer_financials(100, 40, 20, 5, 10)  # gross_margin = %40
+    peer_b = _peer_financials(200, 60, 40, 10, 20)  # gross_margin = %30
+
+    result = compute_sector_average([peer_a, peer_b])
+    point = result[_LATEST]
+
+    assert point.peer_count == 2
+    beklenen_gross = (Decimal("40") + Decimal("30")) / 2
+    assert point.gross_margin_pct == beklenen_gross
+
+
+def test_compute_sector_average_mutlak_alanlar_yok():
+    """Sonuc SectorAveragePoint'te revenue/ebitda/net_income/equity gibi
+    MUTLAK (para birimi) alanlar hiç YOK -- SADECE oran/yüzde alanları."""
+    peer = _peer_financials(100, 40, 20, 5, 10)
+    point = compute_sector_average([peer])[_LATEST]
+    assert not hasattr(point, "revenue")
+    assert not hasattr(point, "ebitda")
+
+
+def test_compute_sector_average_bir_peerin_eksik_alani_digerini_etkilemez():
+    """peer_b'nin bu donem icin hicbir bilancosu yok (kaldirac/ROE None
+    kalir) ama marj alanlari YINE DE ortalamaya KATILMALI (K4: bir alanin
+    eksikligi digerini ETKILEMEZ)."""
+    peer_a = _peer_financials(100, 40, 20, 5, 10)
+    peer_b = {_LATEST: {"revenue": Decimal("200"), "gross_profit": Decimal("100")}}  # sadece brut marj hesaplanabilir
+
+    result = compute_sector_average([peer_a, peer_b])
+    point = result[_LATEST]
+
+    # gross_margin: A=%40, B=%50 -> ortalama %45 (ikisi de katkida bulundu)
+    assert point.gross_margin_pct == (Decimal("40") + Decimal("50")) / 2
+    # ebitda_margin: SADECE A hesaplanabildi (B'de operating_profit_ebitda_base yok)
+    assert point.ebitda_margin_pct == Decimal("25")
+
+
+def test_compute_sector_average_farkli_donemlerde_ayri_hesaplanir():
+    peer = {
+        _LATEST: {"revenue": Decimal("100"), "gross_profit": Decimal("40")},
+        _QOQ_PRIOR: {"revenue": Decimal("100"), "gross_profit": Decimal("20")},
+    }
+    result = compute_sector_average([peer])
+    assert result[_LATEST].gross_margin_pct == Decimal("40")
+    assert result[_QOQ_PRIOR].gross_margin_pct == Decimal("20")

@@ -1,9 +1,10 @@
 """src/render/deep_card.py testleri (Derin Kart -- çok dönemli temel analiz).
 
 build_deep_card_context() saf bir fonksiyondur -- src.analysis.trends'e
-hiçbir AĞ isteği atmaz, elle kurulmuş bir MultiPeriodTrend/score_history
-kullanılır (Kural 11). SADECE test_render_deep_card_* GERÇEK Playwright
-render'i doğrular (card.py/technical_card.py'deki AYNI desen).
+hiçbir AĞ isteği atmaz, elle kurulmuş bir MultiPeriodTrend/score_history/
+sector_average kullanılır (Kural 11). SADECE test_render_deep_card_*
+GERÇEK Playwright render'i doğrular (card.py/technical_card.py'deki AYNI
+desen).
 """
 
 from __future__ import annotations
@@ -11,13 +12,14 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 
-from src.analysis.trends import MultiPeriodTrend, PeriodTrendPoint, SeasonalityGroup
+from src.analysis.trends import MultiPeriodTrend, PeriodTrendPoint, SeasonalityGroup, SectorAveragePoint
 from src.render import card, deep_card
 
 
 def _point(period, revenue=Decimal("120"), ebitda=Decimal("30"), net_income=Decimal("15"),
            equity=Decimal("400"), gross_margin_pct=Decimal("40"), ebitda_margin_pct=Decimal("25"),
-           net_margin_pct=Decimal("12"), net_debt_to_ebitda=Decimal("2"), roe_pct=Decimal("9")) -> PeriodTrendPoint:
+           net_margin_pct=Decimal("12"), current_ratio=Decimal("1.5"), net_debt_to_ebitda=Decimal("2"),
+           roe_pct=Decimal("9")) -> PeriodTrendPoint:
     return PeriodTrendPoint(
         period=period,
         revenue=revenue,
@@ -27,6 +29,7 @@ def _point(period, revenue=Decimal("120"), ebitda=Decimal("30"), net_income=Deci
         gross_margin_pct=gross_margin_pct,
         ebitda_margin_pct=ebitda_margin_pct,
         net_margin_pct=net_margin_pct,
+        current_ratio=current_ratio,
         net_debt_to_ebitda=net_debt_to_ebitda,
         roe_pct=roe_pct,
     )
@@ -38,7 +41,11 @@ def _trend(points=None, seasonality=()) -> MultiPeriodTrend:
     return MultiPeriodTrend(points=tuple(points), seasonality=tuple(seasonality))
 
 
-# --- build_deep_card_context ------------------------------------------------------
+def _metric_chart(context: dict, title: str) -> dict:
+    return next(c for c in context["metric_charts"] if c["title"] == title)
+
+
+# --- build_deep_card_context: genel iskelet ------------------------------------------------------
 
 
 def test_build_deep_card_context_veri_yoksa_has_data_false():
@@ -63,29 +70,18 @@ def test_build_deep_card_context_veriyle_tum_bolumleri_doldurur():
     assert context["company_name"] == "Türk Hava Yolları A.O."
     assert context["period_count"] == 2
     assert context["period_range_display"] == "4Ç25 — 1Ç26"
-    assert len(context["overview_charts"]) == 4
-    assert {c["title"] for c in context["overview_charts"]} == {"Hasılat", "FAVÖK", "Net Kâr", "Özkaynak"}
-    assert context["margin_chart"]["has_data"] is True
-    assert context["leverage_chart"]["has_data"] is True
-    assert context["roe_chart"]["has_data"] is True
 
-
-def test_build_deep_card_context_overview_grafik_dogru_olcekleniyor():
-    context = deep_card.build_deep_card_context(_trend(), [], "THYAO", "BIST")
-    revenue_chart = next(c for c in context["overview_charts"] if c["title"] == "Hasılat")["chart"]
-
-    assert revenue_chart["has_data"] is True
-    assert revenue_chart["min_display"] == "100 ₺"
-    assert revenue_chart["max_display"] == "120 ₺"
-    assert revenue_chart["x_start_label"] == "4Ç25"
-    assert revenue_chart["x_end_label"] == "1Ç26"
-
-
-def test_build_deep_card_context_nasdaq_dolar_isaretiyle_gosterir():
-    context = deep_card.build_deep_card_context(_trend(), [], "AAPL", "NASDAQ")
-    revenue_chart = next(c for c in context["overview_charts"] if c["title"] == "Hasılat")["chart"]
-    assert revenue_chart["min_display"] == "100 $"
-    assert revenue_chart["max_display"] == "120 $"
+    titles = {c["title"] for c in context["metric_charts"]}
+    assert titles == {
+        "Çeyreklik Satışlar",
+        "Brüt Kâr Marjı (Çeyreklik)",
+        "FAVÖK Marjı (Çeyreklik)",
+        "Net Kâr Marjı (Çeyreklik)",
+        "Cari Oran",
+        "Kaldıraç Oranı",
+        "Özkaynak Kârlılığı (ROE)",
+    }
+    assert all(c["chart"]["has_data"] for c in context["metric_charts"])
 
 
 def test_build_deep_card_context_tek_donemde_grafikler_yeterli_veri_yok():
@@ -94,19 +90,10 @@ def test_build_deep_card_context_tek_donemde_grafikler_yeterli_veri_yok():
     context = deep_card.build_deep_card_context(_trend(points=[_point((2026, 3))]), [], "THYAO", "BIST")
 
     assert context["has_data"] is True  # kart yine uretilir (bkz. K4)
-    assert context["overview_charts"][0]["chart"]["has_data"] is False
-    assert context["margin_chart"]["has_data"] is False
-    assert context["leverage_chart"]["has_data"] is False
-    assert context["roe_chart"]["has_data"] is False
+    assert all(not c["chart"]["has_data"] for c in context["metric_charts"])
 
 
-def test_build_deep_card_context_marj_grafigi_uc_seri_icerir():
-    context = deep_card.build_deep_card_context(_trend(), [], "THYAO", "BIST")
-    keys = {line["key"] for line in context["margin_chart"]["lines"]}
-    assert keys == {"gross", "ebitda", "net"}
-
-
-def test_build_deep_card_context_kismi_eksik_veri_None_atlanir_grafik_yine_uretilir():
+def test_build_deep_card_context_kismi_eksik_veri_none_atlanir_grafik_yine_uretilir():
     """Bir donemde kaldirac/ROE None olsa bile (K4) diger donem yeterliyse
     grafik yine has_data=True olmali; polyline SADECE gercek noktalari icerir."""
     points = [
@@ -114,8 +101,149 @@ def test_build_deep_card_context_kismi_eksik_veri_None_atlanir_grafik_yine_ureti
         _point((2026, 3), net_debt_to_ebitda=Decimal("2"), roe_pct=Decimal("9")),
     ]
     context = deep_card.build_deep_card_context(_trend(points=points), [], "THYAO", "BIST")
-    assert context["leverage_chart"]["has_data"] is True
-    assert context["roe_chart"]["has_data"] is True
+    assert _metric_chart(context, "Kaldıraç Oranı")["chart"]["has_data"] is True
+    assert _metric_chart(context, "Özkaynak Kârlılığı (ROE)")["chart"]["has_data"] is True
+
+
+# --- Çeyreklik Satışlar: her zaman tek çizgi (mutlak deger) -----------------------------------------------------
+
+
+def test_build_deep_card_context_satislar_grafigi_dogru_olcekleniyor():
+    context = deep_card.build_deep_card_context(_trend(), [], "THYAO", "BIST")
+    chart = _metric_chart(context, "Çeyreklik Satışlar")["chart"]
+
+    assert chart["has_data"] is True
+    assert len(chart["lines"]) == 1
+    assert chart["lines"][0]["key"] == "self"
+    assert chart["lines"][0]["label"] == "THYAO"
+
+
+def test_build_deep_card_context_satislar_sektor_ortalamasi_verilse_bile_tek_cizgi():
+    """Mutlak (para birimi) değerler farklı büyüklükteki şirketler arasında
+    karşılaştırılamaz -- bkz. trends.compute_sector_average() modül notu.
+    Sektör ortalaması verilse BİLE Çeyreklik Satışlar grafiği TEK çizgi kalmalı."""
+    sector_average = {(2026, 3): SectorAveragePoint(
+        period=(2026, 3), peer_count=2, gross_margin_pct=Decimal("30"), ebitda_margin_pct=None,
+        net_margin_pct=None, current_ratio=None, net_debt_to_ebitda=None, roe_pct=None,
+    )}
+    context = deep_card.build_deep_card_context(
+        _trend(), [], "THYAO", "BIST", sector_average=sector_average, sector_name="Ulaştırma"
+    )
+    chart = _metric_chart(context, "Çeyreklik Satışlar")["chart"]
+    assert len(chart["lines"]) == 1
+
+
+def test_build_deep_card_context_nasdaq_dolar_isaretiyle_gosterir():
+    context = deep_card.build_deep_card_context(_trend(), [], "AAPL", "NASDAQ")
+    chart = _metric_chart(context, "Çeyreklik Satışlar")["chart"]
+    # gridline degerleri dolar isaretiyle formatlanmis olmali
+    assert any("$" in gl["display"] for gl in chart["gridlines"])
+
+
+# --- Sektör ortalaması (2. çizgi) -- oran/marj grafikleri -----------------------------------------------------
+
+
+def test_build_deep_card_context_sektor_ortalamasi_yoksa_tek_cizgi():
+    context = deep_card.build_deep_card_context(_trend(), [], "THYAO", "BIST")
+    chart = _metric_chart(context, "Brüt Kâr Marjı (Çeyreklik)")["chart"]
+    assert len(chart["lines"]) == 1
+    assert chart["lines"][0]["key"] == "self"
+
+
+def test_build_deep_card_context_sektor_ortalamasi_varsa_iki_cizgi():
+    sector_average = {
+        (2025, 12): SectorAveragePoint(
+            period=(2025, 12), peer_count=2, gross_margin_pct=Decimal("35"), ebitda_margin_pct=Decimal("20"),
+            net_margin_pct=Decimal("10"), current_ratio=Decimal("1.2"), net_debt_to_ebitda=Decimal("2.5"),
+            roe_pct=Decimal("8"),
+        ),
+        (2026, 3): SectorAveragePoint(
+            period=(2026, 3), peer_count=2, gross_margin_pct=Decimal("38"), ebitda_margin_pct=Decimal("22"),
+            net_margin_pct=Decimal("11"), current_ratio=Decimal("1.3"), net_debt_to_ebitda=Decimal("2.2"),
+            roe_pct=Decimal("9"),
+        ),
+    }
+    context = deep_card.build_deep_card_context(
+        _trend(), [], "THYAO", "BIST",
+        sector_average=sector_average, sector_name="Ulaştırma ve Depolama", peer_count=2,
+    )
+
+    chart = _metric_chart(context, "Brüt Kâr Marjı (Çeyreklik)")["chart"]
+    keys = {line["key"] for line in chart["lines"]}
+    assert keys == {"self", "sector"}
+    sector_line = next(line for line in chart["lines"] if line["key"] == "sector")
+    assert sector_line["label"] == "Sektör Ort. (Ulaştırma ve Depolama)"
+    assert context["sector_name"] == "Ulaştırma ve Depolama"
+    assert context["peer_count"] == 2
+
+
+def test_build_deep_card_context_peer_count_varsayilan_sifir():
+    """CANLI GÖZLEM (TATGD, 2 gerçek peer -- EFOR/BORSK): SectorAveragePoint.
+    peer_count dönem-bazlı olduğu için (bir peer bir çeyreği kaçırabilir)
+    eskiden buradan max() ile türetilen peer_count YANILTICI şekilde 1
+    çıkıyordu. Artık peer_count AYRI, açık bir parametre -- verilmezse
+    (eski çağıranlar/testler) varsayılan 0 kalır, sector_average'ın kendi
+    içeriğinden TÜRETİLMEZ."""
+    sector_average = {
+        (2026, 3): SectorAveragePoint(
+            period=(2026, 3), peer_count=5, gross_margin_pct=Decimal("38"), ebitda_margin_pct=None,
+            net_margin_pct=None, current_ratio=None, net_debt_to_ebitda=None, roe_pct=None,
+        ),
+    }
+    context = deep_card.build_deep_card_context(
+        _trend(), [], "THYAO", "BIST", sector_average=sector_average, sector_name="X"
+    )
+    assert context["peer_count"] == 0
+
+
+def test_build_deep_card_context_sektor_ortalamasi_kismi_donem_eslesir():
+    """Sektör ortalaması SADECE eşleşen dönemler için None-olmayan deger
+    tasimali -- eslesmeyen donemde None (grafik o noktada polyline'i keser,
+    cokme YOK)."""
+    sector_average = {
+        (2026, 3): SectorAveragePoint(
+            period=(2026, 3), peer_count=1, gross_margin_pct=Decimal("38"), ebitda_margin_pct=None,
+            net_margin_pct=None, current_ratio=None, net_debt_to_ebitda=None, roe_pct=None,
+        ),
+    }
+    context = deep_card.build_deep_card_context(
+        _trend(), [], "THYAO", "BIST", sector_average=sector_average, sector_name="X"
+    )
+    chart = _metric_chart(context, "Brüt Kâr Marjı (Çeyreklik)")["chart"]
+    sector_line = next(line for line in chart["lines"] if line["key"] == "sector")
+    # 2 donemden SADECE 1'i (2026,3) sektor ortalamasinda var -- polyline'da TEK nokta.
+    assert len(sector_line["markers"]) == 1
+
+
+def test_build_deep_card_context_sektor_verisi_hicbir_alanda_yoksa_ikinci_cizgi_eklenmez():
+    """SectorAveragePoint var ama o METRIK icin TUM degerler None ise
+    (peer'lerde o alan hesaplanamamis) ikinci cizgi EKLENMEMELI."""
+    sector_average = {
+        (2025, 12): SectorAveragePoint(
+            period=(2025, 12), peer_count=1, gross_margin_pct=Decimal("35"), ebitda_margin_pct=None,
+            net_margin_pct=None, current_ratio=None, net_debt_to_ebitda=None, roe_pct=None,
+        ),
+        (2026, 3): SectorAveragePoint(
+            period=(2026, 3), peer_count=1, gross_margin_pct=Decimal("38"), ebitda_margin_pct=None,
+            net_margin_pct=None, current_ratio=None, net_debt_to_ebitda=None, roe_pct=None,
+        ),
+    }
+    context = deep_card.build_deep_card_context(
+        _trend(), [], "THYAO", "BIST", sector_average=sector_average, sector_name="X"
+    )
+    # ebitda_margin_pct sektorde HICBIR donem icin yok -> FAVOK Marji grafiginde TEK cizgi kalmali.
+    chart = _metric_chart(context, "FAVÖK Marjı (Çeyreklik)")["chart"]
+    assert len(chart["lines"]) == 1
+
+
+# --- Cari Oran (yeni metrik) -----------------------------------------------------
+
+
+def test_build_deep_card_context_cari_oran_dogru_formatlanir():
+    context = deep_card.build_deep_card_context(_trend(), [], "THYAO", "BIST")
+    chart = _metric_chart(context, "Cari Oran")["chart"]
+    assert chart["has_data"] is True
+    assert any("x" in gl["display"] for gl in chart["gridlines"])
 
 
 # --- Skor gecmisi -----------------------------------------------------
@@ -127,9 +255,8 @@ def test_build_deep_card_context_skor_gecmisi_yeterliyse_grafik_uretir():
 
     chart = context["score_history_chart"]
     assert chart["has_data"] is True
-    assert chart["x_start_label"] == "01.01.26"
-    assert chart["min_display"] == "5,00/10"
-    assert chart["max_display"] == "7,50/10"
+    assert chart["x_ticks"][0]["label"] == "01.01.26"
+    assert len(chart["lines"][0]["markers"]) == 2
 
 
 def test_build_deep_card_context_skor_gecmisi_tek_kayitla_yeterli_degil():
@@ -153,8 +280,7 @@ def test_build_deep_card_context_mevsimsellik_gruplari_grafik_uretir():
     item = context["seasonality_charts"][0]
     assert item["title"] == "1. Çeyrek — Yıllar Arası Hasılat"
     assert item["chart"]["has_data"] is True
-    assert item["chart"]["x_start_label"] == "2025"
-    assert item["chart"]["x_end_label"] == "2026"
+    assert [t["label"] for t in item["chart"]["x_ticks"]] == ["2025", "2026"]
 
 
 def test_build_deep_card_context_mevsimsellik_bossa_bos_liste():
@@ -168,8 +294,21 @@ def test_build_deep_card_context_mevsimsellik_bossa_bos_liste():
 def test_render_deep_card_gercek_png_uretir(tmp_path):
     seasonality = (SeasonalityGroup(quarter_number=3, years=(2025, 2026), revenues=(Decimal("100"), Decimal("120"))),)
     history = [(datetime(2026, 1, 1), 5.0), (datetime(2026, 4, 1), 7.5)]
+    sector_average = {
+        (2025, 12): SectorAveragePoint(
+            period=(2025, 12), peer_count=2, gross_margin_pct=Decimal("35"), ebitda_margin_pct=Decimal("20"),
+            net_margin_pct=Decimal("10"), current_ratio=Decimal("1.2"), net_debt_to_ebitda=Decimal("2.5"),
+            roe_pct=Decimal("8"),
+        ),
+        (2026, 3): SectorAveragePoint(
+            period=(2026, 3), peer_count=2, gross_margin_pct=Decimal("38"), ebitda_margin_pct=Decimal("22"),
+            net_margin_pct=Decimal("11"), current_ratio=Decimal("1.3"), net_debt_to_ebitda=Decimal("2.2"),
+            roe_pct=Decimal("9"),
+        ),
+    }
     context = deep_card.build_deep_card_context(
-        _trend(seasonality=seasonality), history, "THYAO", "BIST", company_name="Türk Hava Yolları A.O."
+        _trend(seasonality=seasonality), history, "THYAO", "BIST",
+        company_name="Türk Hava Yolları A.O.", sector_average=sector_average, sector_name="Ulaştırma ve Depolama",
     )
 
     out_path = tmp_path / "test_derin.png"

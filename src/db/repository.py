@@ -378,6 +378,45 @@ def get_score_history(session: Session, ticker: str, limit: int = 20) -> list[tu
     return [(created_at, score) for created_at, score in reversed(rows)]
 
 
+# --- Faz 16: Derin Kart -- sektör ortalaması -----------------------------------------------------
+
+
+def update_company_sectors(session: Session, sector_map: dict[str, str]) -> int:
+    """DB'de ZATEN kayıtlı (BIST) şirketlerin `sector` alanını toplu
+    günceller -- bkz. src/fetchers/kap.py::fetch_sector_map(),
+    scripts/refresh_sector_cache.py (refresh_takvim_cache.py ile AYNI ilke:
+    ayrı/zamanlanmış bir süreçte çalışır, ana pipeline'ı BLOKLAMAZ). YENİ
+    bir Company satırı OLUŞTURULMAZ -- sadece daha önce en az bir kez
+    analiz edilmiş (dolayısıyla DB'de zaten var olan) şirketler için
+    anlamlıdır. Güncellenen satır sayısını döner."""
+    rows = session.execute(select(Company).where(Company.market == "BIST")).scalars().all()
+    updated = 0
+    for company in rows:
+        sector = sector_map.get(company.ticker)
+        if sector and company.sector != sector:
+            company.sector = sector
+            updated += 1
+    session.commit()
+    return updated
+
+
+def get_sector_peer_tickers(session: Session, sector: str, financial_group: str, exclude_ticker: str) -> list[str]:
+    """Derin Kart'ın "Karşılaştırma Ortalaması" çizgisi için: AYNI sektör +
+    AYNI financial_group'taki DİĞER (kendisi hariç) şirketlerin ticker
+    listesini döner. SADECE `update_company_sectors()` ile sektörü DOLDURULMUŞ
+    satırlar dahil olur -- sektör hiç doldurulmamışsa (henüz
+    `refresh_sector_cache.py` çalıştırılmamışsa) boş liste döner (K4:
+    yeterli veri yoksa uydurma yapılmaz, ikinci çizgi gösterilmez)."""
+    rows = session.execute(
+        select(Company.ticker).where(
+            Company.sector == sector,
+            Company.financial_group == financial_group,
+            Company.ticker != exclude_ticker,
+        )
+    ).scalars().all()
+    return list(rows)
+
+
 # --- Faz 12: Yaklaşan Bilanço Tarihleri (earnings_calendar) -----------------------------------------------------
 
 

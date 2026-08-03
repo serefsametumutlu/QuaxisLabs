@@ -44,7 +44,9 @@ dogrulanan gercekler:
 
 from __future__ import annotations
 
+import json
 import logging
+import re
 import time
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
@@ -60,6 +62,19 @@ KAP_BASE = "https://www.kap.org.tr/tr"
 SEARCH_ENDPOINT = f"{KAP_BASE}/api/search/combined"
 DISCLOSURES_ENDPOINT = f"{KAP_BASE}/api/disclosure/members/byCriteria"
 DISCLOSURE_DETAIL_URL_TEMPLATE = f"{KAP_BASE}/Bildirim/{{disclosure_index}}"
+
+# (Faz 16, Derin Kart -- sektör ortalaması) BİST şirketlerinin sektör
+# sınıflandırması -- bkz. scripts/explore_kap_sektor.py modül üst notu:
+# AYRI bir "sektör API'si" YOKTUR, bu sayfanın kendi HTML'ine (Next.js RSC
+# push payload) gömülü olarak gelir, canlı doğrulandı (2026-08-03).
+SEKTORLER_URL = "https://kap.org.tr/tr/Sektorler"
+
+# scripts/explore_kap_sektor.py::_FINE_SECTOR_PATTERN ile AYNI -- ince
+# ("sectorName") sektör alanlı gömülü şirket nesnelerini yakalar (veri
+# sayfanın Next.js RSC push string'i içinde ÇİFT ESCAPED, \" olarak gelir).
+_FINE_SECTOR_PATTERN = re.compile(
+    r'\{\\"sectorName\\":\\"[^"]*?\\".*?\\"stockCode\\":\\"[^"]*?\\".*?\\"kapTypes\\":\[[^\]]*?\]\}'
+)
 
 _HEADERS = {
     "User-Agent": (
@@ -197,6 +212,69 @@ def _post_json(url: str, body: dict) -> object:
         raise KapNetworkError(
             "KAP yaniti JSON olarak ayristirilamadi (endpoint sema degistirmis olabilir)."
         ) from exc
+
+
+def _parse_sector_map(html_text: str) -> dict[str, str]:
+    """kap.org.tr/tr/Sektorler sayfasının HTML'inden (Next.js RSC push
+    payload'ına ÇİFT ESCAPED gömülü JSON nesnelerinden) ticker -> ince
+    sektör adı haritasını çıkarır -- SAF ayrıştırma, ağ erişimi YOK (bkz.
+    scripts/explore_kap_sektor.py modül üst notu, canlı doğrulandı)."""
+    sector_map: dict[str, str] = {}
+    for match in _FINE_SECTOR_PATTERN.findall(html_text):
+        unescaped = match.replace('\\"', '"')
+        try:
+            obj = json.loads(unescaped)
+        except json.JSONDecodeError:
+            continue
+        sector = obj.get("sectorName")
+        if not sector:
+            continue
+        for code in (obj.get("stockCode") or "").split(","):
+            code = code.strip()
+            if code:
+                sector_map[code] = sector
+    return sector_map
+
+
+@retry(
+    reraise=True,
+    stop=stop_after_attempt(config.HTTP_MAX_RETRIES),
+    wait=wait_fixed(config.HTTP_RATE_LIMIT_DELAY_SECONDS),
+    retry=retry_if_exception_type(httpx.RequestError),
+)
+def fetch_sector_map() -> dict[str, str]:
+    """TÜM BIST şirketleri için ticker -> ince sektör adı (KAP'ın kendi
+    büyük harfli yazımıyla, örn. "ULAŞTIRMA VE DEPOLAMA") döner.
+
+    ⚠️ Bu TEK istek ~640 şirketin TAMAMINI döner (bkz.
+    scripts/explore_kap_sektor.py) -- bu yüzden pipeline.py'nin ana
+    (tek-ticker) akışından ÇAĞRILMAZ (Kural 9: yardımcı veri ana boru
+    hattını bloklamaz); bunun yerine ayrı, zamanlanmış bir süreçte
+    (scripts/refresh_sector_cache.py, refresh_takvim_cache.py ile AYNI
+    ilke) çağrılıp DB'ye toplu yazılır.
+
+    SADECE BIST kapsar -- NASDAQ şirketleri için bu kaynak KULLANILAMAZ.
+
+    Hatalar:
+        KapNetworkError: Ağ hatası veya beklenmeyen yanıt biçimi.
+    """
+    try:
+        response = httpx.get(SEKTORLER_URL, headers=_HEADERS, timeout=config.HTTP_TIMEOUT_SECONDS, follow_redirects=True)
+    except httpx.RequestError as exc:
+        logger.warning("KAP Sektörler sayfası isteği başarısız, yeniden denenecek: %s", exc)
+        raise
+
+    if response.status_code != 200:
+        raise KapNetworkError(f"KAP Sektörler sayfası beklenmeyen HTTP durum kodu döndürdü: {response.status_code}")
+
+    response.encoding = "utf-8"
+    sector_map = _parse_sector_map(response.text)
+
+    if not sector_map:
+        raise KapNetworkError(
+            "KAP Sektörler sayfasından hiçbir şirket ayrıştırılamadı -- sayfanın iç yapısı değişmiş olabilir."
+        )
+    return sector_map
 
 
 def normalize_ticker(ticker: str) -> str:

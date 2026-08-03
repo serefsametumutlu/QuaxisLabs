@@ -57,8 +57,24 @@ class PeriodTrendPoint:
     gross_margin_pct: Decimal | None
     ebitda_margin_pct: Decimal | None
     net_margin_pct: Decimal | None
+    current_ratio: Decimal | None  # Cari Oran (Dönen Varlıklar / Kısa Vadeli Yükümlülükler)
     net_debt_to_ebitda: Decimal | None  # TTM FAVÖK bazlı (o dönem "o ana kadarki" TTM)
     roe_pct: Decimal | None  # TTM net kâr bazlı (o dönem "o ana kadarki" TTM)
+
+
+# compute_sector_average()'ın PeriodTrendPoint'ten SADECE ölçek-bağımsız
+# (oran/yüzde) alanları ortalayabileceği alanlar -- revenue/ebitda/net_income/
+# equity gibi MUTLAK (para birimi) alanlar KASITLI OLARAK burada YOK: farklı
+# büyüklükteki şirketlerin mutlak değerlerini ortalamak anlamsız/yanıltıcı
+# olurdu (bkz. compute_sector_average() docstring'i).
+_SECTOR_AVERAGE_FIELDS: tuple[str, ...] = (
+    "gross_margin_pct",
+    "ebitda_margin_pct",
+    "net_margin_pct",
+    "current_ratio",
+    "net_debt_to_ebitda",
+    "roe_pct",
+)
 
 
 @dataclass(frozen=True)
@@ -100,6 +116,8 @@ def _period_point(financials_by_period: FinancialsByPeriod, period: Period) -> P
     )
     roe_pct = calculator.margin_pct(ttm_net_income, equity)
 
+    current_ratio = calculator.safe_div(data.get("current_assets"), data.get("short_term_liabilities"))
+
     return PeriodTrendPoint(
         period=period,
         revenue=revenue,
@@ -109,6 +127,7 @@ def _period_point(financials_by_period: FinancialsByPeriod, period: Period) -> P
         gross_margin_pct=gross_margin_pct,
         ebitda_margin_pct=ebitda_margin_pct,
         net_margin_pct=net_margin_pct,
+        current_ratio=current_ratio,
         net_debt_to_ebitda=net_debt_to_ebitda,
         roe_pct=roe_pct,
     )
@@ -150,3 +169,64 @@ def compute_multi_period_trend(financials_by_period: FinancialsByPeriod) -> Mult
     seasonality = _build_seasonality(financials_by_period)
 
     return MultiPeriodTrend(points=points, seasonality=seasonality)
+
+
+@dataclass(frozen=True)
+class SectorAveragePoint:
+    """Bir dönem için AYNI sektördeki DİĞER şirketlerin (kendisi hariç,
+    bkz. repository.get_sector_peer_tickers()) basit ortalaması -- SADECE
+    ölçek-bağımsız (oran/yüzde) alanlar (bkz. _SECTOR_AVERAGE_FIELDS).
+    `peer_count`: bu dönem için ortalamaya KATKI VEREN (None olmayan
+    değere sahip) peer sayısı -- 1 peer'lik bir "ortalama" tek şirketin
+    kendisidir, karta/legend'e bu sayı YANSITILIR (yanıltıcı olmasın)."""
+
+    period: Period
+    peer_count: int
+    gross_margin_pct: Decimal | None
+    ebitda_margin_pct: Decimal | None
+    net_margin_pct: Decimal | None
+    current_ratio: Decimal | None
+    net_debt_to_ebitda: Decimal | None
+    roe_pct: Decimal | None
+
+
+def compute_sector_average(peer_financials_list: list[FinancialsByPeriod]) -> dict[Period, SectorAveragePoint]:
+    """Derin Kart'ın "Karşılaştırma Ortalaması" (sektör ortalaması) çizgisi
+    için: her peer şirketin `compute_multi_period_trend()` sonucunu
+    hesaplar, sonra AYNI dönem (year, quarter) için peer'ler arasında basit
+    ortalama alır.
+
+    ⚠️ SADECE oran/yüzde alanları ortalanır (marj/cari oran/kaldıraç/ROE)
+    -- Hasılat/FAVÖK/Net Kâr/Özkaynak gibi MUTLAK (para birimi) alanlar
+    KASITLI OLARAK burada YOK: THY gibi milyar $'lık bir şirketle küçük bir
+    peer'in mutlak hasılatını ortalamak (biri diğerini görsel olarak
+    "ezer") anlamlı bir karşılaştırma ÜRETMEZ -- oysa marj/oran gibi
+    ölçek-bağımsız metrikler için sektör ortalaması GERÇEKTEN anlamlıdır.
+
+    Her (dönem, alan) çifti İÇİN o alanda GERÇEK (None olmayan) değeri olan
+    peer'ler arasında ortalama alınır -- bir peer'in tek bir alanda eksik
+    verisi olması (örn. kaldıraç TTM yetersizliği yüzünden None) diğer
+    alanların ortalamasını ETKİLEMEZ (K4 ile AYNI ilke).
+
+    `peer_financials_list` boşsa (hiç peer yoksa, örn. sektör bilgisi henüz
+    `refresh_sector_cache.py` ile doldurulmamışsa) boş sözlük döner."""
+    points_by_period: dict[Period, list[PeriodTrendPoint]] = {}
+    for peer_financials in peer_financials_list:
+        peer_trend = compute_multi_period_trend(peer_financials)
+        if peer_trend is None:
+            continue
+        for point in peer_trend.points:
+            points_by_period.setdefault(point.period, []).append(point)
+
+    def _average(points: list[PeriodTrendPoint], field: str) -> Decimal | None:
+        values = [getattr(p, field) for p in points if getattr(p, field) is not None]
+        return (sum(values) / len(values)) if values else None
+
+    result: dict[Period, SectorAveragePoint] = {}
+    for period, points in points_by_period.items():
+        result[period] = SectorAveragePoint(
+            period=period,
+            peer_count=len(points),
+            **{field: _average(points, field) for field in _SECTOR_AVERAGE_FIELDS},
+        )
+    return result

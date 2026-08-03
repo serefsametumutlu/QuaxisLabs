@@ -8,8 +8,10 @@
 
   GORSEL KIMLIK BILEREK card.html AILESINDEN (amber #f59e0b aksan, koyu
   tema) -- teknik kartin (mor/indigo) AKSINE bu kart temel analiz
-  ailesinin bir PARCASI. 1200px sabit genislik, DIKEY/UZUN (icerige gore
-  dogal yukseklik) -- "tiklanacak" kart, akistan okunacak degil.
+  ailesinin bir PARCASI. Grafik stili kullanicinin verdigi referans gorsele
+  (references/temel.png) gore: TAM izgara (yatay+dikey), her noktada daire
+  isaretleyici, x-ekseninde HER noktada etiket, y-ekseninde yuvarlak
+  sayilarla tam gorunur eksen, altta renkli daire+etiketli legend.
 -->
 <!DOCTYPE html>
 <html lang="tr">
@@ -28,8 +30,8 @@
     --negative: #ef4444;
     --accent: #f59e0b;
     --accent-strong: #d97706;
-    --line-2: #38bdf8;
-    --line-3: #c084fc;
+    --self-line: #f59e0b;
+    --sector-line: #38bdf8;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -51,7 +53,7 @@
     padding: 28px 32px 22px;
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 16px;
   }
 
   .scanlines {
@@ -93,7 +95,7 @@
   .period-range { text-align: right; font-size: 13px; color: var(--secondary); }
   .period-range strong { color: var(--heading); font-size: 15px; }
 
-  .meta-line { font-size: 13px; color: var(--secondary); letter-spacing: 0.3px; }
+  .meta-line { font-size: 13px; color: var(--secondary); letter-spacing: 0.3px; display: flex; justify-content: space-between; }
 
   /* --- Bolum ortak stili --- */
   .section {
@@ -104,36 +106,37 @@
   }
   .section-title {
     font-size: 14px; font-weight: 800; color: var(--accent);
-    letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 6px;
+    letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 14px;
   }
-  .section-subtitle { font-size: 12px; color: var(--secondary); margin-bottom: 14px; }
   .empty-note { color: var(--secondary); font-size: 13px; text-align: center; padding: 20px 0; }
 
-  /* --- Grafik ortak stili --- */
-  .chart-grid-2x2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .chart-block { border: 1px solid var(--border-soft); border-radius: 10px; padding: 14px 16px; }
-  .chart-block-title { font-size: 12.5px; font-weight: 700; color: var(--heading); margin-bottom: 8px; }
-  .chart-svg { width: 100%; height: 130px; display: block; }
-  .chart-svg.large { height: 180px; }
-  .chart-gridline { stroke: var(--border-soft); stroke-width: 1; }
-  .chart-grid-label { font-size: 10px; fill: var(--secondary); font-family: inherit; }
-  .chart-range-row { display: flex; justify-content: space-between; font-size: 11px; color: var(--secondary); margin-top: 6px; }
-  .chart-legend { display: flex; gap: 16px; margin-top: 8px; font-size: 11.5px; flex-wrap: wrap; }
-  .legend-item { display: flex; align-items: center; gap: 6px; color: var(--secondary); }
-  .legend-swatch { width: 14px; height: 3px; display: inline-block; }
+  /* --- Metrik grafik karti --- */
+  .metric-chart {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 20px 12px;
+    background: var(--panel);
+  }
+  .metric-chart-title { font-size: 15px; font-weight: 800; color: var(--heading); }
+  .metric-chart-subtitle { font-size: 11.5px; color: var(--secondary); margin-top: 2px; margin-bottom: 6px; }
+  .chart-svg { width: 100%; height: 220px; display: block; }
+  .grid-line { stroke: var(--border-soft); stroke-width: 1; }
+  .grid-label { font-size: 12px; fill: var(--secondary); font-family: inherit; }
+  .x-label { font-size: 11.5px; fill: var(--secondary); font-family: inherit; text-anchor: middle; }
+  .chart-line { fill: none; stroke-width: 2.4; }
+  .chart-line.line-key-self { stroke: var(--self-line); }
+  .chart-line.line-key-sector { stroke: var(--sector-line); stroke-dasharray: 6 4; }
+  .chart-marker { r: 4; }
+  .chart-marker.line-key-self { fill: var(--self-line); }
+  .chart-marker.line-key-sector { fill: var(--sector-line); }
 
-  .line-key-revenue, .line-key-score { stroke: var(--accent); }
-  .line-key-ebitda, .line-key-leverage, .line-key-roe { stroke: var(--line-2); }
-  .line-key-net_income, .line-key-net { stroke: var(--line-3); }
-  .line-key-equity { stroke: var(--positive); }
-  .line-key-gross { stroke: var(--line-2); }
-  .swatch-revenue, .swatch-score { background: var(--accent); }
-  .swatch-ebitda, .swatch-leverage, .swatch-roe { background: var(--line-2); }
-  .swatch-net_income, .swatch-net { background: var(--line-3); }
-  .swatch-equity { background: var(--positive); }
-  .swatch-gross { background: var(--line-2); }
+  .chart-legend { display: flex; gap: 20px; margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--border-soft); font-size: 12.5px; }
+  .legend-item { display: flex; align-items: center; gap: 7px; color: var(--secondary); }
+  .legend-dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+  .legend-dot.line-key-self { background: var(--self-line); }
+  .legend-dot.line-key-sector { background: var(--sector-line); }
 
-  .seasonality-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  .metric-grid { display: flex; flex-direction: column; gap: 16px; }
 
   /* --- Uyarilar --- */
   .warnings { display: flex; flex-direction: column; gap: 4px; }
@@ -170,7 +173,10 @@
       </div>
       {% endif %}
     </div>
-    <div class="meta-line">Üretim: {{ report_timestamp }} · {{ market_label }}</div>
+    <div class="meta-line">
+      <span>Üretim: {{ report_timestamp }} · {{ market_label }}</span>
+      {% if sector_name %}<span>Sektör: {{ sector_name }}{% if peer_count %} · {{ peer_count }} karşılaştırma şirketi{% endif %}</span>{% endif %}
+    </div>
   </header>
 
   {% if not has_data %}
@@ -179,153 +185,62 @@
   </div>
   {% else %}
 
-  <section class="section">
-    <div class="section-title">Çok Dönemli Genel Görünüm</div>
-    <div class="section-subtitle">Hasılat · FAVÖK · Net Kâr · Özkaynak — çeyrek çeyrek seyir</div>
-    <div class="chart-grid-2x2">
-      {% for item in overview_charts %}
-      <div class="chart-block">
-        <div class="chart-block-title">{{ item.title }}</div>
-        {% if item.chart.has_data %}
-        <svg class="chart-svg" viewBox="0 0 {{ item.chart.viewbox_width }} {{ item.chart.viewbox_height }}" preserveAspectRatio="none">
-          {% for gridline in item.chart.gridlines %}
-          <line class="chart-gridline" x1="0" y1="{{ gridline.y }}" x2="{{ item.chart.viewbox_width }}" y2="{{ gridline.y }}"></line>
-          <text class="chart-grid-label" x="4" y="{{ (gridline.y|float - 3) }}">{{ gridline.display }}</text>
-          {% endfor %}
-          {% for line in item.chart.lines %}
-          {% if line.points %}<polyline class="line-key-{{ line.key }}" fill="none" stroke-width="2.2" points="{{ line.points }}"></polyline>{% endif %}
-          {% endfor %}
-        </svg>
-        <div class="chart-range-row">
-          <span>{{ item.chart.x_start_label }} · {{ item.chart.min_display }}</span>
-          <span>{{ item.chart.x_end_label }} · {{ item.chart.max_display }}</span>
-        </div>
-        {% else %}
-        <div class="empty-note">Yeterli veri yok.</div>
-        {% endif %}
-      </div>
-      {% endfor %}
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="section-title">Marj Trendi</div>
-    <div class="section-subtitle">Şirket büyürken marjını koruyabiliyor mu?</div>
-    {% if margin_chart.has_data %}
-    <svg class="chart-svg large" viewBox="0 0 {{ margin_chart.viewbox_width }} {{ margin_chart.viewbox_height }}" preserveAspectRatio="none">
-      {% for gridline in margin_chart.gridlines %}
-      <line class="chart-gridline" x1="0" y1="{{ gridline.y }}" x2="{{ margin_chart.viewbox_width }}" y2="{{ gridline.y }}"></line>
-      <text class="chart-grid-label" x="4" y="{{ (gridline.y|float - 3) }}">{{ gridline.display }}</text>
-      {% endfor %}
-      {% for line in margin_chart.lines %}
-      {% if line.points %}<polyline class="line-key-{{ line.key }}" fill="none" stroke-width="2.2" points="{{ line.points }}"></polyline>{% endif %}
-      {% endfor %}
-    </svg>
-    <div class="chart-range-row">
-      <span>{{ margin_chart.x_start_label }}</span>
-      <span>{{ margin_chart.x_end_label }}</span>
-    </div>
-    <div class="chart-legend">
-      {% for line in margin_chart.lines %}
-      <span class="legend-item"><span class="legend-swatch swatch-{{ line.key }}"></span>{{ line.label }}</span>
-      {% endfor %}
-    </div>
-    {% else %}
-    <div class="empty-note">Marj trendi için yeterli veri yok.</div>
-    {% endif %}
-  </section>
-
-  <div class="chart-grid-2x2">
-    <section class="section">
-      <div class="section-title">Kaldıraç Trendi</div>
-      <div class="section-subtitle">Net Borç / FAVÖK</div>
-      {% if leverage_chart.has_data %}
-      <svg class="chart-svg" viewBox="0 0 {{ leverage_chart.viewbox_width }} {{ leverage_chart.viewbox_height }}" preserveAspectRatio="none">
-        {% for gridline in leverage_chart.gridlines %}
-        <line class="chart-gridline" x1="0" y1="{{ gridline.y }}" x2="{{ leverage_chart.viewbox_width }}" y2="{{ gridline.y }}"></line>
-        <text class="chart-grid-label" x="4" y="{{ (gridline.y|float - 3) }}">{{ gridline.display }}</text>
-        {% endfor %}
-        {% for line in leverage_chart.lines %}
-        {% if line.points %}<polyline class="line-key-{{ line.key }}" fill="none" stroke-width="2.2" points="{{ line.points }}"></polyline>{% endif %}
-        {% endfor %}
-      </svg>
-      <div class="chart-range-row">
-        <span>{{ leverage_chart.x_start_label }} · {{ leverage_chart.min_display }}</span>
-        <span>{{ leverage_chart.x_end_label }} · {{ leverage_chart.max_display }}</span>
-      </div>
-      {% else %}
-      <div class="empty-note">Kaldıraç trendi için yeterli veri yok.</div>
-      {% endif %}
-    </section>
-
-    <section class="section">
-      <div class="section-title">ROE Trendi</div>
-      <div class="section-subtitle">Özkaynak Kârlılığı (TTM)</div>
-      {% if roe_chart.has_data %}
-      <svg class="chart-svg" viewBox="0 0 {{ roe_chart.viewbox_width }} {{ roe_chart.viewbox_height }}" preserveAspectRatio="none">
-        {% for gridline in roe_chart.gridlines %}
-        <line class="chart-gridline" x1="0" y1="{{ gridline.y }}" x2="{{ roe_chart.viewbox_width }}" y2="{{ gridline.y }}"></line>
-        <text class="chart-grid-label" x="4" y="{{ (gridline.y|float - 3) }}">{{ gridline.display }}</text>
-        {% endfor %}
-        {% for line in roe_chart.lines %}
-        {% if line.points %}<polyline class="line-key-{{ line.key }}" fill="none" stroke-width="2.2" points="{{ line.points }}"></polyline>{% endif %}
-        {% endfor %}
-      </svg>
-      <div class="chart-range-row">
-        <span>{{ roe_chart.x_start_label }} · {{ roe_chart.min_display }}</span>
-        <span>{{ roe_chart.x_end_label }} · {{ roe_chart.max_display }}</span>
-      </div>
-      {% else %}
-      <div class="empty-note">ROE trendi için yeterli veri yok.</div>
-      {% endif %}
-    </section>
+  {% macro render_chart(chart) %}
+  {% if chart.has_data %}
+  <svg class="chart-svg" viewBox="0 0 {{ chart.viewbox_width }} {{ chart.viewbox_height }}" preserveAspectRatio="none">
+    {% for gridline in chart.gridlines %}
+    <line class="grid-line" x1="{{ gridline.x1 }}" y1="{{ gridline.y }}" x2="{{ gridline.x2 }}" y2="{{ gridline.y }}"></line>
+    <text class="grid-label" x="{{ gridline.label_x }}" y="{{ (gridline.y|float + 4) }}" text-anchor="end">{{ gridline.display }}</text>
+    {% endfor %}
+    {% for xtick in chart.x_ticks %}
+    <line class="grid-line" x1="{{ xtick.x }}" y1="{{ xtick.y1 }}" x2="{{ xtick.x }}" y2="{{ xtick.y2 }}"></line>
+    <text class="x-label" x="{{ xtick.x }}" y="{{ chart.x_label_y }}">{{ xtick.label }}</text>
+    {% endfor %}
+    {% for line in chart.lines %}
+    {% if line.points %}<polyline class="chart-line line-key-{{ line.key }}" points="{{ line.points }}"></polyline>{% endif %}
+    {% for marker in line.markers %}
+    <circle class="chart-marker line-key-{{ line.key }}" cx="{{ marker.x }}" cy="{{ marker.y }}"></circle>
+    {% endfor %}
+    {% endfor %}
+  </svg>
+  <div class="chart-legend">
+    {% for line in chart.lines %}
+    <span class="legend-item"><span class="legend-dot line-key-{{ line.key }}"></span>{{ line.label }}</span>
+    {% endfor %}
   </div>
+  {% else %}
+  <div class="empty-note">Yeterli veri yok.</div>
+  {% endif %}
+  {% endmacro %}
+
+  <section class="section">
+    <div class="section-title">Çok Dönemli Trend</div>
+    <div class="metric-grid">
+      {% for item in metric_charts %}
+      <div class="metric-chart">
+        <div class="metric-chart-title">{{ item.title }}</div>
+        {% if item.subtitle %}<div class="metric-chart-subtitle">{{ item.subtitle }}</div>{% endif %}
+        {{ render_chart(item.chart) }}
+      </div>
+      {% endfor %}
+    </div>
+  </section>
 
   <section class="section">
     <div class="section-title">Skor Geçmişi</div>
-    <div class="section-subtitle">Radar Skoru'nun zaman içindeki seyri</div>
-    {% if score_history_chart.has_data %}
-    <svg class="chart-svg" viewBox="0 0 {{ score_history_chart.viewbox_width }} {{ score_history_chart.viewbox_height }}" preserveAspectRatio="none">
-      {% for gridline in score_history_chart.gridlines %}
-      <line class="chart-gridline" x1="0" y1="{{ gridline.y }}" x2="{{ score_history_chart.viewbox_width }}" y2="{{ gridline.y }}"></line>
-      <text class="chart-grid-label" x="4" y="{{ (gridline.y|float - 3) }}">{{ gridline.display }}</text>
-      {% endfor %}
-      {% for line in score_history_chart.lines %}
-      {% if line.points %}<polyline class="line-key-{{ line.key }}" fill="none" stroke-width="2.2" points="{{ line.points }}"></polyline>{% endif %}
-      {% endfor %}
-    </svg>
-    <div class="chart-range-row">
-      <span>{{ score_history_chart.x_start_label }} · {{ score_history_chart.min_display }}</span>
-      <span>{{ score_history_chart.x_end_label }} · {{ score_history_chart.max_display }}</span>
-    </div>
-    {% else %}
-    <div class="empty-note">Yeterli skor geçmişi yok (yeni takip edilen bir şirket olabilir).</div>
-    {% endif %}
+    <div class="metric-chart-subtitle">Radar Skoru'nun zaman içindeki seyri</div>
+    {{ render_chart(score_history_chart) }}
   </section>
 
   <section class="section">
     <div class="section-title">Mevsimsellik</div>
-    <div class="section-subtitle">Aynı çeyreğin yıllar arası karşılaştırması</div>
+    <div class="metric-chart-subtitle">Aynı çeyreğin yıllar arası karşılaştırması</div>
     {% if seasonality_charts %}
-    <div class="seasonality-grid">
+    <div class="metric-grid">
       {% for item in seasonality_charts %}
-      <div class="chart-block">
-        <div class="chart-block-title">{{ item.title }}</div>
-        {% if item.chart.has_data %}
-        <svg class="chart-svg" viewBox="0 0 {{ item.chart.viewbox_width }} {{ item.chart.viewbox_height }}" preserveAspectRatio="none">
-          {% for gridline in item.chart.gridlines %}
-          <line class="chart-gridline" x1="0" y1="{{ gridline.y }}" x2="{{ item.chart.viewbox_width }}" y2="{{ gridline.y }}"></line>
-          <text class="chart-grid-label" x="4" y="{{ (gridline.y|float - 3) }}">{{ gridline.display }}</text>
-          {% endfor %}
-          {% for line in item.chart.lines %}
-          {% if line.points %}<polyline class="line-key-{{ line.key }}" fill="none" stroke-width="2.2" points="{{ line.points }}"></polyline>{% endif %}
-          {% endfor %}
-        </svg>
-        <div class="chart-range-row">
-          <span>{{ item.chart.x_start_label }} · {{ item.chart.min_display }}</span>
-          <span>{{ item.chart.x_end_label }} · {{ item.chart.max_display }}</span>
-        </div>
-        {% endif %}
+      <div class="metric-chart">
+        <div class="metric-chart-title">{{ item.title }}</div>
+        {{ render_chart(item.chart) }}
       </div>
       {% endfor %}
     </div>
@@ -341,7 +256,7 @@
   </div>
 
   <footer class="bottom-band">
-    <div class="footer-meta">Kaynak: İş Yatırım, KAP / SEC EDGAR</div>
+    <div class="footer-meta">Kaynak: İş Yatırım, KAP / SEC EDGAR{% if sector_name %} · Sektör: KAP{% endif %}</div>
     <div class="footer-meta">Üretim: {{ report_timestamp }}<span class="dot-sep">·</span><span class="footer-handle">@QuaxisLabs</span></div>
   </footer>
 </div>

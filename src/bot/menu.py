@@ -87,6 +87,7 @@ def build_root_menu() -> InlineKeyboardMarkup:
         [
             [InlineKeyboardButton("📊 Bilanço Analizi", callback_data="menu:analiz")],
             [InlineKeyboardButton("📈 Teknik Görünüm", callback_data="menu:teknikanaliz")],
+            [InlineKeyboardButton("🔬 Detaylı Analiz (Derin Kart)", callback_data="menu:derinanaliz")],
             [InlineKeyboardButton("📅 Yaklaşan Bilanço Tarihleri", callback_data="menu:takvim")],
             [InlineKeyboardButton("🕘 Son Kartlar", callback_data="menu:son")],
             [InlineKeyboardButton("ℹ️ Hakkında", callback_data="menu:hakkinda")],
@@ -117,6 +118,21 @@ def build_teknik_menu() -> InlineKeyboardMarkup:
     )
 
 
+def build_derin_menu() -> InlineKeyboardMarkup:
+    """/temel komutu -- 'hangi piyasa' ekrani, build_teknik_menu() ile AYNI
+    yapida ama callback_data'lar 'menu:derinanaliz:...' (kullanıcı isteği:
+    "bilanço bakmadan bu temel analiz kısmına gelemiyorum" -- /teknik'in
+    Derin Kart karşılığı, DOĞRUDAN bu karta gider, tek çeyreklik Bilanço
+    Analizi kartına HİÇ UĞRAMAZ, bkz. telegram_bot._gonder_derin_analiz_tam())."""
+    return InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("🇹🇷 BİST", callback_data="menu:derinanaliz:bist")],
+            [InlineKeyboardButton("🇺🇸 NASDAQ", callback_data="menu:derinanaliz:nasdaq")],
+            [InlineKeyboardButton("⬅️ Geri", callback_data="menu:root")],
+        ]
+    )
+
+
 def build_takvim_menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
@@ -139,6 +155,11 @@ def build_analiz_bekleniyor_menu() -> InlineKeyboardMarkup:
 def build_teknik_bekleniyor_menu() -> InlineKeyboardMarkup:
     """Teknik icin 'hisse kodunu yaz' ekrani -- Geri, menu:teknikanaliz'e doner."""
     return _geri_menu("menu:teknikanaliz")
+
+
+def build_derin_bekleniyor_menu() -> InlineKeyboardMarkup:
+    """Derin Kart icin 'hisse kodunu yaz' ekrani -- Geri, menu:derinanaliz'e doner."""
+    return _geri_menu("menu:derinanaliz")
 
 
 def build_takvim_iskelet_menu() -> InlineKeyboardMarkup:
@@ -211,9 +232,12 @@ def build_teknik_sonrasi_menu(ticker: str, market: str) -> InlineKeyboardMarkup:
 ROOT_MENU_TEXT = "Bilanço Radar 📊\n\nNe yapmak istersin?"
 ANALIZ_MENU_TEXT = "📊 Bilanço Analizi — hangi piyasa?"
 TEKNIK_MENU_TEXT = "📈 Teknik Görünüm — hangi piyasa?"
+DERIN_MENU_TEXT = "🔬 Detaylı Analiz (Derin Kart) — hangi piyasa?"
 TAKVIM_MENU_TEXT = "📅 Yaklaşan Bilanço Tarihleri — hangi piyasa?"
 
 ANALIZ_BIST_PROMPT = "Hisse kodunu yaz (örn: THYAO)"
 ANALIZ_NASDAQ_PROMPT = "Sembolü yaz (örn: AAPL)"
 TEKNIK_BIST_PROMPT = "Hisse kodunu yaz (örn: THYAO)"
 TEKNIK_NASDAQ_PROMPT = "Sembolü yaz (örn: AAPL)"
+DERIN_BIST_PROMPT = "Hisse kodunu yaz (örn: THYAO)"
+DERIN_NASDAQ_PROMPT = "Sembolü yaz (örn: AAPL)"

@@ -379,6 +379,33 @@ def test_handle_menu_callback_root_ana_menuyu_gosterir_ve_bekleyeni_temizler() -
     assert "bekleyen_islem" not in user_data
 
 
+def test_handle_ticker_message_teknik_bekleyen_islem_dogrudan_teknik_gonderir(monkeypatch) -> None:
+    """/teknik -> BİST seçildikten sonra ticker yazılınca fundamental
+    pipeline'a HİÇ UĞRAMADAN doğrudan _gonder_teknik çağrılır (bkz.
+    cmd_teknik/menu:teknikanaliz -- BekleyenIslem.tip="teknik")."""
+    teknik_calls = AsyncMock()
+    monkeypatch.setattr(telegram_bot, "_gonder_teknik", teknik_calls)
+    execute_calls = AsyncMock()
+    monkeypatch.setattr(telegram_bot, "_execute_and_send", execute_calls)
+
+    user_data: dict = {}
+    menu.set_bekleyen_islem(user_data, tip="teknik", market="BIST")
+
+    message = SimpleNamespace(text="THYAO", reply_text=AsyncMock())
+    update = SimpleNamespace(
+        message=message,
+        effective_user=SimpleNamespace(id=9101),
+        effective_chat=SimpleNamespace(id=4242),
+    )
+    context = SimpleNamespace(user_data=user_data, bot=SimpleNamespace(send_chat_action=AsyncMock()))
+
+    _run_coro(telegram_bot.handle_ticker_message(update, context))
+
+    teknik_calls.assert_awaited_once_with(4242, context, "THYAO", "BIST")
+    execute_calls.assert_not_awaited()
+    assert "bekleyen_islem" not in user_data
+
+
 def test_handle_menu_callback_analiz_ust_menu_secenekleri_gosterir() -> None:
     update, query = _fake_callback_update("menu:analiz")
     _run_coro(telegram_bot.handle_menu_callback(update, _fake_context()))
@@ -409,6 +436,38 @@ def test_handle_menu_callback_analiz_nasdaq_bekleyen_islem_ayarlar_ve_prompt_gos
     assert text == menu.ANALIZ_NASDAQ_PROMPT
     assert user_data["bekleyen_islem"].market == "NASDAQ"
     assert menu.get_son_market(user_data) == "NASDAQ"  # §B18: bir sonraki menusuz aramanin varsayilani
+
+
+def test_handle_menu_callback_teknikanaliz_ust_menu_secenekleri_gosterir() -> None:
+    update, query = _fake_callback_update("menu:teknikanaliz")
+    _run_coro(telegram_bot.handle_menu_callback(update, _fake_context()))
+
+    (text,), kwargs = query.edit_message_text.await_args
+    assert text == menu.TEKNIK_MENU_TEXT
+    grid = [[b.callback_data for b in row] for row in kwargs["reply_markup"].inline_keyboard]
+    assert grid == [["menu:teknikanaliz:bist"], ["menu:teknikanaliz:nasdaq"], ["menu:root"]]
+
+
+def test_handle_menu_callback_teknikanaliz_bist_bekleyen_islem_ayarlar_ve_prompt_gosterir() -> None:
+    user_data: dict = {}
+    update, query = _fake_callback_update("menu:teknikanaliz:bist")
+    _run_coro(telegram_bot.handle_menu_callback(update, _fake_context(user_data)))
+
+    (text,), _ = query.edit_message_text.await_args
+    assert text == menu.TEKNIK_BIST_PROMPT
+    assert user_data["bekleyen_islem"].tip == "teknik"
+    assert user_data["bekleyen_islem"].market == "BIST"
+
+
+def test_handle_menu_callback_teknikanaliz_nasdaq_bekleyen_islem_ayarlar_ve_prompt_gosterir() -> None:
+    user_data: dict = {}
+    update, query = _fake_callback_update("menu:teknikanaliz:nasdaq")
+    _run_coro(telegram_bot.handle_menu_callback(update, _fake_context(user_data)))
+
+    (text,), _ = query.edit_message_text.await_args
+    assert text == menu.TEKNIK_NASDAQ_PROMPT
+    assert user_data["bekleyen_islem"].tip == "teknik"
+    assert user_data["bekleyen_islem"].market == "NASDAQ"
 
 
 def test_handle_menu_callback_takvim_ust_menu_secenekleri_gosterir() -> None:

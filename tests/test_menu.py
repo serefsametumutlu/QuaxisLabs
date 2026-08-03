@@ -20,14 +20,30 @@ def _callback_data_grid(markup) -> list[list[str]]:
     return [[button.callback_data for button in row] for row in markup.inline_keyboard]
 
 
-def test_build_root_menu_dort_dal_icerir() -> None:
+def test_build_root_menu_bes_dal_icerir() -> None:
     grid = _callback_data_grid(menu.build_root_menu())
-    assert grid == [["menu:analiz"], ["menu:takvim"], ["menu:son"], ["menu:hakkinda"]]
+    assert grid == [
+        ["menu:analiz"],
+        ["menu:teknikanaliz"],
+        ["menu:takvim"],
+        ["menu:son"],
+        ["menu:hakkinda"],
+    ]
 
 
 def test_build_analiz_menu_bist_nasdaq_ve_geri_icerir() -> None:
     grid = _callback_data_grid(menu.build_analiz_menu())
     assert grid == [["menu:analiz:bist"], ["menu:analiz:nasdaq"], ["menu:root"]]
+
+
+def test_build_teknik_menu_bist_nasdaq_ve_geri_icerir() -> None:
+    grid = _callback_data_grid(menu.build_teknik_menu())
+    assert grid == [["menu:teknikanaliz:bist"], ["menu:teknikanaliz:nasdaq"], ["menu:root"]]
+
+
+def test_build_teknik_bekleniyor_menu_teknikanaliz_ekranina_doner() -> None:
+    grid = _callback_data_grid(menu.build_teknik_bekleniyor_menu())
+    assert grid == [["menu:teknikanaliz"]]
 
 
 def test_build_takvim_menu_bist_nasdaq_ve_geri_icerir() -> None:

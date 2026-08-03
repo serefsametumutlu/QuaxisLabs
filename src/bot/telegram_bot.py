@@ -189,6 +189,21 @@ async def cmd_takvim(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     await update.message.reply_text(menu.TAKVIM_MENU_TEXT, reply_markup=menu.build_takvim_menu())
 
 
+async def cmd_temelanaliz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/temelanaliz -- menu:analiz ekranıyla AYNI (BİST/NASDAQ seçim) ekranını
+    açar (CANLI kullanıcı isteği: /menu -> 📊 Bilanço Analizi'ne tek tıkla
+    gitmek yerine doğrudan komutla ulaşılabilsin)."""
+    await update.message.reply_text(menu.ANALIZ_MENU_TEXT, reply_markup=menu.build_analiz_menu())
+
+
+async def cmd_teknik(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/teknik -- Faz 15 teknik görünüm için BİST/NASDAQ seçim ekranını açar.
+    Öncesinde teknik kart SADECE bir analiz sonucunun altındaki butondan
+    erişilebiliyordu (bkz. handle_teknik_callback); bu komut hiç fundamental
+    analiz yapmadan doğrudan teknik karta gidilmesini sağlar."""
+    await update.message.reply_text(menu.TEKNIK_MENU_TEXT, reply_markup=menu.build_teknik_menu())
+
+
 # --- Takvim (Faz 13) -----------------------------------------------------
 
 
@@ -507,6 +522,8 @@ async def handle_ticker_message(update: Update, context: ContextTypes.DEFAULT_TY
             await update.message.reply_text("Anlayamadım. Lütfen 3-6 harfli bir BIST hisse kodu yaz (örn: THYAO).")
         return
 
+    teknik_istegi = islem is not None and islem.tip == "teknik"
+
     if islem is not None:
         menu.clear_bekleyen_islem(context.user_data)
 
@@ -520,6 +537,17 @@ async def handle_ticker_message(update: Update, context: ContextTypes.DEFAULT_TY
 
     _active_users.add(user.id)
     try:
+        if teknik_istegi:
+            # /teknik komutuyla (veya menu:teknikanaliz butonuyla) baslatilan
+            # akis -- fundamental pipeline'a HIC UGRAMAZ, dogrudan
+            # _gonder_teknik cagirilir (bkz. handle_teknik_callback ile AYNI
+            # hedef fonksiyon, sadece giris noktasi farkli).
+            await update.message.reply_text(f"📈 {ticker} teknik görünümü hazırlanıyor...")
+            chat_id = update.effective_chat.id
+            await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
+            await _gonder_teknik(chat_id, context, ticker, market)
+            return
+
         await update.message.reply_text(f"🔍 {ticker} analiz ediliyor... (~20 sn)")
         # allow_market_fallback: SADECE menuden ACIKCA bir piyasa SECILMEDIYSE
         # (islem is None -- kullanici direkt "AMD" yazdi) True -- kullanici
@@ -557,6 +585,20 @@ async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         else:
             menu.clear_bekleyen_islem(context.user_data)
             await query.edit_message_text(menu.ANALIZ_MENU_TEXT, reply_markup=menu.build_analiz_menu())
+        return
+
+    if screen == "teknikanaliz":
+        if sub == "bist":
+            menu.set_bekleyen_islem(context.user_data, tip="teknik", market="BIST")
+            menu.set_son_market(context.user_data, "BIST")
+            await query.edit_message_text(menu.TEKNIK_BIST_PROMPT, reply_markup=menu.build_teknik_bekleniyor_menu())
+        elif sub == "nasdaq":
+            menu.set_bekleyen_islem(context.user_data, tip="teknik", market="NASDAQ")
+            menu.set_son_market(context.user_data, "NASDAQ")
+            await query.edit_message_text(menu.TEKNIK_NASDAQ_PROMPT, reply_markup=menu.build_teknik_bekleniyor_menu())
+        else:
+            menu.clear_bekleyen_islem(context.user_data)
+            await query.edit_message_text(menu.TEKNIK_MENU_TEXT, reply_markup=menu.build_teknik_menu())
         return
 
     if screen == "takvim":
@@ -609,6 +651,8 @@ async def handle_period_callback(update: Update, context: ContextTypes.DEFAULT_T
 _BOT_COMMANDS = [
     BotCommand("start", "Botu tanıt, menüyü aç"),
     BotCommand("menu", "Buton menüsünü aç"),
+    BotCommand("temelanaliz", "Temel (bilanço) analiz kartı için piyasa seç"),
+    BotCommand("teknik", "Teknik görünüm kartı için piyasa seç"),
     BotCommand("son", "Son üretilen 5 kartı listele"),
     BotCommand("takvim", "Yaklaşan bilanço tarihleri (BİST/NASDAQ)"),
     BotCommand("hakkinda", "Veri kaynakları ve sorumluluk reddi"),
@@ -640,6 +684,8 @@ def build_application() -> Application:
     )
     application.add_handler(CommandHandler("start", cmd_start))
     application.add_handler(CommandHandler("menu", cmd_menu))
+    application.add_handler(CommandHandler("temelanaliz", cmd_temelanaliz))
+    application.add_handler(CommandHandler("teknik", cmd_teknik))
     application.add_handler(CommandHandler("son", cmd_son))
     application.add_handler(CommandHandler("takvim", cmd_takvim))
     application.add_handler(CommandHandler("hakkinda", cmd_hakkinda))

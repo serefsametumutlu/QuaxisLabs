@@ -29,7 +29,7 @@ _BEKLEYEN_ISLEM_TTL_SECONDS = 600.0
 
 @dataclass
 class BekleyenIslem:
-    tip: str  # su an icin sadece "analiz"
+    tip: str  # "analiz" (temel) | "teknik" (Faz 15)
     market: str  # "BIST" | "NASDAQ"
     expires_at: float  # time.monotonic() bazli
 
@@ -86,6 +86,7 @@ def build_root_menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("📊 Bilanço Analizi", callback_data="menu:analiz")],
+            [InlineKeyboardButton("📈 Teknik Görünüm", callback_data="menu:teknikanaliz")],
             [InlineKeyboardButton("📅 Yaklaşan Bilanço Tarihleri", callback_data="menu:takvim")],
             [InlineKeyboardButton("🕘 Son Kartlar", callback_data="menu:son")],
             [InlineKeyboardButton("ℹ️ Hakkında", callback_data="menu:hakkinda")],
@@ -98,6 +99,19 @@ def build_analiz_menu() -> InlineKeyboardMarkup:
         [
             [InlineKeyboardButton("🇹🇷 BİST", callback_data="menu:analiz:bist")],
             [InlineKeyboardButton("🇺🇸 NASDAQ", callback_data="menu:analiz:nasdaq")],
+            [InlineKeyboardButton("⬅️ Geri", callback_data="menu:root")],
+        ]
+    )
+
+
+def build_teknik_menu() -> InlineKeyboardMarkup:
+    """/teknik komutu -- 'hangi piyasa' ekrani, build_analiz_menu() ile AYNI
+    yapida ama callback_data'lar 'menu:teknikanaliz:...' (analiz akisiyla
+    KARISMASIN, bekleyen_islem.tip farkli kalsin diye ayri bir screen)."""
+    return InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("🇹🇷 BİST", callback_data="menu:teknikanaliz:bist")],
+            [InlineKeyboardButton("🇺🇸 NASDAQ", callback_data="menu:teknikanaliz:nasdaq")],
             [InlineKeyboardButton("⬅️ Geri", callback_data="menu:root")],
         ]
     )
@@ -120,6 +134,11 @@ def _geri_menu(hedef_callback_data: str) -> InlineKeyboardMarkup:
 def build_analiz_bekleniyor_menu() -> InlineKeyboardMarkup:
     """'Hisse kodunu yaz' ekrani -- Geri, bir ust menu olan analiz secimine doner."""
     return _geri_menu("menu:analiz")
+
+
+def build_teknik_bekleniyor_menu() -> InlineKeyboardMarkup:
+    """Teknik icin 'hisse kodunu yaz' ekrani -- Geri, menu:teknikanaliz'e doner."""
+    return _geri_menu("menu:teknikanaliz")
 
 
 def build_takvim_iskelet_menu() -> InlineKeyboardMarkup:
@@ -159,7 +178,10 @@ def build_sonuc_sonrasi_menu(ticker: str | None = None, market: str | None = Non
 
 ROOT_MENU_TEXT = "Bilanço Radar 📊\n\nNe yapmak istersin?"
 ANALIZ_MENU_TEXT = "📊 Bilanço Analizi — hangi piyasa?"
+TEKNIK_MENU_TEXT = "📈 Teknik Görünüm — hangi piyasa?"
 TAKVIM_MENU_TEXT = "📅 Yaklaşan Bilanço Tarihleri — hangi piyasa?"
 
 ANALIZ_BIST_PROMPT = "Hisse kodunu yaz (örn: THYAO)"
 ANALIZ_NASDAQ_PROMPT = "Sembolü yaz (örn: AAPL)"
+TEKNIK_BIST_PROMPT = "Hisse kodunu yaz (örn: THYAO)"
+TEKNIK_NASDAQ_PROMPT = "Sembolü yaz (örn: AAPL)"

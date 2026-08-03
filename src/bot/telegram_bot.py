@@ -189,13 +189,6 @@ async def cmd_takvim(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     await update.message.reply_text(menu.TAKVIM_MENU_TEXT, reply_markup=menu.build_takvim_menu())
 
 
-async def cmd_temelanaliz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """/temelanaliz -- menu:analiz ekranıyla AYNI (BİST/NASDAQ seçim) ekranını
-    açar (CANLI kullanıcı isteği: /menu -> 📊 Bilanço Analizi'ne tek tıkla
-    gitmek yerine doğrudan komutla ulaşılabilsin)."""
-    await update.message.reply_text(menu.ANALIZ_MENU_TEXT, reply_markup=menu.build_analiz_menu())
-
-
 async def cmd_teknik(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """/teknik -- Faz 15 teknik görünüm için BİST/NASDAQ seçim ekranını açar.
     Öncesinde teknik kart SADECE bir analiz sonucunun altındaki butondan
@@ -651,7 +644,6 @@ async def handle_period_callback(update: Update, context: ContextTypes.DEFAULT_T
 _BOT_COMMANDS = [
     BotCommand("start", "Botu tanıt, menüyü aç"),
     BotCommand("menu", "Buton menüsünü aç"),
-    BotCommand("temelanaliz", "Temel (bilanço) analiz kartı için piyasa seç"),
     BotCommand("teknik", "Teknik görünüm kartı için piyasa seç"),
     BotCommand("son", "Son üretilen 5 kartı listele"),
     BotCommand("takvim", "Yaklaşan bilanço tarihleri (BİST/NASDAQ)"),
@@ -684,7 +676,6 @@ def build_application() -> Application:
     )
     application.add_handler(CommandHandler("start", cmd_start))
     application.add_handler(CommandHandler("menu", cmd_menu))
-    application.add_handler(CommandHandler("temelanaliz", cmd_temelanaliz))
     application.add_handler(CommandHandler("teknik", cmd_teknik))
     application.add_handler(CommandHandler("son", cmd_son))
     application.add_handler(CommandHandler("takvim", cmd_takvim))

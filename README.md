@@ -580,9 +580,13 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       bağımsız TTM EBITDA rakamıyla %3 altında farkla çapraz doğrulandı).
       Test: `pytest tests/` (660 test, 11 yeni, hiçbir regresyon yok).
 - [x] **Teknik Görünüm Telegram'a bağlandı (2026-08-03)** — `/teknik`
-      (BİST/NASDAQ seç → ticker yaz → fundamental pipeline'a hiç uğramadan
-      doğrudan teknik kart) ve `/temelanaliz` komutları eklendi; kök menüye
-      ve her analiz sonucunun altına "📈 Teknik Görünüm" butonu eklendi.
+      komutu eklendi (BİST/NASDAQ seç → ticker yaz → fundamental pipeline'a
+      hiç uğramadan doğrudan teknik kart); kök menüye ve her analiz
+      sonucunun altına "📈 Teknik Görünüm" butonu eklendi. (Not: ayrıca
+      eklenen `/temelanaliz` komutu -- mevcut "📊 Bilanço Analizi" akışına
+      kısayoldu -- kullanıcı isteğiyle KALDIRILDI, "Temel Analiz" zaten
+      "Bilanço Analizi" ile aynı kart/kavram olduğu için gereksiz/kafa
+      karıştırıcı bulundu.)
 - [x] **NASDAQ ADR/yabancı özel ihraççı desteği — NVO/TSM/SHEL/BABA
       (2026-08-03)** — bu şirketler SEC'e `us-gaap` yerine `ifrs-full`
       taksonomisiyle raporluyor VE sadece yıllık (20-F, `fp="FY"`) veri

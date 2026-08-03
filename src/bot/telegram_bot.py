@@ -394,8 +394,22 @@ async def handle_derin_analiz_callback(update: Update, context: ContextTypes.DEF
 # --- Analiz akisi -----------------------------------------------------
 
 
+def _period_label_for(sonuc: pipeline.PipelineResult) -> str:
+    """pipeline.quarter_label()'i çağırır -- `is_annual_only` SADECE
+    `calculator.AnalysisResult`'ta (sanayi/US_GAAP) var, `BankAnalysisResult`/
+    `InsuranceAnalysisResult`'ta YOK (bkz. calculator.py). CANLI HATA
+    (kullanıcı raporu, 2026-08-03, ISCTR): eski kod bu alana KOŞULSUZ erişiyordu
+    -- her banka/sigorta analizinde `AttributeError` ile hem kart fotoğrafı
+    HEM özet metni gönderimi ÇÖKÜYORDU (try/except sadece logluyordu,
+    kullanıcıya HİÇBİR ŞEY ulaşmıyordu). `getattr(..., False)` ile
+    bankalar/sigortalar için güvenli varsayılan (asla "sadece yıllık" değil,
+    zaten çeyreklik veri) kullanılır."""
+    is_annual_only = getattr(sonuc.analysis, "is_annual_only", False)
+    return pipeline.quarter_label(sonuc.analysis.latest_period, annual_only=is_annual_only)
+
+
 def _score_caption(sonuc: pipeline.PipelineResult) -> str:
-    period_label = pipeline.quarter_label(sonuc.analysis.latest_period, annual_only=sonuc.analysis.is_annual_only)
+    period_label = _period_label_for(sonuc)
     skor = format_number_tr(sonuc.score.total_score, decimals=2)
     return f"#{sonuc.ticker} · {period_label}\nRadar Skoru: {skor}/10\n\nBu içerik yatırım tavsiyesi değildir."
 
@@ -420,7 +434,7 @@ def _bilanco_ozeti_metni(sonuc: pipeline.PipelineResult) -> str:
     icerigi duz metin olarak Telegram mesajina cevirir -- kullanici bunu
     goruntuyle BIRLIKTE, tek basina paylasima hazir (kopyala-yapistir) bir
     gonderi metni olarak kullanmak istedi."""
-    period_label = pipeline.quarter_label(sonuc.analysis.latest_period, annual_only=sonuc.analysis.is_annual_only)
+    period_label = _period_label_for(sonuc)
     yorum = sonuc.commentary
 
     lines = [f"#{sonuc.ticker} · {period_label} Bilanço Özeti", ""]

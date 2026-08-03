@@ -145,6 +145,20 @@ def _sahte_sonuc(positives: list[str], negatives: list[str], summary: str = "Gen
     )
 
 
+def test_period_label_for_is_annual_only_olmayan_analizde_cokmez() -> None:
+    """CANLI HATA (kullanıcı raporu, 2026-08-03, ISCTR): calculator.BankAnalysisResult/
+    InsuranceAnalysisResult'ta `is_annual_only` alanı YOK (sadece sanayi/US_GAAP
+    AnalysisResult'ta var) -- eski kod buna koşulsuz erişip AttributeError
+    fırlatıyordu, bu da HEM kart fotoğrafı HEM özet metni gönderimini
+    çökertiyordu. `_period_label_for()` artık getattr ile güvenli varsayılan
+    kullanmalı (bankalar zaten çeyreklik veri raporluyor, "FYyy" DEĞİL "nÇyy")."""
+    sahte_sonuc = SimpleNamespace(
+        ticker="ISCTR",
+        analysis=SimpleNamespace(latest_period=(2026, 6)),  # is_annual_only YOK
+    )
+    assert telegram_bot._period_label_for(sahte_sonuc) == "2Ç26"
+
+
 def test_bilanco_ozeti_metni_basligi_ve_donemi_icerir() -> None:
     text = telegram_bot._bilanco_ozeti_metni(_sahte_sonuc(["artış"], ["azalış"]))
     assert "#TESTAS · 1Ç26 Bilanço Özeti" in text

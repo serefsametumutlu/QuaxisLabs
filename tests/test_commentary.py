@@ -163,6 +163,58 @@ def test_build_user_prompt_onemli_kap_varsa_basligi_icerir(saglikli_analiz_ve_sk
     assert "Kuveyt Terminal 2 İhalesi" in prompt
 
 
+def test_build_user_prompt_annual_only_donem_ve_seri_etiketleri_yillik_olur() -> None:
+    """B21 -- NVO/TSM/SHEL/BABA gibi annual-only ADR'lerde Dönem/bulgu/seri
+    basliklarinda VE bizzat veri satirlarinda 'çeyrek' kelimesi GECMEMELI
+    (SADECE, modelin kendi genel dunya bilgisinden 'dördüncü çeyreğinde'
+    gibi UYDURMA bir ifade EKLEMESINI onlemek icin YAZILAN, kelimeyi
+    ISIMLENDIRMEK ZORUNDA olan acik yasaklama cumlesi haric -- bkz.
+    commentary.py _build_user_prompt ici not, CANLI GOZLEMLENDI bu oturumda:
+    sadece veriden kelimeyi cikarmak YETERSIZ kalmisti, acik talimat gerekti)."""
+    financials = {
+        (2025, 12): _donem(309064, 250276, 127658, 14666, 102434, 26464, 5000, 542902, 130958, 194047, 172500, 370400),
+        (2024, 12): _donem(290403, 245900, 128300, 14000, 100988, 24000, 4800, 520000, 128000, 180000, 165000, 355000),
+        (2023, 12): _donem(270000, 220000, 120000, 13000, 95000, 22000, 4600, 500000, 125000, 170000, 160000, 340000),
+        (2022, 12): _donem(260000, 210000, 115000, 12500, 90000, 20000, 4400, 480000, 120000, 160000, 155000, 325000),
+    }
+    analiz = calculator.analyze_us("NVO", financials)
+    assert analiz.is_annual_only is True
+    skor = scorer.score_industrial_us(analiz)
+    prompt = commentary._build_user_prompt(analiz, skor, [])
+
+    assert "Dönem: FY2025" in prompt
+    assert "## Hesaplanmış Değişim Bulguları (Yıllık, tam yıl karşılaştırması)" in prompt
+    assert "## Yıllık Seri (Trend)" in prompt
+    assert "son 4 yıl" in prompt
+
+    uyari_paragrafi = (
+        "ÖNEMLİ: Bu şirket SADECE YILLIK finansal tablo (20-F, yabancı özel "
+        "ihraççı) yayınlar, herhangi bir çeyreklik (Ç1/Ç2/Ç3/Ç4) verisi YOKTUR. "
+        "Özetinde/başlığında/maddelerinde 'çeyrek', 'çeyreklik' veya 'Ç1-Ç4' gibi "
+        "HİÇBİR ifade KULLANMA -- aşağıdaki tüm rakamlar TAM YIL (FY) rakamlarıdır, "
+        "sadece 'yıllık bazda'/'FYyy' de."
+    )
+    assert uyari_paragrafi in prompt  # acik yasaklama talimati bizzat GEREKLI (kelimeyi ISIMLENDIRMEK zorunda)
+    # Bulgu (finding) satirlarinin HICBIRI "(Çeyreklik)" DEMEMELI -- QoQ
+    # tipi bulgular (bilanco kalemleri) icin "(Bilanço)" kullanilmali (bkz.
+    # _format_finding ici not). NOT: scorer.py'nin bagimsiz ureттigi puan
+    # gerekce metinleri (orn. "TTM icin 4 çeyrek eksik") bu testin/duzeltmenin
+    # KAPSAMI DISINDA -- ayri bir modul, ayri bir iyilestirme konusu.
+    bulgu_bolumu = prompt.split("## Rasyolar")[0]
+    assert "(Çeyreklik)" not in bulgu_bolumu
+    assert "(Bilanço)" in bulgu_bolumu
+
+
+def test_build_user_prompt_normal_sirkette_ceyrek_kelimesi_kullanmaya_devam_eder(saglikli_analiz_ve_skor) -> None:
+    """Regresyon kilidi: is_annual_only=False (normal BIST/AAPL tipi
+    sirketler) icin eski davranis (Dönem: yil/Çn, "çeyrek" kelimesi
+    kullanimi) DEGISMEMELI."""
+    analiz, skor = saglikli_analiz_ve_skor
+    prompt = commentary._build_user_prompt(analiz, skor, [])
+    assert "çeyrek" in prompt.lower()
+    assert "SADECE YILLIK" not in prompt
+
+
 # --- Fixture: gercekci AnalysisResult + ScoreResult -----------------------------------------------------
 
 _LATEST = (2026, 3)

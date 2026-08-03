@@ -560,3 +560,88 @@ def test_standard_item_map_her_alan_en_az_bir_aday_tag_icerir() -> None:
         assert candidates, f"'{field}' icin aday tag listesi bos olamaz"
         for tag in candidates:
             assert ":" in tag, f"'{tag}' 'taxonomy:concept' biciminde degil"
+
+
+# --- B21: ifrs-full taksonomisi (ADR/yabanci ozel ihracci -- NVO/TSM/SHEL) -----------------------------------------------------
+#
+# CANLI dogrulandi (scripts/explore_ifrs.py, 2026-08-03): NVO/TSM/SHEL
+# companyfacts'inde `us-gaap` HIC YOK, sadece `ifrs-full` var. Asagidaki
+# testler bu sirketlerin GERCEK tag adlarini SENTETIK (canli agdan bagimsiz)
+# fixture'larla dogrular -- STANDARD_ITEM_MAP_US_GAAP'e eklenen ifrs-full
+# adaylarinin (revenue/gross_profit/operating_profit/net_income/total_assets/
+# equity/cash/borrowings) gercekten CALISTIGINI, mevcut us-gaap davranisini
+# BOZMADIGINI (aday listesinde SONRA geldigi icin) gosterir.
+
+
+def _ifrs_fy_fact(tag_val: str, fy: int, start: str, end: str = None) -> ConceptFact:
+    return ConceptFact(
+        start=date.fromisoformat(start), end=date.fromisoformat(end or f"{fy}-12-31"),
+        val=Decimal(tag_val), form="20-F", fp="FY", fy=fy, frame=None, filed=f"{fy + 1}-03-01",
+    )
+
+
+def test_standardized_value_ifrs_full_revenue_cozumlenir() -> None:
+    """NVO tipi sirket: us-gaap HIC yok, sadece ifrs-full:Revenue var."""
+    facts_by_tag = {"ifrs-full:Revenue": [_ifrs_fy_fact("309064000000", 2025, "2025-01-01")]}
+    raw = RawUsFinancials(ticker="NVO", cik10="0000353278", company_name="Novo Nordisk A/S", periods=[(2025, 12)], facts_by_tag=facts_by_tag)
+    assert standardized_value_us_gaap(raw, "revenue", (2025, 12)) == Decimal("309064000000")
+
+
+def test_standardized_value_us_gaap_ifrs_full_onunde_denenir() -> None:
+    """Aday listesinde us-gaap ONCE gelir -- bir sirkette HER IKI ad alani da
+    (teorik olarak) varsa us-gaap ONCELIKLI kalmali (mevcut sirketler icin
+    davranis DEGISMEMELI)."""
+    facts_by_tag = {
+        "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax": [_ifrs_fy_fact("100", 2025, "2025-01-01")],
+        "ifrs-full:Revenue": [_ifrs_fy_fact("999", 2025, "2025-01-01")],
+    }
+    raw = RawUsFinancials(ticker="TEST", cik10="0", company_name=None, periods=[(2025, 12)], facts_by_tag=facts_by_tag)
+    assert standardized_value_us_gaap(raw, "revenue", (2025, 12)) == Decimal("100")
+
+
+def test_standardized_value_ifrs_full_net_income_ana_ortaklik_payi_oncelikli() -> None:
+    """TSM/SHEL tipi sirket: NCI'siz ana ortaklik payi (ProfitLossAttributableToOwnersOfParent)
+    toplam kar/zarardan (ProfitLoss, NCI DAHIL) ONCE denenir."""
+    facts_by_tag = {
+        "ifrs-full:ProfitLossAttributableToOwnersOfParent": [_ifrs_fy_fact("35000000000", 2024, "2024-01-01")],
+        "ifrs-full:ProfitLoss": [_ifrs_fy_fact("35327200000", 2024, "2024-01-01")],
+    }
+    raw = RawUsFinancials(ticker="TSM", cik10="0", company_name=None, periods=[(2024, 12)], facts_by_tag=facts_by_tag)
+    assert standardized_value_us_gaap(raw, "net_income", (2024, 12)) == Decimal("35000000000")
+
+
+def test_standardized_value_ifrs_full_net_income_nci_ayrimi_yoksa_profitloss_kullanilir() -> None:
+    """NVO tipi sirket: SADECE ifrs-full:ProfitLoss var (onemli bir NCI'si yok)."""
+    facts_by_tag = {"ifrs-full:ProfitLoss": [_ifrs_fy_fact("102434000000", 2025, "2025-01-01")]}
+    raw = RawUsFinancials(ticker="NVO", cik10="0", company_name=None, periods=[(2025, 12)], facts_by_tag=facts_by_tag)
+    assert standardized_value_us_gaap(raw, "net_income", (2025, 12)) == Decimal("102434000000")
+
+
+@pytest.mark.parametrize(
+    "field,tag",
+    [
+        ("gross_profit", "ifrs-full:GrossProfit"),
+        ("cost_of_revenue", "ifrs-full:CostOfSales"),
+        ("operating_profit", "ifrs-full:ProfitLossFromOperatingActivities"),
+        ("total_assets", "ifrs-full:Assets"),
+        ("current_assets", "ifrs-full:CurrentAssets"),
+        ("short_term_liabilities", "ifrs-full:CurrentLiabilities"),
+        ("equity", "ifrs-full:Equity"),
+        ("cash", "ifrs-full:CashAndCashEquivalents"),
+        ("short_term_financial_debt", "ifrs-full:CurrentPortionOfLongtermBorrowings"),
+        ("long_term_financial_debt", "ifrs-full:LongtermBorrowings"),
+        ("depreciation_amortization", "ifrs-full:DepreciationAndAmortisationExpense"),
+    ],
+)
+def test_standardized_value_ifrs_full_diger_alanlar_cozumlenir(field: str, tag: str) -> None:
+    facts_by_tag = {tag: [_ifrs_fy_fact("1000", 2025, "2025-01-01")]}
+    raw = RawUsFinancials(ticker="TEST", cik10="0", company_name=None, periods=[(2025, 12)], facts_by_tag=facts_by_tag)
+    assert standardized_value_us_gaap(raw, field, (2025, 12)) == Decimal("1000")
+
+
+def test_discover_available_periods_ifrs_full_net_income_tagini_de_tarar() -> None:
+    """B21 -- annual-only bir ADR'in fp/fy ciftlerinin dogru tespit edilmesi
+    icin _discover_available_periods, net_income aday listesindeki ifrs-full
+    tag'lerini de (us-gaap tag'leri gibi) taramali."""
+    facts_by_tag = {"ifrs-full:ProfitLoss": [_ifrs_fy_fact("100", 2025, "2025-01-01"), _ifrs_fy_fact("90", 2024, "2024-01-01")]}
+    assert _discover_available_periods(facts_by_tag) == [(2025, 12), (2024, 12)]

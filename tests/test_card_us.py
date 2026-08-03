@@ -76,6 +76,13 @@ def test_fiscal_quarter_label_takvim_etiketinden_farklidir() -> None:
     assert card._fiscal_quarter_label((2027, 3)) != card._quarter_label((2027, 3))
 
 
+def test_fiscal_quarter_label_annual_only_ceyrek_eki_dusurulur() -> None:
+    """B21 -- NVO/TSM/SHEL/BABA gibi annual-only ADR'lerde "Çn" eki
+    YOKTUR (gosterilen rakam izole bir ceyrek DEGIL, tam yilin kendisidir)."""
+    assert card._fiscal_quarter_label((2025, 12), annual_only=True) == "FY25"
+    assert card._fiscal_quarter_label((2025, 12), annual_only=False) == "FY25 Ç4"
+
+
 # --- build_us_card_context -----------------------------------------------------
 
 
@@ -188,6 +195,45 @@ def test_build_us_card_context_ebitda_de_ttm_de_yoksa_veri_yok_gosterir() -> Non
     ebitda_row = context["income_rows"]["ebitda"]
     assert ebitda_row["current"] == "—"
     assert ebitda_row["change_display"] == "veri yok"
+
+
+# --- §B21: annual-only ADR/20-F sirketleri (NVO/TSM/SHEL/BABA tipi) -----------------------------------------------------
+
+
+def _nvo_tipi_annual_only_finansallar() -> calculator.FinancialsByPeriod:
+    """TUM donemler (fy, 12) -- hicbir Q1-Q3 YOK (bkz. test_pipeline.py
+    _fake_raw_annual_only ile AYNI senaryo, burada dogrudan calculator
+    girdisi seviyesinde kurulur)."""
+    return {
+        (2025, 12): _donem(309064, 250276, 127658, 14666, 102434, 26464, 5000, 542902, 130958, 194047, 172500, 370400),
+        (2024, 12): _donem(290403, 245900, 128300, 14000, 100988, 24000, 4800, 520000, 128000, 180000, 165000, 355000),
+        (2023, 12): _donem(270000, 220000, 120000, 13000, 95000, 22000, 4600, 500000, 125000, 170000, 160000, 340000),
+        (2022, 12): _donem(260000, 210000, 115000, 12500, 90000, 20000, 4400, 480000, 120000, 160000, 155000, 325000),
+    }
+
+
+def test_build_us_card_context_annual_only_bayragi_dogru_tasinir() -> None:
+    analiz = calculator.analyze_us("NVO", _nvo_tipi_annual_only_finansallar())
+    assert analiz.is_annual_only is True
+
+    skor = scorer.score_industrial_us(analiz)
+    context = card.build_us_card_context(analiz, skor, _ornek_commentary())
+
+    assert context["is_annual_only"] is True
+    assert context["period_label"] == "FY25"
+    assert context["table_periods"]["current"] == "FY25"
+    assert context["table_periods"]["income_comparison"] == "FY24"
+
+
+def test_build_us_card_context_normal_sirkette_annual_only_false() -> None:
+    """Regresyon kilidi: AAPL tipi normal ceyreklik sirkette bayrak False
+    kalmali, etiketler eskisi gibi "FYyy Çn" formatinda kalmali."""
+    analiz = calculator.analyze_us("AAPL", _saglikli_us_finansallar())
+    skor = scorer.score_industrial_us(analiz)
+    context = card.build_us_card_context(analiz, skor, _ornek_commentary())
+
+    assert context["is_annual_only"] is False
+    assert context["period_label"] == "FY26 Ç3"
 
 
 # --- render_card: gercek Playwright ile PNG uretimi (uctan uca) -----------------------------------------------------

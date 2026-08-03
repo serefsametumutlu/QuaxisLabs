@@ -213,6 +213,18 @@ class AnalysisResult:
     # EDGAR=USD) varsayilir. Varsayilan "TRY" -- mevcut analyze() cagrilari
     # (399 BIST testi dahil) bu alani ACIKCA vermez, DAVRANIS DEGISMEZ.
     currency: str = "TRY"
+    # B21 (ADR/yabanci ozel ihracci -- NVO/TSM/SHEL/BABA gibi 20-F dosyalayan
+    # sirketler): bu sirketler SADECE yillik (fp="FY") veri raporlar, hic
+    # ceyreklik (Q1-Q3) donemleri YOKTUR. True ise `income_statement`/
+    # `quarterly_series` icindeki "guncel" degerler aslinda TEK CEYREKLIK
+    # DEGIL, TAM YIL rakamlaridir (bkz. pipeline._standardize_to_records_us_gaap
+    # -- annual-only sirketler icin kumulatif deger DOGRUDAN "guncel" alana
+    # yazilir, ceyreklik turetme DENENMEZ) -- render/telegram katmani bu
+    # bayragi "4Ç25" yerine "FY25" gibi DOGRU bir etiket secmek icin kullanir
+    # (bkz. pipeline.quarter_label, card._fiscal_quarter_label). BIST
+    # (analyze()) icin HER ZAMAN False -- XI_29 sirketleri her zaman
+    # ceyreklik raporlar.
+    is_annual_only: bool = False
 
 
 # --- Donem aritmetigi -----------------------------------------------------
@@ -731,6 +743,13 @@ def _build_analysis_result(
         quarterly_series=quarterly_series,
         findings=findings,
         currency=currency,
+        # bkz. AnalysisResult.is_annual_only alan notu. SADECE en yakin
+        # zamanli (en fazla 4) donem penceresine bakilir -- pipeline.
+        # _standardize_to_records_us_gaap() ile AYNI ilke (izole/eski bir
+        # ceyreklik fact TEK BASINA "hala ceyreklik raporluyor" sanmamiza
+        # yol acmamali, bkz. o fonksiyonun ici notu -- BABA'da CANLI
+        # dogrulanan 2020'den kalma boyle bir fact vardi).
+        is_annual_only=all(fp == 12 for _, fp in periods_desc[:4]),
     )
 
 

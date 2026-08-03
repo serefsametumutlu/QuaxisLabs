@@ -188,6 +188,16 @@ STANDARD_ITEM_MAP_US_GAAP: dict[str, list[str]] = {
         # ExcludingAssessedTax/Revenues zaten YOKSA (o donem icin) burada
         # kullanilir, bu yuzden cift sayim riski yok.
         "us-gaap:RevenueFromContractWithCustomerIncludingAssessedTax",
+        # B21 (ADR/yabanci ozel ihracci -- NVO/TSM/SHEL): bu sirketler
+        # `us-gaap` YERINE `ifrs-full` ad alanini kullanir, 20-F dosyalar
+        # (SADECE yillik, fp="FY"). CANLI dogrulandi (scripts/explore_ifrs.py):
+        # NVO 253 tag, TSM 334 tag, SHEL 333 tag -- ucunde de "Revenue" tag'i
+        # VAR ve fp dagilimi TAMAMEN/COGUNLUKLA 'FY'. Ayni aday-liste ilkesi
+        # geregi buraya EKLENIR (ayri bir "STANDARD_ITEM_MAP_IFRS_FULL"
+        # GEREKMEZ) -- us-gaap tag'leri hicbirinde YOK oldugundan (ifrs-full
+        # kullanan sirketlerde) bu aday HER ZAMAN us-gaap denemelerinden
+        # SONRA devreye girer, mevcut us-gaap sirketlerini ETKILEMEZ.
+        "ifrs-full:Revenue",
     ],
     # NOT: "gross_profit"/"operating_profit" JPM'de (banka) HIC raporlanmiyor
     # (CANLI dogrulandi: us-gaap:GrossProfit VE us-gaap:OperatingIncomeLoss
@@ -205,7 +215,7 @@ STANDARD_ITEM_MAP_US_GAAP: dict[str, list[str]] = {
     # KULLANMALI (asagida, isyatirim.total_revenue() ile AYNI desen): once bu
     # DOGRUDAN tag'i dener, yoksa Hasilat - Satislarin Maliyeti (asagidaki
     # "cost_of_revenue" ic alani) turetir.
-    "gross_profit": ["us-gaap:GrossProfit"],
+    "gross_profit": ["us-gaap:GrossProfit", "ifrs-full:GrossProfit"],
     # SADECE gross_profit_us_gaap() turetmesi icin ic (internal) alan --
     # pipeline._standardize_to_records_us_gaap() bunu DOGRUDAN DB'ye YAZMAZ
     # (isyatirim.py'deki "3CAC" finans segmenti geliri ic kalemiyle AYNI
@@ -226,15 +236,31 @@ STANDARD_ITEM_MAP_US_GAAP: dict[str, list[str]] = {
     "cost_of_revenue": [
         "us-gaap:CostOfRevenue",  # GOOGL/META/NFLX
         "us-gaap:CostOfGoodsAndServicesSold",  # AMZN
+        "ifrs-full:CostOfSales",  # B21 -- NVO/TSM/SHEL (CANLI dogrulandi)
     ],
-    "operating_profit": ["us-gaap:OperatingIncomeLoss"],
-    "net_income": ["us-gaap:NetIncomeLoss"],
+    "operating_profit": [
+        "us-gaap:OperatingIncomeLoss",
+        "ifrs-full:ProfitLossFromOperatingActivities",  # B21 -- NVO/TSM/SHEL (CANLI dogrulandi)
+    ],
+    "net_income": [
+        "us-gaap:NetIncomeLoss",
+        # B21 -- IFRS'te "ana ortaklik payi" (NCI HARIC) ile toplam kar/zarar
+        # (NCI DAHIL) AYRI tag'lerdir; ABD GAAP'teki "NetIncomeLoss" (ana
+        # ortaklik payi) ile daha KARSILASTIRILABILIR olan bu YUZDEN ONCE
+        # denenir. CANLI dogrulandi: TSM VE SHEL'de ikisi de mevcut; NVO'da
+        # SADECE "ProfitLoss" var (NVO'nun onemli bir azinlik payi/NCI'si
+        # yok, ikisi zaten esit).
+        "ifrs-full:ProfitLossAttributableToOwnersOfParent",
+        "ifrs-full:ProfitLoss",
+    ],
     "depreciation_amortization": [
         # AAPL + NVDA bu tag'i kullaniyor.
         "us-gaap:DepreciationDepletionAndAmortization",
         # JPM (banka) bu FARKLI tag'i kullaniyor -- CANLI dogrulandi
         # ("DepreciationDepletionAndAmortization" JPM'de YOK).
         "us-gaap:DepreciationAmortizationAndAccretionNet",
+        # B21 -- TSM/SHEL birlesik bu tag'i kullaniyor (CANLI dogrulandi).
+        "ifrs-full:DepreciationAndAmortisationExpense",
     ],
     # SADECE depreciation_amortization_us_gaap() turetmesi icin ic (internal)
     # alanlar -- pipeline._standardize_to_records_us_gaap() bunlari DOGRUDAN
@@ -252,21 +278,30 @@ STANDARD_ITEM_MAP_US_GAAP: dict[str, list[str]] = {
     # Depreciation $9,0mr + AmortizationOfIntangibleAssets $1,1mr = $10,1mr
     # -- gurufocus'un raporladigi birlesik "$10.167mr" ile %1'in ALTINDA
     # farkla eslesiyor.
-    "depreciation_component": ["us-gaap:Depreciation"],
-    "amortization_component": ["us-gaap:AmortizationOfIntangibleAssets"],
+    "depreciation_component": [
+        "us-gaap:Depreciation",
+        # B21 -- NVO birlesik D&A tag'ini kullanmiyor, bu ikisini AYRI
+        # raporluyor (CANLI dogrulandi); "DepreciationExpense" TSM'de de var.
+        "ifrs-full:DepreciationExpense",
+        "ifrs-full:DepreciationPropertyPlantAndEquipmentIncludingRightofuseAssets",
+    ],
+    "amortization_component": [
+        "us-gaap:AmortizationOfIntangibleAssets",
+        "ifrs-full:AmortisationIntangibleAssetsOtherThanGoodwill",  # B21 -- NVO (CANLI dogrulandi)
+    ],
     # --- Bilanco (STOK deger -- kumulatif duzeltme YAPILMAZ) ---
-    "total_assets": ["us-gaap:Assets"],
+    "total_assets": ["us-gaap:Assets", "ifrs-full:Assets"],
     # NOT: JPM'de (banka) "AssetsCurrent" HIC raporlanmiyor (CANLI dogrulandi)
     # -- bankalarin bilancosu donen/duran varlik ayrimi YAPMAZ, BIST UFRS
     # semasinda da bu ayrim YOK (bkz. isyatirim.STANDARD_ITEM_MAP_UFRS).
-    "current_assets": ["us-gaap:AssetsCurrent"],
+    "current_assets": ["us-gaap:AssetsCurrent", "ifrs-full:CurrentAssets"],
     # Faz 10 (analyze_us -> current_ratio) icin eklendi -- AAPL FY2024 ile
     # CANLI dogrulandi: LiabilitiesCurrent = $176.392 mr, Apple'in FY2024
     # 10-K'sindeki "Total current liabilities" rakamiyla BIREBIR eslesiyor.
     # JPM'de (banka) HIC raporlanmiyor -- current_assets ile AYNI sebep
     # (bankalar donen/duran ayrimi YAPMAZ, BIST UFRS'te de bu alan YOK).
-    "short_term_liabilities": ["us-gaap:LiabilitiesCurrent"],
-    "equity": ["us-gaap:StockholdersEquity"],
+    "short_term_liabilities": ["us-gaap:LiabilitiesCurrent", "ifrs-full:CurrentLiabilities"],
+    "equity": ["us-gaap:StockholdersEquity", "ifrs-full:Equity"],
     # Faz 10 icin eklendi (BIST XI_29'daki "Ticari Alacaklar" karsiligi) --
     # AAPL FY2024 ile CANLI dogrulandi: $33.410 mr, Apple'in FY2024 10-K'sindeki
     # "Accounts receivable, net" rakamiyla BIREBIR eslesiyor. JPM'de (banka)
@@ -286,6 +321,7 @@ STANDARD_ITEM_MAP_US_GAAP: dict[str, list[str]] = {
         # (bilinen bir yaklastirma, KAP/Fintables gibi bagimsiz bir
         # referansla henuz dogrulanmadi).
         "us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+        "ifrs-full:CashAndCashEquivalents",  # B21 -- NVO/TSM/SHEL (CANLI dogrulandi)
     ],
     # NOT: "kisa/uzun vadeli finansal borc" icin JPM (banka) TAMAMEN FARKLI
     # tag'ler kullaniyor (AAPL/NVDA'nin "LongTermDebtCurrent/Noncurrent"
@@ -293,6 +329,14 @@ STANDARD_ITEM_MAP_US_GAAP: dict[str, list[str]] = {
     "short_term_financial_debt": [
         "us-gaap:LongTermDebtCurrent",  # AAPL + NVDA
         "us-gaap:ShortTermBorrowings",  # JPM (banka)
+        # B21 -- IFRS'te "kisa vadeli finansal borc" iki AYRI tag'e
+        # bolunebiliyor (uzun vadeli borcun bu yilki taksiti + saf kisa
+        # vadeli borclanma); bu aday liste ilkesi (ILK bulunan kullanilir,
+        # TOPLANMAZ) geregi CurrentPortionOfLongtermBorrowings ONCE denenir
+        # (CANLI dogrulandi: NVO/TSM/SHEL ucunde de mevcut) -- bilinen bir
+        # yaklastirma, saf ShorttermBorrowings AYRICA varsa o GORULMEZ.
+        "ifrs-full:CurrentPortionOfLongtermBorrowings",
+        "ifrs-full:ShorttermBorrowings",
     ],
     "long_term_financial_debt": [
         "us-gaap:LongTermDebtNoncurrent",  # AAPL + NVDA
@@ -301,6 +345,7 @@ STANDARD_ITEM_MAP_US_GAAP: dict[str, list[str]] = {
         # olarak (cari/cari-disi ayrimi olmadan) raporlaniyor (CANLI
         # dogrulandi: deger buyuklugu JPM'nin toplam borclanma programiyla
         # TUTARLI, ayrica bir "current" varyantiyla CIFT SAYILMIYOR).
+        "ifrs-full:LongtermBorrowings",  # B21 -- NVO/TSM/SHEL (CANLI dogrulandi)
     ],
     # Piyasa degeri (fiyat x pay adedi) girdisi -- BIST'teki "share_capital"
     # (odenmis sermaye, TL nominal deger) KAVRAMSAL OLARAK FARKLIDIR; ABD

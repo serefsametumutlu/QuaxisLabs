@@ -579,10 +579,25 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       kullanılır (AMD'de "FAVÖK (TTM)" olarak gösterilir, stockanalysis.com'un
       bağımsız TTM EBITDA rakamıyla %3 altında farkla çapraz doğrulandı).
       Test: `pytest tests/` (660 test, 11 yeni, hiçbir regresyon yok).
-      Ayrıca ADR/yabancı özel ihraççı hisselerinde (NVO/TSM/SHEL gibi)
-      `ifrs-full` taksonomisi kullanıldığı, mevcut haritanın SADECE
-      `us-gaap`'a baktığı tespit edildi — bu ayrı, büyük bir mini-faz
-      gerektirir, henüz ÇÖZÜLMEDİ (bkz. PROJE_HAFIZASI §B21).
+- [x] **Teknik Görünüm Telegram'a bağlandı (2026-08-03)** — `/teknik`
+      (BİST/NASDAQ seç → ticker yaz → fundamental pipeline'a hiç uğramadan
+      doğrudan teknik kart) ve `/temelanaliz` komutları eklendi; kök menüye
+      ve her analiz sonucunun altına "📈 Teknik Görünüm" butonu eklendi.
+- [x] **NASDAQ ADR/yabancı özel ihraççı desteği — NVO/TSM/SHEL/BABA
+      (2026-08-03)** — bu şirketler SEC'e `us-gaap` yerine `ifrs-full`
+      taksonomisiyle raporluyor VE sadece yıllık (20-F, `fp="FY"`) veri
+      sunuyor. Yeni bir harita/modül yazılmadı — `ifrs-full` tag adayları
+      mevcut `STANDARD_ITEM_MAP_US_GAAP` öncelik listelerine eklendi (us-gaap
+      şirketleri etkilenmedi). "Annual-only" (sadece yıllık) şirketler
+      otomatik tespit edilip tam yıl kümülatif değer doğrudan "güncel" alana
+      yazılıyor (eskiden hem çeyreklik türetme hem de stockanalysis.com yedek
+      yolu bu şirketlerde yanlış/eksik sonuç veriyordu — BABA'da canlı
+      doğrulanan bir eşleşme hatası dahil). Kart etiketleri ("FY25") ve LLM
+      özet metni artık doğru şekilde "yıllık" diyor, "çeyrek" kelimesi hiç
+      geçmiyor. SKHY (SEC'e hiç veri yok) hâlâ düzeltilemez, SHEL'in
+      yarı-yıllık hibrit deseni bilinçli olarak ayrı bırakıldı. Test:
+      `pytest tests/` (698 test, 24 yeni, hiçbir regresyon yok). Detaylar:
+      `PROJE_HAFIZASI/06_BILINEN_SORUNLAR.md` §B21.
 
 ## Dizin Yapisi
 

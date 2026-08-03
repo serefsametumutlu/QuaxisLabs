@@ -960,7 +960,11 @@
   {% set primary_chart = charts.revenue %}
   {% endif %}
   <section class="charts-section">
+    {% if is_annual_only %}
+    <div class="section-title"><span class="title-text">YILLIK SERİ</span><span class="title-sub">SON {{ primary_chart.points|length }} YIL</span></div>
+    {% else %}
     <div class="section-title"><span class="title-text">ÇEYREKLİK SERİ</span><span class="title-sub">SON {{ primary_chart.points|length }} ÇEYREK</span></div>
+    {% endif %}
     <div class="charts-row">
       {% macro mini_chart(chart) %}
       <div class="mini-chart-block">

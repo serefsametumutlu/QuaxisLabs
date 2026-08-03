@@ -201,8 +201,16 @@ class PipelineResult:
     sector: str | None
 
 
-def quarter_label(period: Period) -> str:
+def quarter_label(period: Period, annual_only: bool = False) -> str:
+    """`annual_only=True` (bkz. calculator.AnalysisResult.is_annual_only, B21
+    -- NVO/TSM/SHEL/BABA gibi SADECE yillik veri raporlayan ADR/20-F
+    sirketleri): "nÇyy" yerine "FYyy" doner -- bu sirketlerde gosterilen
+    rakam izole bir ceyrek DEGIL, tam yilin kendisidir (Kural 8: "4Ç26"
+    demek YANLIS/uydurma olurdu, bkz. src/render/card.py._fiscal_quarter_label
+    ile AYNI ilke)."""
     year, quarter = period
+    if annual_only:
+        return f"FY{year % 100:02d}"
     return f"{quarter // 3}Ç{year % 100:02d}"
 
 
@@ -411,7 +419,34 @@ def _standardize_to_records_us_gaap(raw: sec_edgar.RawUsFinancials) -> list[repo
     ceyreklik (KUMULATIF DEGIL -- stockanalysis zaten ceyreklik veri
     verdigi icin "_cum" alani doldurulmaz, TTM/kaldirac bileseni bu
     donemler icin N/A KALMAYA devam eder) deger YEDEK olarak kullanilir."""
-    yedek_gerekli = any(
+    # B21 (ADR/yabanci ozel ihracci -- NVO/TSM/SHEL/BABA gibi 20-F dosyalayan
+    # sirketler): bu sirketler SADECE fp="FY" raporlar, hic Q1-Q3 donemi
+    # YOKTUR. Boyle bir sirket icin ceyreklik turetme (kumulatif - onceki
+    # ceyrek kumulatif) HER ZAMAN None doner (onceki ceyrek hic YOK) --
+    # bu KENDI BASINA dogru/zararsizdir (Kural 8). ANCAK "yedek_gerekli"
+    # tetiklenip stockanalysis.com'dan TAKVIM CEYREGI bazli veri cekilirse,
+    # o verinin (fy,fp) anahtari bu sirketin mali YIL bazli anahtariyla
+    # YANLIS eslesip TAMAMEN ILGISIZ bir donemin rakamini "guncel" gibi
+    # gosterebilir (CANLI DOGRULANDI, kullanici raporu incelemesi: BABA
+    # icin boyle bir yanlis eslesme bulundu, bkz. 06_BILINEN_SORUNLAR.md
+    # §B21). Bu yuzden annual-only sirketlerde yedek YOLU HIC DENENMEZ VE
+    # "guncel" alana DOGRUDAN TAM YIL kumulatif deger yazilir (asagida) --
+    # zaten annual-only bir sirket icin "TEK CEYREK" diye bir kavram
+    # YOKTUR, gosterilecek DOGRU rakam ZATEN tam yilin kendisidir.
+    # SADECE en yakin zamanli (en fazla 4) donem penceresine bakilir --
+    # `raw.periods` (yeniden eskiye siralidir) COK eski (bazen tek, izole)
+    # bir fp="Q2"/"Q3" fact'i (CANLI dogrulandi: BABA'da 2020'den kalma
+    # boyle bir fact var, muhtemelen bir gecis donemi dosyalamasi/SEC fy-fp
+    # etiketleme tuhafligi -- bkz. _select_best_fact ust notu) TASIYABILIR;
+    # bu TEK BASINA sirketi "hala ceyreklik raporluyor" sanmamiza yol
+    # ACMAMALI. SHEL gibi YARI YILLIK (H1+FY, fp=6/12) raporlayan sirketler
+    # bu pencerede fp=6 GORECEGI icin annual_only=False kalir -- bu BILINCLI
+    # bir sinir (yari-yillik turetme AYRI/daha karmasik bir konu, bkz.
+    # 06_BILINEN_SORUNLAR.md §B21, bu oturumda cozulmedi).
+    _annual_check_window = raw.periods[:4]
+    annual_only = bool(_annual_check_window) and all(fp == 12 for _, fp in _annual_check_window)
+
+    yedek_gerekli = not annual_only and any(
         sec_edgar.standardized_value_us_gaap(raw, alan, donem) is None
         for donem in raw.periods
         for alan in ("revenue", "gross_profit", "operating_profit")
@@ -451,6 +486,13 @@ def _standardize_to_records_us_gaap(raw: sec_edgar.RawUsFinancials) -> list[repo
             else:
                 value = sec_edgar.quarterly_standardized_value_us_gaap(raw, field, period)
                 cum_value = sec_edgar.standardized_value_us_gaap(raw, field, period)
+
+            if annual_only:
+                # bkz. yukaridaki annual_only notu -- ceyreklik turetme
+                # DENENMEZ, tam yil kumulatif deger DOGRUDAN "guncel" olarak
+                # kullanilir (ikisi ZATEN ayni sey: annual-only bir sirket
+                # icin "bu yilin verisi" = "bu ceyregin verisi").
+                value = cum_value
 
             if value is not None:
                 label = calculator.FIELD_LABELS_TR.get(field, field)

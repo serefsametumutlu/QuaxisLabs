@@ -138,7 +138,7 @@ def _sahte_sonuc(positives: list[str], negatives: list[str], summary: str = "Gen
     )
     return SimpleNamespace(
         ticker="TESTAS",
-        analysis=SimpleNamespace(latest_period=(2026, 3)),
+        analysis=SimpleNamespace(latest_period=(2026, 3), is_annual_only=False),
         score=skor,
         commentary=yorum,
     )
@@ -578,7 +578,7 @@ async def _fake_to_thread(func, *args, **kwargs):
 def _fake_pipeline_result(ticker: str, png_path) -> SimpleNamespace:
     return SimpleNamespace(
         ticker=ticker,
-        analysis=SimpleNamespace(latest_period=(2026, 6)),
+        analysis=SimpleNamespace(latest_period=(2026, 6), is_annual_only=False),
         score=SimpleNamespace(total_score=Decimal("5.0"), badge="DENGELİ", components=[]),
         commentary=SimpleNamespace(positives=[], negatives=[], summary="Özet."),
         png_path=str(png_path),

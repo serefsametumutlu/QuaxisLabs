@@ -198,6 +198,102 @@ def test_standardize_to_records_us_gaap_kisa_uzun_borc_bileseni_ayrica_yazilmaz(
     assert "long_term_financial_debt" not in codes
 
 
+# --- §B21: annual-only ADR/20-F sirketleri (NVO/TSM/SHEL/BABA tipi) -----------------------------------------------------
+
+
+def _period_fact(year: int, fiscal_period: int, val: str) -> sec_edgar.ConceptFact:
+    from datetime import date
+
+    end_month_day = {3: (3, 31), 6: (6, 30), 9: (9, 30), 12: (12, 31)}[fiscal_period]
+    fp_label = {3: "Q1", 6: "Q2", 9: "Q3", 12: "FY"}[fiscal_period]
+    return sec_edgar.ConceptFact(
+        start=date(year, 1, 1), end=date(year, *end_month_day), val=Decimal(val),
+        form="20-F", fp=fp_label, fy=year, frame=None, filed=f"{year}-12-31",
+    )
+
+
+def _fake_raw_annual_only(ticker: str = "NVOTEST", periods=None) -> sec_edgar.RawUsFinancials:
+    """NVO/TSM tipi sirket: varsayilan olarak TUM donemler fp='FY' (fiscal_period=12),
+    hicbir Q1-Q3 YOK. Her (yil, fiscal_period) icin `year*100+fiscal_period`
+    biciminde BENZERSIZ/kolay dogrulanir bir deger uretilir (orn. (2025,12) -> 202512)."""
+    periods = periods or [(2025, 12), (2024, 12), (2023, 12), (2022, 12)]
+    facts_by_tag: dict[str, list[sec_edgar.ConceptFact]] = {
+        "ifrs-full:Revenue": [], "ifrs-full:ProfitLoss": [], "ifrs-full:Assets": [],
+    }
+    for year, fiscal_period in periods:
+        val_base = year * 100 + fiscal_period
+        facts_by_tag["ifrs-full:Revenue"].append(_period_fact(year, fiscal_period, str(val_base)))
+        facts_by_tag["ifrs-full:ProfitLoss"].append(_period_fact(year, fiscal_period, str(val_base + 1)))
+        facts_by_tag["ifrs-full:Assets"].append(_period_fact(year, fiscal_period, str(val_base + 2)))
+    return sec_edgar.RawUsFinancials(
+        ticker=ticker, cik10="0", company_name="Test ADR A/S", periods=periods, facts_by_tag=facts_by_tag
+    )
+
+
+def test_standardize_to_records_annual_only_guncel_alan_tam_yil_kumulatif_deger_alir() -> None:
+    """B21 -- CANLI HATA (BABA ile kesifte bulundu): eskiden annual-only
+    sirketlerde ceyreklik turetme (FY - Q3) HER ZAMAN basarisiz oluyordu
+    (Q3 hic yok), "guncel" alan surekli None kaliyordu. Artik annual-only
+    tespit edilince tam yil kumulatif deger DOGRUDAN "guncel" alana yazilir."""
+    raw = _fake_raw_annual_only()
+    records = pipeline._standardize_to_records_us_gaap(raw)
+    by_key = {(y, p, code): value for (y, p, code, _name, value) in records}
+
+    assert by_key[(2025, 12, "revenue")] == Decimal("202512")
+    assert by_key[(2025, 12, "revenue")] == by_key[(2025, 12, "revenue_cum")]
+    assert by_key[(2025, 12, "net_income")] == Decimal("202513")
+    assert by_key[(2024, 12, "revenue")] == Decimal("202412")  # onceki yil da DOGRU deger tasimali (YoY icin)
+
+
+def test_standardize_to_records_annual_only_stockanalysis_yedek_hic_cagirilmaz(monkeypatch) -> None:
+    """B21 -- CANLI HATA (BABA): stockanalysis.com'un TAKVIM CEYREGI bazli
+    verisi, annual-only bir sirketin mali YIL bazli (fy,fp) anahtariyla
+    YANLIS eslesip TAMAMEN ILGISIZ bir rakami "guncel" gibi gosteriyordu.
+    Bu yuzden annual-only sirketlerde yedek yolu HIC DENENMEMELI -- ceri
+    (revenue tag'i EKSIK birakilarak yedek_gerekli tetiklenmeye CALISILIR,
+    yine de _stockanalysis_yedek_veri cagrilmamali)."""
+    raw = _fake_raw_annual_only()
+    del raw.facts_by_tag["ifrs-full:Revenue"]  # yedek_gerekli tetiklenmeye calisilsin diye
+
+    def patlayan_yedek(ticker):
+        raise AssertionError("annual-only sirkette stockanalysis yedegi COK cagirilmamaliydi")
+
+    monkeypatch.setattr(pipeline, "_stockanalysis_yedek_veri", patlayan_yedek)
+    records = pipeline._standardize_to_records_us_gaap(raw)  # patlamamali
+    by_key = {(y, p, code) for (y, p, code, _name, _v) in records}
+    assert (2025, 12, "revenue") not in by_key  # veri gercekten yok, uydurulmadi
+
+
+def test_standardize_to_records_annual_only_eski_izole_ceyreklik_fact_yanlissiz_saymaz() -> None:
+    """B21 -- CANLI HATA (BABA): 2020'den kalma TEK bir izole fp='Q2' fact'i
+    (SEC fy/fp etiketleme tuhafligi/eski bir gecis donemi dosyalamasi
+    olabilir) annual-only tespitini BOZUYORDU (tum donem GECMISINE bakildigi
+    icin). Artik SADECE en yakin 4 donem penceresine bakildigindan bu eski
+    anomali annual-only siniflandirmasini ETKILEMEMELI."""
+    periods = [(2025, 12), (2024, 12), (2023, 12), (2022, 12), (2020, 6)]
+    raw = _fake_raw_annual_only(periods=periods)
+    records = pipeline._standardize_to_records_us_gaap(raw)
+    by_key = {(y, p, code): value for (y, p, code, _name, value) in records}
+    assert by_key[(2025, 12, "revenue")] == Decimal("202512")  # annual-only davranisi HALA uygulanmali
+
+
+def test_standardize_to_records_yari_yillik_sirket_annual_only_sayilmaz() -> None:
+    """B21 -- SHEL tipi (H1+FY karma raporlama, bkz. 06_BILINEN_SORUNLAR.md):
+    SON DONEM penceresinde GERCEK bir fp=6 (H1) donemi varsa annual_only=False
+    kalmali -- bu daha karmasik yari-yillik turetme AYRI/cozulmemis bir konu,
+    annual-only'nin (tam yil dogrudan kullanim) YANLISLIKLA uygulanmasi
+    (Q2 verisini "tam yil" sanmak) BURADA ONLENIR."""
+    periods = [(2025, 12), (2025, 6), (2024, 12), (2024, 6)]
+    raw = _fake_raw_annual_only(periods=periods)
+    # annual_only=False oldugundan eski (quarterly-derivation) davranis
+    # devam eder -- fp=6 (H1) icin onceki ceyrek (fy,3) hic yok, bu yuzden
+    # ceyreklik turetme None doner (uydurulmuyor, dogru/beklenen davranis).
+    records = pipeline._standardize_to_records_us_gaap(raw)
+    by_key = {(y, p, code): value for (y, p, code, _name, value) in records}
+    assert (2025, 6, "revenue") not in by_key
+    assert by_key[(2025, 6, "revenue_cum")] == Decimal("202506")
+
+
 # --- §B17: stockanalysis.com YEDEK veri (SEC'te eksik revenue/gross_profit/operating_profit) -----------------------------------------------------
 
 

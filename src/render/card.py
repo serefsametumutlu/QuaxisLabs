@@ -151,15 +151,22 @@ def _quarter_label(period: tuple[int, int]) -> str:
     return f"{quarter // 3}Ç{year % 100:02d}"
 
 
-def _fiscal_quarter_label(period: tuple[int, int]) -> str:
+def _fiscal_quarter_label(period: tuple[int, int], annual_only: bool = False) -> str:
     """_quarter_label()'in NASDAQ/ABD (US_GAAP) karsiligi. `period[0]`
     US_GAAP icin TAKVIM yili DEGIL, sirketin KENDI mali yilidir (SEC 'fy'
     alani, bkz. src/fetchers/sec_edgar.py modul notu) -- NVDA gibi mali
     yili takvim yiliyla ORTUSMEYEN sirketlerde "_quarter_label" biciminde
     (orn. "1Ç27") gosterilirse TAKVIM 1. ceyregiymis gibi YANLIS izlenim
     verir (Kural 8: "uydurma" olur). Bu yuzden ayri, ACIKCA "mali yil"
-    oldugunu belirten bir bicim kullanilir: "FYyy Çn" (orn. "FY27 Ç1")."""
+    oldugunu belirten bir bicim kullanilir: "FYyy Çn" (orn. "FY27 Ç1").
+
+    `annual_only=True` (bkz. calculator.AnalysisResult.is_annual_only, B21 --
+    NVO/TSM/SHEL/BABA gibi SADECE yillik veri raporlayan ADR/20-F sirketleri):
+    "Çn" eki DUSURULUR ("FY25" -- Kural 8, "Ç4" YOKTUR ki bu sirketlerde,
+    gosterilen rakam ZATEN tam yilin kendisidir, izole bir ceyrek DEGIL)."""
     year, quarter = period
+    if annual_only:
+        return f"FY{year % 100:02d}"
     return f"FY{year % 100:02d} Ç{quarter // 3}"
 
 
@@ -711,7 +718,9 @@ def build_us_card_context(
         "equity": _line_item_row(analysis.balance_sheet.equity, currency_symbol=_USD_SYMBOL),
     }
 
-    period_labels = [_fiscal_quarter_label(pt.period) for pt in analysis.quarterly_series]
+    us_label_fn = lambda p: _fiscal_quarter_label(p, annual_only=analysis.is_annual_only)  # noqa: E731
+
+    period_labels = [us_label_fn(pt.period) for pt in analysis.quarterly_series]
     charts = {
         "revenue": _build_chart("Satışlar", [pt.revenue for pt in analysis.quarterly_series], period_labels, _USD_SYMBOL),
         "ebitda": (
@@ -728,9 +737,10 @@ def build_us_card_context(
         "company_logo_data_uri": _company_logo_data_uri(analysis.ticker, market="NASDAQ"),
         "company_name": company_name or analysis.ticker,
         "sector": sector,
-        "period_label": _fiscal_quarter_label(analysis.latest_period),
+        "period_label": us_label_fn(analysis.latest_period),
         "period_badge": f"FY{analysis.latest_period[0]}/{analysis.latest_period[1]}",
-        "table_periods": _table_period_labels(analysis.latest_period, label_fn=_fiscal_quarter_label),
+        "table_periods": _table_period_labels(analysis.latest_period, label_fn=us_label_fn),
+        "is_annual_only": analysis.is_annual_only,
         "report_timestamp": now.strftime("%d.%m.%Y %H:%M"),
         "price_display": f"{_USD_SYMBOL}{format_number_tr(price, decimals=2)}" if price is not None else None,
         "valuation": _valuation_context(valuation, _USD_SYMBOL),

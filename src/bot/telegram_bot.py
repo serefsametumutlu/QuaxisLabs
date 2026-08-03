@@ -316,7 +316,7 @@ async def handle_teknik_callback(update: Update, context: ContextTypes.DEFAULT_T
 
 
 def _score_caption(sonuc: pipeline.PipelineResult) -> str:
-    period_label = pipeline.quarter_label(sonuc.analysis.latest_period)
+    period_label = pipeline.quarter_label(sonuc.analysis.latest_period, annual_only=sonuc.analysis.is_annual_only)
     skor = format_number_tr(sonuc.score.total_score, decimals=2)
     return f"#{sonuc.ticker} · {period_label}\nRadar Skoru: {skor}/10\n\nBu içerik yatırım tavsiyesi değildir."
 
@@ -341,7 +341,7 @@ def _bilanco_ozeti_metni(sonuc: pipeline.PipelineResult) -> str:
     icerigi duz metin olarak Telegram mesajina cevirir -- kullanici bunu
     goruntuyle BIRLIKTE, tek basina paylasima hazir (kopyala-yapistir) bir
     gonderi metni olarak kullanmak istedi."""
-    period_label = pipeline.quarter_label(sonuc.analysis.latest_period)
+    period_label = pipeline.quarter_label(sonuc.analysis.latest_period, annual_only=sonuc.analysis.is_annual_only)
     yorum = sonuc.commentary
 
     lines = [f"#{sonuc.ticker} · {period_label} Bilanço Özeti", ""]

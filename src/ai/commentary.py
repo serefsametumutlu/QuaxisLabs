@@ -138,13 +138,24 @@ _JSON_FIX_INSTRUCTION = (
 # --- Istem metni insasi (SADECE onceden hesaplanmis, formatlanmis degerler) ------------
 
 
-def _format_finding(f: calculator.Finding, currency_symbol: str = "₺") -> str:
+def _format_finding(f: calculator.Finding, currency_symbol: str = "₺", annual_only: bool = False) -> str:
     # CANLI GOZLEMLENDI (kullanici raporu): istem metnine "(YoY)"/"(QoQ)" gibi
     # Ingilizce kisaltmalar gomulunce, LLM bunlari ARA SIRA kendi Turkce
     # ciktisina (artislar/azalislar maddelerine) DA sizdiriyordu. Bu yuzden
     # istem metninde de TURKCE karsiligi ("Yillik"/"Ceyreklik") kullanilir --
     # kok neden (LLM'in gordugu terim) duzeltilir, sadece cikti temizlenmez.
-    donem_tr = "Yıllık" if f.comparison == "YoY" else "Çeyreklik"
+    #
+    # B21 -- annual-only ADR'lerde (NVO/TSM/SHEL/BABA) QoQ tipi bulgular
+    # (bilanco kalemleri) hicbir zaman gercek bir "onceki ceyrek" ile
+    # KARSILASTIRILAMAZ (deger zaten None/"veri yok" kalir) -- yine de
+    # etiket "Çeyreklik" derse istem metni CELISKILI/YANILTICI gorunur (bkz.
+    # _build_user_prompt ici not, ayni "ceyrek kelimesi sizmasi" riski).
+    if f.comparison == "YoY":
+        donem_tr = "Yıllık"
+    elif annual_only:
+        donem_tr = "Bilanço"
+    else:
+        donem_tr = "Çeyreklik"
     mevcut = format_currency_short(f.current, symbol=currency_symbol) if f.current is not None else "-"
     onceki = format_currency_short(f.previous, symbol=currency_symbol) if f.previous is not None else "-"
     if f.percent_change is not None:
@@ -178,7 +189,11 @@ def _format_ratios(r: calculator.Ratios) -> list[str]:
     ]
 
 
-def _format_quarterly_series(series: list[calculator.QuarterlySeriesPoint], currency_symbol: str = "₺") -> list[str]:
+def _format_quarterly_series(
+    series: list[calculator.QuarterlySeriesPoint], currency_symbol: str = "₺", birim: str = "çeyrek"
+) -> list[str]:
+    """`birim`: B21 (annual-only ADR'ler) icin "yıl" verilir -- bkz.
+    _build_user_prompt ici not, LLM'e YANLIS "ceyrek" izlenimi verilmesin diye."""
     if not series:
         return []
 
@@ -188,9 +203,9 @@ def _format_quarterly_series(series: list[calculator.QuarterlySeriesPoint], curr
         )
 
     return [
-        f"- Satışlar (son {len(series)} çeyrek, eskiden yeniye): {seri(lambda p: p.revenue)}",
-        f"- FAVÖK (son {len(series)} çeyrek): {seri(lambda p: p.ebitda)}",
-        f"- Net Kâr (son {len(series)} çeyrek): {seri(lambda p: p.net_income)}",
+        f"- Satışlar (son {len(series)} {birim}, eskiden yeniye): {seri(lambda p: p.revenue)}",
+        f"- FAVÖK (son {len(series)} {birim}): {seri(lambda p: p.ebitda)}",
+        f"- Net Kâr (son {len(series)} {birim}): {seri(lambda p: p.net_income)}",
     ]
 
 
@@ -318,16 +333,48 @@ def _build_user_prompt(analysis: calculator.AnalysisResult, score: scorer.ScoreR
     # LLM bunu kendi Turkce ozetine SIZDIRABILIR (bkz. _format_finding ust
     # notundaki "sizma" hatasi ile AYNI risk sinifi).
     currency_symbol = "$" if analysis.currency == "USD" else "₺"
-    period_str = f"{analysis.latest_period[0]}/Ç{analysis.latest_period[1] // 3}"
-    parts = [f"Hisse: {analysis.ticker}  Dönem: {period_str}", "", "## Hesaplanmış Değişim Bulguları (Yıllık/Çeyreklik)"]
-    parts += [_format_finding(f, currency_symbol) for f in analysis.findings]
+    # B21 (ADR/yabanci ozel ihracci -- NVO/TSM/SHEL/BABA gibi 20-F dosyalayan
+    # sirketler, bkz. calculator.AnalysisResult.is_annual_only): bu sirketler
+    # icin "guncel" rakam bir CEYREK DEGIL, TAM YILDIR. Istem metni "Dönem:
+    # 2025/Ç4" VE "(son 5 çeyrek)" derse LLM CANLI GOZLEMLENDI bunu
+    # ozetine "...yılının dördüncü çeyreğinde..." diye YANLIS/uydurma
+    # sekilde sizdiriyor (Kural 8 ihlali riski) -- annual_only=True iken
+    # "ceyrek" kelimesi istem metninden TAMAMEN CIKARILIR.
+    if analysis.is_annual_only:
+        period_str = f"FY{analysis.latest_period[0]}"
+        bulgu_baslik = "## Hesaplanmış Değişim Bulguları (Yıllık, tam yıl karşılaştırması)"
+        seri_baslik = "## Yıllık Seri (Trend)"
+        seri_birim = "yıl"
+    else:
+        period_str = f"{analysis.latest_period[0]}/Ç{analysis.latest_period[1] // 3}"
+        bulgu_baslik = "## Hesaplanmış Değişim Bulguları (Yıllık/Çeyreklik)"
+        seri_baslik = "## Çeyreklik Seri (Trend)"
+        seri_birim = "çeyrek"
+    parts = [f"Hisse: {analysis.ticker}  Dönem: {period_str}"]
+    if analysis.is_annual_only:
+        # CANLI GOZLEMLENDI (B21, NVO ile test): asagidaki bulgu/seri
+        # basliklarindan "ceyrek" kelimesi TAMAMEN CIKARILMIS olmasina
+        # RAGMEN Gemini, kendi genel dunya bilgisinden (finansal ozetler
+        # genelde ceyreklik olur varsayimi) "...yılının dördüncü
+        # çeyreğinde..." diye UYDURMA bir ifade eklemeye devam etti --
+        # bu yuzden ACIK/OLUMSUZ bir talimat GEREKLI (sadece veriden
+        # "ceyrek" kelimesini cikarmak YETERSIZ kaldi).
+        parts.append(
+            "ÖNEMLİ: Bu şirket SADECE YILLIK finansal tablo (20-F, yabancı özel "
+            "ihraççı) yayınlar, herhangi bir çeyreklik (Ç1/Ç2/Ç3/Ç4) verisi YOKTUR. "
+            "Özetinde/başlığında/maddelerinde 'çeyrek', 'çeyreklik' veya 'Ç1-Ç4' gibi "
+            "HİÇBİR ifade KULLANMA -- aşağıdaki tüm rakamlar TAM YIL (FY) rakamlarıdır, "
+            "sadece 'yıllık bazda'/'FYyy' de."
+        )
+    parts += ["", bulgu_baslik]
+    parts += [_format_finding(f, currency_symbol, annual_only=analysis.is_annual_only) for f in analysis.findings]
 
     parts += ["", "## Rasyolar"]
     parts += _format_ratios(analysis.ratios)
 
-    seri_lines = _format_quarterly_series(analysis.quarterly_series, currency_symbol)
+    seri_lines = _format_quarterly_series(analysis.quarterly_series, currency_symbol, birim=seri_birim)
     if seri_lines:
-        parts += ["", "## Çeyreklik Seri (Trend)"] + seri_lines
+        parts += ["", seri_baslik] + seri_lines
 
     parts += ["", "## Puanlama"]
     parts += _format_score(score)

@@ -100,6 +100,52 @@ def test_analyze_currency_try_varsayilan_kalir() -> None:
     assert result.currency == "TRY"
 
 
+# --- §B21: is_annual_only (NVO/TSM/SHEL/BABA tipi ADR/20-F sirketleri) -----------------------------------------------------
+
+
+def test_analyze_us_is_annual_only_normal_ceyreklik_sirkette_false() -> None:
+    """AAPL tipi normal 10-Q/10-K sirketi -- periyotlar fiscal_period=9/6
+    icerdigi icin is_annual_only False kalmali (regresyon kilidi)."""
+    result = analyze_us("AAPL", _sample_us_financials())
+    assert result.is_annual_only is False
+
+
+def test_analyze_us_is_annual_only_tum_donemler_fy_ise_true() -> None:
+    """NVO/TSM tipi: financials_by_period'daki TUM donemler (fy, 12) ise
+    (bkz. pipeline._standardize_to_records_us_gaap annual-only yazma mantigi)
+    is_annual_only True olmali."""
+    financials = {
+        (2025, 12): {"revenue": Decimal("309064000000"), "revenue_cum": Decimal("309064000000")},
+        (2024, 12): {"revenue": Decimal("290403000000"), "revenue_cum": Decimal("290403000000")},
+        (2023, 12): {"revenue": Decimal("270000000000"), "revenue_cum": Decimal("270000000000")},
+        (2022, 12): {"revenue": Decimal("260000000000"), "revenue_cum": Decimal("260000000000")},
+    }
+    result = analyze_us("NVO", financials)
+    assert result.is_annual_only is True
+
+
+def test_analyze_us_is_annual_only_eski_izole_donem_tespiti_bozmaz() -> None:
+    """B21 -- SADECE en yakin 4 donem penceresine bakilir (bkz. pipeline.py
+    ile AYNI ilke): eski/izole bir fp=6 donemi annual-only tespitini
+    BOZMAMALI."""
+    financials = {
+        (2025, 12): {"revenue": Decimal("100")},
+        (2024, 12): {"revenue": Decimal("90")},
+        (2023, 12): {"revenue": Decimal("80")},
+        (2022, 12): {"revenue": Decimal("70")},
+        (2020, 6): {"revenue": Decimal("40")},
+    }
+    result = analyze_us("NVO", financials)
+    assert result.is_annual_only is True
+
+
+def test_analyze_bist_is_annual_only_her_zaman_false() -> None:
+    """BIST (XI_29) sirketleri her zaman ceyreklik raporlar -- is_annual_only
+    hicbir zaman True OLMAMALI (regresyon kilidi)."""
+    result = analyze("THYAO", {_LATEST: {"revenue": Decimal("100"), "revenue_cum": Decimal("100")}})
+    assert result.is_annual_only is False
+
+
 def test_analyze_us_gelir_tablosu_kumulatif_DEGIL_tek_ceyreklik_gosterir() -> None:
     """KRITIK regresyon testi (kullanici raporu, 2026-08-02): analyze_us()
     ONCEDEN BIST gibi KUMULATIF (9 aylik, $364,4 mr) rakam gosteriyordu --

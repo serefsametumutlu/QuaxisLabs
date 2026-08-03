@@ -684,14 +684,19 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
 
       BİLEREK kapsam dışı bırakılan bölüm: değerleme çarpanlarının tarihsel
       bandı (güvenilir bir yöntem bu oturumda kurulamadı, bkz.
-      `06_BILINEN_SORUNLAR.md` §B23). Test: `pytest tests/` (802 test,
+      `06_BILINEN_SORUNLAR.md` §B23). Test: `pytest tests/` (803 test,
       hiçbir regresyon yok). Demo: `python scripts/demo_derin_kart.py THYAO`
       / `TATGD` (gerçek 2 sektör peer'iyle, EFOR/BORSK) / `AAPL --market
       NASDAQ` ile canlı DB verisiyle uçtan uca doğrulandı; canlı görsel
-      incelemede İKİ kenar durumu yakalanıp düzeltildi (mevsimsellik
+      incelemede ÜÇ kenar durumu yakalanıp düzeltildi (mevsimsellik
       grubunda tek gerçek nokta varken yanıltıcı düz çizgi; sektör
       ortalaması peer sayısı dönem-bazlı örtüşmeme yüzünden başlıkta
-      yanlış/düşük gösteriliyordu).
+      yanlış/düşük gösteriliyordu; **CIMSA canlı bot raporu**: 9 çeyrek +
+      4/4 mevsimsellik grubu içeren bir kart 2400x8760'a ulaşıp
+      Telegram'ın foto boyut sınırını — genişlik+yükseklik <= 10000 —
+      aşarak `Photo_invalid_dimensions` ile çöküyordu; grafik/bölüm
+      boyutları küçültülüp 12 blokluk TAVAN senaryo için güvenli marjla
+      yeniden kalibre edildi, regresyon: `test_render_deep_card_en_kotu_durumda_telegram_boyut_sinirini_asmaz`).
 
 ## Dizin Yapisi
 

@@ -9,11 +9,21 @@ desen).
 
 from __future__ import annotations
 
+import struct
 from datetime import datetime
 from decimal import Decimal
 
 from src.analysis.trends import MultiPeriodTrend, PeriodTrendPoint, SeasonalityGroup, SectorAveragePoint
 from src.render import card, deep_card
+
+
+def _png_dimensions(path) -> tuple[int, int]:
+    """PNG'nin IHDR parçasından genişlik/yükseklik okur -- test_calendar_card.py
+    ile AYNI teknik (Pillow gibi bir DIŞ BAĞIMLILIK gerekmeden)."""
+    with open(path, "rb") as f:
+        header = f.read(24)
+    width, height = struct.unpack(">II", header[16:24])
+    return width, height
 
 
 def _point(period, revenue=Decimal("120"), ebitda=Decimal("30"), net_income=Decimal("15"),
@@ -318,6 +328,50 @@ def test_render_deep_card_gercek_png_uretir(tmp_path):
     assert out_path.exists()
     assert out_path.stat().st_size > 1000
     assert out_path.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+def test_render_deep_card_en_kotu_durumda_telegram_boyut_sinirini_asmaz(tmp_path):
+    """CANLI HATA (kullanıcı raporu, 2026-08-03, CIMSA): 7 sabit metrik
+    grafiği + skor geçmişi + 4 mevsimsellik grafiği (bu TAVAN -- sadece 4
+    çeyrek numarası olduğu için daha fazlası MÜMKÜN DEĞİL) içeren bir kart
+    2400x8760'a ulaşıp `telegram.error.BadRequest: Photo_invalid_dimensions`
+    ile çöküyordu (Telegram sınırı: genişlik+yükseklik <= 10000). Bu test
+    TAM olarak bu en-kötü-durumu (12 blok: sektör ortalamalı 7 metrik + skor
+    geçmişi + 4/4 mevsimsellik grubu) kurup GERÇEK Playwright render'iyle
+    doğrular -- test_calendar_card.py'deki AYNI teknik (Pillow'a bağımlı
+    OLMADAN IHDR'dan boyut okuma, bkz. _png_dimensions)."""
+    seasonality = tuple(
+        SeasonalityGroup(quarter_number=q, years=(2024, 2025, 2026), revenues=(Decimal("100"), Decimal("110"), Decimal("120")))
+        for q in (3, 6, 9, 12)
+    )
+    history = [(datetime(2026, 1, 1), 5.0), (datetime(2026, 4, 1), 7.5), (datetime(2026, 7, 1), 6.0)]
+    # 9 çeyreklik ardışık dönem serisi (CIMSA ile aynı büyüklükte pencere).
+    points = [
+        _point((2024, 6)), _point((2024, 9)), _point((2024, 12)),
+        _point((2025, 3)), _point((2025, 6)), _point((2025, 9)), _point((2025, 12)),
+        _point((2026, 3)), _point((2026, 6)),
+    ]
+    sector_average = {
+        p.period: SectorAveragePoint(
+            period=p.period, peer_count=2, gross_margin_pct=Decimal("35"), ebitda_margin_pct=Decimal("20"),
+            net_margin_pct=Decimal("10"), current_ratio=Decimal("1.2"), net_debt_to_ebitda=Decimal("2.5"),
+            roe_pct=Decimal("8"),
+        )
+        for p in points
+    }
+    context = deep_card.build_deep_card_context(
+        _trend(points=points, seasonality=seasonality), history, "CIMSA", "BIST",
+        company_name="ÇİMSA ÇİMENTO SANAYİ VE TİCARET A.Ş.",
+        sector_average=sector_average, sector_name="TAŞ VE TOPRAĞA DAYALI SANAYİ",
+    )
+    assert len(context["metric_charts"]) == 7
+    assert len(context["seasonality_charts"]) == 4
+
+    out_path = tmp_path / "test_derin_en_kotu.png"
+    card.render_card(context, str(out_path), template_name="deep_card.html", screenshot_selector="#deep-card")
+
+    width, height = _png_dimensions(out_path)
+    assert width + height <= 10000, f"Telegram foto sınırı aşıldı: {width}x{height} (toplam {width + height})"
 
 
 def test_render_deep_card_veri_yokken_de_cokmez(tmp_path):

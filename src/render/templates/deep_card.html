@@ -50,10 +50,10 @@
     border: 1px solid var(--border);
     border-radius: 18px;
     overflow: hidden;
-    padding: 28px 32px 22px;
+    padding: 22px 32px 18px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
   }
 
   .scanlines {
@@ -101,25 +101,35 @@
   .section {
     border: 1px solid var(--border);
     border-radius: 14px;
-    padding: 18px 22px;
+    padding: 14px 18px;
     background: var(--panel);
   }
   .section-title {
     font-size: 14px; font-weight: 800; color: var(--accent);
-    letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 14px;
+    letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 10px;
   }
   .empty-note { color: var(--secondary); font-size: 13px; text-align: center; padding: 20px 0; }
 
   /* --- Metrik grafik karti --- */
+  /* CANLI HATA (kullanıcı raporu, 2026-08-03, CIMSA): Telegram'ın foto
+     sınırı genişlik+yükseklik <= 10000 -- 7 sabit metrik grafiği + skor
+     geçmişi + EN FAZLA 4 mevsimsellik grafiği (12 blok TAVANI, sadece 4
+     çeyrek numarası olduğu için SINIRLI) içeren bir kart 2400x8760'a
+     ULAŞTI (`Photo_invalid_dimensions`). Blok sayısı SABİT bir tavana
+     sahip olduğu için (calendar_card.py'deki UNBOUNDED satır sayısının
+     AKSİNE) dinamik bir kırpma/bütçe sistemi GEREKMEDİ -- her bloğun
+     yüksekliği küçültülüp CANLI CIMSA verisiyle yeniden ölçüldü (bkz.
+     06_BILINEN_SORUNLAR.md §A38).
+  */
   .metric-chart {
     border: 1px solid var(--border);
     border-radius: 14px;
-    padding: 16px 20px 12px;
+    padding: 10px 16px 8px;
     background: var(--panel);
   }
-  .metric-chart-title { font-size: 15px; font-weight: 800; color: var(--heading); }
-  .metric-chart-subtitle { font-size: 11.5px; color: var(--secondary); margin-top: 2px; margin-bottom: 6px; }
-  .chart-svg { width: 100%; height: 220px; display: block; }
+  .metric-chart-title { font-size: 14px; font-weight: 800; color: var(--heading); }
+  .metric-chart-subtitle { font-size: 11px; color: var(--secondary); margin-top: 1px; margin-bottom: 3px; }
+  .chart-svg { width: 100%; height: 145px; display: block; }
   .grid-line { stroke: var(--border-soft); stroke-width: 1; }
   .grid-label { font-size: 12px; fill: var(--secondary); font-family: inherit; }
   .x-label { font-size: 11.5px; fill: var(--secondary); font-family: inherit; text-anchor: middle; }
@@ -130,13 +140,13 @@
   .chart-marker.line-key-self { fill: var(--self-line); }
   .chart-marker.line-key-sector { fill: var(--sector-line); }
 
-  .chart-legend { display: flex; gap: 20px; margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--border-soft); font-size: 12.5px; }
+  .chart-legend { display: flex; gap: 20px; margin-top: 4px; padding-top: 6px; border-top: 1px solid var(--border-soft); font-size: 12px; }
   .legend-item { display: flex; align-items: center; gap: 7px; color: var(--secondary); }
-  .legend-dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
   .legend-dot.line-key-self { background: var(--self-line); }
   .legend-dot.line-key-sector { background: var(--sector-line); }
 
-  .metric-grid { display: flex; flex-direction: column; gap: 16px; }
+  .metric-grid { display: flex; flex-direction: column; gap: 10px; }
 
   /* --- Uyarilar --- */
   .warnings { display: flex; flex-direction: column; gap: 4px; }

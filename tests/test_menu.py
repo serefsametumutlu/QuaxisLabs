@@ -177,3 +177,24 @@ def test_build_sonuc_sonrasi_menu_ticker_market_verilirse_teknik_butonu_ekler() 
     callback_data'li bir buton eklenir, mevcut BIST/NASDAQ butonlari korunur."""
     grid = _callback_data_grid(menu.build_sonuc_sonrasi_menu(ticker="THYAO", market="BIST"))
     assert grid == [["teknik:BIST:THYAO"], ["menu:analiz:bist", "menu:analiz:nasdaq"]]
+
+
+# --- "teknik sonrasi" temel analiz butonu (build_sonuc_sonrasi_menu'nun simetrigi) -----------------------------------------------------
+
+
+def test_build_teknik_sonrasi_menu_temel_butonu_ve_teknikanaliz_arama_butonlarini_icerir() -> None:
+    grid = _callback_data_grid(menu.build_teknik_sonrasi_menu(ticker="THYAO", market="BIST"))
+    assert grid == [["temel:BIST:THYAO"], ["menu:teknikanaliz:bist", "menu:teknikanaliz:nasdaq"]]
+
+
+def test_build_teknik_sonrasi_menu_nasdaq_ticker_ile_dogru_callback_uretir() -> None:
+    grid = _callback_data_grid(menu.build_teknik_sonrasi_menu(ticker="AAPL", market="NASDAQ"))
+    assert grid[0] == ["temel:NASDAQ:AAPL"]
+
+
+@pytest.mark.parametrize("ticker,market", [("THYAO", "BIST"), ("AAPL", "NASDAQ"), ("BRK.B", "NASDAQ")])
+def test_build_teknik_sonrasi_menu_callback_data_64_byte_siniri_altinda(ticker: str, market: str) -> None:
+    grid = _callback_data_grid(menu.build_teknik_sonrasi_menu(ticker=ticker, market=market))
+    for row in grid:
+        for callback_data in row:
+            assert len(callback_data.encode("utf-8")) <= 64

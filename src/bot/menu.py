@@ -173,6 +173,23 @@ def build_sonuc_sonrasi_menu(ticker: str | None = None, market: str | None = Non
     return InlineKeyboardMarkup(rows)
 
 
+def build_teknik_sonrasi_menu(ticker: str, market: str) -> InlineKeyboardMarkup:
+    """Her Teknik Görünüm kartının ALTINA eklenir -- build_sonuc_sonrasi_menu()'nun
+    SİMETRİĞİ (kullanıcı isteği: temel analizden teknik görünüme tek dokunuşla
+    geçiş vardı, TERSİ yoktu). Callback_data "temel:{market}:{ticker}" formatinda,
+    AYRI bir handler'a (handle_temel_callback) gider -- "teknik:..." ile
+    KARIŞMASIN diye farklı bir öncelik ismi kullanılır."""
+    return InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("📊 Temel Analiz", callback_data=f"temel:{market}:{ticker}")],
+            [
+                InlineKeyboardButton("🇹🇷 BİST'te Ara", callback_data="menu:teknikanaliz:bist"),
+                InlineKeyboardButton("🇺🇸 NASDAQ'ta Ara", callback_data="menu:teknikanaliz:nasdaq"),
+            ],
+        ]
+    )
+
+
 # --- Sabit metinler -----------------------------------------------------
 
 

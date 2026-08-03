@@ -354,14 +354,22 @@ def test_handle_ticker_message_suresi_dolmus_bekleyen_islem_bist_varsayilanina_d
 # --- handle_menu_callback: her menu dali + geri butonu -----------------------------------------------------
 
 
-def _fake_callback_update(data: str, chat_id: int = 12345):
+def _fake_callback_update(data: str, chat_id: int = 12345, user_id: int = 1):
     query = SimpleNamespace(
         data=data,
         answer=AsyncMock(),
         edit_message_text=AsyncMock(),
         message=SimpleNamespace(chat_id=chat_id),
     )
-    return SimpleNamespace(callback_query=query), query
+    # effective_chat/effective_user: gercek telegram.Update bunlari
+    # callback_query'den OTOMATIK turetir (handle_temel_callback gibi
+    # _execute_and_send'e delege eden handler'lar bunlara ihtiyac duyar).
+    update = SimpleNamespace(
+        callback_query=query,
+        effective_chat=SimpleNamespace(id=chat_id),
+        effective_user=SimpleNamespace(id=user_id),
+    )
+    return update, query
 
 
 def test_handle_menu_callback_root_ana_menuyu_gosterir_ve_bekleyeni_temizler() -> None:
@@ -538,6 +546,31 @@ def test_handle_teknik_callback_eksik_veri_sessizce_gecer(monkeypatch) -> None:
     update, query = _fake_callback_update("teknik:BIST")
 
     _run_coro(telegram_bot.handle_teknik_callback(update, _fake_context_with_bot()))
+
+    calls.assert_not_awaited()
+
+
+# --- Temel Analiz callback (handle_teknik_callback'in simetrigi) -----------------------------------------------------
+
+
+def test_handle_temel_callback_market_ve_ticker_ayristirir_ve_execute_and_send_cagirir(monkeypatch) -> None:
+    calls = AsyncMock()
+    monkeypatch.setattr(telegram_bot, "_execute_and_send", calls)
+    update, query = _fake_callback_update("temel:NASDAQ:AAPL", chat_id=999, user_id=42)
+    context = _fake_context_with_bot()
+
+    _run_coro(telegram_bot.handle_temel_callback(update, context))
+
+    query.answer.assert_awaited_once()
+    calls.assert_awaited_once_with("AAPL", update, context, market="NASDAQ")
+
+
+def test_handle_temel_callback_eksik_veri_sessizce_gecer(monkeypatch) -> None:
+    calls = AsyncMock()
+    monkeypatch.setattr(telegram_bot, "_execute_and_send", calls)
+    update, query = _fake_callback_update("temel:BIST")
+
+    _run_coro(telegram_bot.handle_temel_callback(update, _fake_context_with_bot()))
 
     calls.assert_not_awaited()
 

@@ -285,7 +285,12 @@ async def _gonder_teknik(chat_id: int, context: ContextTypes.DEFAULT_TYPE, ticke
                 "Bu içerik yatırım tavsiyesi değildir; geçmiş performans gelecekteki "
                 "getirinin göstergesi değildir."
             )
-            await context.bot.send_photo(chat_id=chat_id, photo=png_file, caption=caption)
+            await context.bot.send_photo(
+                chat_id=chat_id,
+                photo=png_file,
+                caption=caption,
+                reply_markup=menu.build_teknik_sonrasi_menu(ticker=ticker, market=market),
+            )
     except Exception:
         logger.exception("%s teknik görünüm görseli gönderilemedi", ticker)
 
@@ -303,6 +308,25 @@ async def handle_teknik_callback(update: Update, context: ContextTypes.DEFAULT_T
     chat_id = query.message.chat_id
     await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
     await _gonder_teknik(chat_id, context, ticker, market)
+
+
+async def handle_temel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """callback_data: 'temel:{market}:{ticker}' (bkz. menu.build_teknik_sonrasi_menu) --
+    handle_teknik_callback'in SİMETRİĞİ: Teknik Görünüm kartının altındaki
+    '📊 Temel Analiz' butonuna basılınca aynı ticker/market için normal
+    Bilanço Analizi akışı (_execute_and_send, fiyat/skor/yorum dahil tam
+    pipeline) tetiklenir."""
+    query = update.callback_query
+    await query.answer()
+
+    parts = (query.data or "").split(":")
+    if len(parts) < 3:
+        return
+    market, ticker = parts[1], parts[2]
+
+    chat_id = query.message.chat_id
+    await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
+    await _execute_and_send(ticker, update, context, market=market)
 
 
 # --- Analiz akisi -----------------------------------------------------
@@ -682,6 +706,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("hakkinda", cmd_hakkinda))
     application.add_handler(CallbackQueryHandler(handle_period_callback, pattern=r"^oncekidonem:"))
     application.add_handler(CallbackQueryHandler(handle_teknik_callback, pattern=r"^teknik:"))
+    application.add_handler(CallbackQueryHandler(handle_temel_callback, pattern=r"^temel:"))
     application.add_handler(CallbackQueryHandler(handle_menu_callback, pattern=r"^menu:"))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_ticker_message))
     application.add_error_handler(_on_error)

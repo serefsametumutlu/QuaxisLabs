@@ -724,6 +724,22 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       görüntüsü incelendi, 2400x5316). Bkz. `06_BILINEN_SORUNLAR.md` §B24/§B25
       (ikisi de artık ÇÖZÜLDÜ olarak işaretlendi).
 
+- [x] **Faz 16.2 (Banka/sigorta skor kartına gerçek YoY trend, kullanıcı
+      raporu — TURSG, 2026-08-03, ACİL)** — `score_insurance()`/`score_bank()`
+      "iskelet şablon" olarak trend_puan'ı HER ZAMAN `None` geçiyordu, bu
+      yüzden Teknik Denge Marjı/Net Faiz Marjı/Aktif Kârlılığı bileşenleri
+      HER ZAMAN "trend verisi yok" diyordu. `calculator.py`'ye sanayinin
+      gross/ebitda/net marj deseniyle AYNI ilkede `..._prior_year`/
+      `..._change_points` alanları eklendi (`InsuranceRatios`/`BankRatios`),
+      `scorer.py`/`pipeline.py` bunları gerçek trend_puan olarak geçiriyor.
+      TURSG ile CANLI doğrulandı: "Teknik Denge Marjı %34,4, güçlü ve
+      yükseliyor" (önce "trend verisi yok"). Üst karttaki "Sermaye" alanının
+      banka/sigorta kartlarında GÖRÜNMEMESİ ayrı incelendi — bu `_valuation_context_bank/
+      _valuation_context_insurance`'da BİLİNÇLİ bir tasarım (referans
+      kartlar GARAN/ANSGR ile eşleşsin diye), bug değil, dokunulmadı. Test:
+      `pytest tests/` (808 test, 5 yeni regresyon). Detay: `06_BILINEN_SORUNLAR.md`
+      §A39.
+
 ## Dizin Yapisi
 
 ```

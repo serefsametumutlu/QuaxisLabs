@@ -732,6 +732,41 @@ def test_analyze_bank_ratios_roa_ve_ozkaynak_aktif_orani() -> None:
     assert r.equity_to_assets_current == Decimal("487") / Decimal("4412") * 100
 
 
+def test_analyze_bank_nfm_ve_roa_trend() -> None:
+    """KULLANICI RAPORU (TURSG/sigorta icin, 2026-08-03 -- ayni sablon
+    bankada da BOSTU): skor kartinda Net Faiz Marji/Aktif Karliligi HER
+    ZAMAN 'trend verisi yok' diyordu. Guncel TTM'in (2026/6'da biten) YANI
+    SIRA bir yil once biten (2025/6) TTM de hesaplanip puan-degisimi
+    uretiliyor -- ikisi de AYNI _trailing_12m_from_cumulative formulunu
+    (YTD + gecen_yil_tam_yil - gecen_yil_ayni_donem_YTD) farkli 'latest_period'
+    ile cagirir."""
+    financials = {
+        _BANK_LATEST: _bank_donem(412, -294, 88, 64, 64, total_assets=4412),
+        (2025, 12): _bank_donem(180, -120, 40, 28, 28, total_assets=4100),
+        _BANK_YOY_PRIOR: _bank_donem(329, -266, 64, 54, 54, total_assets=3800),
+        (2024, 12): _bank_donem(140, -95, 30, 20, 20, total_assets=3600),
+        (2024, 6): _bank_donem(250, -200, 48, 38, 38, total_assets=3500),
+    }
+    result = analyze_bank("GARAN", financials)
+    r = result.ratios
+
+    guncel_ttm_net_kar = Decimal("64") + Decimal("28") - Decimal("54")
+    onceki_ttm_net_kar = Decimal("54") + Decimal("20") - Decimal("38")
+    guncel_roa = guncel_ttm_net_kar / Decimal("4412") * 100
+    onceki_roa = onceki_ttm_net_kar / Decimal("3800") * 100
+    assert r.return_on_assets_annualized == guncel_roa
+    assert r.return_on_assets_prior_year == onceki_roa
+    assert r.return_on_assets_change_points == guncel_roa - onceki_roa
+
+    guncel_ttm_faiz = Decimal("412") + Decimal("180") - Decimal("329")
+    onceki_ttm_faiz = Decimal("329") + Decimal("140") - Decimal("250")
+    guncel_nim = guncel_ttm_faiz / Decimal("4412") * 100
+    onceki_nim = onceki_ttm_faiz / Decimal("3800") * 100
+    assert r.net_interest_margin_current == guncel_nim
+    assert r.net_interest_margin_prior_year == onceki_nim
+    assert r.net_interest_margin_change_points == guncel_nim - onceki_nim
+
+
 def test_analyze_bank_bos_sozluk_hata_firlatir() -> None:
     with pytest.raises(ValueError):
         analyze_bank("GARAN", {})
@@ -852,6 +887,30 @@ def test_analyze_insurance_teknik_denge_marji() -> None:
     result = analyze_insurance("ANSGR", _sample_insurance_financials())
     # 9301 / 54903 * 100
     assert result.ratios.technical_balance_margin_current == (Decimal("9301") / Decimal("54903")) * 100
+
+
+def test_analyze_insurance_teknik_denge_marji_trend() -> None:
+    """KULLANICI RAPORU (TURSG, 2026-08-03): skor kartinda Teknik Denge
+    Marji HER ZAMAN 'trend verisi yok' gosteriyordu -- kok neden trend_puan'in
+    scorer.score_insurance()'a hep None gecilmesiydi. calculator.py artik
+    guncel donemin teknik denge marjini AYNI ceyregin bir yil onceki
+    (yoy_prior) marjiyla kiyaslayip gercek bir puan-degisimi uretiyor."""
+    result = analyze_insurance("ANSGR", _sample_insurance_financials())
+    guncel_marj = (Decimal("9301") / Decimal("54903")) * 100
+    onceki_marj = (Decimal("6673") / Decimal("37827")) * 100
+    assert result.ratios.technical_balance_margin_prior_year == onceki_marj
+    assert result.ratios.technical_balance_margin_change_points == guncel_marj - onceki_marj
+
+
+def test_analyze_insurance_teknik_denge_marji_trend_yoy_prior_yoksa_none() -> None:
+    """Sadece guncel donem varsa (tek donem/yeni sirket) trend alanlari
+    cokmeden None doner -- veri eksikliginde `_seviye_trend_skoru()` icin
+    'trend_puan=None' yolu (mevcut davranis, 'trend verisi yok' metni)
+    otomatik olarak devreye girer."""
+    financials = {_INS_LATEST: _sample_insurance_financials()[_INS_LATEST]}
+    result = analyze_insurance("ANSGR", financials)
+    assert result.ratios.technical_balance_margin_prior_year is None
+    assert result.ratios.technical_balance_margin_change_points is None
 
 
 def test_analyze_insurance_bos_sozluk_hata_firlatir() -> None:

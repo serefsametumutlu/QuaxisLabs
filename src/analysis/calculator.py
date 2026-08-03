@@ -877,12 +877,26 @@ class BankRatios:
     # hesaplanir (bu detay fetcher katmaninda yok) -- bu yuzden bu sadece bir
     # YAKLASIMDIR, scorer.score_bank()'a da bu sekilde belgelenerek verilir.
     net_interest_margin_current: Decimal | None
+    # KULLANICI RAPORU (TURSG/sigorta icin, 2026-08-03 -- ayni sablon
+    # bankada da BOSTU): Net Faiz Marji/Aktif Karliligi skor bilesenleri
+    # HER ZAMAN "trend verisi yok" gosteriyordu -- score_bank() trend_puan'i
+    # SABIT None geciyordu (bkz. scorer.py, artik duzeltildi). Bir onceki
+    # yilin AYNI ceyregi icin biten TTM (yoy_prior donemine kadar olan 4
+    # ceyrek) ile guncel TTM kiyaslanir -- n_periods=8 ceyrek fetch'i tam
+    # SINIRINDA yeterli (yoy_prior'un TTM'i icin ONDAN 3 ceyrek daha geriye
+    # gerekir); yetersizse (yeni sirket) _trailing_12m_from_cumulative
+    # zaten None doner, GERI DONUS "trend verisi yok" ile AYNI (regresyon
+    # yok).
+    net_interest_margin_prior_year: Decimal | None
+    net_interest_margin_change_points: Decimal | None
     net_margin_current: Decimal | None  # net kar / faiz geliri
     roe_annualized: Decimal | None  # yıllıklandırılmış (TTM net kar / guncel ozkaynak) ozkaynak karliligi, yuzde
     # CAMELS (bkz. scorer.score_bank docstring'i) "Earnings" bileseninde NIM
     # ile BIRLIKTE onerilen ikinci gosterge: yıllıklandırılmış (TTM net kar /
     # guncel toplam varlik) aktif karliligi, yuzde.
     return_on_assets_annualized: Decimal | None
+    return_on_assets_prior_year: Decimal | None
+    return_on_assets_change_points: Decimal | None
     # Sermaye Yeterlilik Orani (BDDK duzenleyici, risk agirlikli varlik
     # bazli) bu veri kaynaginda YOKTUR (bkz. isyatirim.py -- MaliTablo uc
     # noktasinda bulunmuyor). Bunun yerine CAMELS "Capital Adequacy"
@@ -989,12 +1003,27 @@ def analyze_bank(
     ttm_net_income = _trailing_12m_from_cumulative(
         financials_by_period, latest_period, lambda d: d.get("net_income_cum")
     )
+    yoy_prior_period = year_ago_period(latest_period)
+    ttm_interest_income_prior_year = _trailing_12m_from_cumulative(
+        financials_by_period, yoy_prior_period, lambda d: d.get("interest_income_cum")
+    )
+    ttm_net_income_prior_year = _trailing_12m_from_cumulative(
+        financials_by_period, yoy_prior_period, lambda d: d.get("net_income_cum")
+    )
+    net_interest_margin_current = _margin_pct(ttm_interest_income, current.get("total_assets"))
+    net_interest_margin_prior_year = _margin_pct(ttm_interest_income_prior_year, yoy_prior.get("total_assets"))
+    return_on_assets_annualized = _margin_pct(ttm_net_income, current.get("total_assets"))
+    return_on_assets_prior_year = _margin_pct(ttm_net_income_prior_year, yoy_prior.get("total_assets"))
 
     ratios = BankRatios(
-        net_interest_margin_current=_margin_pct(ttm_interest_income, current.get("total_assets")),
+        net_interest_margin_current=net_interest_margin_current,
+        net_interest_margin_prior_year=net_interest_margin_prior_year,
+        net_interest_margin_change_points=_points_diff(net_interest_margin_current, net_interest_margin_prior_year),
         net_margin_current=_margin_pct(current.get("net_income"), current.get("interest_income")),
         roe_annualized=_margin_pct(ttm_net_income, current.get("equity")),
-        return_on_assets_annualized=_margin_pct(ttm_net_income, current.get("total_assets")),
+        return_on_assets_annualized=return_on_assets_annualized,
+        return_on_assets_prior_year=return_on_assets_prior_year,
+        return_on_assets_change_points=_points_diff(return_on_assets_annualized, return_on_assets_prior_year),
         equity_to_assets_current=_margin_pct(current.get("equity"), current.get("total_assets")),
         ttm_net_income=ttm_net_income,
         ttm_interest_income=ttm_interest_income,
@@ -1099,6 +1128,13 @@ class InsuranceBalanceSheetSummary:
 @dataclass(frozen=True)
 class InsuranceRatios:
     technical_balance_margin_current: Decimal | None  # teknik denge / teknik gelir, yuzde -- scorer.score_insurance()'in teknik_denge_marji_pct girdisi
+    # KULLANICI RAPORU (TURSG, 2026-08-03): Skor kartinda "Teknik Denge Marji"
+    # HER ZAMAN "trend verisi yok" gosteriyordu -- score_insurance() trend_puan'i
+    # SABIT None geciyordu (bkz. scorer.py, artik duzeltildi). gross/ebitda/net
+    # marj icin analyze()'nin (sanayi) kullandigi AYNI desen: guncel donemin
+    # marjini AYNI ceyregin bir yil onceki (yoy_prior) marjiyla kiyaslar.
+    technical_balance_margin_prior_year: Decimal | None
+    technical_balance_margin_change_points: Decimal | None
     premium_growth_yoy_pct: Decimal | None  # CEYREKLIK (standalone) prim uretimi YoY buyumesi -- scorer.score_insurance()'in prim_buyumesi_yoy_pct girdisi
     roe_annualized: Decimal | None  # yıllıklandırılmış (TTM net kar / guncel ozkaynak) ozkaynak karliligi, yuzde
     ttm_net_income: Decimal | None
@@ -1187,9 +1223,25 @@ def analyze_insurance(ticker: str, financials_by_period: FinancialsByPeriod) -> 
     premium_growth_yoy_pct, _label, _direction = classify_change(
         current.get("gross_written_premiums"), yoy_prior.get("gross_written_premiums")
     )
+    # NOT: prim_buyumesi_yoy_pct'in KENDISI zaten bir YoY buyume orani --
+    # bunun "trendi" (bir onceki yilin AYNI ceyrekteki buyume oraniyla
+    # kiyasi) 2 yil geriye veri gerektirir (n_periods=8 ceyrekle SINIRDA/
+    # cogu zaman eksik) ve anlami tartismali (buyume oraninin buyume orani)
+    # -- BILEREK hesaplanmadi, industrial _skor_buyume()'de de esdegeri
+    # YOK. roe_annualized icin de trend hesaplanmiyor -- bu industrial
+    # _skor_ozkaynak_karliligi()'de de (bkz. scorer.py satir ~625) SISTEM
+    # GENELINDE boyle, sadece sigortaya ozgu bir eksik DEGIL.
+    technical_balance_margin_prior_year = _margin_pct(
+        yoy_prior.get("technical_balance"), yoy_prior.get("technical_income")
+    )
 
     ratios = InsuranceRatios(
         technical_balance_margin_current=_margin_pct(current.get("technical_balance"), current.get("technical_income")),
+        technical_balance_margin_prior_year=technical_balance_margin_prior_year,
+        technical_balance_margin_change_points=_points_diff(
+            _margin_pct(current.get("technical_balance"), current.get("technical_income")),
+            technical_balance_margin_prior_year,
+        ),
         premium_growth_yoy_pct=premium_growth_yoy_pct,
         roe_annualized=_margin_pct(ttm_net_income, current.get("equity")),
         ttm_net_income=ttm_net_income,

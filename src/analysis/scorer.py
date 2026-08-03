@@ -742,6 +742,7 @@ def score_insurance(
     valuation: ValuationInput | None = None,
     prim_buyumesi_yoy_pct: Decimal | None = None,
     teknik_denge_marji_pct: Decimal | None = None,
+    teknik_denge_marji_degisim_puan: Decimal | None = None,
 ) -> ScoreResult:
     """Sigorta sirketleri icin BASIT iskelet sablon (4 bilesen: Prim
     Buyumesi, Teknik Denge Marji, Ozkaynak Karliligi (ROE), Degerleme).
@@ -765,7 +766,7 @@ def score_insurance(
 
     if teknik_denge_marji_pct is not None:
         teknik = _seviye_trend_skoru(
-            "Teknik denge marjı", teknik_denge_marji_pct, None,
+            "Teknik denge marjı", teknik_denge_marji_pct, teknik_denge_marji_degisim_puan,
             cfg["teknik_denge_marji"]["guclu_esik"], cfg["teknik_denge_marji"]["orta_esik"],
             cfg["teknik_denge_marji"]["tavan"], cfg["teknik_denge_marji"]["taban"],
         )
@@ -790,7 +791,9 @@ def score_bank(
     analysis: AnalysisResult,
     valuation: ValuationInput | None = None,
     net_faiz_marji_pct: Decimal | None = None,
+    net_faiz_marji_degisim_puan: Decimal | None = None,
     aktif_karliligi_pct: Decimal | None = None,
+    aktif_karliligi_degisim_puan: Decimal | None = None,
     ozkaynak_aktif_orani_pct: Decimal | None = None,
 ) -> ScoreResult:
     """Banka sirketleri icin CAMELS (Capital/Assets/Management/Earnings/
@@ -828,7 +831,7 @@ def score_bank(
 
     if net_faiz_marji_pct is not None:
         nfm = _seviye_trend_skoru(
-            "Net faiz marjı", net_faiz_marji_pct, None,
+            "Net faiz marjı", net_faiz_marji_pct, net_faiz_marji_degisim_puan,
             cfg["net_faiz_marji"]["guclu_esik"], cfg["net_faiz_marji"]["orta_esik"],
             cfg["net_faiz_marji"]["tavan"], cfg["net_faiz_marji"]["taban"],
         )
@@ -837,7 +840,7 @@ def score_bank(
 
     if aktif_karliligi_pct is not None:
         roa = _seviye_trend_skoru(
-            "Aktif kârlılığı (ROA)", aktif_karliligi_pct, None,
+            "Aktif kârlılığı (ROA)", aktif_karliligi_pct, aktif_karliligi_degisim_puan,
             cfg["aktif_karliligi"]["guclu_esik"], cfg["aktif_karliligi"]["orta_esik"],
             cfg["aktif_karliligi"]["tavan"], cfg["aktif_karliligi"]["taban"],
         )

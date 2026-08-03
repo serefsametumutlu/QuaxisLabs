@@ -509,6 +509,41 @@ def test_score_insurance_fiyat_verisiyle_cokmez(saglikli_analiz) -> None:
     assert Decimal("0") <= sonuc.total_score <= Decimal("10")
 
 
+def test_score_insurance_teknik_denge_marji_trend_verildiginde_yon_belirtilir(saglikli_analiz) -> None:
+    """KULLANICI RAPORU (TURSG, 2026-08-03): skor kartinda 'Teknik Denge
+    Marji' HER ZAMAN 'trend verisi yok' diyordu -- score_insurance()
+    trend_puan'i SABIT None geciyordu. calculator.analyze_insurance() artik
+    gercek bir degisim puani urettigi icin (bkz. test_calculator.py) burada
+    da GERCEK bir yon ('yükseliyor') gorunmeli."""
+    sonuc = scorer.score_insurance(
+        saglikli_analiz,
+        teknik_denge_marji_pct=Decimal("10"),
+        teknik_denge_marji_degisim_puan=Decimal("1.5"),
+    )
+    teknik = next(c for c in sonuc.components if c.name == "Teknik Denge Marjı")
+    assert "yükseliyor" in teknik.reasoning_tr
+    assert "trend verisi yok" not in teknik.reasoning_tr
+
+
+def test_score_bank_nfm_ve_roa_trend_verildiginde_yon_belirtilir(saglikli_analiz) -> None:
+    """Bankada da AYNI kok neden/AYNI duzeltme -- Net Faiz Marji ve Aktif
+    Karliligi (ROA) icin gercek bir yon gorunmeli."""
+    cfg = scorer.CONFIG["banka"]
+    guclu_nfm = cfg["net_faiz_marji"]["guclu_esik"] + Decimal("1")
+    guclu_roa = cfg["aktif_karliligi"]["guclu_esik"] + Decimal("1")
+    sonuc = scorer.score_bank(
+        saglikli_analiz,
+        net_faiz_marji_pct=guclu_nfm,
+        net_faiz_marji_degisim_puan=Decimal("0.5"),
+        aktif_karliligi_pct=guclu_roa,
+        aktif_karliligi_degisim_puan=Decimal("-0.3"),
+    )
+    nfm = next(c for c in sonuc.components if c.name == "Net Faiz Marjı")
+    roa = next(c for c in sonuc.components if c.name == "Aktif Kârlılığı (ROA)")
+    assert "trend verisi yok" not in nfm.reasoning_tr
+    assert "trend verisi yok" not in roa.reasoning_tr
+
+
 def test_score_insurance_agirliklar_yuzde_yuze_tamamlanir() -> None:
     cfg = scorer.CONFIG["sigorta"]
     toplam = sum(cfg[k]["agirlik"] for k in cfg)

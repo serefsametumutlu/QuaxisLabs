@@ -1163,7 +1163,9 @@ def run_pipeline(ticker: str, *, periods: list[Period] | None = None, market: st
             analysis,
             valuation=valuation_input,
             net_faiz_marji_pct=analysis.ratios.net_interest_margin_current,
+            net_faiz_marji_degisim_puan=analysis.ratios.net_interest_margin_change_points,
             aktif_karliligi_pct=analysis.ratios.return_on_assets_annualized,
+            aktif_karliligi_degisim_puan=analysis.ratios.return_on_assets_change_points,
             ozkaynak_aktif_orani_pct=analysis.ratios.equity_to_assets_current,
         )
         yorum = _get_or_generate_commentary(
@@ -1195,6 +1197,7 @@ def run_pipeline(ticker: str, *, periods: list[Period] | None = None, market: st
             valuation=valuation_input,
             prim_buyumesi_yoy_pct=analysis.ratios.premium_growth_yoy_pct,
             teknik_denge_marji_pct=analysis.ratios.technical_balance_margin_current,
+            teknik_denge_marji_degisim_puan=analysis.ratios.technical_balance_margin_change_points,
         )
         yorum = _get_or_generate_commentary(
             ticker, analysis.latest_period, fresh,

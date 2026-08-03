@@ -64,6 +64,9 @@ class TechnicalSnapshot:
     bb_middle: Decimal | None
     bb_lower: Decimal | None
     atr_14: Decimal | None
+    adx_14: Decimal | None
+    sma_cross_state: str | None  # "golden" | "death" | None (bkz. sma_cross_state())
+    sma_cross_recent: bool
     week52_high: Decimal | None
     week52_low: Decimal | None
     week52_position_pct: Decimal | None
@@ -311,6 +314,128 @@ def atr_wilder(bars: list[PriceBar], period: int = 14) -> Decimal | None:
     return atr
 
 
+# --- ADX (Trend Gucu) -----------------------------------------------------------
+
+
+def adx_wilder(bars: list[PriceBar], period: int = 14) -> Decimal | None:
+    """Wilder'in Ortalama Yon Endeksi (Average Directional Index) -- bir
+    trendin YONUNU degil GUCUNU olcer (arastirma bulgusu: SMA50/200 kesisimi
+    gibi trend sinyallerini "yatay piyasada gurultu" olabilecek durumlardan
+    ayirt etmek icin standart bir filtredir).
+
+    Formul (J. Welles Wilder Jr., "New Concepts in Technical Trading
+    Systems", 1978, Bolum 4 -- atr_wilder() ile AYNI kaynak/bolum):
+        yukselis[i]  = high[i] - high[i-1] ; dusus[i] = low[i-1] - low[i]
+        +DM[i] = yukselis[i]  eger (yukselis[i] > dusus[i] ve yukselis[i] > 0) degilse 0
+        -DM[i] = dusus[i]     eger (dusus[i] > yukselis[i] ve dusus[i] > 0) degilse 0
+        GA[i]  = Gercek Aralik (atr_wilder() ile AYNI tanim)
+        +DM/-DM/GA, Wilder yumusatmasiyla (rsi_wilder/atr_wilder ile AYNI
+          yontem) yumusatilir -> smoothed(+DM), smoothed(-DM), smoothed(GA)
+        +DI = 100 * smoothed(+DM) / smoothed(GA)
+        -DI = 100 * smoothed(-DM) / smoothed(GA)
+        DX  = 100 * |+DI - -DI| / (+DI + -DI)
+        ADX = DX serisinin Wilder yumusatmasiyla ortalamasi (ilk deger ilk
+              `period` DX'in BASIT ortalamasi, sonrasi Wilder yumusamasi)
+
+    Klasik yorum esikleri (Wilder'in KENDI onerisi, RSI'in 70/30'u gibi
+    tartismasiz standart): ADX < 20 zayif/yatay piyasa, 20-25 trend
+    olusuyor, ADX > 25 guclu trend. Yorum karta/render katmanina birakilir
+    (K2), burada SADECE sayisal deger uretilir.
+
+    En az 2*period bar GEREKIR (ilk period: +DM/-DM/GA'nin ilk smoothed
+    degeri icin; ikinci period: ilk ADX'i olusturacak DX serisi icin). Azsa
+    None doner.
+    """
+    n = len(bars)
+    if n < 2 * period:
+        return None
+
+    trs: list[Decimal] = []
+    plus_dms: list[Decimal] = []
+    minus_dms: list[Decimal] = []
+    for i in range(1, n):
+        high, low = bars[i].high, bars[i].low
+        prev_high, prev_low, prev_close = bars[i - 1].high, bars[i - 1].low, bars[i - 1].close
+        up_move = high - prev_high
+        down_move = prev_low - low
+        plus_dms.append(up_move if (up_move > down_move and up_move > 0) else Decimal(0))
+        minus_dms.append(down_move if (down_move > up_move and down_move > 0) else Decimal(0))
+        trs.append(max(high - low, abs(high - prev_close), abs(low - prev_close)))
+
+    def _dx(smoothed_plus: Decimal, smoothed_minus: Decimal, smoothed_tr: Decimal) -> Decimal | None:
+        if smoothed_tr == 0:
+            return None
+        plus_di = Decimal(100) * smoothed_plus / smoothed_tr
+        minus_di = Decimal(100) * smoothed_minus / smoothed_tr
+        di_sum = plus_di + minus_di
+        if di_sum == 0:
+            return Decimal(0)
+        return Decimal(100) * abs(plus_di - minus_di) / di_sum
+
+    smoothed_tr = sum(trs[:period]) / period
+    smoothed_plus_dm = sum(plus_dms[:period]) / period
+    smoothed_minus_dm = sum(minus_dms[:period]) / period
+
+    dx_values: list[Decimal] = []
+    first_dx = _dx(smoothed_plus_dm, smoothed_minus_dm, smoothed_tr)
+    if first_dx is not None:
+        dx_values.append(first_dx)
+
+    for i in range(period, len(trs)):
+        smoothed_tr = (smoothed_tr * (period - 1) + trs[i]) / period
+        smoothed_plus_dm = (smoothed_plus_dm * (period - 1) + plus_dms[i]) / period
+        smoothed_minus_dm = (smoothed_minus_dm * (period - 1) + minus_dms[i]) / period
+        dx = _dx(smoothed_plus_dm, smoothed_minus_dm, smoothed_tr)
+        if dx is not None:
+            dx_values.append(dx)
+
+    if len(dx_values) < period:
+        return None
+
+    adx = sum(dx_values[:period]) / period
+    for i in range(period, len(dx_values)):
+        adx = (adx * (period - 1) + dx_values[i]) / period
+    return adx
+
+
+# --- SMA50/200 kesisim durumu (Golden/Death Cross) --------------------------------
+
+
+def sma_cross_state(
+    sma_50_series: list[Decimal | None], sma_200_series: list[Decimal | None], lookback: int = 20
+) -> tuple[str, bool] | None:
+    """SMA50'nin SMA200'e GORE guncel konumu + bu konumun YAKIN zamanda
+    (son `lookback` bar icinde) olusup olusmadigi -- "Altin Kesisim"/"Olum
+    Kesisimi" olarak bilinen, uzun vadeli trend donusu icin YAYGIN kullanilan
+    klasik bir OLGUDUR (Murphy 1999, Bolum 9 -- hareketli ortalama
+    kesisimleri). K2 geregi bir "AL/SAT" sinyali DEGIL, sadece iki hareketli
+    ortalamanin birbirine gore KONUMU + bu konumun "tazeligi".
+
+    Doner: (durum, yakin_zamanda_mi) -- durum "golden" (SMA50 > SMA200) veya
+    "death" (SMA50 < SMA200). Guncel deger(ler) None/esitse (yeterli veri
+    yok ya da tam kesisim noktasindaysa) None doner. `yakin_zamanda_mi`:
+    `lookback` bar ONCESINDEKI durum FARKLIYSA True -- referans nokta(lar)
+    eksikse (None) MUHAFAZAKAR sekilde False kalir (K4: uydurma yapilmaz).
+    """
+    n = len(sma_50_series)
+    if n == 0 or len(sma_200_series) != n:
+        return None
+
+    last_50, last_200 = sma_50_series[-1], sma_200_series[-1]
+    if last_50 is None or last_200 is None or last_50 == last_200:
+        return None
+    current_state = "golden" if last_50 > last_200 else "death"
+
+    reference_idx = max(0, n - 1 - lookback)
+    ref_50, ref_200 = sma_50_series[reference_idx], sma_200_series[reference_idx]
+    is_recent = False
+    if ref_50 is not None and ref_200 is not None and ref_50 != ref_200:
+        reference_state = "golden" if ref_50 > ref_200 else "death"
+        is_recent = reference_state != current_state
+
+    return current_state, is_recent
+
+
 # --- 52 hafta araligi ----------------------------------------------------------
 
 
@@ -417,6 +542,7 @@ def compute_snapshot(bars: list[PriceBar]) -> TechnicalSnapshot | None:
 
     sma_50_series = sma_series(closes, 50)
     sma_200_series = sma_series(closes, 200)
+    cross = sma_cross_state(sma_50_series, sma_200_series)
     cutoff = bars[-1].trade_date - timedelta(days=_CHART_LOOKBACK_DAYS)
     chart_indices = [i for i, bar in enumerate(bars) if bar.trade_date >= cutoff]
 
@@ -436,6 +562,9 @@ def compute_snapshot(bars: list[PriceBar]) -> TechnicalSnapshot | None:
         bb_middle=bb_result[1] if bb_result else None,
         bb_lower=bb_result[2] if bb_result else None,
         atr_14=atr_wilder(bars, 14),
+        adx_14=adx_wilder(bars, 14),
+        sma_cross_state=cross[0] if cross else None,
+        sma_cross_recent=cross[1] if cross else False,
         week52_high=week52[0] if week52 else None,
         week52_low=week52[1] if week52 else None,
         week52_position_pct=week52[2] if week52 else None,

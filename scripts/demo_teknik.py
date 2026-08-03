@@ -54,6 +54,8 @@ def main() -> int:
         print(f"MACD (çizgi/sinyal/hist): {snapshot.macd_line} / {snapshot.macd_signal} / {snapshot.macd_histogram}")
         print(f"Bollinger (üst/orta/alt): {snapshot.bb_upper} / {snapshot.bb_middle} / {snapshot.bb_lower}")
         print(f"ATR(14)      : {snapshot.atr_14}")
+        print(f"ADX(14)      : {snapshot.adx_14}")
+        print(f"SMA50/200 kesişimi: {snapshot.sma_cross_state} (yakın zamanda: {snapshot.sma_cross_recent})")
         print(f"52 hafta     : {snapshot.week52_low} - {snapshot.week52_high} (konum: %{snapshot.week52_position_pct})")
         print(f"Hacim oranı  : %{snapshot.volume_ratio_pct} (20g ort: {snapshot.avg_volume_20})")
     else:

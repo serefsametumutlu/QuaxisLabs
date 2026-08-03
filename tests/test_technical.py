@@ -26,6 +26,7 @@ import pytest
 
 from src.analysis.technical import (
     PriceBar,
+    adx_wilder,
     atr_wilder,
     average_volume,
     bollinger_bands,
@@ -36,6 +37,7 @@ from src.analysis.technical import (
     price_distance_from_sma_pct,
     rsi_wilder,
     sma,
+    sma_cross_state,
     sma_series,
     volume_ratio_pct,
     week_52_range,
@@ -245,6 +247,127 @@ def test_atr_wilder_yetersiz_veride_none_doner():
     assert atr_wilder(bars, period=14) is None
 
 
+# --- ADX -- bagimsiz naif float referans implementasyonu ile capraz dogrulama ------
+
+
+def _naive_adx_float_reference(bars: list[PriceBar], period: int = 14) -> float:
+    """adx_wilder() ile AYNI algoritma ama TAMAMEN AYRI bir kod yolunda
+    (float, rolling-sum optimizasyonu YOK) yeniden yazilmis -- MACD/Bollinger/
+    ATR testlerinde kullanilan capraz dogrulama ilkesiyle AYNI (bkz. modul
+    ust notu)."""
+    trs, plus_dms, minus_dms = [], [], []
+    for i in range(1, len(bars)):
+        high, low = float(bars[i].high), float(bars[i].low)
+        prev_high, prev_low, prev_close = float(bars[i - 1].high), float(bars[i - 1].low), float(bars[i - 1].close)
+        up_move = high - prev_high
+        down_move = prev_low - low
+        plus_dms.append(up_move if (up_move > down_move and up_move > 0) else 0.0)
+        minus_dms.append(down_move if (down_move > up_move and down_move > 0) else 0.0)
+        trs.append(max(high - low, abs(high - prev_close), abs(low - prev_close)))
+
+    def dx(p, m, t):
+        if t == 0:
+            return None
+        pdi, mdi = 100 * p / t, 100 * m / t
+        s = pdi + mdi
+        return 0.0 if s == 0 else 100 * abs(pdi - mdi) / s
+
+    s_tr = sum(trs[:period]) / period
+    s_plus = sum(plus_dms[:period]) / period
+    s_minus = sum(minus_dms[:period]) / period
+    dx_values = []
+    first = dx(s_plus, s_minus, s_tr)
+    if first is not None:
+        dx_values.append(first)
+    for i in range(period, len(trs)):
+        s_tr = (s_tr * (period - 1) + trs[i]) / period
+        s_plus = (s_plus * (period - 1) + plus_dms[i]) / period
+        s_minus = (s_minus * (period - 1) + minus_dms[i]) / period
+        d = dx(s_plus, s_minus, s_tr)
+        if d is not None:
+            dx_values.append(d)
+
+    adx = sum(dx_values[:period]) / period
+    for i in range(period, len(dx_values)):
+        adx = (adx * (period - 1) + dx_values[i]) / period
+    return adx
+
+
+def test_adx_wilder_bagimsiz_float_referansiyla_esit():
+    bars = _bars_from_closes(_SYNTHETIC_CLOSES)  # 40 bar, 2*period=28 gerekir
+
+    adx = adx_wilder(bars, period=14)
+    beklenen = _naive_adx_float_reference(bars, period=14)
+
+    assert adx is not None
+    assert abs(adx - _d(str(beklenen))) < Decimal("0.0001")
+
+
+def test_adx_wilder_yetersiz_veride_none_doner():
+    bars = _bars_from_closes(_SYNTHETIC_CLOSES[:27])  # 2*period=28 gerekir, 1 eksik
+    assert adx_wilder(bars, period=14) is None
+
+
+def test_adx_wilder_duz_yatay_fiyatta_dusuk_cikar():
+    """Fiyat tamamen SABIT -- yon hareketi YOK, ADX dusuk (yatay piyasa
+    olgusu) olmali."""
+    bars = _bars_from_closes([100.0] * 40)
+    adx = adx_wilder(bars, period=14)
+    assert adx is not None
+    assert adx < Decimal(5)
+
+
+def test_adx_wilder_guclu_tek_yonlu_trendde_yuksek_cikar():
+    """Fiyat HER gun DUZENLI artiyor -- guclu, kesintisiz bir trend; ADX
+    yuksek (Wilder'in KENDI "guclu trend" esigi >25) cikmali."""
+    bars = _bars_from_closes([100.0 + i * 2.0 for i in range(40)])
+    adx = adx_wilder(bars, period=14)
+    assert adx is not None
+    assert adx > Decimal(25)
+
+
+# --- SMA50/200 kesisim durumu (Golden/Death Cross) --------------------------------
+
+
+def test_sma_cross_state_sma50_ustteyse_golden_doner():
+    assert sma_cross_state([_d(110)] * 25, [_d(100)] * 25) == ("golden", False)
+
+
+def test_sma_cross_state_sma50_altteyse_death_doner():
+    assert sma_cross_state([_d(90)] * 25, [_d(100)] * 25) == ("death", False)
+
+
+def test_sma_cross_state_yakin_zamanda_kesisim_true_doner():
+    """Ilk 15 bar death (SMA50<SMA200), sonraki 10 bar golden (SMA50>SMA200)
+    -- son deger golden, lookback=20 penceresi 15. bardaki (hala death)
+    degere geri gittigi icin 'yakin zamanda' True olmali."""
+    sma50 = [_d(90)] * 15 + [_d(110)] * 10
+    sma200 = [_d(100)] * 25
+    assert sma_cross_state(sma50, sma200, lookback=20) == ("golden", True)
+
+
+def test_sma_cross_state_uzun_suredir_ayni_durumdaysa_yeni_degil():
+    """40 bar boyunca HEP golden -- lookback=20 penceresindeki referans nokta
+    da golden, dolayisiyla 'yakin zamanda' False olmali."""
+    sma50 = [_d(110)] * 40
+    sma200 = [_d(100)] * 40
+    assert sma_cross_state(sma50, sma200, lookback=20) == ("golden", False)
+
+
+def test_sma_cross_state_deger_none_ise_none_doner():
+    assert sma_cross_state([None], [None]) is None
+    assert sma_cross_state([_d(100)], [None]) is None
+
+
+def test_sma_cross_state_sma50_sma200ye_esitse_none_doner():
+    """Tam kesisim noktasindaki tek an -- ne golden ne death, belirsiz."""
+    assert sma_cross_state([_d(100)], [_d(100)]) is None
+
+
+def test_sma_cross_state_farkli_uzunluktaki_seriler_none_doner():
+    assert sma_cross_state([_d(100)], [_d(100), _d(100)]) is None
+
+
 # --- 52 hafta araligi ------------------------------------------------------------
 
 
@@ -337,6 +460,8 @@ def test_compute_snapshot_yeterli_veriyle_tum_alanlari_doldurur():
     assert snapshot.macd_line is not None
     assert snapshot.bb_upper is not None
     assert snapshot.atr_14 is not None
+    assert snapshot.adx_14 is not None
+    assert snapshot.sma_cross_state in ("golden", "death")
     assert snapshot.week52_high is not None
     assert snapshot.avg_volume_20 is not None
     assert snapshot.price_vs_sma200_pct is not None
@@ -371,6 +496,9 @@ def test_compute_snapshot_yetersiz_veride_ilgili_alanlar_none_ama_snapshot_ureti
     assert snapshot is not None
     assert snapshot.sma_20 is not None
     assert snapshot.rsi_14 is not None
+    assert snapshot.adx_14 is not None  # ADX icin 2*period=28 bar yeter, 30 bar VAR
     assert snapshot.sma_200 is None
+    assert snapshot.sma_cross_state is None  # sma200 None oldugu icin kesisim de belirlenemez
+    assert snapshot.sma_cross_recent is False
     assert snapshot.week52_high is None
     assert snapshot.price_vs_sma200_pct is None  # sma200 None oldugu icin

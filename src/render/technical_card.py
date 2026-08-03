@@ -44,6 +44,17 @@ _DATA_SOURCE_NOTES: dict[str, str] = {
 _RSI_ASIRI_ALIM_ESIGI = Decimal(70)
 _RSI_ASIRI_SATIM_ESIGI = Decimal(30)
 
+# ADX'in KENDİ standart esikleri -- Wilder'in orijinal onerisi (1978, RSI'in
+# 70/30'u gibi tartismasiz standart): <20 zayif/yatay, 20-25 gelisen trend,
+# >25 guclu trend. Yon ICERMEZ (K2) -- sadece trendin GUCU hakkinda bir olgu.
+_ADX_GUCLU_TREND_ESIGI = Decimal(25)
+_ADX_GELISEN_TREND_ESIGI = Decimal(20)
+
+# Fiyat cizgi grafigindeki hafif referans (gridline) sayisi -- min/max
+# disinda araya esit araliklarla yerlestirilen, okumayi kolaylastiran ama
+# gorseli kirletmeyen (recessive) yatay cizgiler.
+_CHART_GRIDLINE_LEVELS = (Decimal("0.25"), Decimal("0.5"), Decimal("0.75"))
+
 # Fiyat cizgi grafigi SVG viewBox boyutlari (CSS px degil -- viewBox
 # birimidir, sablonda <svg viewBox="0 0 {W} {H}"> ile olceklenir).
 _CHART_VIEWBOX_WIDTH = 1000
@@ -95,29 +106,83 @@ def _bollinger_zone(price: Decimal, bb_upper: Decimal | None, bb_lower: Decimal 
     return "Bantlar İçinde", "neutral"
 
 
+def _adx_zone(adx: Decimal | None) -> tuple[str, str]:
+    """ADX'in KENDİ standart esiklerine (Wilder 1978) gore trend GUCU olgusu
+    -- bkz. modul ust notu K2, RSI/Bollinger bolge etiketleriyle AYNI ilke
+    (bir yon/AL-SAT sinyali degil, sadece hangi esik araliginda oldugu)."""
+    if adx is None:
+        return "N/A", "neutral"
+    if adx >= _ADX_GUCLU_TREND_ESIGI:
+        return "Güçlü Trend", "extreme"
+    if adx >= _ADX_GELISEN_TREND_ESIGI:
+        return "Gelişen Trend", "neutral"
+    return "Zayıf / Yatay Piyasa", "neutral"
+
+
+def _cross_display(state: str | None, recent: bool) -> tuple[str, str | None, str]:
+    """(deger_metni, not_metni, not_sinifi) -- Golden/Death Cross OLGUSU
+    (bkz. technical.sma_cross_state() K2 notu). "positive"/"negative"
+    siniflari technical_card.html :root'unda ZATEN tanimli --positive/
+    --negative token'larini kullanir (yeni renk İCAT edilmedi)."""
+    if state == "golden":
+        note = "Yakın Zamanda Oluştu" if recent else None
+        return "Altın Kesişim (Golden Cross)", note, "positive"
+    if state == "death":
+        note = "Yakın Zamanda Oluştu" if recent else None
+        return "Ölüm Kesişimi (Death Cross)", note, "negative"
+    return "N/A", None, "neutral"
+
+
 def _row(label: str, value_display: str, note_display: str | None = None, note_class: str | None = None) -> dict:
     return {"label": label, "value_display": value_display, "note_display": note_display, "note_class": note_class}
 
 
-def _build_indicator_rows(snapshot: TechnicalSnapshot, market: str) -> list[dict]:
+def _group(title: str, rows: list[dict]) -> dict:
+    return {"title": title, "rows": rows}
+
+
+def _build_indicator_groups(snapshot: TechnicalSnapshot, market: str) -> list[dict]:
+    """Gosterge tablosunu TEK duz liste yerine kategorilere ayirir (arastirma
+    bulgusu: Trend/Momentum/Volatilite gruplamasi bilissel yuku azaltir --
+    bkz. YENI_FAZ_PROMPTLARI.md arastirma raporu). Her grup en az bir
+    sinyal-degil-olgu (K2) iceriyorsa etiketli gosterilir."""
+    adx_zone_label, adx_zone_class = _adx_zone(snapshot.adx_14)
+    cross_value, cross_note, cross_class = _cross_display(snapshot.sma_cross_state, snapshot.sma_cross_recent)
     rsi_zone_label, rsi_zone_class = _rsi_zone(snapshot.rsi_14)
     bb_zone_label, bb_zone_class = _bollinger_zone(snapshot.price, snapshot.bb_upper, snapshot.bb_lower)
 
     return [
-        _row("SMA 20", _price(snapshot.sma_20, market)),
-        _row("SMA 50", _price(snapshot.sma_50, market)),
-        _row("SMA 200", _price(snapshot.sma_200, market)),
-        _row("Fiyat / SMA200 Farkı", _pct(snapshot.price_vs_sma200_pct)),
-        _row("EMA 12", _price(snapshot.ema_12, market)),
-        _row("EMA 26", _price(snapshot.ema_26, market)),
-        _row("RSI (14)", _num(snapshot.rsi_14, 1), rsi_zone_label, rsi_zone_class),
-        _row("MACD Çizgisi", _num(snapshot.macd_line)),
-        _row("MACD Sinyal", _num(snapshot.macd_signal)),
-        _row("MACD Histogram", _num(snapshot.macd_histogram)),
-        _row("Bollinger Üst Bandı", _price(snapshot.bb_upper, market)),
-        _row("Bollinger Orta Bandı", _price(snapshot.bb_middle, market)),
-        _row("Bollinger Alt Bandı", _price(snapshot.bb_lower, market), bb_zone_label, bb_zone_class),
-        _row("ATR (14)", _price(snapshot.atr_14, market)),
+        _group(
+            "Trend",
+            [
+                _row("SMA 20", _price(snapshot.sma_20, market)),
+                _row("SMA 50", _price(snapshot.sma_50, market)),
+                _row("SMA 200", _price(snapshot.sma_200, market)),
+                _row("Fiyat / SMA200 Farkı", _pct(snapshot.price_vs_sma200_pct)),
+                _row("EMA 12", _price(snapshot.ema_12, market)),
+                _row("EMA 26", _price(snapshot.ema_26, market)),
+                _row("ADX (14) — Trend Gücü", _num(snapshot.adx_14, 1), adx_zone_label, adx_zone_class),
+                _row("SMA50/200 Kesişimi", cross_value, cross_note, cross_class),
+            ],
+        ),
+        _group(
+            "Momentum",
+            [
+                _row("RSI (14)", _num(snapshot.rsi_14, 1), rsi_zone_label, rsi_zone_class),
+                _row("MACD Çizgisi", _num(snapshot.macd_line)),
+                _row("MACD Sinyal", _num(snapshot.macd_signal)),
+                _row("MACD Histogram", _num(snapshot.macd_histogram)),
+            ],
+        ),
+        _group(
+            "Volatilite",
+            [
+                _row("Bollinger Üst Bandı", _price(snapshot.bb_upper, market)),
+                _row("Bollinger Orta Bandı", _price(snapshot.bb_middle, market)),
+                _row("Bollinger Alt Bandı", _price(snapshot.bb_lower, market), bb_zone_label, bb_zone_class),
+                _row("ATR (14)", _price(snapshot.atr_14, market)),
+            ],
+        ),
     ]
 
 
@@ -135,7 +200,22 @@ def _scale_series_to_points(series: tuple[Decimal | None, ...], min_v: Decimal, 
     return " ".join(points) if points else None
 
 
-def _build_price_chart(snapshot: TechnicalSnapshot) -> dict:
+def _build_chart_gridlines(min_v: Decimal, span: Decimal, market: str) -> list[dict]:
+    """Fiyat araliginin icine esit araliklarla yerlestirilen, okumayi
+    kolaylastiran ama gorseli kirletmeyen (recessive) yatay referans
+    cizgileri -- bkz. dataviz ilkesi "grid/axes recessive". SADECE
+    KONUMLANDIRMA/OLCEKLEME (mevcut _scale_series_to_points ile AYNI
+    istisna, bkz. modul ust notu); yeni bir gosterge HESAPLANMAZ."""
+    usable_height = Decimal(_CHART_VIEWBOX_HEIGHT - 2 * _CHART_PADDING)
+    lines = []
+    for level in _CHART_GRIDLINE_LEVELS:
+        price_at_level = min_v + span * level
+        y = _CHART_PADDING + (usable_height - level * usable_height)
+        lines.append({"y": f"{y:.1f}", "price_display": _price(price_at_level, market)})
+    return lines
+
+
+def _build_price_chart(snapshot: TechnicalSnapshot, market: str) -> dict:
     closes = snapshot.chart_closes
     n = len(closes)
     if n < 2:
@@ -152,6 +232,7 @@ def _build_price_chart(snapshot: TechnicalSnapshot) -> dict:
         "close_points": _scale_series_to_points(closes, min_v, span, n),
         "sma50_points": _scale_series_to_points(snapshot.chart_sma50, min_v, span, n),
         "sma200_points": _scale_series_to_points(snapshot.chart_sma200, min_v, span, n),
+        "gridlines": _build_chart_gridlines(min_v, span, market),
         "price_max_display": _num(max_v),
         "price_min_display": _num(min_v),
         "start_date_display": snapshot.chart_dates[0].strftime("%d.%m.%Y"),
@@ -225,8 +306,8 @@ def build_technical_context(
         "has_data": True,
         "as_of_date_display": snapshot.as_of_date.strftime("%d.%m.%Y"),
         "price_display": _price_display(snapshot.price, market),
-        "indicator_rows": _build_indicator_rows(snapshot, market),
-        "price_chart": _build_price_chart(snapshot),
+        "indicator_groups": _build_indicator_groups(snapshot, market),
+        "price_chart": _build_price_chart(snapshot, market),
         "week52_bar": _build_week52_bar(snapshot, market),
         "volume_strip": _build_volume_strip(snapshot),
     }

@@ -602,6 +602,32 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       yarı-yıllık hibrit deseni bilinçli olarak ayrı bırakıldı. Test:
       `pytest tests/` (698 test, 24 yeni, hiçbir regresyon yok). Detaylar:
       `PROJE_HAFIZASI/06_BILINEN_SORUNLAR.md` §B21.
+- [x] **Menü simetrisi — Teknik Görünüm'den Temel Analiz'e dönüş (2026-08-03)** —
+      "📊 Bilanço Analizi" sonucunun altında zaten "📈 Teknik Görünüm" butonu
+      vardı, tersi yoktu. `menu.build_teknik_sonrasi_menu()` ile Teknik
+      Görünüm kartının altına simetrik "📊 Temel Analiz" butonu eklendi
+      (callback `temel:{market}:{ticker}` → `handle_temel_callback` →
+      mevcut `_execute_and_send` tam pipeline'ı). Test: `pytest tests/`
+      (705 test, 7 yeni, hiçbir regresyon yok).
+- [x] **Teknik Görünüm kartı — ADX + Golden/Death Cross + kategorize
+      gösterge tablosu + grafik ızgara çizgileri (2026-08-03)** — kullanıcı
+      isteğiyle yapılan teknik analiz UI/gösterge araştırmasının (RSI/MACD/
+      Bollinger eşikleri, SMA50/200 kesişimi, ADX trend gücü filtresi,
+      kategorize dashboard tasarımı — bkz. sohbet geçmişi) sonuçları
+      uygulandı: `src/analysis/technical.py`'ye `adx_wilder()` (Wilder 1978,
+      ATR/RSI ile AYNI kaynak — <20 zayıf/yatay, 20-25 gelişen, >25 güçlü
+      trend, K2'ye uygun sadece OLGU) ve `sma_cross_state()` (Golden/Death
+      Cross — SMA50/200'ün göreceli konumu + son 20 barda "yakın zamanda"
+      olup olmadığı) eklendi. `technical_card.py`: gösterge tablosu artık
+      TEK düz liste değil, **Trend / Momentum / Volatilite** olarak
+      kategorize (araştırma bulgusu: kategorize dashboard bilişsel yükü
+      azaltır); fiyat grafiğine 3 hafif (recessive) yatay referans çizgisi +
+      fiyat etiketi eklendi (dataviz skill ilkeleri: "recessive grid/axes",
+      okumayı kolaylaştırır, mevcut renk paletini/kimliği DEĞİŞTİRMEZ).
+      Test: `pytest tests/` (725 test, 20 yeni — ADX bağımsız float referans
+      implementasyonuyla, cross durumu elle kurgulanan senaryolarla
+      doğrulandı, hiçbir regresyon yok). Demo: `python scripts/demo_teknik.py
+      THYAO` ile canlı veriyle uçtan uca doğrulandı.
 
 ## Dizin Yapisi
 

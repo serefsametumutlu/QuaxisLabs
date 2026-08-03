@@ -32,6 +32,9 @@ def _snapshot(**overrides) -> TechnicalSnapshot:
         bb_middle=Decimal("300.0"),
         bb_lower=Decimal("280.0"),
         atr_14=Decimal("5.5"),
+        adx_14=Decimal("30.0"),
+        sma_cross_state="golden",
+        sma_cross_recent=False,
         week52_high=Decimal("340.0"),
         week52_low=Decimal("230.0"),
         week52_position_pct=Decimal("76.4"),
@@ -46,6 +49,13 @@ def _snapshot(**overrides) -> TechnicalSnapshot:
     )
     defaults.update(overrides)
     return TechnicalSnapshot(**defaults)
+
+
+def _all_rows(context: dict) -> list[dict]:
+    """indicator_groups (Trend/Momentum/Volatilite) icindeki TUM satirlari
+    tek bir duz listede toplar -- eski flat indicator_rows'u ARAYAN testler
+    icin kolaylik."""
+    return [row for group in context["indicator_groups"] for row in group["rows"]]
 
 
 # --- Bolge etiketleri (K2: sinyal degil, sadece olgu) -----------------------
@@ -85,6 +95,49 @@ def test_bollinger_zone_bantlar_icinde():
     assert label == "Bantlar İçinde"
 
 
+def test_adx_zone_guclu_trend():
+    label, css_class = technical_card._adx_zone(Decimal("30"))
+    assert label == "Güçlü Trend"
+    assert css_class == "extreme"
+
+
+def test_adx_zone_gelisen_trend():
+    label, css_class = technical_card._adx_zone(Decimal("22"))
+    assert label == "Gelişen Trend"
+    assert css_class == "neutral"
+
+
+def test_adx_zone_zayif_yatay():
+    label, _ = technical_card._adx_zone(Decimal("15"))
+    assert label == "Zayıf / Yatay Piyasa"
+
+
+def test_adx_zone_none_ise_na():
+    assert technical_card._adx_zone(None) == ("N/A", "neutral")
+
+
+def test_cross_display_golden():
+    value, note, css_class = technical_card._cross_display("golden", recent=False)
+    assert value == "Altın Kesişim (Golden Cross)"
+    assert note is None
+    assert css_class == "positive"
+
+
+def test_cross_display_golden_yakin_zamanda():
+    _, note, _ = technical_card._cross_display("golden", recent=True)
+    assert note == "Yakın Zamanda Oluştu"
+
+
+def test_cross_display_death():
+    value, note, css_class = technical_card._cross_display("death", recent=False)
+    assert value == "Ölüm Kesişimi (Death Cross)"
+    assert css_class == "negative"
+
+
+def test_cross_display_none_ise_na():
+    assert technical_card._cross_display(None, recent=False) == ("N/A", None, "neutral")
+
+
 # --- build_technical_context ------------------------------------------------------
 
 
@@ -105,7 +158,8 @@ def test_build_technical_context_veriyle_tum_bolumleri_doldurur():
     assert context["ticker"] == "THYAO"
     assert context["company_name"] == "Türk Hava Yolları A.O."
     assert context["price_display"] == "314,00 ₺"
-    assert len(context["indicator_rows"]) == 14
+    assert [g["title"] for g in context["indicator_groups"]] == ["Trend", "Momentum", "Volatilite"]
+    assert len(_all_rows(context)) == 16
     assert context["price_chart"]["has_data"] is True
     assert context["week52_bar"]["has_data"] is True
     assert context["volume_strip"]["has_data"] is True
@@ -115,15 +169,27 @@ def test_build_technical_context_nasdaq_dolar_isaretiyle_gosterir():
     context = technical_card.build_technical_context(_snapshot(), "AAPL", "NASDAQ")
     assert context["price_display"] == "$314,00"
     # SMA gibi fiyat-birimli gostergeler de dolar ile gosterilmeli
-    sma20_row = next(r for r in context["indicator_rows"] if r["label"] == "SMA 20")
+    sma20_row = next(r for r in _all_rows(context) if r["label"] == "SMA 20")
     assert sma20_row["value_display"].startswith("$")
 
 
 def test_build_technical_context_rsi_notu_dogru_gecer():
     context = technical_card.build_technical_context(_snapshot(rsi_14=Decimal("80")), "THYAO", "BIST")
-    rsi_row = next(r for r in context["indicator_rows"] if r["label"] == "RSI (14)")
+    rsi_row = next(r for r in _all_rows(context) if r["label"] == "RSI (14)")
     assert rsi_row["note_display"] == "Aşırı Alım Bölgesi"
     assert rsi_row["note_class"] == "extreme"
+
+
+def test_build_technical_context_adx_ve_cross_satirlari_trend_grubunda():
+    context = technical_card.build_technical_context(_snapshot(), "THYAO", "BIST")
+    trend_group = next(g for g in context["indicator_groups"] if g["title"] == "Trend")
+    labels = [r["label"] for r in trend_group["rows"]]
+    assert "ADX (14) — Trend Gücü" in labels
+    assert "SMA50/200 Kesişimi" in labels
+
+    cross_row = next(r for r in trend_group["rows"] if r["label"] == "SMA50/200 Kesişimi")
+    assert cross_row["value_display"] == "Altın Kesişim (Golden Cross)"
+    assert cross_row["note_class"] == "positive"
 
 
 def test_build_technical_context_haftaci_52_verisi_yoksa_bolum_bos():

@@ -35,6 +35,7 @@ from src.fetchers.sec_edgar import (
     quarterly_value_from_cumulative_us_gaap,
     standardized_value_us_gaap,
     total_debt_us_gaap,
+    trailing_12m_depreciation_amortization_us_gaap,
 )
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -373,11 +374,14 @@ def test_depreciation_amortization_us_gaap_birlesik_tag_yoksa_depreciation_ve_am
     assert beklenen == Decimal("10100000000")  # $10,1mr -- gurufocus'un $10,167mr'iyle %1 altinda fark
 
 
-def test_depreciation_amortization_us_gaap_sadece_bir_bilesen_varsa_none_doner() -> None:
-    # Sadece "Depreciation" var, "AmortizationOfIntangibleAssets" yok --
-    # yanlislikla eksik bir D&A rakami uretmemek icin None donmeli (Kural 8).
+def test_depreciation_amortization_us_gaap_bilesen_yakin_gecmiste_raporlanmissa_none_doner() -> None:
+    """Sadece bu CEYREK icin "AmortizationOfIntangibleAssets" eksik ama tag
+    YAKIN GECMISTE (son 3 yil icinde, baska bir donemde) raporlanmis --
+    bu GERCEK/GECICI bir veri boslugu (orn. bir filing gecikmesi) olabilir,
+    "yapisal olarak yok" SAYILMAMALI -- None donmeye devam etmeli (Kural 8)."""
     facts_by_tag = {
         "us-gaap:Depreciation": [_fact("2026-01-01", "2026-03-31", "9000000000", "Q3", 2026)],
+        "us-gaap:AmortizationOfIntangibleAssets": [_fact("2025-01-01", "2025-03-31", "500000000", "Q3", 2025)],
     }
     raw = RawUsFinancials(
         ticker="TEST", cik10="0000000000", company_name="Test Corp",
@@ -385,6 +389,142 @@ def test_depreciation_amortization_us_gaap_sadece_bir_bilesen_varsa_none_doner()
     )
     assert depreciation_amortization_us_gaap(raw, (2026, 9)) is None
     assert quarterly_depreciation_amortization_us_gaap(raw, (2026, 9)) is None
+
+
+def test_depreciation_amortization_us_gaap_yapisal_olarak_yok_sayilan_bilesen_diger_bilesen_tek_basina_kullanilir() -> None:
+    """CANLI HATA (kullanici raporu, 2026-08-03, bkz.
+    06_BILINEN_SORUNLAR.md §B20): TSLA'nin 'AmortizationOfIntangibleAssets'
+    etiketi 2021'den beri (tam SEC tarmasiyla CANLI dogrulandi) HIC
+    raporlanmamis -- yani bu bilesen SADECE bu ceyrek icin degil, YAPISAL
+    olarak (yillardir) YOK. Bu durumda eksik bilesen 0 SAYILIR, TEK BASINA
+    kalan 'Depreciation' D&A olarak kullanilir (eskiden ikisi de
+    gerekiyordu, None donuyordu -- kullanicinin bildirdigi FAVOK N/A
+    hatasinin kok nedeni buydu)."""
+    # fiscal_period=3 (Q1) kullanilir -- ceyreklik turetme SADECE bu
+    # noktada CIKARMA gerektirmez (bkz. quarterly_value_from_cumulative_us_gaap
+    # docstring'i), boylece test SADECE bilesen-yoksayma mantigini olcer,
+    # onceki ceyregin AYRI bir fixture GEREKTIRMEZ.
+    facts_by_tag = {
+        "us-gaap:Depreciation": [_fact("2026-01-01", "2026-03-31", "9000000000", "Q1", 2026)],
+        # Amortizasyon en son 2021'de (fy=2021) raporlanmis -- 2026'nin
+        # 3 yil lookback penceresinin (2023+) COK disinda, yapisal yok sayilir.
+        "us-gaap:AmortizationOfIntangibleAssets": [_fact("2021-01-01", "2021-12-31", "500000000", "FY", 2021)],
+    }
+    raw = RawUsFinancials(
+        ticker="TEST", cik10="0000000000", company_name="Test Corp",
+        periods=[(2026, 3)], facts_by_tag=facts_by_tag,
+    )
+    assert depreciation_amortization_us_gaap(raw, (2026, 3)) == Decimal("9000000000")
+    assert quarterly_depreciation_amortization_us_gaap(raw, (2026, 3)) == Decimal("9000000000")
+
+
+def test_depreciation_amortization_us_gaap_hicbir_bilesen_yoksa_none_doner() -> None:
+    raw = RawUsFinancials(
+        ticker="TEST", cik10="0000000000", company_name="Test Corp",
+        periods=[(2026, 9)], facts_by_tag={},
+    )
+    assert depreciation_amortization_us_gaap(raw, (2026, 9)) is None
+    assert quarterly_depreciation_amortization_us_gaap(raw, (2026, 9)) is None
+
+
+# --- trailing_12m_depreciation_amortization_us_gaap (§B20 TTM FAVOK yedegi) -----------------------------------------------------
+
+
+def _ytd_facts(tag: str, year: int, quarterly_values: list[str]) -> list[ConceptFact]:
+    """4 TEK CEYREKLIK degerden (Q1..Q4), o mali yilin KUMULATIF (YTD)
+    fact'lerini uretir -- gercek SEC XBRL raporlama sekliyle AYNI (her
+    ceyrek YTL toplamini tasir), testlerde elle kumulatif hesaplamaktan
+    kacinmak icin."""
+    quarter_end_month_day = {3: (3, 31), 6: (6, 30), 9: (9, 30), 12: (12, 31)}
+    fp_labels = {3: "Q1", 6: "Q2", 9: "Q3", 12: "FY"}
+    facts = []
+    running_total = Decimal(0)
+    for fiscal_period, raw_value in zip((3, 6, 9, 12), quarterly_values):
+        running_total += Decimal(raw_value)
+        month, day = quarter_end_month_day[fiscal_period]
+        facts.append(
+            _fact(f"{year}-01-01", f"{year}-{month:02d}-{day:02d}", str(running_total), fp_labels[fiscal_period], year)
+        )
+    return facts
+
+
+def test_trailing_12m_depreciation_amortization_tsla_tipi_tum_bilesen_ceyreklik_toplanir() -> None:
+    """TSLA-tipi: 'Depreciation' HER ceyrek raporlaniyor, 'AmortizationOfIntangibleAssets'
+    YAPISAL olarak yok (son 3 yildir hic yok) -- TTM SADECE Depreciation'in
+    trailing 4 ceyreginin toplami olmali (amortizasyon 0 sayilir)."""
+    facts_by_tag = {
+        "us-gaap:Depreciation": [
+            *_ytd_facts("us-gaap:Depreciation", 2025, ["1300000000", "1310000000", "1320000000", "1330000000"]),
+            *_ytd_facts("us-gaap:Depreciation", 2026, ["1340000000", "1370000000", "0", "0"])[:1],  # sadece Q1 2026
+        ],
+        "us-gaap:AmortizationOfIntangibleAssets": [_fact("2021-01-01", "2021-12-31", "50000000", "FY", 2021)],
+    }
+    raw = RawUsFinancials(
+        ticker="TSLA", cik10="0000000000", company_name="Tesla Inc.",
+        periods=[(2026, 3)], facts_by_tag=facts_by_tag,
+    )
+    # Trailing 4 ceyrek (2026,3 dahil geriye): (2026,3)=1.34mr, (2025,12 Q4)=1.33mr,
+    # (2025,9 Q3)=1.32mr, (2025,6 Q2)=1.31mr -- toplam 5,30mr.
+    result = trailing_12m_depreciation_amortization_us_gaap(raw, (2026, 3))
+    assert result == Decimal("1340000000") + Decimal("1330000000") + Decimal("1320000000") + Decimal("1310000000")
+
+
+def test_trailing_12m_depreciation_amortization_amd_tipi_yillik_deger_yedek_olarak_kullanilir() -> None:
+    """AMD-tipi: 'AmortizationOfIntangibleAssets' HER ceyrek raporlaniyor,
+    'Depreciation' SADECE YILLIK (hic ceyreklik/YTD kirilimi yok) --
+    Depreciation'in trailing-4-ceyrek toplami HESAPLANAMAZ (ceyreklik veri
+    yok), ama YAKIN GECMISTE raporlandigi icin 0 da SAYILMAZ -- en son
+    bilinen YILLIK deger DOGRUDAN kullanilir (4'e bolunerek TAHMIN
+    YAPILMAZ)."""
+    facts_by_tag = {
+        "us-gaap:Depreciation": [_fact("2025-01-01", "2025-12-31", "520000000", "FY", 2025)],
+        "us-gaap:AmortizationOfIntangibleAssets": [
+            *_ytd_facts("us-gaap:AmortizationOfIntangibleAssets", 2025, ["130000000", "135000000", "140000000", "145000000"]),
+            *_ytd_facts("us-gaap:AmortizationOfIntangibleAssets", 2026, ["150000000", "0", "0", "0"])[:1],
+        ],
+        # _period_end_date() (2026,3) donem sonu tarihini bulmak icin
+        # net_income'a BAKAR (neredeyse her filer'da bulunan tek alan) --
+        # bu fixture'da olmazsa Depreciation'in YILLIK yedegi (end_date
+        # gerektirir) hic denenemez.
+        "us-gaap:NetIncomeLoss": [_fact("2026-01-01", "2026-03-31", "100000000", "Q1", 2026)],
+    }
+    raw = RawUsFinancials(
+        ticker="AMD", cik10="0000000000", company_name="AMD Inc.",
+        periods=[(2026, 3)], facts_by_tag=facts_by_tag,
+    )
+    result = trailing_12m_depreciation_amortization_us_gaap(raw, (2026, 3))
+    # amortizasyon TTM = trailing 4 ceyrek toplami: (2026,3)=150mn + (2025,12 Q4)=145mn
+    # + (2025,9 Q3)=140mn + (2025,6 Q2)=135mn = 570mn; depreciation TTM = en son
+    # YILLIK (FY2025) deger = 520mn (dogrudan, 4'e bolunmeden).
+    assert result == Decimal("570000000") + Decimal("520000000")
+
+
+def test_trailing_12m_depreciation_amortization_iki_bilesen_de_hic_yoksa_none_doner_sifir_degil() -> None:
+    """Iki bilesen de (Depreciation VE AmortizationOfIntangibleAssets) HIC
+    raporlanmamissa -- bu 'D&A TTM'si tam 0' demek DEGILDIR (byle bir
+    sirket gercekte var olamaz), 'veri hic yok' demektir. None donmeli --
+    yapisal-yoksayma (0 varsayimi) SADECE DIGER bilesen GERCEKTEN
+    cozulduyse uygulanir (bkz. fonksiyon docstring'i)."""
+    raw = RawUsFinancials(
+        ticker="TEST", cik10="0000000000", company_name="Test Corp",
+        periods=[(2026, 3)], facts_by_tag={},
+    )
+    assert trailing_12m_depreciation_amortization_us_gaap(raw, (2026, 3)) is None
+
+
+def test_trailing_12m_depreciation_amortization_hicbir_strateji_calismazsa_none_doner() -> None:
+    """Depreciation SADECE bu ceyrek icin eksik (yakin gecmiste raporlanmis
+    ama trailing 4 ceyregin TAMAMI cozulemiyor) VE yillik bir yedek de
+    YOK -- None donmeli (Kural 8: yanlis rakamdan iyidir)."""
+    facts_by_tag = {
+        "us-gaap:Depreciation": [_fact("2026-01-01", "2026-03-31", "9000000000", "Q1", 2026)],
+        "us-gaap:AmortizationOfIntangibleAssets": [_fact("2025-06-01", "2025-06-30", "1000000", "Q2", 2025)],
+    }
+    raw = RawUsFinancials(
+        ticker="TEST", cik10="0000000000", company_name="Test Corp",
+        periods=[(2026, 3)], facts_by_tag=facts_by_tag,
+    )
+    assert trailing_12m_depreciation_amortization_us_gaap(raw, (2026, 3)) is None
 
 
 def test_shares_outstanding_donem_ortalamasi_fallback_uzerinden_dogru_secilir() -> None:

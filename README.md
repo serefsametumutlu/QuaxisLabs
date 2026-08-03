@@ -570,6 +570,19 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       52 yeni — RSI elle hesaplanmış kesir aritmetiğiyle, SMA/EMA/MACD/
       Bollinger/ATR bağımsız referans implementasyonlarıyla doğrulandı,
       hiçbir regresyon yok).
+- [x] **FAVÖK N/A düzeltmesi — AMD/TSLA (2026-08-03)** — SEC'in ham XBRL
+      verisi tam taranarak kök neden bulundu: AMD'nin `Depreciation` tag'i
+      sadece yıllık, TSLA'nın `AmortizationOfIntangibleAssets` tag'i
+      2021'den beri hiç raporlanmıyor. Bir bileşen yapısal olarak hiç
+      raporlanmamışsa 0 sayılır (TSLA'yı TAM çözer); sadece yıllık
+      raporlanan bir bileşen için en son gerçek yıllık değer TTM olarak
+      kullanılır (AMD'de "FAVÖK (TTM)" olarak gösterilir, stockanalysis.com'un
+      bağımsız TTM EBITDA rakamıyla %3 altında farkla çapraz doğrulandı).
+      Test: `pytest tests/` (660 test, 11 yeni, hiçbir regresyon yok).
+      Ayrıca ADR/yabancı özel ihraççı hisselerinde (NVO/TSM/SHEL gibi)
+      `ifrs-full` taksonomisi kullanıldığı, mevcut haritanın SADECE
+      `us-gaap`'a baktığı tespit edildi — bu ayrı, büyük bir mini-faz
+      gerektirir, henüz ÇÖZÜLMEDİ (bkz. PROJE_HAFIZASI §B21).
 
 ## Dizin Yapisi
 

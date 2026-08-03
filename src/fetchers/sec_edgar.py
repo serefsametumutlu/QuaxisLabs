@@ -383,6 +383,31 @@ _EXPECTED_CUMULATIVE_DURATION_DAYS: dict[str, tuple[int, int]] = {
 _FP_LABELS: dict[int, str] = {3: "Q1", 6: "Q2", 9: "Q3", 12: "FY"}
 
 
+def previous_quarter_period(period: Period) -> Period:
+    """isyatirim.previous_quarter()/calculator.previous_quarter_period() ile
+    AYNI ilke: bir onceki mali CEYREGIN (fiscal_year, fiscal_period) ciftini
+    doner (fiscal_period ∈ {3,6,9,12} -- pozisyonel Ç1..Ç4, bkz. modul ust
+    notu §6.4 NVDA takvim-disi mali yil aciklamasi)."""
+    year, fiscal_period = period
+    if fiscal_period == 3:
+        return year - 1, 12
+    return year, fiscal_period - 3
+
+
+def _period_end_date(raw: RawUsFinancials, period: Period) -> date | None:
+    """Verilen (fy, fiscal_period) donemi icin GERCEK bilanco/donem sonu
+    tarihini doner -- net_income HEMEN HEMEN HER filer'da bulunan tek alan
+    oldugu icin (bkz. _discover_available_periods() ust notu) guvenilir bir
+    "bu donem ne zaman bitti" gostergesi olarak kullanilir."""
+    fy, fiscal_period = period
+    fp_label = _FP_LABELS[fiscal_period]
+    for tag in STANDARD_ITEM_MAP_US_GAAP["net_income"]:
+        fact = _select_best_fact(raw.facts_by_tag.get(tag, []), fy, fp_label)
+        if fact is not None:
+            return fact.end
+    return None
+
+
 # --- Yardimci: ticker normalize / CIK cozumleme -----------------------------------------------------
 
 
@@ -802,6 +827,63 @@ def quarterly_gross_profit_us_gaap(raw: RawUsFinancials, period: Period) -> Deci
     return revenue - cost
 
 
+# AMD/TSLA canli hatasi (kullanici raporu, 2026-08-03, bkz.
+# PROJE_HAFIZASI/06_BILINEN_SORUNLAR.md §B20): "iki bilesenden SADECE biri
+# varsa None doner" kurali cok KATIYDI -- TSLA'nin 'AmortizationOfIntangibleAssets'
+# etiketi 2021'den beri HIC raporlanmamis (CANLI doğrulandi, tam SEC tag
+# taramasiyla: 9 fact'in TAMAMI 2021 ve ONCESI, hepsi YILLIK) -- yani bu
+# bilesen sadece o CEYREK icin degil, YAPISAL olarak (yillardir) YOK. Boyle
+# bir durumda bunu "eksik veri" (None donup FAVOK'u tamamen iptal etmek)
+# yerine "sirket bu kalemi ayrica raporlamiyor, onemsiz/sifir" olarak
+# yorumlamak DAHA DOGRU -- cogu veri saglayicisinin (macrotrends,
+# stockanalysis.com) yaptigi da budur. Bu yuzden: bir bilesen SON
+# `_STRUCTURAL_ABSENCE_LOOKBACK_YEARS` yil icinde HICBIR bicimde (ceyreklik
+# NE DE yillik) raporlanmamissa, o bilesen 0 SAYILIR (uydurma DEGIL --
+# gercekte YOK sayilan bir kalem). Bu, AMD'nin 'Depreciation' etiketini
+# ETKILEMEZ (AMD bunu HER YIL duzenli raporluyor, sadece ceyreklik KIRILIMI
+# yok) -- o durumda hala None donulur (Depreciation gercek ve kucumsenemeyecek
+# kadar buyuk, atlanamaz).
+_STRUCTURAL_ABSENCE_LOOKBACK_YEARS = 3
+
+
+def _component_tag_reported_recently(raw: RawUsFinancials, field_name: str, as_of_fy: int) -> bool:
+    """`field_name` (orn. 'amortization_component') icin ADAY tag'lerden
+    HERHANGI BIRI, son `_STRUCTURAL_ABSENCE_LOOKBACK_YEARS` mali yil
+    icinde (ceyreklik VEYA yillik, HERHANGI bir sure ile) EN AZ bir fact
+    icin raporlanmis mi? Yoksa bu kalem YAPISAL olarak terk edilmis/hic
+    kullanilmamis sayilir (bkz. yukaridaki modul notu)."""
+    candidates = STANDARD_ITEM_MAP_US_GAAP.get(field_name, [])
+    cutoff_fy = as_of_fy - _STRUCTURAL_ABSENCE_LOOKBACK_YEARS
+    for tag in candidates:
+        for fact in raw.facts_by_tag.get(tag, []):
+            if fact.fy is not None and fact.fy >= cutoff_fy:
+                return True
+    return False
+
+
+def _latest_annual_fact_value(raw: RawUsFinancials, field_name: str, at_or_before: date) -> Decimal | None:
+    """`field_name` icin ADAY tag'ler arasinda, `at_or_before` tarihine
+    KADAR (dahil) biten EN YENI YILLIK (fp='FY', ~340-380 gun) fact'in
+    degerini doner -- ceyreklik kirilimi HIC olmayan ama duzenli YILLIK
+    raporlanan bir kalemin (orn. AMD'nin 'Depreciation'i) TTM hesaplarinda
+    'en iyi bilinen gercek deger' olarak kullanilmasi icin (bkz.
+    trailing_12m_depreciation_amortization_us_gaap())."""
+    candidates = STANDARD_ITEM_MAP_US_GAAP.get(field_name, [])
+    best: ConceptFact | None = None
+    for tag in candidates:
+        for fact in raw.facts_by_tag.get(tag, []):
+            if fact.fp != "FY" or fact.start is None:
+                continue
+            duration_days = (fact.end - fact.start).days
+            if not (340 <= duration_days <= 380):
+                continue
+            if fact.end > at_or_before:
+                continue
+            if best is None or fact.end > best.end:
+                best = fact
+    return best.val if best is not None else None
+
+
 def depreciation_amortization_us_gaap(raw: RawUsFinancials, period: Period) -> Decimal | None:
     """D&A (KUMULATIF) -- gross_profit_us_gaap() ile AYNI desen (dogrudan
     birlesik tag ONCELIKLI, yoksa DOGRULANMIS bir toplama). Once
@@ -810,17 +892,23 @@ def depreciation_amortization_us_gaap(raw: RawUsFinancials, period: Period) -> D
     varlik) + "AmortizationOfIntangibleAssets" (maddi olmayan duran varlik)
     TOPLANARAK turetilir (MSFT -- CANLI dogrulandi, bkz. STANDARD_ITEM_MAP_US_GAAP
     'depreciation_component'/'amortization_component' ic alanlari ust notu).
-    Iki bilesenden SADECE biri varsa None doner (Kural 8: yanlis rakamdan
-    iyidir -- sadece amortismani/sadece amortisman DISI kismi FAVOK'a
-    yanlislikla katmamak icin)."""
+    Iki bilesenden biri eksikse: o bilesen YAPISAL olarak (son 3 yildir) HIC
+    raporlanmamissa 0 SAYILIR (bkz. yukaridaki §B20 notu -- TSLA'nin
+    amortisman kalemi gibi); YAKIN GECMISTE raporlanmis ama SADECE bu donem
+    icin eksikse None doner (Kural 8: yanlis rakamdan iyidir)."""
     direct = standardized_value_us_gaap(raw, "depreciation_amortization", period)
     if direct is not None:
         return direct
     depreciation = standardized_value_us_gaap(raw, "depreciation_component", period)
     amortization = standardized_value_us_gaap(raw, "amortization_component", period)
-    if depreciation is None or amortization is None:
-        return None
-    return depreciation + amortization
+    if depreciation is not None and amortization is not None:
+        return depreciation + amortization
+    fiscal_year = period[0]
+    if depreciation is not None and not _component_tag_reported_recently(raw, "amortization_component", fiscal_year):
+        return depreciation
+    if amortization is not None and not _component_tag_reported_recently(raw, "depreciation_component", fiscal_year):
+        return amortization
+    return None
 
 
 def quarterly_depreciation_amortization_us_gaap(raw: RawUsFinancials, period: Period) -> Decimal | None:
@@ -830,9 +918,86 @@ def quarterly_depreciation_amortization_us_gaap(raw: RawUsFinancials, period: Pe
         return direct
     depreciation = quarterly_standardized_value_us_gaap(raw, "depreciation_component", period)
     amortization = quarterly_standardized_value_us_gaap(raw, "amortization_component", period)
-    if depreciation is None or amortization is None:
+    if depreciation is not None and amortization is not None:
+        return depreciation + amortization
+    fiscal_year = period[0]
+    if depreciation is not None and not _component_tag_reported_recently(raw, "amortization_component", fiscal_year):
+        return depreciation
+    if amortization is not None and not _component_tag_reported_recently(raw, "depreciation_component", fiscal_year):
+        return amortization
+    return None
+
+
+def _quarterly_component_sum_trailing_4(raw: RawUsFinancials, field_name: str, period: Period) -> Decimal | None:
+    """`field_name` icin son 4 mali CEYREGIN (bu donem dahil) TEK CEYREKLIK
+    degerlerini toplar -- TUM 4 ceyrek de cozulmezse None doner (kismi/
+    parcali bir TTM uydurulmaz)."""
+    total = Decimal(0)
+    current = period
+    for _ in range(4):
+        value = quarterly_standardized_value_us_gaap(raw, field_name, current)
+        if value is None:
+            return None
+        total += value
+        current = previous_quarter_period(current)
+    return total
+
+
+def trailing_12m_depreciation_amortization_us_gaap(raw: RawUsFinancials, period: Period) -> Decimal | None:
+    """D&A'nin TTM (son 12 ay) karsiligi -- FAVOK'un TEK CEYREKLIK turetmesi
+    basarisiz oldugunda (AMD gibi, bkz. §B20) TTM FAVOK'u YINE DE
+    hesaplayabilmek icin. Her bilesen (depreciation/amortization) icin AYRI
+    bir strateji dener:
+      1. Son 4 ceyregin TEK CEYREKLIK degerleri TOPLANABILIYORSA (cogu
+         sirket) -- bu KULLANILIR, en dogru sonuc budur.
+      2. Bilesen YAPISAL olarak (son 3 yildir) HIC raporlanmamissa -- 0
+         SAYILIR (bkz. §B20 notu, TSLA'nin amortismani gibi).
+      3. Bilesen SADECE YILLIK raporlaniyorsa (ceyreklik kirilimi HIC yok,
+         AMD'nin Depreciation'i gibi) -- EN SON bilinen YILLIK (FY) deger
+         DOGRUDAN kullanilir (bir onceki tam mali yilin GERCEK, aciklanmis
+         rakami -- 4'e BOLUNEREK tahmin YAPILMAZ, ceyreklik bir uydurma
+         DEGIL, sadece "son bilinen 12 aylik gercek deger" olarak kullanilir).
+      4. Hicbiri gecerli degilse (kismi/duzensiz veri) -- None doner.
+    Iki bilesenin TTM'i TOPLANARAK D&A TTM elde edilir; ikisi de
+    cozulemezse None doner."""
+    direct = _quarterly_component_sum_trailing_4(raw, "depreciation_amortization", period)
+    if direct is not None:
+        return direct
+
+    fiscal_year = period[0]
+    end_date = _period_end_date(raw, period)
+
+    def _real_component_ttm(field_name: str) -> Decimal | None:
+        """SADECE GERCEK (ceyreklik toplam VEYA yillik yedek) bir deger
+        arar -- yapisal-yoksayma (0 varsayimi) BURADA YAPILMAZ, cunku bu
+        fonksiyon iki bilesenin de gercekten cozulup cozulmedigini onceden
+        bilmeden 0 varsaymak, IKISI DE cozulemedigi durumda (orn. hicbir
+        bilesen tag'i hic yoksa) 'D&A TTM'si tam olarak 0' gibi YANLIS bir
+        izlenim uretirdi (bkz. asagidaki birlestirme mantigi -- 0 varsayimi
+        SADECE DIGER bilesen GERCEKTEN cozulduyse uygulanir)."""
+        quarterly_sum = _quarterly_component_sum_trailing_4(raw, field_name, period)
+        if quarterly_sum is not None:
+            return quarterly_sum
+        if end_date is not None:
+            annual_value = _latest_annual_fact_value(raw, field_name, end_date)
+            if annual_value is not None:
+                return annual_value
         return None
-    return depreciation + amortization
+
+    depreciation_real = _real_component_ttm("depreciation_component")
+    amortization_real = _real_component_ttm("amortization_component")
+
+    if depreciation_real is not None and amortization_real is not None:
+        return depreciation_real + amortization_real
+    # Bir bilesen GERCEKTEN cozuldu, DIGERI YAPISAL olarak (son 3 yildir)
+    # HIC raporlanmamissa -- o bilesen 0 SAYILIR (bkz. §B20 notu, TSLA'nin
+    # amortismani gibi). Her iki bilesen de cozulemezse (asagida ikisi de
+    # None kalir) None doner -- "ikisi de 0" gibi YANLIS bir TTM uydurulmaz.
+    if depreciation_real is not None and not _component_tag_reported_recently(raw, "amortization_component", fiscal_year):
+        return depreciation_real
+    if amortization_real is not None and not _component_tag_reported_recently(raw, "depreciation_component", fiscal_year):
+        return amortization_real
+    return None
 
 
 # --- Fiyat -----------------------------------------------------

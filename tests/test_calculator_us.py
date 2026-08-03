@@ -155,3 +155,75 @@ def test_analyze_us_ticker_ve_latest_period_dogru() -> None:
     result = analyze_us("AAPL", _sample_us_financials())
     assert result.ticker == "AAPL"
     assert result.latest_period == _LATEST
+
+
+# --- ttm_depreciation_amortization_override (§B20 -- AMD/TSLA FAVOK N/A duzeltmesi) --------
+
+
+def _amd_tipi_financials_eksik_da_ile() -> dict:
+    """AMD gibi bir sirketi TAKLIT eder: esas faaliyet kari (operating_profit)
+    HER donemde eksiksiz, ama 'depreciation_amortization_cum' guncel (kismi
+    yil) donemde EKSIK -- bu, standart _trailing_12m_from_cumulative'in
+    (ebitda_cum uzerinden) TTM FAVOK'u hesaplayamamasina sebep olur, oysa
+    TTM esas faaliyet kari (ttm_operating_profit) SORUNSUZ hesaplanir."""
+    latest = (2026, 3)
+    prior_year_full = (2025, 12)
+    prior_year_same = (2025, 3)
+    return {
+        latest: {
+            "revenue": Decimal("10000000000"),
+            "revenue_cum": Decimal("10000000000"),
+            "operating_profit": Decimal("1000000000"),
+            "operating_profit_cum": Decimal("1000000000"),
+            "operating_profit_ebitda_base": Decimal("1000000000"),
+            "operating_profit_ebitda_base_cum": Decimal("1000000000"),
+            # KASITLI olarak YOK -- AMD'nin Depreciation'inin ceyreklik/YTD
+            # kirilimi olmamasiyla AYNI durum.
+            "net_income": Decimal("700000000"),
+            "net_income_cum": Decimal("700000000"),
+            "cash": Decimal("1000000000"),
+            "equity": Decimal("5000000000"),
+            "current_assets": Decimal("2000000000"),
+            "short_term_liabilities": Decimal("1000000000"),
+        },
+        prior_year_full: {
+            "operating_profit_cum": Decimal("3800000000"),
+            "operating_profit_ebitda_base_cum": Decimal("3800000000"),
+            "depreciation_amortization_cum": Decimal("2700000000"),
+            "net_income_cum": Decimal("2600000000"),
+        },
+        prior_year_same: {
+            "operating_profit_cum": Decimal("900000000"),
+            "operating_profit_ebitda_base_cum": Decimal("900000000"),
+            "depreciation_amortization_cum": Decimal("650000000"),
+            "net_income_cum": Decimal("600000000"),
+        },
+    }
+
+
+def test_analyze_us_ttm_ebitda_standart_yontemle_basarisiz_olursa_none_doner() -> None:
+    """Override VERILMEDEN -- eski davranis KORUNUR (regresyon kilidi):
+    D&A'nin guncel donemde eksik olmasi TTM FAVOK'u None birakir."""
+    result = analyze_us("AMD", _amd_tipi_financials_eksik_da_ile())
+    assert result.ratios.ttm_operating_profit is not None  # bu ETKILENMEDI
+    assert result.ratios.ttm_ebitda is None
+
+
+def test_analyze_us_ttm_ebitda_override_ile_ttm_esas_faaliyet_kariyla_birlestirilir() -> None:
+    """§B20 duzeltmesi: standart yontem basarisiz olunca, TTM esas faaliyet
+    kari + cagiran tarafin (pipeline.py, sec_edgar.
+    trailing_12m_depreciation_amortization_us_gaap) ayrica hesapladigi TTM
+    D&A YEDEGI toplanarak TTM FAVOK YINE DE elde edilir."""
+    override = Decimal("2800000000")
+    result = analyze_us("AMD", _amd_tipi_financials_eksik_da_ile(), ttm_depreciation_amortization_override=override)
+    assert result.ratios.ttm_ebitda == result.ratios.ttm_operating_profit + override
+
+
+def test_analyze_us_ttm_ebitda_override_ttm_operating_profit_yoksa_kullanilmaz() -> None:
+    """TTM esas faaliyet kari da hesaplanamiyorsa (orn. onceki yil verisi
+    hic yoksa) override tek basina TTM FAVOK URETMEZ -- Kural 8: iki
+    taraftan biri eksikken yarim bir TTM uydurulmaz."""
+    financials = {(2026, 3): _amd_tipi_financials_eksik_da_ile()[(2026, 3)]}
+    result = analyze_us("AMD", financials, ttm_depreciation_amortization_override=Decimal("2800000000"))
+    assert result.ratios.ttm_operating_profit is None
+    assert result.ratios.ttm_ebitda is None

@@ -448,7 +448,9 @@ def analyze(ticker: str, financials_by_period: FinancialsByPeriod) -> AnalysisRe
     return _build_analysis_result(ticker, financials_by_period, currency="TRY")
 
 
-def analyze_us(ticker: str, financials_by_period: FinancialsByPeriod) -> AnalysisResult:
+def analyze_us(
+    ticker: str, financials_by_period: FinancialsByPeriod, ttm_depreciation_amortization_override: Decimal | None = None
+) -> AnalysisResult:
     """NASDAQ/ABD (US_GAAP) sirketleri icin analyze()'nin karsiligi
     (currency='USD') -- bkz. src/fetchers/sec_edgar.py ve
     src/bot/pipeline.py._standardize_to_records_us_gaap().
@@ -495,12 +497,36 @@ def analyze_us(ticker: str, financials_by_period: FinancialsByPeriod) -> Analysi
         yuzden analyze_us() `use_cumulative_display=False` gecer --
         GELIR TABLOSU/bulgu listesi de TEK CEYREKLIK rakamlari gosterir
         (ratios/TTM/degerleme zaten HER ZAMAN ceyreklikti, ETKILENMEDI).
+
+    `ttm_depreciation_amortization_override`: AMD/TSLA gibi sirketlerde (bkz.
+    PROJE_HAFIZASI/06_BILINEN_SORUNLAR.md §B20) standart kumulatif-turetme
+    (_trailing_12m_from_cumulative + ebitda_cum) D&A'nin bir bileseni (orn.
+    AMD'de 'Depreciation') hic ceyreklik/YTD kirilimi olmadigi icin basarisiz
+    olabilir -- oysa `ttm_operating_profit` (esas faaliyet kari) KENDISI
+    genelde eksiksizdir. Cagiran taraf (pipeline.py)
+    sec_edgar.trailing_12m_depreciation_amortization_us_gaap() ile AYRICA
+    hesapladigi TTM D&A degerini buraya verirse, standart `ttm_ebitda`
+    None DONERSE (SADECE o zaman) `ttm_operating_profit + bu deger` ile
+    TTM FAVOK YINE DE hesaplanir (bkz. _build_analysis_result ici not).
+    Bu deger HALA calculator.py DISINDA (sec_edgar.py'de) hesaplanir; bu
+    fonksiyon SADECE hazir bir Decimal alir, hicbir fetcher import ETMEZ
+    (katman kurali korunur).
     """
-    return _build_analysis_result(ticker, financials_by_period, currency="USD", use_cumulative_display=False)
+    return _build_analysis_result(
+        ticker,
+        financials_by_period,
+        currency="USD",
+        use_cumulative_display=False,
+        ttm_depreciation_amortization_override=ttm_depreciation_amortization_override,
+    )
 
 
 def _build_analysis_result(
-    ticker: str, financials_by_period: FinancialsByPeriod, currency: str, use_cumulative_display: bool = True
+    ticker: str,
+    financials_by_period: FinancialsByPeriod,
+    currency: str,
+    use_cumulative_display: bool = True,
+    ttm_depreciation_amortization_override: Decimal | None = None,
 ) -> AnalysisResult:
     """analyze()/analyze_us() ORTAK cekirdegi -- bkz. her iki fonksiyonun
     docstring'i. Kopyala-yapıştır ONLENMESI icin TUM hesaplama mantigi
@@ -618,6 +644,17 @@ def _build_analysis_result(
     ttm_operating_profit = _trailing_12m_from_cumulative(
         financials_by_period, latest_period, lambda d: d.get("operating_profit_cum")
     )
+    if ttm_ebitda is None and ttm_operating_profit is not None and ttm_depreciation_amortization_override is not None:
+        # AMD/TSLA gibi sirketlerde (bkz. §B20) standart yontem
+        # (_trailing_12m_from_cumulative + ebitda_cum) D&A'nin bir
+        # bileseninin (orn. AMD'nin 'Depreciation'i) hic ceyreklik/YTD
+        # kirilimi olmamasi yuzunden basarisiz olabilir. `ttm_operating_profit`
+        # KENDISI zaten calisiyorsa (AMD/TSLA'da bu boyle -- esas faaliyet
+        # kari eksiksiz raporlaniyor), cagiran tarafin (pipeline.py, bkz.
+        # sec_edgar.trailing_12m_depreciation_amortization_us_gaap)
+        # SADECE D&A'nin TTM'ini ayrica hesaplayip verdigi bu YEDEK ile
+        # birlestirilerek TTM FAVOK YINE DE elde edilir.
+        ttm_ebitda = ttm_operating_profit + ttm_depreciation_amortization_override
     net_debt = _net_debt(current.get("financial_debt"), current.get("cash"), current.get("financial_investments"))
     revenue_growth_yoy_pct, _label, _direction = classify_change(current.get("revenue"), yoy_prior.get("revenue"))
 

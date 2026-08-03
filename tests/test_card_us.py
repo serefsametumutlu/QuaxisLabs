@@ -140,6 +140,56 @@ def test_build_us_card_context_show_ebitda_true() -> None:
     assert "$" in context["charts"]["ebitda"]["current_value_display"]
 
 
+# --- FAVOK (TTM) yedegi -- §B20, AMD/TSLA gibi tek ceyreklik D&A turetilemeyen sirketler -----------------------------------------------------
+
+
+def _amd_tipi_eksik_da_ile() -> calculator.FinancialsByPeriod:
+    """_saglikli_us_finansallar() ile AYNI ama guncel donemde
+    depreciation_amortization(_cum) KASITLI olarak EKSIK -- AMD'nin
+    Depreciation'inin ceyreklik/YTD kirilimi olmamasiyla AYNI durumu
+    taklit eder (income_statement.ebitda None kalir, ttm_operating_profit
+    ise SORUNSUZ hesaplanir)."""
+    financials = _saglikli_us_finansallar()
+    del financials[_LATEST]["depreciation_amortization"]
+    del financials[_LATEST]["depreciation_amortization_cum"]
+    return financials
+
+
+def test_build_us_card_context_ebitda_yoksa_ama_ttm_varsa_ttm_etiketli_satir_gosterir() -> None:
+    override = Decimal("500")
+    analiz = calculator.analyze_us("AMD", _amd_tipi_eksik_da_ile(), ttm_depreciation_amortization_override=override)
+    assert analiz.income_statement.ebitda is None  # on kosul: standart ceyreklik FAVOK gercekten None
+    assert analiz.ratios.ttm_ebitda is not None  # on kosul: override sayesinde TTM calisti
+
+    skor = scorer.score_industrial_us(analiz)
+    context = card.build_us_card_context(analiz, skor, _ornek_commentary())
+
+    ebitda_row = context["income_rows"]["ebitda"]
+    assert "TTM" in ebitda_row["label"]
+    assert ebitda_row["current"] != "N/A"
+    assert "$" in ebitda_row["current"]
+    assert ebitda_row["comparison"] == "—"
+    # Mini grafik (ceyreklik trend) HALA gizli kalmali -- TTM tek nokta,
+    # ceyreklik bar grafigiyle KARISTIRILMAMALI.
+    assert context["show_ebitda"] is False
+    assert context["charts"]["ebitda"] is None
+
+
+def test_build_us_card_context_ebitda_de_ttm_de_yoksa_veri_yok_gosterir() -> None:
+    """Regresyon kilidi: override VERILMEZSE eski davranis (§B17) korunur --
+    FAVOK satiri HER ZAMAN gorunur ama "veri yok" der, kart cokmez."""
+    analiz = calculator.analyze_us("AMD", _amd_tipi_eksik_da_ile())
+    assert analiz.income_statement.ebitda is None
+    assert analiz.ratios.ttm_ebitda is None
+
+    skor = scorer.score_industrial_us(analiz)
+    context = card.build_us_card_context(analiz, skor, _ornek_commentary())
+
+    ebitda_row = context["income_rows"]["ebitda"]
+    assert ebitda_row["current"] == "—"
+    assert ebitda_row["change_display"] == "veri yok"
+
+
 # --- render_card: gercek Playwright ile PNG uretimi (uctan uca) -----------------------------------------------------
 
 

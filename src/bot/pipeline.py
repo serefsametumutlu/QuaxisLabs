@@ -476,6 +476,22 @@ def _standardize_to_records_us_gaap(raw: sec_edgar.RawUsFinancials) -> list[repo
             records.append(
                 (period[0], period[1], "financial_debt", calculator.FIELD_LABELS_TR["financial_debt"], debt)
             )
+
+        # AMD/TSLA gibi sirketlerde (bkz. 06_BILINEN_SORUNLAR.md §B20)
+        # standart "depreciation_amortization_cum" bir bilesenin (orn.
+        # AMD'nin 'Depreciation'i) hic ceyreklik/YTD kirilimi olmamasi
+        # yuzunden None kalabiliyor -- bu da TTM FAVOK'u (Kaldirac orani VE
+        # kart FAVOK satiri icin) surekli N/A birakiyordu. Ayrica, BAGIMSIZ
+        # bir TTM D&A degeri (sec_edgar.trailing_12m_depreciation_amortization_us_gaap,
+        # farkli bir stratejiyle -- ceyreklik toplam / yapisal-yoksayma /
+        # en son yillik gercek deger) DB'ye YEDEK olarak yazilir;
+        # calculator.analyze_us() SADECE standart yontem basarisiz olursa
+        # bunu kullanir (bkz. calculator._build_analysis_result ici not).
+        ttm_da = sec_edgar.trailing_12m_depreciation_amortization_us_gaap(raw, period)
+        if ttm_da is not None:
+            records.append(
+                (period[0], period[1], "depreciation_amortization_ttm", "FAVÖK TTM D&A (iç kullanım)", ttm_da)
+            )
     return records
 
 
@@ -1059,7 +1075,15 @@ def run_pipeline(ticker: str, *, periods: list[Period] | None = None, market: st
     price_executor.shutdown(wait=True)
 
     if is_us:
-        analysis = calculator.analyze_us(ticker, financials_by_period)
+        # bkz. _standardize_to_records_us_gaap() ici not (§B20) -- SADECE
+        # calculator.analyze_us()'in kendi standart TTM FAVOK turetmesi
+        # basarisiz olursa kullanilan bir YEDEK (AMD/TSLA gibi D&A'nin bir
+        # bileseni hic ceyreklik/YTD kirilimi olmayan sirketler icin).
+        latest_period_for_ttm = max(financials_by_period.keys())
+        ttm_da_override = financials_by_period.get(latest_period_for_ttm, {}).get("depreciation_amortization_ttm")
+        analysis = calculator.analyze_us(
+            ticker, financials_by_period, ttm_depreciation_amortization_override=ttm_da_override
+        )
         shares_outstanding = financials_by_period.get(analysis.latest_period, {}).get("shares_outstanding")
         valuation = calculator.compute_valuation(analysis, price, shares_outstanding)
         valuation_input = (

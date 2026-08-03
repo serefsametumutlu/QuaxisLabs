@@ -265,6 +265,33 @@ def _line_item_row(
     }
 
 
+def _ebitda_row_with_ttm_fallback(analysis: calculator.AnalysisResult, currency_symbol: str = "₺") -> dict:
+    """FAVÖK satırı için `_line_item_row(analysis.income_statement.ebitda)`
+    ile AYNI şekli üretir, ama TEK ÇEYREKLİK FAVÖK None ISE (AMD/TSLA gibi
+    D&A'nın bir bileşeni hiç çeyreklik kırılımı olmadığı için -- bkz.
+    PROJE_HAFIZASI/06_BILINEN_SORUNLAR.md §B20) VE `analysis.ratios.ttm_ebitda`
+    HESAPLANABILDIYSE (bkz. calculator._build_analysis_result'taki
+    `ttm_depreciation_amortization_override` yedeği) tamamen "veri yok"
+    göstermek yerine "FAVÖK (TTM)" etiketiyle son 12 aylık değeri gösterir.
+    Bu bir TEK ÇEYREKLİK rakamla KARIŞTIRILMASIN diye hem etiket hem
+    "değişim" sütunu AÇIKÇA "TTM" der; YoY karşılaştırma YAPILMAZ (comparison
+    "—")."""
+    if analysis.income_statement.ebitda is not None:
+        return _line_item_row(
+            analysis.income_statement.ebitda, currency_symbol=currency_symbol, field_label=calculator.FIELD_LABELS_TR["ebitda"]
+        )
+    if analysis.ratios.ttm_ebitda is not None:
+        return {
+            "label": f"{calculator.FIELD_LABELS_TR['ebitda']} (TTM)",
+            "current": _money_or_dash(analysis.ratios.ttm_ebitda, currency_symbol),
+            "value_class": "",
+            "comparison": _money_or_dash(None, currency_symbol),
+            "change_display": "son 12 ay",
+            "color_class": "neutral",
+        }
+    return _line_item_row(None, currency_symbol=currency_symbol, field_label=calculator.FIELD_LABELS_TR["ebitda"])
+
+
 def _company_logo_data_uri(ticker: str, market: str = "BIST") -> str | None:
     """company_logo fetcher'i zaten kendi hatalarini sessizce yutup None
     doner (bkz. modul docstring'i) -- bu sarmalayici sadece BEKLENMEYEN
@@ -673,9 +700,7 @@ def build_us_card_context(
         "revenue": _line_item_row(analysis.income_statement.revenue, currency_symbol=_USD_SYMBOL),
         "gross_profit": _line_item_row(analysis.income_statement.gross_profit, currency_symbol=_USD_SYMBOL),
         "operating_profit": _line_item_row(analysis.income_statement.operating_profit, currency_symbol=_USD_SYMBOL),
-        "ebitda": _line_item_row(
-            analysis.income_statement.ebitda, currency_symbol=_USD_SYMBOL, field_label=calculator.FIELD_LABELS_TR["ebitda"]
-        ),
+        "ebitda": _ebitda_row_with_ttm_fallback(analysis, currency_symbol=_USD_SYMBOL),
         "net_income": _line_item_row(analysis.income_statement.net_income, currency_symbol=_USD_SYMBOL),
     }
     balance_rows = {

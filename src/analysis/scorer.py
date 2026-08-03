@@ -99,7 +99,26 @@ CONFIG: dict = {
         "prim_buyumesi": {"agirlik": Decimal("25"), "guclu_esik": Decimal("15"), "orta_esik": Decimal("0"), "tavan": Decimal("40"), "taban": Decimal("-20")},
         "teknik_denge_marji": {"agirlik": Decimal("25"), "guclu_esik": Decimal("5"), "orta_esik": Decimal("0"), "tavan": Decimal("15"), "taban": Decimal("-15")},
         "ozkaynak_karliligi": {"agirlik": Decimal("25"), "guclu_esik": Decimal("25"), "orta_esik": Decimal("10"), "tavan": Decimal("40")},
-        "degerleme": {"agirlik": Decimal("25")},
+        # CANLI HATA (kullanıcı raporu, 2026-08-03): bu alt sözlükte SADECE
+        # "agirlik" vardı, fk_ucuz/fk_makul/... eşikleri YOKTU --
+        # _skor_degerleme() fiyat verisi olan (F/K veya PD/DD dolu) HERHANGİ
+        # bir sigorta şirketinde `KeyError: 'fk_ucuz'` ile ÇÖKÜYORDU.
+        # Eşikler Türkiye sigorta şirketlerinin (ANSGR/TURSG gibi) genel
+        # F/K ~5-15x, PD/DD ~1-3x aralığında seyretme eğilimine göre KABACA
+        # seçildi -- "sanayi" şablonundan KOPYALANMADI (sigortada tipik
+        # çarpanlar farklıdır) ama gerçek veriyle KALİBRE EDİLMEDİ (bkz.
+        # 06_BILINEN_SORUNLAR.md §B8, hâlâ açık).
+        "degerleme": {
+            "agirlik": Decimal("25"),
+            "fk_ucuz": Decimal("6"),
+            "fk_makul": Decimal("10"),
+            "fk_pahali": Decimal("15"),
+            "fk_tavan": Decimal("25"),
+            "pddd_ucuz": Decimal("1"),
+            "pddd_makul": Decimal("2"),
+            "pddd_pahali": Decimal("3.5"),
+            "pddd_tavan": Decimal("6"),
+        },
     },
     # CAMELS (Capital/Assets/Management/Earnings/Liquidity/Sensitivity)
     # cercevesine dayanir -- bkz. scorer.score_bank() docstring'i. Regulatuar
@@ -113,7 +132,28 @@ CONFIG: dict = {
         # CAMELS "Earnings": NIM ile BIRLIKTE onerilen aktif karliligi (ROA).
         "aktif_karliligi": {"agirlik": Decimal("20"), "guclu_esik": Decimal("2.5"), "orta_esik": Decimal("1"), "tavan": Decimal("4"), "taban": Decimal("-2")},
         "ozkaynak_aktif_orani": {"agirlik": Decimal("15"), "guclu_esik": Decimal("12"), "orta_esik": Decimal("8"), "tavan": Decimal("18")},
-        "degerleme": {"agirlik": Decimal("20")},
+        # CANLI HATA (kullanıcı raporu, 2026-08-03, ISCTR): bu alt sözlükte
+        # SADECE "agirlik" vardı -- _skor_degerleme() fiyat verisi olan
+        # (F/K veya PD/DD dolu) HERHANGİ bir banka için `KeyError: 'fk_ucuz'`
+        # ile ÇÖKÜYORDU (canlı Telegram logunda doğrulandı). Eşikler
+        # Türkiye bankalarının (AKBNK/GARAN/ISCTR/YKBNK gibi) tipik olarak
+        # DÜŞÜK çarpanlarla (F/K ~3-8x, PD/DD ~0.5-1.5x -- makro risk primi
+        # yüzünden sanayi şirketlerinden YAPISAL OLARAK ucuz) işlem görme
+        # eğilimine göre KABACA seçildi -- "sanayi" şablonundan (F/K ucuz=8)
+        # KOPYALANMADI, o eşik bankalar için ÇOK YÜKSEK olurdu (her banka
+        # "ucuz" görünürdü). Gerçek veriyle KALİBRE EDİLMEDİ (bkz.
+        # 06_BILINEN_SORUNLAR.md §B8, hâlâ açık).
+        "degerleme": {
+            "agirlik": Decimal("20"),
+            "fk_ucuz": Decimal("4"),
+            "fk_makul": Decimal("7"),
+            "fk_pahali": Decimal("10"),
+            "fk_tavan": Decimal("15"),
+            "pddd_ucuz": Decimal("0.7"),
+            "pddd_makul": Decimal("1.2"),
+            "pddd_pahali": Decimal("2"),
+            "pddd_tavan": Decimal("3"),
+        },
     },
     # NASDAQ/ABD (US_GAAP) sanayi sirketleri icin sablon -- Faz 10. "sanayi"
     # sablonunu TABAN ALIR (bkz. score_industrial_us()), sadece PIYASAYA OZGU

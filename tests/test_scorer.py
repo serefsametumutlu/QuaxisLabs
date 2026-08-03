@@ -480,3 +480,36 @@ def test_score_bank_agirliklar_yuzde_yuze_tamamlanir() -> None:
     cfg = scorer.CONFIG["banka"]
     toplam = sum(cfg[k]["agirlik"] for k in cfg)
     assert toplam == Decimal("100")
+
+
+def test_score_bank_fiyat_verisiyle_cokmez(saglikli_analiz) -> None:
+    """CANLI HATA (kullanıcı raporu, 2026-08-03, ISCTR): CONFIG['banka']['degerleme']
+    SADECE 'agirlik' içeriyordu, fk_ucuz/fk_makul/... eşikleri YOKTU --
+    fiyat verisi (F/K, PD/DD) olan HERHANGİ bir bankada
+    `KeyError: 'fk_ucuz'` ile ÇÖKÜYORDU. Regresyon: gerçek bir ValuationInput
+    ile çağrıldığında artık çökmemeli, Değerleme bileşeni hesaplanmalı."""
+    sonuc = scorer.score_bank(
+        saglikli_analiz,
+        valuation=scorer.ValuationInput(pe_ratio=Decimal("5.5"), pb_ratio=Decimal("0.9")),
+    )
+    degerleme = next(c for c in sonuc.components if c.name == "Değerleme")
+    assert degerleme.score is not None
+    assert Decimal("0") <= sonuc.total_score <= Decimal("10")
+
+
+def test_score_insurance_fiyat_verisiyle_cokmez(saglikli_analiz) -> None:
+    """CANLI HATA ile AYNI kök neden -- CONFIG['sigorta']['degerleme'] de
+    SADECE 'agirlik' içeriyordu. Regresyon."""
+    sonuc = scorer.score_insurance(
+        saglikli_analiz,
+        valuation=scorer.ValuationInput(pe_ratio=Decimal("8"), pb_ratio=Decimal("1.5")),
+    )
+    degerleme = next(c for c in sonuc.components if c.name == "Değerleme")
+    assert degerleme.score is not None
+    assert Decimal("0") <= sonuc.total_score <= Decimal("10")
+
+
+def test_score_insurance_agirliklar_yuzde_yuze_tamamlanir() -> None:
+    cfg = scorer.CONFIG["sigorta"]
+    toplam = sum(cfg[k]["agirlik"] for k in cfg)
+    assert toplam == Decimal("100")

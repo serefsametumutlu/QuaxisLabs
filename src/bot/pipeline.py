@@ -936,8 +936,15 @@ def _get_or_generate_commentary(
         with repository.get_session() as session:
             cached = repository.get_cached_commentary(session, ticker, period)
         if cached is not None:
+            # 'hook' sutunu Faz 16.4'te eklendi (bkz. models._migrate_add_commentary_hook_column)
+            # -- bu tarihten ONCE onbelleklenmis satirlarda None'dur. Boyle
+            # bir durumda YENI bir Gemini cagrisi GEREKMEZ: positives'ten
+            # (zaten onbellekte var) ayni sekilde yeniden kurulur (bkz.
+            # commentary._fallback_commentary'deki AYNI ilke).
+            hook = cached.hook or " ".join((cached.positives or [])[:2]) or cached.headline
             return commentary_module.Commentary(
                 headline=cached.headline,
+                hook=hook,
                 summary=cached.summary,
                 positives=list(cached.positives),
                 negatives=list(cached.negatives),
@@ -949,7 +956,7 @@ def _get_or_generate_commentary(
     yorum = generate()
     with repository.get_session() as session:
         repository.save_commentary(
-            session, ticker, period, yorum.headline, yorum.summary, yorum.positives, yorum.negatives,
+            session, ticker, period, yorum.headline, yorum.hook, yorum.summary, yorum.positives, yorum.negatives,
             yorum.kap_note, yorum.source,
         )
     return yorum

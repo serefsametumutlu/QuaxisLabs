@@ -61,7 +61,7 @@ def _saglikli_us_finansallar() -> calculator.FinancialsByPeriod:
 
 def _ornek_commentary() -> Commentary:
     return Commentary(
-        headline="BAŞLIK", summary="Özet.", positives=["artış maddesi"], negatives=["azalış maddesi"],
+        headline="BAŞLIK", hook="Kanca cümlesi.", summary="Özet.", positives=["artış maddesi"], negatives=["azalış maddesi"],
         kap_note=None, disclaimer_context=None, source="llm",
     )
 

@@ -111,6 +111,7 @@ def _ornek_commentary() -> Commentary:
     ag istegi yok, demo hizli ve deterministik kalsin diye."""
     return Commentary(
         headline="TESTAS 2026/Ç1 DÖNEMİNDE ZARARDAN KÂRA GEÇTİ",
+        hook="Zarardan kâra geçti, FAVÖK %30,2 arttı, hasılat 1,2 mr ₺'ye çıktı!",
         summary=(
             "TESTAS, 2026/Ç1 döneminde net dönem kârını önceki yılın aynı döneminde açıkladığı "
             "zarardan kâra geçirdi. Hasılat yıllık %20,0 artışla güçlenirken, FAVÖK marjı %34,2 "

@@ -290,6 +290,7 @@ def save_commentary(
     ticker: str,
     period: tuple[int, int],
     headline: str,
+    hook: str,
     summary: str,
     positives: list[str],
     negatives: list[str],
@@ -307,6 +308,7 @@ def save_commentary(
 
     if existing is not None:
         existing.headline = headline
+        existing.hook = hook
         existing.summary = summary
         existing.positives = positives
         existing.negatives = negatives
@@ -317,7 +319,7 @@ def save_commentary(
         _get_or_create_company(session, ticker)
         session.add(
             CommentaryCache(
-                ticker=ticker, year=year, period=period_no, headline=headline, summary=summary,
+                ticker=ticker, year=year, period=period_no, headline=headline, hook=hook, summary=summary,
                 positives=positives, negatives=negatives, kap_note=kap_note, source=source,
             )
         )

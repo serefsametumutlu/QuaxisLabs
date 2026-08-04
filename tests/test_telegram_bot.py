@@ -124,9 +124,11 @@ def _sahte_bilesen(name: str, score: Decimal | None, weight: str, reasoning: str
     return SimpleNamespace(name=name, score=score, weight_nominal=Decimal(weight), reasoning_tr=reasoning)
 
 
-def _sahte_sonuc(positives: list[str], negatives: list[str], summary: str = "Genel değerlendirme metni.") -> SimpleNamespace:
+def _sahte_sonuc(
+    positives: list[str], negatives: list[str], summary: str = "Genel değerlendirme metni.", hook: str = "Kanca cümlesi."
+) -> SimpleNamespace:
     yorum = Commentary(
-        headline="BAŞLIK", summary=summary, positives=positives, negatives=negatives,
+        headline="BAŞLIK", hook=hook, summary=summary, positives=positives, negatives=negatives,
         kap_note=None, disclaimer_context=None, source="llm",
     )
     skor = SimpleNamespace(
@@ -159,45 +161,60 @@ def test_period_label_for_is_annual_only_olmayan_analizde_cokmez() -> None:
     assert telegram_bot._period_label_for(sahte_sonuc) == "2Ç26"
 
 
-def test_bilanco_ozeti_metni_basligi_ve_donemi_icerir() -> None:
-    text = telegram_bot._bilanco_ozeti_metni(_sahte_sonuc(["artış"], ["azalış"]))
-    assert "#TESTAS · 1Ç26 Bilanço Özeti" in text
+def test_thread_post_1_kanca_baslik_donem_skor_ve_hook_icerir() -> None:
+    text = telegram_bot._thread_post_1_kanca(_sahte_sonuc(["artış"], ["azalış"], hook="Net kâr %43,7 arttı!"))
+    assert "#TESTAS 1Ç26 Bilanço Özeti 🧵" in text
+    assert "🎯 Radar Skoru: 8,50/10 (SAĞLAM)" in text
+    assert "Net kâr %43,7 arttı!" in text
+    assert "Detaylar thread'de 👇" in text
+    assert "Bu içerik yatırım tavsiyesi değildir." in text
 
 
-def test_bilanco_ozeti_metni_artislari_madde_isaretiyle_listeler() -> None:
-    text = telegram_bot._bilanco_ozeti_metni(_sahte_sonuc(["Hasılat arttı.", "Kâr arttı."], []))
+def test_thread_post_2_artislari_madde_isaretiyle_listeler() -> None:
+    text = telegram_bot._thread_post_2_artis_azalis(_sahte_sonuc(["Hasılat arttı.", "Kâr arttı."], []))
+    assert "#TESTAS · Artışlar & Azalışlar" in text
     assert "📈 Artışlar:" in text
     assert "• Hasılat arttı." in text
     assert "• Kâr arttı." in text
-
-
-def test_bilanco_ozeti_metni_azalislari_madde_isaretiyle_listeler() -> None:
-    text = telegram_bot._bilanco_ozeti_metni(_sahte_sonuc([], ["Nakit azaldı."]))
-    assert "📉 Azalışlar:" in text
-    assert "• Nakit azaldı." in text
-
-
-def test_bilanco_ozeti_metni_genel_degerlendirmeyi_icerir() -> None:
-    text = telegram_bot._bilanco_ozeti_metni(_sahte_sonuc([], [], summary="Şirket sağlam görünüyor."))
-    assert "Şirket sağlam görünüyor." in text
-
-
-def test_bilanco_ozeti_metni_bos_listelerde_baslik_gostermez() -> None:
-    text = telegram_bot._bilanco_ozeti_metni(_sahte_sonuc([], []))
-    assert "📈 Artışlar:" not in text
     assert "📉 Azalışlar:" not in text
 
 
-def test_bilanco_ozeti_metni_skor_ve_gerekceyi_icerir() -> None:
-    """Kullanici istegi: gonderi metni (goruntuyle BIRLIKTE tek basina
-    paylasilabilir olsun diye) skoru VE "neden bu skor" gerekcesini de
-    icermeli -- kartta zaten gosterilen scorer.py bilesen gerekceleriyle
-    AYNI kaynaktan."""
-    text = telegram_bot._bilanco_ozeti_metni(_sahte_sonuc(["artış"], []))
-    assert "🎯 Radar Skoru: 8,50/10 (SAĞLAM)" in text
-    assert "Neden bu skor:" in text
-    assert "• Kârlılık (%20 ağırlık) — 7,0/10: Net marj güçlü." in text
-    assert "• Nakit Üretimi (%21 ağırlık) — N/A: FAVÖK hesaplanamadı." in text
+def test_thread_post_2_azalislari_madde_isaretiyle_listeler() -> None:
+    text = telegram_bot._thread_post_2_artis_azalis(_sahte_sonuc([], ["Nakit azaldı."]))
+    assert "📉 Azalışlar:" in text
+    assert "• Nakit azaldı." in text
+    assert "📈 Artışlar:" not in text
+
+
+def test_thread_post_2_ikisi_de_boşsa_none_doner() -> None:
+    assert telegram_bot._thread_post_2_artis_azalis(_sahte_sonuc([], [])) is None
+
+
+def test_thread_post_3_bilanco_ozetini_icerir() -> None:
+    text = telegram_bot._thread_post_3_bilanco_ozeti(_sahte_sonuc([], [], summary="Şirket sağlam görünüyor."))
+    assert "#TESTAS · Bilanço Özeti" in text
+    assert "Şirket sağlam görünüyor." in text
+
+
+def test_thread_post_4_skor_detayi_kompakt_kirilim_ve_cta_icerir() -> None:
+    """Kullanıcı isteği: 4. gönderi tam reasoning_tr cümleleri DEĞİL, kompakt
+    "isim (ağırlık%) → skor/10" satırları + sonunda bir CTA içermeli."""
+    text = telegram_bot._thread_post_4_skor_detay(_sahte_sonuc(["artış"], []))
+    assert "#TESTAS · Radar Skoru Detayı (8,50/10 SAĞLAM)" in text
+    assert "• Kârlılık (%20) → 7,0/10" in text
+    assert "• Nakit Üretimi (%21) → N/A" in text
+    assert "Net marj güçlü." not in text  # tam gerekce cumlesi ARTIK YOK (kompakt format)
+    assert "Sizce bu skor adil mi?" in text
+    assert "Hangi hisseyi analiz edeyim? Yorumlara yazın 👇" in text
+
+
+def test_thread_post_4_degerleme_bileseninde_kisa_parantez_gosterir() -> None:
+    sonuc = _sahte_sonuc(["artış"], [])
+    sonuc.score.components.append(
+        _sahte_bilesen("Değerleme", Decimal("7.0"), "25", "F/K 5,30, PD/DD 2,10.")
+    )
+    text = telegram_bot._thread_post_4_skor_detay(sonuc)
+    assert "• Değerleme (%25) → 7,0/10 (F/K 5,30, PD/DD 2,10)" in text
 
 
 # --- handle_ticker_message / handle_menu_callback: menu bekleyen_islem entegrasyonu + geriye uyumluluk -----------------------------------------------------
@@ -689,7 +706,7 @@ def _fake_pipeline_result(ticker: str, png_path) -> SimpleNamespace:
         ticker=ticker,
         analysis=SimpleNamespace(latest_period=(2026, 6), is_annual_only=False),
         score=SimpleNamespace(total_score=Decimal("5.0"), badge="DENGELİ", components=[]),
-        commentary=SimpleNamespace(positives=[], negatives=[], summary="Özet."),
+        commentary=SimpleNamespace(hook="Kanca cümlesi.", positives=[], negatives=[], summary="Özet."),
         png_path=str(png_path),
     )
 
@@ -795,7 +812,10 @@ def test_execute_and_send_bist_basarisizsa_nasdaqta_dener(tmp_path, monkeypatch)
 
     assert calls == ["BIST", "NASDAQ"]
     context.bot.send_photo.assert_awaited_once()
-    context.bot.send_message.assert_awaited_once()  # basari (ozet) mesaji -- "bulamadim" DEGIL
+    # basari yolu -- "bulamadim" DEGIL. Thread'in 2. gonderisi (artis/azalis)
+    # bu sahte sonucta bos oldugu icin ATLANIR (bkz. _fake_pipeline_result),
+    # SADECE 3. (bilanco ozeti) ve 4. (skor detayi) gonderiliyor -- 2 cagri.
+    assert context.bot.send_message.await_count == 2
 
 
 def test_execute_and_send_acikca_bist_secilmisse_nasdaq_denenmez(monkeypatch) -> None:

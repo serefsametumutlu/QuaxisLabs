@@ -108,6 +108,12 @@ class CommentaryCache(Base):
     year: Mapped[int]
     period: Mapped[int]
     headline: Mapped[str] = mapped_column(String(255))
+    # Faz 16.4: X/Twitter thread'inin ilk gonderisi icin tek cumlelik "kanca"
+    # (bkz. src/ai/commentary.py::Commentary.hook). Nullable -- bu sutun
+    # eklenmeden ONCE onbelleklenmis kayitlarda hic yok (bkz.
+    # _migrate_add_commentary_hook_column); cagiran taraf (pipeline.py)
+    # None ise positives'ten yeniden kurar, YENI bir Gemini cagrisi GEREKMEZ.
+    hook: Mapped[str | None] = mapped_column(String(300), nullable=True)
     summary: Mapped[str] = mapped_column(String(2000))
     positives: Mapped[list] = mapped_column(JSON)
     negatives: Mapped[list] = mapped_column(JSON)
@@ -187,9 +193,27 @@ def _migrate_add_market_column(engine: Engine) -> None:
         connection.execute(text("UPDATE company SET market = 'BIST' WHERE market IS NULL"))
 
 
+def _migrate_add_commentary_hook_column(engine: Engine) -> None:
+    """Faz 16.4 (X/Twitter thread formatı) öncesi oluşturulmuş veritabanlarında
+    'commentary_cache' tablosu zaten var ama 'hook' sütunu YOK --
+    _migrate_add_market_column ile AYNI ilke: idempotent ALTER TABLE, sütun
+    zaten varsa hiçbir şey yapılmaz. Eski satırlar NULL kalır (pipeline.py
+    bunu positives'ten yeniden kurar, veri kaybı/hata OLUŞTURMAZ)."""
+    inspector = inspect(engine)
+    if "commentary_cache" not in inspector.get_table_names():
+        return  # create_all() zaten dogru sekilde (hook DAHIL) olusturacak
+    existing_columns = {col["name"] for col in inspector.get_columns("commentary_cache")}
+    if "hook" in existing_columns:
+        return
+    logger.info("Migration: 'commentary_cache' tablosuna 'hook' sutunu ekleniyor.")
+    with engine.begin() as connection:
+        connection.execute(text("ALTER TABLE commentary_cache ADD COLUMN hook VARCHAR(300)"))
+
+
 def init_db(engine: Engine | None = None) -> None:
     """Tablolari olusturur (varsa dokunmaz -- create_all idempotenttir) VE
-    var olan tablolarda eksik sutunlari migrate eder (bkz. _migrate_add_market_column).
+    var olan tablolarda eksik sutunlari migrate eder (bkz. _migrate_add_market_column,
+    _migrate_add_commentary_hook_column).
 
     `engine` verilmezse varsayilan (config.DATABASE_URL'e bagli) engine
     kullanilir. Uygulama ilk calistiginda repository.get_session() bunu
@@ -198,6 +222,7 @@ def init_db(engine: Engine | None = None) -> None:
     target_engine = engine if engine is not None else default_engine
     Base.metadata.create_all(bind=target_engine)
     _migrate_add_market_column(target_engine)
+    _migrate_add_commentary_hook_column(target_engine)
 
 
 # Uygulamanin varsayilan (production) baglantisi. Testler bunu KULLANMAZ;

@@ -107,6 +107,7 @@ def test_commentary_from_json_zorunlu_alan_eksikse_hata_firlatir() -> None:
 def test_commentary_from_json_dogru_alanlari_esler_ve_4_madde_ile_sinirlar() -> None:
     data = {
         "headline": "BAŞLIK",
+        "hook": "Kanca cümlesi.",
         "summary": "Özet metni.",
         "positives": ["a", "b", "c", "d", "e"],
         "negatives": [],
@@ -276,6 +277,20 @@ def test_fallback_commentary_source_alani_fallback(saglikli_analiz_ve_skor) -> N
     assert yorum.headline
 
 
+def test_fallback_commentary_hook_ilk_iki_bulgudan_kurulur(saglikli_analiz_ve_skor) -> None:
+    """Faz 16.4: 'hook' alanı X/Twitter thread'inin ilk gönderisi için --
+    LLM'siz modda YENİ bir cümle UYDURULMAZ, ZATEN var olan ilk 2 öncelikli
+    bulgu (_fallback_sentence/_oncelik_anahtari ile AYNI sıralama) yeniden
+    kullanılır."""
+    analiz, skor = saglikli_analiz_ve_skor
+    anlamli = [f for f in analiz.findings if f.change_label != calculator.ChangeLabel.VERI_YOK]
+    beklenen_ilk_iki = sorted(anlamli, key=commentary._oncelik_anahtari)[:2]
+    beklenen_hook = " ".join(commentary._fallback_sentence(f) for f in beklenen_ilk_iki)
+
+    yorum = commentary._fallback_commentary(analiz, skor, [])
+    assert yorum.hook == beklenen_hook
+
+
 def test_fallback_commentary_pozitif_bulgular_positives_listesinde(saglikli_analiz_ve_skor) -> None:
     analiz, skor = saglikli_analiz_ve_skor
     yorum = commentary._fallback_commentary(analiz, skor, [])
@@ -345,7 +360,7 @@ def test_generate_commentary_basarili_llm_yanitini_dogrudan_kullanir(monkeypatch
     monkeypatch.setattr(config, "GEMINI_API_KEY", "test-key")
 
     gecerli_json = (
-        '{"headline": "KÂR GÜÇLÜ ARTTI", "summary": "Hasılat %20 arttı.", '
+        '{"headline": "KÂR GÜÇLÜ ARTTI", "hook": "Hasılat %20 arttı!", "summary": "Hasılat %20 arttı.", '
         '"positives": ["Hasılat %20 arttı"], "negatives": [], "kap_note": null, "disclaimer_context": null}'
     )
     call_count = {"n": 0}
@@ -367,7 +382,7 @@ def test_generate_commentary_bozuk_jsonda_duzeltme_istegi_gonderir_ve_basarili_o
     analiz, skor = saglikli_analiz_ve_skor
     monkeypatch.setattr(config, "GEMINI_API_KEY", "test-key")
 
-    gecerli_json = '{"headline": "BAŞLIK", "summary": "Özet.", "positives": [], "negatives": [], "kap_note": null, "disclaimer_context": null}'
+    gecerli_json = '{"headline": "BAŞLIK", "hook": "Kanca.", "summary": "Özet.", "positives": [], "negatives": [], "kap_note": null, "disclaimer_context": null}'
     call_count = {"n": 0}
 
     def fake_post(url, params=None, json=None, timeout=None):
@@ -393,11 +408,11 @@ def test_generate_commentary_supheli_artefaktta_duzeltme_ister_ve_temizlenirse_k
     monkeypatch.setattr(config, "GEMINI_API_KEY", "test-key")
 
     supheli_json = (
-        '{"headline": "BAŞLIK", "summary": "Özet.", "positives": [], "negatives": [], '
+        '{"headline": "BAŞLIK", "hook": "Kanca.", "summary": "Özet.", "positives": [], "negatives": [], '
         '"kap_note": "Şirket açıklama yaptı.————(Wait, let me reconsider this)————", "disclaimer_context": null}'
     )
     temiz_json = (
-        '{"headline": "BAŞLIK", "summary": "Özet.", "positives": [], "negatives": [], '
+        '{"headline": "BAŞLIK", "hook": "Kanca.", "summary": "Özet.", "positives": [], "negatives": [], '
         '"kap_note": "Şirket açıklama yaptı.", "disclaimer_context": null}'
     )
     call_count = {"n": 0}

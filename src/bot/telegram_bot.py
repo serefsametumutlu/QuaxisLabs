@@ -563,52 +563,120 @@ def _period_label_for(sonuc: pipeline.PipelineResult) -> str:
     return pipeline.quarter_label(sonuc.analysis.latest_period, annual_only=is_annual_only)
 
 
-def _score_caption(sonuc: pipeline.PipelineResult) -> str:
+# --- X/Twitter thread formatı (Faz 16.4, kullanıcı isteği 2026-08-04) -------------------------------
+#
+# Kullanıcı, kartla birlikte gelen tek bloklu özet metni yerine DOĞRUDAN bir
+# X/Twitter thread'ine (4 ayrı gönderi) kopyalanabilecek bir format istedi --
+# her biri kendi başına bir "post" olacak şekilde, Telegram'da AYRI mesajlar
+# olarak art arda gönderilir (bkz. _gonder_thread_gonderileri). Sıra:
+#   1) Kanca (fotoğraf altyazısı) -- skor + tek cümlelik çarpıcı özet + CTA
+#   2) Artışlar & Azalışlar
+#   3) Bilanço Özeti (detaylı anlatı)
+#   4) Radar Skoru Detayı (bileşen kırılımı) + "yorumlara yazın" CTA'sı
+
+
+def _thread_post_1_kanca(sonuc: pipeline.PipelineResult) -> str:
+    """Fotoğrafla BİRLİKTE giden altyazı VE thread'in ilk gönderisi -- kısa,
+    çarpıcı, "detaylar thread'de" ile devam eden gönderilere yönlendirir."""
     period_label = _period_label_for(sonuc)
     skor = format_number_tr(sonuc.score.total_score, decimals=2)
-    return f"#{sonuc.ticker} · {period_label}\nRadar Skoru: {skor}/10\n\nBu içerik yatırım tavsiyesi değildir."
+    return (
+        f"#{sonuc.ticker} {period_label} Bilanço Özeti 🧵\n\n"
+        f"🎯 Radar Skoru: {skor}/10 ({sonuc.score.badge})\n\n"
+        f"{sonuc.commentary.hook}\n\n"
+        "Detaylar thread'de 👇\n\n"
+        "Bu içerik yatırım tavsiyesi değildir."
+    )
 
 
-def _skor_aciklama_satirlari(sonuc: pipeline.PipelineResult) -> list[str]:
-    """Skorun ALT SATIRDAKI gerekcesi -- scorer.py'nin zaten her bilesen icin
-    urettigi Turkce reasoning_tr metnini kullanir (kartta gosterilenle AYNI
-    kaynak); boylece Telegram metni de "neden bu skor" sorusunu kendi
-    icinde, goruntuye bakmadan cevaplar (kullanici istegi: tek basina
-    paylasima hazir bir gonderi metni)."""
-    skor = sonuc.score
-    lines = [f"🎯 Radar Skoru: {format_number_tr(skor.total_score, decimals=2)}/10 ({skor.badge})", "", "Neden bu skor:"]
-    for c in skor.components:
-        skor_metni = f"{format_number_tr(c.score, decimals=1)}/10" if c.score is not None else "N/A"
-        agirlik = format_number_tr(c.weight_nominal, decimals=0)
-        lines.append(f"• {c.name} (%{agirlik} ağırlık) — {skor_metni}: {c.reasoning_tr}")
-    return lines
-
-
-def _bilanco_ozeti_metni(sonuc: pipeline.PipelineResult) -> str:
-    """Karttaki ARTIŞLAR/AZALIŞLAR + BİLANÇO ÖZETİ + SKOR GEREKÇESİ ile AYNI
-    icerigi duz metin olarak Telegram mesajina cevirir -- kullanici bunu
-    goruntuyle BIRLIKTE, tek basina paylasima hazir (kopyala-yapistir) bir
-    gonderi metni olarak kullanmak istedi."""
-    period_label = _period_label_for(sonuc)
+def _thread_post_2_artis_azalis(sonuc: pipeline.PipelineResult) -> str | None:
+    """İKİSİ de boşsa None döner (bu gönderi hiç yollanmaz -- boş bir "post"
+    paylaşıma hazır olmaz)."""
     yorum = sonuc.commentary
+    if not yorum.positives and not yorum.negatives:
+        return None
 
-    lines = [f"#{sonuc.ticker} · {period_label} Bilanço Özeti", ""]
-
+    lines = [f"#{sonuc.ticker} · Artışlar & Azalışlar", ""]
     if yorum.positives:
         lines.append("📈 Artışlar:")
         lines.extend(f"• {p}" for p in yorum.positives)
-        lines.append("")
-
     if yorum.negatives:
+        if yorum.positives:
+            lines.append("")
         lines.append("📉 Azalışlar:")
         lines.extend(f"• {n}" for n in yorum.negatives)
-        lines.append("")
+    return "\n".join(lines)
 
-    lines.append("📋 Bilanço Özeti:")
-    lines.append(yorum.summary)
+
+def _thread_post_3_bilanco_ozeti(sonuc: pipeline.PipelineResult) -> str:
+    """Kullanıcı isteği: bu bölüm eski tek-satırlık özetten DAHA DETAYLI
+    olmalı -- bkz. src/ai/commentary.py `summary` alanı istem talimatı
+    (5-7 cümle, ÖNCEDEN 3-5 cümleydi). Metnin KENDİSİ hâlâ SADECE Gemini'nin
+    (veya LLM'siz yedek modun) ürettiği, önceden hesaplanmış sayılardan
+    kurulan `summary` -- burada YENİDEN metin ÜRETİLMEZ, sadece başlıklanır."""
+    return f"#{sonuc.ticker} · Bilanço Özeti\n\n{sonuc.commentary.summary}"
+
+
+def _thread_post_4_skor_detay(sonuc: pipeline.PipelineResult) -> str:
+    """Skorun kompakt bileşen kırılımı -- kartta/karttaki gerekçe metninin
+    AKSİNE burada her bileşen için tam `reasoning_tr` cümlesi YOK (bir X
+    gönderisi için fazla uzun olurdu); SADECE "Değerleme" bileşeninde
+    (kullanıcının örneği: "F/K 5,3 – PD/DD 2,1") kısa parantez notu
+    eklenir -- bu da scorer.py'nin ZATEN ürettiği reasoning_tr'nin ta
+    kendisi, YENİDEN hesaplanmaz."""
+    skor = sonuc.score
+    baslik_skor = format_number_tr(skor.total_score, decimals=2)
+    lines = [f"#{sonuc.ticker} · Radar Skoru Detayı ({baslik_skor}/10 {skor.badge})", ""]
+    for c in skor.components:
+        skor_metni = f"{format_number_tr(c.score, decimals=1)}/10" if c.score is not None else "N/A"
+        agirlik = format_number_tr(c.weight_nominal, decimals=0)
+        parantez = f" ({c.reasoning_tr.rstrip('.')})" if c.name == "Değerleme" and c.score is not None else ""
+        lines.append(f"• {c.name} (%{agirlik}) → {skor_metni}{parantez}")
     lines.append("")
-    lines.extend(_skor_aciklama_satirlari(sonuc))
-    return "\n".join(lines).strip()
+    lines.append("Sizce bu skor adil mi?")
+    lines.append("Hangi hisseyi analiz edeyim? Yorumlara yazın 👇")
+    return "\n".join(lines)
+
+
+async def _gonder_thread_gonderileri(
+    chat_id: int, context: ContextTypes.DEFAULT_TYPE, sonuc: pipeline.PipelineResult, market: str
+) -> None:
+    """Kart fotoğrafının (thread'in 1. gönderisi, ayrı gönderilir) ARDINDAN
+    2-3-4. gönderileri AYRI Telegram mesajları olarak yollar -- kullanıcı
+    bunları X/Twitter'a kopyalayıp doğrudan bir thread haline getirebilsin
+    diye HER BİRİ kendi başına bir mesaj (bkz. modül üst notu). "Tek
+    dokunuşla yeni arama" menüsü (§B18) SON gönderiye (4.) eklenir --
+    thread'in doğal bitişi orası."""
+    ticker = sonuc.ticker
+
+    try:
+        post2 = _thread_post_2_artis_azalis(sonuc)
+        if post2 is not None:
+            await context.bot.send_message(chat_id=chat_id, text=post2)
+    except Exception:
+        logger.exception("istek ticker=%s: thread 2. gönderisi (artış/azalış) gönderilemedi", ticker)
+
+    try:
+        await context.bot.send_message(chat_id=chat_id, text=_thread_post_3_bilanco_ozeti(sonuc))
+    except Exception:
+        logger.exception("istek ticker=%s: thread 3. gönderisi (bilanço özeti) gönderilemedi", ticker)
+
+    try:
+        # show_derin_analiz: SADECE sanayi/US_GAAP (analyze()/analyze_us()
+        # AYNI AnalysisResult tipini doner) -- banka/sigorta farkli alan
+        # semasina sahip oldugu icin Derin Kart onlarda ANLAMSIZ olurdu
+        # (bkz. trends.py modul notu).
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=_thread_post_4_skor_detay(sonuc),
+            reply_markup=menu.build_sonuc_sonrasi_menu(
+                ticker=ticker,
+                market=market,
+                show_derin_analiz=isinstance(sonuc.analysis, calculator.AnalysisResult),
+            ),
+        )
+    except Exception:
+        logger.exception("istek ticker=%s: thread 4. gönderisi (skor detayı) gönderilemedi", ticker)
 
 
 async def _execute_and_send(
@@ -736,33 +804,15 @@ async def _execute_and_send(
         # gelmedi" -- eskiden send_photo/send_message TEK bir try/except
         # ALTINDA DEGILDI (hic try/except yoktu), send_photo bir
         # httpx.ReadTimeout ile patlarsa (bkz. build_application timeout
-        # notu) send_message'a HIC ULASILMIYORDU. Artik IKISI AYRI
-        # try/except ile korunur: biri basarisiz olsa bile digeri yine de
-        # denenir, kullanici EN AZINDAN birini alir.
+        # notu) send_message'a HIC ULASILMIYORDU. Artik HER gonderi KENDI
+        # try/except'i icinde -- biri basarisiz olsa bile digerleri yine de
+        # denenir (bkz. _gonder_thread_gonderileri, Faz 16.4).
         try:
-            await _send_card_photo(context, chat_id, sonuc.png_path, _score_caption(sonuc))
+            await _send_card_photo(context, chat_id, sonuc.png_path, _thread_post_1_kanca(sonuc))
         except Exception:
-            logger.exception("istek user=%s ticker=%s: kart fotoğrafı gönderilemedi (özet metni yine de denenecek)", user_id, ticker)
+            logger.exception("istek user=%s ticker=%s: kart fotoğrafı gönderilemedi (thread gönderileri yine de denenecek)", user_id, ticker)
 
-        try:
-            # §B18: ozet mesajina "tek dokunusla yeni arama" butonlari
-            # eklenir -- kullanici /menu -> Bilanço Analizi akisini BASTAN
-            # gezmeden hemen baska bir piyasada/hissede arama baslatabilsin.
-            # show_derin_analiz: SADECE sanayi/US_GAAP (analyze()/analyze_us()
-            # AYNI AnalysisResult tipini doner) -- banka/sigorta farkli alan
-            # semasina sahip oldugu icin Derin Kart onlarda ANLAMSIZ olurdu
-            # (bkz. trends.py modul notu).
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text=_bilanco_ozeti_metni(sonuc),
-                reply_markup=menu.build_sonuc_sonrasi_menu(
-                    ticker=sonuc.ticker,
-                    market=market,
-                    show_derin_analiz=isinstance(sonuc.analysis, calculator.AnalysisResult),
-                ),
-            )
-        except Exception:
-            logger.exception("istek user=%s ticker=%s: özet metni gönderilemedi", user_id, ticker)
+        await _gonder_thread_gonderileri(chat_id, context, sonuc, market)
 
         logger.info(
             "istek user=%s ticker=%s sure=%.1fs sonuc=basarili skor=%s",

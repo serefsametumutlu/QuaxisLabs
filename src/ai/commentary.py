@@ -70,6 +70,7 @@ class _NonRetryableLLMError(Exception):
 @dataclass(frozen=True)
 class Commentary:
     headline: str
+    hook: str  # X/Twitter thread'in ilk (kanca) gonderisi icin tek cumlelik, sayisal ozet (bkz. telegram_bot.py thread post'lari)
     summary: str
     positives: list[str]
     negatives: list[str]
@@ -109,7 +110,8 @@ KESINLIKLE YASAK.
 JSON semasi:
 {
   "headline": "en fazla 8 kelime, BUYUK HARF, carpici ama abartisiz tek cumlelik baslik",
-  "summary": "3-5 cumlelik acilis paragrafi, en onemli 2-3 gelismeyi sayilarla anlatir",
+  "hook": "sosyal medya (X/Twitter) paylasiminin ILK cumlesi icin: enerjik ama abartisiz, en carpici 2-3 sayisal gelismeyi kisaca birlestiren TEK cumle, en fazla 20 kelime, unlemle bitebilir, emoji YOK, 'al/sat' gibi tavsiye ifadesi YOK. Yuzdeleri MUTLAKA '%X,Y' rakamli formatinda yaz (orn. '%43,7'), 'yuzde' kelimesini YAZMA -- bu SADECE bu alan icin gecerli, diger alanlarda (summary/positives/negatives) 'yuzde X,Y' yazima STANDART bicimini kullanmaya devam et.",
+  "summary": "5-7 cumlelik acilis paragrafi, en onemli 3-4 gelismeyi sayilarla AYRINTILI anlatir (kisa ozet degil, detayli bir anlatim)",
   "positives": ["en fazla 4 madde, her biri sayi icermeli"],
   "negatives": ["en fazla 4 madde, her biri sayi icermeli"],
   "kap_note": "onemli KAP bildirimi varsa 1-2 cumlelik not, yoksa null",
@@ -120,13 +122,14 @@ _RESPONSE_SCHEMA = {
     "type": "OBJECT",
     "properties": {
         "headline": {"type": "STRING"},
+        "hook": {"type": "STRING"},
         "summary": {"type": "STRING"},
         "positives": {"type": "ARRAY", "items": {"type": "STRING"}},
         "negatives": {"type": "ARRAY", "items": {"type": "STRING"}},
         "kap_note": {"type": "STRING", "nullable": True},
         "disclaimer_context": {"type": "STRING", "nullable": True},
     },
-    "required": ["headline", "summary", "positives", "negatives"],
+    "required": ["headline", "hook", "summary", "positives", "negatives"],
 }
 
 _JSON_FIX_INSTRUCTION = (
@@ -500,9 +503,10 @@ def _contains_suspicious_artifact(data: dict) -> bool:
 
 def _commentary_from_json(data: dict, source: str) -> Commentary:
     headline = str(data.get("headline") or "").strip()
+    hook = str(data.get("hook") or "").strip()
     summary = str(data.get("summary") or "").strip()
-    if not headline or not summary:
-        raise _NonRetryableLLMError("Gemini yanıtı zorunlu alanları (headline/summary) içermiyor.")
+    if not headline or not hook or not summary:
+        raise _NonRetryableLLMError("Gemini yanıtı zorunlu alanları (headline/hook/summary) içermiyor.")
 
     positives = [str(x).strip() for x in (data.get("positives") or []) if str(x).strip()][:4]
     negatives = [str(x).strip() for x in (data.get("negatives") or []) if str(x).strip()][:4]
@@ -513,6 +517,7 @@ def _commentary_from_json(data: dict, source: str) -> Commentary:
 
     return Commentary(
         headline=headline,
+        hook=hook,
         summary=summary,
         positives=positives,
         negatives=negatives,
@@ -597,9 +602,17 @@ def _fallback_commentary(analysis: calculator.AnalysisResult, score: scorer.Scor
     )
 
     headline = f"PUAN {format_number_tr(score.total_score, decimals=1)}/10 -- {score.badge}"
+    # Thread'in "kanca" gonderisi icin: LLM'siz modda YENI bir cumle UYDURMAK
+    # yerine ZATEN var olan ilk 1-2 bulgu cumlesi (ayni oncelik sirasiyla)
+    # yeniden kullanilir -- headline/summary ile AYNI ilke (hicbir yeni sayi/
+    # ifade turetilmez, sadece mevcut bulgular yeniden bir araya getirilir).
+    hook = " ".join(_fallback_sentence(f) for f in oncelikli_sirali[:2])
+    if not hook:
+        hook = f"{score.badge} sinyali -- detaylar aşağıda."
 
     return Commentary(
         headline=headline,
+        hook=hook,
         summary=summary,
         positives=positives,
         negatives=negatives,

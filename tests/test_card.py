@@ -439,7 +439,7 @@ def _banka_finansallari() -> calculator.FinancialsByPeriod:
 
 def _ornek_commentary() -> Commentary:
     return Commentary(
-        headline="BAŞLIK", summary="Özet.", positives=["artış maddesi"], negatives=["azalış maddesi"],
+        headline="BAŞLIK", hook="Kanca cümlesi.", summary="Özet.", positives=["artış maddesi"], negatives=["azalış maddesi"],
         kap_note="KAP notu metni.", disclaimer_context=None, source="llm",
     )
 
@@ -703,7 +703,7 @@ def test_render_html_kap_notu_yoksa_bolumu_gizler() -> None:
     analiz = calculator.analyze("TESTAS", _saglikli_finansallar())
     skor = scorer.score_industrial(analiz)
     commentary_kapsiz = Commentary(
-        headline="BAŞLIK", summary="Özet.", positives=[], negatives=[],
+        headline="BAŞLIK", hook="Kanca cümlesi.", summary="Özet.", positives=[], negatives=[],
         kap_note=None, disclaimer_context=None, source="llm",
     )
     context = card.build_card_context(analiz, skor, commentary_kapsiz)

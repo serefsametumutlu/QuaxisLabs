@@ -117,7 +117,7 @@ def test_check_rate_limit_pencere_disina_cikan_istekler_sayilmaz() -> None:
     assert telegram_bot._check_rate_limit(user_id) is True
 
 
-# --- _bilanco_ozeti_metni -----------------------------------------------------
+# --- X/Twitter thread gönderileri (_thread_post_1_kanca..4_skor_detay) -----------------------------------------------------
 
 
 def _sahte_bilesen(name: str, score: Decimal | None, weight: str, reasoning: str) -> SimpleNamespace:

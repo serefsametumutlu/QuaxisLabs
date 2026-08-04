@@ -104,7 +104,11 @@ def test_build_deep_card_context_valuation_assessment_verilmezse_has_data_false(
 
 
 def test_build_deep_card_context_valuation_assessment_pahali_verdict_dogru_formatlanir():
-    peers = [PeerMultiple(ticker="PGSUS", pe_ratio=Decimal(10), pb_ratio=Decimal(4))]
+    peers = [
+        PeerMultiple(ticker="PGSUS", pe_ratio=Decimal(10), pb_ratio=Decimal(4)),
+        PeerMultiple(ticker="B", pe_ratio=Decimal(10), pb_ratio=Decimal(4)),
+        PeerMultiple(ticker="C", pe_ratio=Decimal(10), pb_ratio=Decimal(4)),
+    ]
     assessment = compute_valuation_assessment(Decimal(15), Decimal(6), peers, Decimal(130), Decimal(100), None)
 
     context = deep_card.build_deep_card_context(_trend(), [], "THYAO", "BIST", valuation_assessment=assessment)
@@ -122,7 +126,11 @@ def test_build_deep_card_context_valuation_assessment_pahali_verdict_dogru_forma
 
 
 def test_build_deep_card_context_valuation_assessment_nasdaq_dolar_gosterir():
-    peers = [PeerMultiple(ticker="X", pe_ratio=Decimal(20), pb_ratio=None)]
+    peers = [
+        PeerMultiple(ticker="X", pe_ratio=Decimal(20), pb_ratio=None),
+        PeerMultiple(ticker="Y", pe_ratio=Decimal(20), pb_ratio=None),
+        PeerMultiple(ticker="Z", pe_ratio=Decimal(20), pb_ratio=None),
+    ]
     assessment = compute_valuation_assessment(Decimal(10), None, peers, Decimal(50), None, None)
 
     context = deep_card.build_deep_card_context(_trend(), [], "AAPL", "NASDAQ", valuation_assessment=assessment)

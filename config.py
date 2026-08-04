@@ -73,6 +73,18 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest")
 # zaman asimi kullanilir.
 GEMINI_TIMEOUT_SECONDS = float(os.getenv("GEMINI_TIMEOUT_SECONDS", "45"))
 
+# --- Telegram gonderim ayarlari -----------------------------------------------------
+# CANLI HATA (kullanici raporu, 2026-08-05): kisitli/mobil internet baglantisinda
+# send_photo/send_document ReadTimeout/ConnectTimeout ile basarisiz oluyordu --
+# HTTPXRequest zaten cömert bir zaman asimina sahip (bkz. _build_application()
+# icindeki 60s read_timeout) ama TEK denemeydi, kisa bir baglanti kesintisi
+# (mobil veri gecisi gibi) TUM gonderimi iptal ediyordu. HTTP_MAX_RETRIES/
+# HTTP_RATE_LIMIT_DELAY_SECONDS ile AYNI ilke (tenacity, sadece agsal hatada
+# yeniden dener) ama Telegram medya gonderimi icin AYRI (daha uzun bekleme --
+# mobil baglanti toparlanmasi REST uc noktalarindan daha yavas olabilir).
+TELEGRAM_SEND_MAX_RETRIES = int(os.getenv("TELEGRAM_SEND_MAX_RETRIES", "3"))
+TELEGRAM_SEND_RETRY_DELAY_SECONDS = float(os.getenv("TELEGRAM_SEND_RETRY_DELAY_SECONDS", "5.0"))
+
 # --- Loglama -----------------------------------------------------
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 LOG_FILE = LOG_DIR / "bilanco_radar.log"

@@ -119,6 +119,20 @@ from decimal import Decimal
 _CHEAP_THRESHOLD_PCT = Decimal(-20)
 _EXPENSIVE_THRESHOLD_PCT = Decimal(20)
 
+# CANLI SORUN (kullanici raporu, 2026-08-05): DB henuz az sayida sirket
+# icerdigi icin (her sirket SADECE bir kullanici onu sorguladiginda taranir,
+# toplu bir doldurma sureci YOK -- bkz. PROJE_HAFIZASI 08_DEGISIKLIK_GUNLUGU.md
+# bu tarihli not) sektor peer sayisi cogu zaman 0-1 -- TEK bir peer'in
+# carpanini "sektor ortalamasi" diye sunup "%47,3 ucuz" gibi ASIRI KESIN ama
+# ISTATISTIKSEL OLARAK ANLAMSIZ ("komik") sonuclar uretiyordu. K4 geregi
+# (yeterli veri yoksa gosterme) bu asgari peer sayisinin ALTINDA sektore
+# goreli kisim (verdict/implied_target) TAMAMEN gizlenir -- Graham/PEG/
+# Damodaran (SEKTOR PEER'I GEREKTIRMEZ) bundan ETKILENMEZ. DB'nin toplu
+# doldurulmasi (daha fazla sirketin ONCEDEN taranmasi) AYRI, bekleyen bir is
+# (bkz. PROJE_HAFIZASI/06_BILINEN_SORUNLAR.md) -- bu esik SADECE az veriyle
+# YANILTICI kesinlik SUNULMASINI engeller, veri EKSIKLIGININ KENDISINI cozmez.
+_MIN_PEER_COUNT_FOR_SECTOR_COMPARISON = 3
+
 # 1 ayda +%25'i asan bir yukselis "kisa vadede isinmis olabilir" notu
 # tetikler -- kullanicinin verdigi ornek (%50/1 ay) bunun ACIKCA USTUNDE,
 # ama daha erken bir uyari esigi (yarısı) secildi ki sinirda kalan durumlar
@@ -149,6 +163,15 @@ _PEG_EXPENSIVE_FLOOR = Decimal("1.1")
 # guncellemesi beklenir.
 _RISK_FREE_RATE_PCT: dict[str, Decimal] = {"TRY": Decimal("32"), "USD": Decimal("4.3")}
 _EQUITY_RISK_PREMIUM_PCT: dict[str, Decimal] = {"TRY": Decimal("8"), "USD": Decimal("4.6")}
+
+# Damodaran modelinde reinvestment_rate = g/ROE'nin TAVANI -- en az %10
+# dagitim/payout orani varsayimi (CANLI hata, TUPRS: nominal hasilat buyumesi
+# %168,8 iken ROE %15,8 -- risksiz faize (%32) tavanlanan g bile ROE'den
+# BUYUK kaliyor, reinvestment_rate>=1 imkansiz cikip panel BIST'te NEREDEYSE
+# HICBIR sirkette gorunmuyordu). g'nin AYRICA `ROE x _MAX_REINVESTMENT_RATE`
+# tavanina da tabi tutulmasi bu imkansizligi PESTEN engeller -- bkz.
+# compute_valuation_assessment() ici Damodaran blogu.
+_MAX_REINVESTMENT_RATE = Decimal("0.9")
 
 
 @dataclass(frozen=True)
@@ -253,8 +276,10 @@ def compute_valuation_assessment(
     da hesaplanir)."""
     valid_pe = [p.pe_ratio for p in peer_multiples if p.pe_ratio is not None and p.pe_ratio > 0]
     valid_pb = [p.pb_ratio for p in peer_multiples if p.pb_ratio is not None and p.pb_ratio > 0]
-    sector_avg_pe = _average(valid_pe)
-    sector_avg_pb = _average(valid_pb)
+    # K4: asgari peer sayisinin ALTINDA "ortalama" YANILTICI KESINLIK sunar
+    # (bkz. _MIN_PEER_COUNT_FOR_SECTOR_COMPARISON ust notu) -- None kalir.
+    sector_avg_pe = _average(valid_pe) if len(valid_pe) >= _MIN_PEER_COUNT_FOR_SECTOR_COMPARISON else None
+    sector_avg_pb = _average(valid_pb) if len(valid_pb) >= _MIN_PEER_COUNT_FOR_SECTOR_COMPARISON else None
 
     pe_diff_pct: Decimal | None = None
     if own_pe is not None and own_pe > 0 and sector_avg_pe is not None:
@@ -346,9 +371,29 @@ def compute_valuation_assessment(
             peg_verdict = "Büyümeye Göre Makul (PEG)"
 
     # --- Aswath Damodaran "İstikrarlı Büyüme (Stable Growth) FCFE" modeli
-    # (bkz. modul ust notu Faz 16.7) -- SEKTOR PEER'İ GEREKTİRMEZ. ROE<=0,
-    # buyume<=0 veya g>=ROE (imkansiz/>%100 reinvestment orani) durumlarinda
-    # K4 geregi SESSIZCE None kalir -- UYDURULMAZ.
+    # (bkz. modul ust notu Faz 16.7) -- SEKTOR PEER'İ GEREKTİRMEZ. ROE<=0
+    # veya buyume<=0 durumlarinda K4 geregi SESSIZCE None kalir.
+    #
+    # CANLI HATA (kullanici raporu, 2026-08-05, TUPRS ile dogrulandi): `g`
+    # SADECE risksiz faize (%32) tavanlanirsa, BIST'in yuksek NOMINAL
+    # (enflasyon kaynakli) hasilat buyumesinde (TUPRS: %168,8 YoY) bu tavan
+    # HALA sirketin ROE'sinden (TUPRS: %15,8) BUYUK kalabiliyordu --
+    # reinvestment_rate=g/ROE >= 1 (imkansiz, >%100 reinvestment) cikip
+    # SESSIZCE None donuyordu, panel HICBIR BIST sanayi sirketinde
+    # gorunmuyordu (Damodaran'in metodolojisiyle DOGRU ama pratikte
+    # KULLANILAMAZ hale geliyordu -- bkz. 06_BILINEN_SORUNLAR.md B6, bu
+    # projede enflasyon duzeltmesi hic yapilmiyor, nominal buyume kullanilir).
+    #
+    # COZUM: `g` SADECE risksiz faize degil, AYRICA "temel buyume" tavanina
+    # (ROE x _MAX_REINVESTMENT_RATE -- sirketin en fazla ne kadarini
+    # reinvestment'a ayirabilecegi, en az %10 dagitim/payout varsayimiyla)
+    # da tavanlanir; ucu de (gozlemlenen buyume, risksiz faiz, ROE tabanli
+    # tavan) MIN'i alinir. Bu, reinvestment_rate'i HER ZAMAN <= 0,90 tutar --
+    # "g >= ROE imkansiz" durumu artik hic OLUSMAZ (onceden reddedip None
+    # donmek yerine, PESTEN tutarli/gecerli bir g secilir). Kullanilan g
+    # Gordon formulunde de AYNEN kullanilir (reinvestment_rate'ten AYRI bir
+    # g ile hesaplama YAPILMAZ -- ic tutarlilik: g = ROE x reinvestment_rate
+    # ozdesligi HER ZAMAN korunur).
     damodaran_cost_of_equity_pct: Decimal | None = None
     damodaran_growth_used_pct: Decimal | None = None
     damodaran_fair_value_price: Decimal | None = None
@@ -369,9 +414,10 @@ def compute_valuation_assessment(
         and share_capital > 0
     ):
         cost_of_equity_pct = risk_free_pct + equity_risk_premium_pct
-        g_pct = min(growth_rate_pct, risk_free_pct)  # istikrarli buyume kisiti
+        fundamental_growth_ceiling_pct = roe_pct * _MAX_REINVESTMENT_RATE
+        g_pct = min(growth_rate_pct, risk_free_pct, fundamental_growth_ceiling_pct)
         reinvestment_rate = g_pct / roe_pct
-        if reinvestment_rate < 1 and cost_of_equity_pct > g_pct:
+        if cost_of_equity_pct > g_pct:
             fcfe = ttm_net_income * (1 - reinvestment_rate)
             equity_value = fcfe * (1 + g_pct / 100) / ((cost_of_equity_pct - g_pct) / 100)
             damodaran_cost_of_equity_pct = cost_of_equity_pct

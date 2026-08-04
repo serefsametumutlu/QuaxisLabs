@@ -523,7 +523,11 @@ def test_build_card_context_valuation_assessment_verilmezse_has_data_false() -> 
 
 
 def test_build_card_context_valuation_assessment_verilirse_dogru_formatlanir() -> None:
-    peers = [PeerMultiple(ticker="PGSUS", pe_ratio=Decimal(10), pb_ratio=Decimal(4))]
+    peers = [
+        PeerMultiple(ticker="PGSUS", pe_ratio=Decimal(10), pb_ratio=Decimal(4)),
+        PeerMultiple(ticker="B", pe_ratio=Decimal(10), pb_ratio=Decimal(4)),
+        PeerMultiple(ticker="C", pe_ratio=Decimal(10), pb_ratio=Decimal(4)),
+    ]
     assessment = compute_valuation_assessment(Decimal(15), Decimal(6), peers, Decimal(130), Decimal(100), None)
 
     analiz = calculator.analyze("TESTAS", _saglikli_finansallar())

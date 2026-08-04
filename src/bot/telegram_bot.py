@@ -18,9 +18,10 @@ from typing import IO
 
 from telegram import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ChatAction
-from telegram.error import Conflict, NetworkError
+from telegram.error import Conflict, NetworkError, TimedOut
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 from telegram.request import HTTPXRequest
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
 import config
 from src.analysis import calculator, technical, trends
@@ -216,6 +217,32 @@ async def cmd_temel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(menu.DERIN_MENU_TEXT, reply_markup=menu.build_derin_menu())
 
 
+@retry(
+    reraise=True,
+    stop=stop_after_attempt(config.TELEGRAM_SEND_MAX_RETRIES),
+    wait=wait_fixed(config.TELEGRAM_SEND_RETRY_DELAY_SECONDS),
+    retry=retry_if_exception_type((TimedOut, NetworkError)),
+)
+async def _send_photo_with_retry(context, chat_id: int, png_path: str, caption: str, reply_markup) -> None:
+    with open(png_path, "rb") as photo_file:
+        await context.bot.send_photo(chat_id=chat_id, photo=photo_file, caption=caption, reply_markup=reply_markup)
+
+
+@retry(
+    reraise=True,
+    stop=stop_after_attempt(config.TELEGRAM_SEND_MAX_RETRIES),
+    wait=wait_fixed(config.TELEGRAM_SEND_RETRY_DELAY_SECONDS),
+    retry=retry_if_exception_type((TimedOut, NetworkError)),
+)
+async def _send_document_with_retry(context, chat_id: int, png_path: str) -> None:
+    with open(png_path, "rb") as document_file:
+        await context.bot.send_document(
+            chat_id=chat_id,
+            document=document_file,
+            caption="🖼️ Orijinal kalite (X/Twitter'da paylaşmadan önce bunu kaydet)",
+        )
+
+
 async def _send_card_photo(
     context: ContextTypes.DEFAULT_TYPE,
     chat_id: int,
@@ -244,22 +271,39 @@ async def _send_card_photo(
     disaridaki try/except'ine dusuyordu -- kullanici "X'e atarken bozulmasin
     diye gelen ikinci gorsel gelmedi" diye bildirdi. Artik ikisi BIRBIRINDEN
     BAGIMSIZ denenir (ayri try/except) -- biri (agdan dolayi) basarisiz olsa
-    bile digeri yine de gonderilmeye calisilir."""
-    try:
-        with open(png_path, "rb") as photo_file:
-            await context.bot.send_photo(chat_id=chat_id, photo=photo_file, caption=caption, reply_markup=reply_markup)
-    except Exception:
-        logger.exception("Kart fotografi (onizleme) gonderilemedi, orijinal kalite dosya yine de denenecek.")
+    bile digeri yine de gonderilmeye calisilir.
 
+    CANLI hata (kullanici raporu, 2026-08-05, kisitli/mobil internet): HER
+    IKI gonderim de TEK denemeydi -- kisa bir baglanti kesintisi (mobil veri
+    gecisi gibi) TimedOut/NetworkError ile TUM gonderimi sessizce iptal
+    ediyordu, kullaniciya NE gorsel NE bir hata mesaji ULASMIYORDU (fonksiyon
+    hicbir istisna firlatmadan donuyordu). Artik ikisi de `tenacity` ile
+    (SADECE agsal TimedOut/NetworkError'da, config.TELEGRAM_SEND_MAX_RETRIES
+    kez) yeniden denenir; ikisi de TUM denemelerden sonra basarisiz kalirsa
+    kullaniciya ayri bir uyari metni gonderilir (sessiz basarisizlik YOK)."""
+    photo_ok = False
     try:
-        with open(png_path, "rb") as document_file:
-            await context.bot.send_document(
-                chat_id=chat_id,
-                document=document_file,
-                caption="🖼️ Orijinal kalite (X/Twitter'da paylaşmadan önce bunu kaydet)",
-            )
+        await _send_photo_with_retry(context, chat_id, png_path, caption, reply_markup)
+        photo_ok = True
     except Exception:
-        logger.exception("Kart orijinal kalite dosyasi (X icin) gonderilemedi.")
+        logger.exception("Kart fotografi (onizleme) gonderilemedi (yeniden denemeler tukendi), orijinal kalite dosya yine de denenecek.")
+
+    document_ok = False
+    try:
+        await _send_document_with_retry(context, chat_id, png_path)
+        document_ok = True
+    except Exception:
+        logger.exception("Kart orijinal kalite dosyasi (X icin) gonderilemedi (yeniden denemeler tukendi).")
+
+    if not photo_ok and not document_ok:
+        try:
+            await context.bot.send_message(
+                chat_id,
+                "⚠️ Kart görseli şu an gönderilemedi (muhtemelen bağlantı sorunu). "
+                "Az sonra tekrar dener misin?",
+            )
+        except Exception:
+            logger.exception("Baglanti hatasi sonrasi uyari mesaji da gonderilemedi.")
 
 
 # --- Takvim (Faz 13) -----------------------------------------------------

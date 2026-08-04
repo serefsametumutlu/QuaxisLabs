@@ -13,10 +13,12 @@ from src.analysis.valuation import PeerMultiple, compute_valuation_assessment
 
 
 def test_own_pahalı_sektor_ortalamasinin_ustunde() -> None:
-    # own F/K=15, peer'ler 10 ve 10 -> sektor ort=10, fark = (15-10)/10*100 = %50
+    # own F/K=15, 3 peer (asgari esik, bkz. _MIN_PEER_COUNT_FOR_SECTOR_COMPARISON)
+    # hepsi 10 -> sektor ort=10, fark = (15-10)/10*100 = %50
     peers = [
         PeerMultiple(ticker="A", pe_ratio=Decimal(10), pb_ratio=None),
         PeerMultiple(ticker="B", pe_ratio=Decimal(10), pb_ratio=None),
+        PeerMultiple(ticker="C", pe_ratio=Decimal(10), pb_ratio=None),
     ]
     result = compute_valuation_assessment(Decimal(15), None, peers, None, None, None)
     assert result.sector_avg_pe == Decimal(10)
@@ -26,16 +28,24 @@ def test_own_pahalı_sektor_ortalamasinin_ustunde() -> None:
 
 
 def test_own_ucuz_sektor_ortalamasinin_altinda() -> None:
-    # own F/K=6, peer ort=10 -> fark = (6-10)/10*100 = -%40
-    peers = [PeerMultiple(ticker="A", pe_ratio=Decimal(10), pb_ratio=None)]
+    # own F/K=6, peer ort=10 (3 peer) -> fark = (6-10)/10*100 = -%40
+    peers = [
+        PeerMultiple(ticker="A", pe_ratio=Decimal(10), pb_ratio=None),
+        PeerMultiple(ticker="B", pe_ratio=Decimal(10), pb_ratio=None),
+        PeerMultiple(ticker="C", pe_ratio=Decimal(10), pb_ratio=None),
+    ]
     result = compute_valuation_assessment(Decimal(6), None, peers, None, None, None)
     assert result.pe_diff_pct == Decimal(-40)
     assert result.verdict == "Sektöre Göre Ucuz"
 
 
 def test_own_makul_esik_icinde() -> None:
-    # own F/K=11, peer ort=10 -> fark = %10, -20/+20 esiginin icinde -> Makul
-    peers = [PeerMultiple(ticker="A", pe_ratio=Decimal(10), pb_ratio=None)]
+    # own F/K=11, peer ort=10 (3 peer) -> fark = %10, -20/+20 esiginin icinde -> Makul
+    peers = [
+        PeerMultiple(ticker="A", pe_ratio=Decimal(10), pb_ratio=None),
+        PeerMultiple(ticker="B", pe_ratio=Decimal(10), pb_ratio=None),
+        PeerMultiple(ticker="C", pe_ratio=Decimal(10), pb_ratio=None),
+    ]
     result = compute_valuation_assessment(Decimal(11), None, peers, None, None, None)
     assert result.pe_diff_pct == Decimal(10)
     assert result.verdict == "Sektöre Göre Makul"
@@ -43,7 +53,11 @@ def test_own_makul_esik_icinde() -> None:
 
 def test_esik_sinirinda_tam_yirmi_pahali_sayilir() -> None:
     # sağ-kapalı eşik: tam +20 "Pahalı" sayılır (>= karşılaştırması)
-    peers = [PeerMultiple(ticker="A", pe_ratio=Decimal(10), pb_ratio=None)]
+    peers = [
+        PeerMultiple(ticker="A", pe_ratio=Decimal(10), pb_ratio=None),
+        PeerMultiple(ticker="B", pe_ratio=Decimal(10), pb_ratio=None),
+        PeerMultiple(ticker="C", pe_ratio=Decimal(10), pb_ratio=None),
+    ]
     result = compute_valuation_assessment(Decimal(12), None, peers, None, None, None)
     assert result.pe_diff_pct == Decimal(20)
     assert result.verdict == "Sektöre Göre Pahalı"
@@ -53,6 +67,8 @@ def test_pe_ve_pb_ikisi_de_varsa_ortalamasi_alinir() -> None:
     # F/K farki = %50 (pahali), PD/DD farki = -%50 (ucuz) -> harmanlanmis = 0 -> Makul
     peers = [
         PeerMultiple(ticker="A", pe_ratio=Decimal(10), pb_ratio=Decimal(4)),
+        PeerMultiple(ticker="B", pe_ratio=Decimal(10), pb_ratio=Decimal(4)),
+        PeerMultiple(ticker="C", pe_ratio=Decimal(10), pb_ratio=Decimal(4)),
     ]
     result = compute_valuation_assessment(Decimal(15), Decimal(2), peers, None, None, None)
     assert result.pe_diff_pct == Decimal(50)
@@ -61,10 +77,13 @@ def test_pe_ve_pb_ikisi_de_varsa_ortalamasi_alinir() -> None:
 
 
 def test_negatif_pe_peer_ortalamaya_katilmaz() -> None:
-    # zarar eden bir peer'in negatif F/K'si (K3: anlamsiz deger) ortalamadan DISLANIR
+    # zarar eden bir peer'in negatif F/K'si (K3: anlamsiz deger) ortalamadan
+    # DISLANIR -- geriye kalan 3 GECERLI (pozitif) peer asgari esigi karsilar.
     peers = [
         PeerMultiple(ticker="A", pe_ratio=Decimal(-5), pb_ratio=None),
         PeerMultiple(ticker="B", pe_ratio=Decimal(10), pb_ratio=None),
+        PeerMultiple(ticker="C", pe_ratio=Decimal(10), pb_ratio=None),
+        PeerMultiple(ticker="D", pe_ratio=Decimal(10), pb_ratio=None),
     ]
     result = compute_valuation_assessment(Decimal(10), None, peers, None, None, None)
     assert result.sector_avg_pe == Decimal(10)
@@ -78,6 +97,22 @@ def test_peer_yoksa_sektor_goreli_kisim_none_kalir_ama_graham_calisir() -> None:
     assert result.verdict is None
     assert result.has_data is True
     assert result.graham_multiple == Decimal(30)
+
+
+def test_asgari_peer_sayisinin_altinda_sektor_kismi_none_kalir() -> None:
+    # CANLI SORUN (2026-08-05): DB az sirket icerdiginde 1-2 peer'le "sektor
+    # ortalamasi" YANILTICI KESINLIK sunuyordu ("komik sonuclar"). Artik
+    # _MIN_PEER_COUNT_FOR_SECTOR_COMPARISON (3) ALTINDA sektore goreli kisim
+    # TAMAMEN None kalir (K4) -- burada TAM SINIRDA (2 peer) test edilir.
+    peers = [
+        PeerMultiple(ticker="A", pe_ratio=Decimal(10), pb_ratio=None),
+        PeerMultiple(ticker="B", pe_ratio=Decimal(10), pb_ratio=None),
+    ]
+    result = compute_valuation_assessment(Decimal(15), None, peers, None, None, None)
+    assert result.sector_avg_pe is None
+    assert result.pe_diff_pct is None
+    assert result.verdict is None
+    assert result.peer_count == 2  # ham peer sayisi (basliktaki "X karsilastirma sirketi") hala DOGRU raporlanir
 
 
 # --- Momentum -----------------------------------------------------
@@ -116,8 +151,12 @@ def test_3_ay_degisimi_bagimsiz_hesaplanir() -> None:
 
 
 def test_implied_target_fk_bazinda_hesaplanir() -> None:
-    # own F/K=8, sektor ort F/K=10, fiyat=80 -> hedef = 80 * (10/8) = 100
-    peers = [PeerMultiple(ticker="A", pe_ratio=Decimal(10), pb_ratio=None)]
+    # own F/K=8, sektor ort F/K=10 (3 peer), fiyat=80 -> hedef = 80 * (10/8) = 100
+    peers = [
+        PeerMultiple(ticker="A", pe_ratio=Decimal(10), pb_ratio=None),
+        PeerMultiple(ticker="B", pe_ratio=Decimal(10), pb_ratio=None),
+        PeerMultiple(ticker="C", pe_ratio=Decimal(10), pb_ratio=None),
+    ]
     result = compute_valuation_assessment(Decimal(8), None, peers, Decimal(80), None, None)
     assert result.implied_target_price == Decimal(100)
     assert result.implied_target_basis == "F/K"
@@ -126,14 +165,22 @@ def test_implied_target_fk_bazinda_hesaplanir() -> None:
 
 def test_implied_target_fk_yoksa_pddd_bazina_duser() -> None:
     # own F/K negatif (zarar) -> F/K bazi KULLANILAMAZ, PD/DD bazina duser
-    peers = [PeerMultiple(ticker="A", pe_ratio=Decimal(10), pb_ratio=Decimal(4))]
+    peers = [
+        PeerMultiple(ticker="A", pe_ratio=Decimal(10), pb_ratio=Decimal(4)),
+        PeerMultiple(ticker="B", pe_ratio=Decimal(10), pb_ratio=Decimal(4)),
+        PeerMultiple(ticker="C", pe_ratio=Decimal(10), pb_ratio=Decimal(4)),
+    ]
     result = compute_valuation_assessment(Decimal(-5), Decimal(2), peers, Decimal(80), None, None)
     assert result.implied_target_basis == "PD/DD"
     assert result.implied_target_price == Decimal(80) * (Decimal(4) / Decimal(2))
 
 
 def test_implied_target_fiyat_yoksa_none() -> None:
-    peers = [PeerMultiple(ticker="A", pe_ratio=Decimal(10), pb_ratio=None)]
+    peers = [
+        PeerMultiple(ticker="A", pe_ratio=Decimal(10), pb_ratio=None),
+        PeerMultiple(ticker="B", pe_ratio=Decimal(10), pb_ratio=None),
+        PeerMultiple(ticker="C", pe_ratio=Decimal(10), pb_ratio=None),
+    ]
     result = compute_valuation_assessment(Decimal(8), None, peers, None, None, None)
     assert result.implied_target_price is None
     assert result.implied_upside_pct is None
@@ -273,14 +320,34 @@ def test_damodaran_buyume_negatifse_none_kalir() -> None:
     assert result.damodaran_fair_value_price is None
 
 
-def test_damodaran_buyume_roeye_esit_veya_buyukse_none_kalir() -> None:
-    # g (buyume, tavana takilmadan once %30) >= ROE (%20) -> reinvestment_rate
-    # >= 1 (imkansiz, %100'den fazla reinvestment gerektirir) -> K4 geregi None.
+def test_damodaran_buyume_roeyi_asarsa_temel_buyume_tavanina_takilir() -> None:
+    # g (buyume %30, risksiz faiz tavani %32'nin altinda) ROE'yi (%20) asiyor --
+    # reinvestment_rate=g/ROE imkansiz (>=1) OLURDU. g artik AYRICA
+    # ROE*0,9=%18 (temel buyume tavani) ile de sinirlanir -> g_kullanilan=18,
+    # reinvestment_rate=18/20=0,9 (tam tavaninda) -- None DONMEZ.
     result = compute_valuation_assessment(
         None, None, [], Decimal(50), None, None,
         growth_rate_pct=Decimal(30), ttm_net_income=Decimal(1000), roe_pct=Decimal(20), share_capital=Decimal(100),
     )
-    assert result.damodaran_fair_value_price is None
+    assert result.damodaran_growth_used_pct == Decimal(18)
+    assert result.damodaran_fair_value_price is not None
+    assert result.damodaran_verdict is not None
+
+
+def test_damodaran_yuksek_nominal_buyumede_de_calisir_tupurs_regresyonu() -> None:
+    # CANLI HATA REGRESYONU (2026-08-05, TUPRS): nominal hasilat buyumesi
+    # (%168,8, enflasyon kaynakli) risksiz faize (%32) tavanlansa bile ROE'yi
+    # (%15,83) asiyordu -- eski mantik bunu "imkansiz reinvestment" sayip
+    # None donduruyordu, panel BIST'te neredeyse hicbir sanayi sirketinde
+    # GORUNMUYORDU. Artik g AYRICA ROE*0,9 (temel buyume tavani) ile de
+    # sinirlaniyor -- bu durumda BAGLAYICI olan bu ucuncu tavan.
+    result = compute_valuation_assessment(
+        None, None, [], Decimal(50), None, None,
+        growth_rate_pct=Decimal("168.8"), ttm_net_income=Decimal(1000), roe_pct=Decimal("15.83"), share_capital=Decimal(100),
+    )
+    assert result.damodaran_growth_used_pct == Decimal("15.83") * Decimal("0.9")
+    assert result.damodaran_fair_value_price is not None
+    assert result.damodaran_verdict is not None
 
 
 def test_damodaran_zarar_eden_sirkette_none_kalir() -> None:

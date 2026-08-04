@@ -727,7 +727,16 @@ def _discover_available_periods(facts_by_tag: dict[str, list[ConceptFact]]) -> l
     return sorted(candidates, reverse=True)
 
 
-def fetch_financials(ticker: str, periods: list[Period] | None = None, count: int = 8) -> RawUsFinancials:
+# Derin Kart'in mevsimsellik karsilastirmasi icin en az 4 farkli yil
+# gerekir -- isyatirim.DEFAULT_HISTORY_QUARTERS ile AYNI ilke/deger (16 ceyrek
+# = 4 yil). SEC companyfacts zaten TEK istekte TUM tarihceyi dondugu icin
+# bu degisiklik EK bir ag istegi GETIRMEZ, sadece zaten indirilmis veriden
+# daha fazla donem dilimlenir (canli dogrulandi: AAPL icin 16 donem sorunsuz
+# donuyor).
+DEFAULT_HISTORY_QUARTERS = 16
+
+
+def fetch_financials(ticker: str, periods: list[Period] | None = None, count: int = DEFAULT_HISTORY_QUARTERS) -> RawUsFinancials:
     """Bir NASDAQ/ABD sirketinin ceyreklik finansal tablolarini SEC EDGAR'dan
     ceker. Is Yatirim'in aksine TEK istekte TUM tarihce doner -- `periods`
     verilmezse net_income'dan turetilen en yeni `count` mali ceyrek kullanilir.

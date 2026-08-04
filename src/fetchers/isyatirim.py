@@ -348,6 +348,15 @@ def _previous_quarter_pair(year: int, period: int) -> Period:
     return year, period - 3
 
 
+# Derin Kart'in mevsimsellik karsilastirmasi (ayni ceyrek numarasinin YILLAR
+# arasi serisi) icin en az 4 farkli yil gerekir -- eskiden varsayilan 8 ceyrek
+# (2 yil) sadece 2 yillik bir karsilastirma verebiliyordu (kullanici raporu:
+# "sadece birer yil eklemisiz"). 16 ceyrek = 4 yil, canli dogrulandi (THYAO
+# icin 2022Ç2'ye kadar GERCEK, dolu veri donuyor -- bkz. scripts/explore_isyatirim.py
+# ile ayni ilke, tek seferlik canli kontrol).
+DEFAULT_HISTORY_QUARTERS = 16
+
+
 def guess_last_periods(count: int = 8, lag_days: int = 75) -> list[Period]:
     """Bugunun tarihine gore en olasi son `count` ceyregi tahmin eder (yeniden eskiye).
 
@@ -579,8 +588,8 @@ def fetch_financials(
     """Bir BIST sirketinin ceyreklik finansal tablolarini Is Yatirim'dan ceker.
 
     Tek istekte en fazla 4 donem cekilebildigi icin `periods` 4'erli
-    parcalara bolunup ayri isteklerle cekilir (varsayilan: son 8 ceyrek =
-    2 istek). `financial_group` verilmezse once XI_29 (sanayi/ticaret),
+    parcalara bolunup ayri isteklerle cekilir (varsayilan: son
+    DEFAULT_HISTORY_QUARTERS=16 ceyrek = 4 istek). `financial_group` verilmezse once XI_29 (sanayi/ticaret),
     bos donerse UFRS (banka/sigorta), o da bos donerse UFRS_K (araci
     kurum) denenir; hangi grubun kullanildigi RawFinancials.financial_group
     alaninda doner.
@@ -594,7 +603,7 @@ def fetch_financials(
         IsYatirimNetworkError: Ag hatasi (timeout, DNS, beklenmeyen yanit).
     """
     company_code = normalize_company_code(ticker)
-    target_periods = periods if periods is not None else guess_last_periods(count=8)
+    target_periods = periods if periods is not None else guess_last_periods(count=DEFAULT_HISTORY_QUARTERS)
     if not target_periods:
         raise ValueError("periods bos olamaz.")
 

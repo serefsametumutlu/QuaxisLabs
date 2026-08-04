@@ -33,11 +33,23 @@ from decimal import Decimal
 from src.analysis import calculator
 from src.analysis.calculator import FinancialsByPeriod, Period
 
-# "Derin Kart"ın gösterdiği pencere -- görev talimatı "8-12 çeyrek" diyor;
-# repository.get_financials() zaten en fazla ne kadar dönem varsa onu
-# döner (YENİ bir ağ isteği GEREKMEZ, bkz. modül üst notu), bu sabit SADECE
-# üst sınırı ifade eder.
+# "Derin Kart"ın gösterdiği pencere (7 sabit metrik grafiği) -- görev
+# talimatı "8-12 çeyrek" diyor; compute_multi_period_trend() `points`'i HER
+# ZAMAN bu sayıya kırpar (grafik fazla genişleyip okunaksızlaşmasın diye).
+# Mevsimsellik (`seasonality`) BUNUNLA SINIRLI DEĞİL -- çağıran tarafın
+# (telegram_bot._gonder_derin_analiz) get_financials()'a verdiği n_periods
+# kadar (bkz. SEASONALITY_FETCH_PERIODS) geriye gidebilir.
 MAX_TREND_PERIODS = 12
+
+# Mevsimsellik (aynı çeyrek numarasının yıllar arası hasılat serisi) için
+# çağıran tarafın DB'den kaç dönem isteyeceği -- kullanıcı raporu (2026-08-04):
+# "mevsimsellik kısmında sadece birer yıl eklemişiz, en azından geçmiş 4
+# yılın o çeyreklerini yapalım." 16 çeyrek = TAM 4 yıl (isyatirim.
+# DEFAULT_HISTORY_QUARTERS / sec_edgar.DEFAULT_HISTORY_QUARTERS ile AYNI
+# değer -- artık pipeline de fetch/backfill'de bu kadar geriye gidiyor);
+# birkaç dönem PAY bırakmak için 20 istenir (DB'de fazlası varsa da zarar
+# vermez, repository.get_financials() basitçe en yeni n_periods'u döner).
+SEASONALITY_FETCH_PERIODS = 20
 
 # Mevsimsellik karşılaştırması icin ayni ceyrek numarasinda EN AZ kac farkli
 # yil GEREKIR (K4: tek bir veri noktasi "karsilastirma" SAYILMAZ).

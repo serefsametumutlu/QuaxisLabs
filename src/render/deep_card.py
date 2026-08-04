@@ -47,6 +47,7 @@ from decimal import ROUND_FLOOR, Decimal
 
 from src.analysis.calculator import Period
 from src.analysis.trends import MultiPeriodTrend, PeriodTrendPoint, SeasonalityGroup, SectorAveragePoint
+from src.analysis.valuation import ValuationAssessment
 from src.formatting import format_currency_short, format_number_tr, format_percent_tr
 
 _DISCLAIMER = "Bu içerik yatırım tavsiyesi değildir; yatırım kararı için profesyonel danışmanlık alınmalıdır."
@@ -266,6 +267,53 @@ def _build_seasonality_charts(seasonality: tuple[SeasonalityGroup, ...], ticker:
     return charts
 
 
+_VERDICT_CLASS: dict[str, str] = {
+    "Sektöre Göre Ucuz": "verdict-ucuz",
+    "Sektöre Göre Makul": "verdict-makul",
+    "Sektöre Göre Pahalı": "verdict-pahali",
+}
+
+
+def _pct_class(value: Decimal | None) -> str:
+    if value is None:
+        return "neutral"
+    if value > 0:
+        return "positive"
+    if value < 0:
+        return "negative"
+    return "neutral"
+
+
+def _build_valuation_context(assessment: ValuationAssessment | None, market: str) -> dict:
+    """"Değerleme Analizi" paneli için context -- SADECE Türkçe biçimlendirme
+    (bkz. modül üst notu/04_KART_VE_GORSEL.md Kural 4: render katmanı hiçbir
+    oran HESAPLAMAZ, `src.analysis.valuation.compute_valuation_assessment()`
+    zaten hesaplanmış bir `ValuationAssessment` verir)."""
+    if assessment is None or not assessment.has_data:
+        return {"has_data": False}
+
+    return {
+        "has_data": True,
+        "peer_count": assessment.peer_count,
+        "verdict": assessment.verdict,
+        "verdict_class": _VERDICT_CLASS.get(assessment.verdict or "", "verdict-makul"),
+        "verdict_reasoning": assessment.verdict_reasoning,
+        "own_pe_display": _fmt_ratio(assessment.own_pe),
+        "own_pb_display": _fmt_ratio(assessment.own_pb),
+        "sector_avg_pe_display": _fmt_ratio(assessment.sector_avg_pe),
+        "sector_avg_pb_display": _fmt_ratio(assessment.sector_avg_pb),
+        "price_change_1m_display": _fmt_pct(assessment.price_change_1m_pct),
+        "price_change_1m_class": _pct_class(assessment.price_change_1m_pct),
+        "price_change_3m_display": _fmt_pct(assessment.price_change_3m_pct),
+        "price_change_3m_class": _pct_class(assessment.price_change_3m_pct),
+        "momentum_note": assessment.momentum_note,
+        "implied_target_display": _fmt_currency(assessment.implied_target_price, market),
+        "implied_target_basis": assessment.implied_target_basis,
+        "implied_upside_display": _fmt_pct(assessment.implied_upside_pct),
+        "implied_upside_class": _pct_class(assessment.implied_upside_pct),
+    }
+
+
 def build_deep_card_context(
     trend: MultiPeriodTrend | None,
     score_history: list[tuple[datetime, float]],
@@ -275,6 +323,7 @@ def build_deep_card_context(
     sector_average: dict[Period, SectorAveragePoint] | None = None,
     sector_name: str | None = None,
     peer_count: int = 0,
+    valuation_assessment: ValuationAssessment | None = None,
     now: datetime | None = None,
 ) -> dict:
     """`trend`: src.analysis.trends.compute_multi_period_trend() çıktısı
@@ -290,7 +339,11 @@ def build_deep_card_context(
     kaçırmış olabilir), bu durumda dönem-bazlı max() yanıltıcı şekilde
     düşük çıkardı (CANLI gözlemlendi: 2 peer'li TATGD'de max=1). Başlıkta
     HER ZAMAN "kaç şirketle karşılaştırılıyor" sorusunun DOĞRU cevabı
-    gösterilir. Hepsi bu fonksiyona HAZIR gelir -- burada YENİDEN hesaplama
+    gösterilir. `valuation_assessment`: src.analysis.valuation.
+    compute_valuation_assessment() çıktısı (peer/fiyat verisi yoksa None) --
+    "Değerleme Analizi" paneli (sektöre göre ucuz/pahalı + momentum + ima
+    edilen hedef fiyat), mevcut Bilanço Skoru'ndan BAĞIMSIZ (bkz. modül üst
+    notu). Hepsi bu fonksiyona HAZIR gelir -- burada YENİDEN hesaplama
     YAPILMAZ."""
     now = now or datetime.now()
     market_label = _MARKET_LABELS.get(market, market)
@@ -331,4 +384,5 @@ def build_deep_card_context(
         "metric_charts": metric_charts,
         "score_history_chart": _build_score_history_chart(score_history, ticker),
         "seasonality_charts": _build_seasonality_charts(trend.seasonality, ticker, market),
+        "valuation": _build_valuation_context(valuation_assessment, market),
     }

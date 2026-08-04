@@ -3,14 +3,22 @@ verisiyle uçtan uca "Derin Kart" PNG'si üretir. Telegram'a BAĞIMLI DEĞİLDİ
 sadece repository (mevcut veri) + trends + deep_card zincirini uçtan uca
 doğrular.
 
-⚠️ Bu script YENİ bir ağ isteği ATMAZ -- ticker'ın DAHA ÖNCE en az bir kez
-`scripts/demo_pipeline.py TICKER` (veya botta bir Bilanço Analizi) ile
-sorgulanmış olması, DB'de finansal veri BULUNMASI gerekir (bkz.
+⚠️ Bu script VARSAYILAN olarak YENİ bir ağ isteği ATMAZ -- ticker'ın DAHA
+ÖNCE en az bir kez `scripts/demo_pipeline.py TICKER` (veya botta bir Bilanço
+Analizi) ile sorgulanmış olması, DB'de finansal veri BULUNMASI gerekir (bkz.
 src/analysis/trends.py modül notu).
+
+`--with-valuation` bayrağı (OPSİYONEL, HAFİF ama CANLI fiyat istekleri
+gerektirir -- kendisi + her sektör peer'i için 1 kapanış fiyatı sorgusu):
+"Değerleme Analizi" panelini de (sektöre göre ucuz/pahalı + 1/3 ay fiyat
+momentumu + ima edilen hedef fiyat) hesaplayıp gösterir -- bkz.
+src/analysis/valuation.py, src/bot/telegram_bot.py::_compute_deep_card_valuation
+(AYNI orkestrasyon burada TEKRAR KULLANILIR, kopyalanmaz).
 
 Kullanım:
     python scripts/demo_derin_kart.py THYAO
     python scripts/demo_derin_kart.py THYAO --market BIST --company-name "Türk Hava Yolları A.O."
+    python scripts/demo_derin_kart.py THYAO --with-valuation
 """
 
 from __future__ import annotations
@@ -24,6 +32,7 @@ sys.path.insert(0, str(BASE_DIR))
 
 import config  # noqa: E402
 from src.analysis import trends  # noqa: E402
+from src.bot.telegram_bot import _compute_deep_card_valuation  # noqa: E402
 from src.db import models, repository  # noqa: E402
 from src.render import card, deep_card  # noqa: E402
 
@@ -35,9 +44,16 @@ def main() -> int:
     parser.add_argument("ticker", help="Hisse kodu (BIST: THYAO / NASDAQ: AAPL)")
     parser.add_argument("--market", choices=["BIST", "NASDAQ"], default="BIST")
     parser.add_argument("--company-name", default=None, help="Kart başlığında gösterilecek şirket adı (opsiyonel)")
+    parser.add_argument(
+        "--with-valuation", action="store_true",
+        help="Değerleme Analizi panelini de hesapla (CANLI fiyat istekleri gerektirir, bkz. modül üst notu)",
+    )
     args = parser.parse_args()
 
     ticker = args.ticker.strip().upper()
+    financial_group = None
+    peer_tickers: list[str] = []
+    peer_financials_list: list[dict] = []
 
     with repository.get_session() as session:
         company = session.get(models.Company, ticker)
@@ -45,8 +61,9 @@ def main() -> int:
             print(f"UYARI: '{ticker}' için DB'de kayıt yok -- önce scripts/demo_pipeline.py {ticker} çalıştır.")
             return 1
         print(f"Şirket: {company.name or ticker} ({company.financial_group}, {company.market})")
+        financial_group = company.financial_group
 
-        financials_by_period = repository.get_financials(session, ticker, n_periods=trends.MAX_TREND_PERIODS)
+        financials_by_period = repository.get_financials(session, ticker, n_periods=trends.SEASONALITY_FETCH_PERIODS)
         score_history = repository.get_score_history(session, ticker)
         company_name = args.company_name or company.name or ticker
 
@@ -60,7 +77,7 @@ def main() -> int:
             peer_count = len(peer_tickers)
             print(f"Sektör: {sector_name} -- {peer_count} karşılaştırma şirketi: {peer_tickers}")
             peer_financials_list = [
-                repository.get_financials(session, peer, n_periods=trends.MAX_TREND_PERIODS) for peer in peer_tickers
+                repository.get_financials(session, peer, n_periods=trends.SEASONALITY_FETCH_PERIODS) for peer in peer_tickers
             ]
             if peer_financials_list:
                 sector_average = trends.compute_sector_average(peer_financials_list)
@@ -86,9 +103,27 @@ def main() -> int:
     else:
         print("\nTrend üretilemedi (yeterli veri yok).")
 
+    valuation_assessment = None
+    if args.with_valuation and peer_tickers:
+        valuation_assessment = _compute_deep_card_valuation(
+            ticker, args.market, financial_group, financials_by_period, peer_tickers, peer_financials_list
+        )
+        if valuation_assessment and valuation_assessment.has_data:
+            print(
+                f"\nDeğerleme Analizi: verdict={valuation_assessment.verdict}, "
+                f"F/K={valuation_assessment.own_pe} (sektör {valuation_assessment.sector_avg_pe}), "
+                f"1 ay={valuation_assessment.price_change_1m_pct}, "
+                f"ima edilen değer={valuation_assessment.implied_target_price} ({valuation_assessment.implied_target_basis})"
+            )
+        else:
+            print("\nDeğerleme Analizi için yeterli veri yok (fiyat/peer eşleşmesi bulunamadı).")
+    elif args.with_valuation:
+        print("\nDeğerleme Analizi atlandı (sektör peer'i yok).")
+
     context = deep_card.build_deep_card_context(
         trend, score_history, ticker, args.market, company_name=company_name,
         sector_average=sector_average, sector_name=sector_name, peer_count=peer_count,
+        valuation_assessment=valuation_assessment,
     )
 
     out_path = config.DATA_DIR / "cards" / f"{ticker}_derin.png"

@@ -14,6 +14,7 @@ import logging
 import os
 import re
 import time
+from datetime import timedelta
 from typing import IO
 
 from telegram import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -23,7 +24,7 @@ from telegram.ext import Application, CallbackQueryHandler, CommandHandler, Cont
 from telegram.request import HTTPXRequest
 
 import config
-from src.analysis import calculator, technical, trends
+from src.analysis import calculator, technical, trends, valuation
 from src.bot import menu, pipeline
 from src.db import models, repository
 from src.fetchers import price_history
@@ -357,6 +358,78 @@ async def handle_teknik_callback(update: Update, context: ContextTypes.DEFAULT_T
 _DERIN_ANALIZ_DESTEKLENEN_GRUPLAR = ("XI_29", "US_GAAP")
 
 
+def _closest_close(bars: list, target_date) -> "None | object":
+    """`bars` (price_history.OhlcvBar listesi, artan tarih) içinde
+    `target_date`'e EN YAKIN kapanışı döner -- tam o gün işlem olmayabilir
+    (hafta sonu/tatil), bu yüzden en yakın GERÇEK işlem günü seçilir. Bars
+    boşsa None döner (K4/Kural 9: yeterli veri yoksa None, uydurma yapılmaz)."""
+    if not bars:
+        return None
+    closest = min(bars, key=lambda bar: abs((bar.trade_date - target_date).days))
+    return closest.close
+
+
+def _compute_deep_card_valuation(
+    ticker: str,
+    market: str,
+    financial_group: str,
+    financials_by_period: dict,
+    peer_tickers: list[str],
+    peer_financials_list: list[dict],
+) -> "valuation.ValuationAssessment | None":
+    """Derin Kart'ın "Değerleme Analizi" paneli için sektör-göreli F/K-PD/DD
+    karşılaştırması + kısa vadeli fiyat momentumu + ima edilen hedef fiyat
+    hesabını orkestre eder (bkz. src/analysis/valuation.py modül notu --
+    HESAPLAMANIN KENDİSİ orada, saf matematik olarak yapılır).
+
+    Bu fonksiyon SADECE `get_sector_peer_tickers()` ile bulunan gerçek
+    peer'lerin GÜNCEL fiyatını (`price_history.fetch_ohlcv`, YENİ ama
+    hafif/ikincil bir istek -- Kural 9: başarısız olursa SESSİZCE atlanır,
+    Derin Kart'ın geri kalanını BLOKE ETMEZ) çeker; peer'ler HER ZAMAN BİST/
+    XI_29'dur (sektör verisi SADECE BİST kapsar, bkz. 01_MIMARI.md §8)."""
+    own_bars = price_history.fetch_ohlcv(ticker, market, days=100)
+    if not own_bars:
+        return None
+    current_price = own_bars[-1].close
+    price_30d_ago = _closest_close(own_bars, own_bars[-1].trade_date - timedelta(days=30))
+    price_90d_ago = _closest_close(own_bars, own_bars[-1].trade_date - timedelta(days=90))
+
+    if financial_group == "US_GAAP":
+        own_analysis = calculator.analyze_us(ticker, financials_by_period)
+        own_share_field = "shares_outstanding"
+    else:
+        own_analysis = calculator.analyze(ticker, financials_by_period)
+        own_share_field = "share_capital"
+    own_share_count = financials_by_period.get(own_analysis.latest_period, {}).get(own_share_field)
+    own_metrics = calculator.compute_valuation(own_analysis, current_price, own_share_count)
+
+    peer_multiples: list[valuation.PeerMultiple] = []
+    for peer_ticker, peer_financials in zip(peer_tickers, peer_financials_list):
+        if not peer_financials:
+            continue
+        peer_analysis = calculator.analyze(peer_ticker, peer_financials)
+        peer_bars = price_history.fetch_ohlcv(peer_ticker, "BIST", days=15)
+        peer_price = peer_bars[-1].close if peer_bars else None
+        peer_share_capital = peer_financials.get(peer_analysis.latest_period, {}).get("share_capital")
+        peer_metrics = calculator.compute_valuation(peer_analysis, peer_price, peer_share_capital)
+        peer_multiples.append(
+            valuation.PeerMultiple(
+                ticker=peer_ticker,
+                pe_ratio=peer_metrics.pe_ratio if peer_metrics else None,
+                pb_ratio=peer_metrics.pb_ratio if peer_metrics else None,
+            )
+        )
+
+    return valuation.compute_valuation_assessment(
+        own_pe=own_metrics.pe_ratio if own_metrics else None,
+        own_pb=own_metrics.pb_ratio if own_metrics else None,
+        peer_multiples=peer_multiples,
+        current_price=current_price,
+        price_30d_ago=price_30d_ago,
+        price_90d_ago=price_90d_ago,
+    )
+
+
 async def _gonder_derin_analiz(chat_id: int, context: ContextTypes.DEFAULT_TYPE, ticker: str, market: str) -> None:
     """'🔬 Detaylı Analiz' (Bilanço kartı altı) VEYA '📊 Temel Analiz' (Teknik
     kartı altı, handle_teknik_callback'in simetriği) butonuna basılınca AYNI
@@ -375,9 +448,10 @@ async def _gonder_derin_analiz(chat_id: int, context: ContextTypes.DEFAULT_TYPE,
                 "çalıştırılmış olmalı ve şirket sanayi/ticaret (banka/sigorta desteklenmiyor) sınıfında olmalı.",
             )
             return
-        financials_by_period = repository.get_financials(session, ticker, n_periods=trends.MAX_TREND_PERIODS)
+        financials_by_period = repository.get_financials(session, ticker, n_periods=trends.SEASONALITY_FETCH_PERIODS)
         score_history = repository.get_score_history(session, ticker)
         company_name = company.name or ticker
+        financial_group = company.financial_group
 
         # Sektör ortalaması (2. çizgi) -- SADECE Company.sector DOLU ise (bkz.
         # scripts/refresh_sector_cache.py) mümkündür. Boşsa (henüz cache
@@ -387,18 +461,36 @@ async def _gonder_derin_analiz(chat_id: int, context: ContextTypes.DEFAULT_TYPE,
         sector_average: dict = {}
         sector_name = company.sector
         peer_count = 0
+        peer_tickers: list[str] = []
+        peer_financials_list: list[dict] = []
         if sector_name:
             peer_tickers = repository.get_sector_peer_tickers(
                 session, sector_name, company.financial_group, exclude_ticker=ticker
             )
             peer_count = len(peer_tickers)
             peer_financials_list = [
-                repository.get_financials(session, peer, n_periods=trends.MAX_TREND_PERIODS) for peer in peer_tickers
+                repository.get_financials(session, peer, n_periods=trends.SEASONALITY_FETCH_PERIODS) for peer in peer_tickers
             ]
             if peer_financials_list:
                 sector_average = trends.compute_sector_average(peer_financials_list)
 
     trend = trends.compute_multi_period_trend(financials_by_period)
+
+    # Değerleme Analizi paneli (2026-08-04, kullanıcı isteği) -- SADECE
+    # sektör peer'i varsa anlamlı (sektöre göre ucuz/pahalı kıyası için en az
+    # 1 karşılaştırma şirketi gerekir); fiyat/eş şirket verisi İKİNCİL
+    # olduğu için (Kural 9) herhangi bir hata bu bloğu SESSİZCE atlar,
+    # Derin Kart'ın geri kalanı (zaten üretilmiş trend/sektör verisi) bundan
+    # ETKİLENMEZ.
+    valuation_assessment = None
+    if peer_tickers:
+        try:
+            valuation_assessment = _compute_deep_card_valuation(
+                ticker, market, financial_group, financials_by_period, peer_tickers, peer_financials_list
+            )
+        except Exception:
+            logger.warning("%s için Değerleme Analizi paneli hesaplanamadı, panel gizlenecek.", ticker, exc_info=True)
+
     deep_context = deep_card.build_deep_card_context(
         trend,
         score_history,
@@ -408,6 +500,7 @@ async def _gonder_derin_analiz(chat_id: int, context: ContextTypes.DEFAULT_TYPE,
         sector_average=sector_average,
         sector_name=sector_name,
         peer_count=peer_count,
+        valuation_assessment=valuation_assessment,
     )
 
     if not deep_context["has_data"]:

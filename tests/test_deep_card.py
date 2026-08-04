@@ -14,6 +14,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from src.analysis.trends import MultiPeriodTrend, PeriodTrendPoint, SeasonalityGroup, SectorAveragePoint
+from src.analysis.valuation import PeerMultiple, compute_valuation_assessment
 from src.render import card, deep_card
 
 
@@ -92,6 +93,42 @@ def test_build_deep_card_context_veriyle_tum_bolumleri_doldurur():
         "Özkaynak Kârlılığı (ROE)",
     }
     assert all(c["chart"]["has_data"] for c in context["metric_charts"])
+
+
+# --- Değerleme Analizi paneli (2026-08-04) -----------------------------------------------------
+
+
+def test_build_deep_card_context_valuation_assessment_verilmezse_has_data_false():
+    context = deep_card.build_deep_card_context(_trend(), [], "THYAO", "BIST")
+    assert context["valuation"] == {"has_data": False}
+
+
+def test_build_deep_card_context_valuation_assessment_pahali_verdict_dogru_formatlanir():
+    peers = [PeerMultiple(ticker="PGSUS", pe_ratio=Decimal(10), pb_ratio=Decimal(4))]
+    assessment = compute_valuation_assessment(Decimal(15), Decimal(6), peers, Decimal(130), Decimal(100), None)
+
+    context = deep_card.build_deep_card_context(_trend(), [], "THYAO", "BIST", valuation_assessment=assessment)
+    val = context["valuation"]
+
+    assert val["has_data"] is True
+    assert val["verdict"] == "Sektöre Göre Pahalı"
+    assert val["verdict_class"] == "verdict-pahali"
+    assert val["own_pe_display"] == "15,00x"
+    assert val["sector_avg_pe_display"] == "10,00x"
+    assert val["price_change_1m_display"] == "%30,0"
+    assert val["price_change_1m_class"] == "positive"
+    assert "aşırı ısınmış olabilir" in val["momentum_note"]
+    assert val["implied_target_basis"] in ("F/K", "PD/DD")
+
+
+def test_build_deep_card_context_valuation_assessment_nasdaq_dolar_gosterir():
+    peers = [PeerMultiple(ticker="X", pe_ratio=Decimal(20), pb_ratio=None)]
+    assessment = compute_valuation_assessment(Decimal(10), None, peers, Decimal(50), None, None)
+
+    context = deep_card.build_deep_card_context(_trend(), [], "AAPL", "NASDAQ", valuation_assessment=assessment)
+    val = context["valuation"]
+
+    assert "$" in val["implied_target_display"]
 
 
 def test_build_deep_card_context_tek_donemde_grafikler_yeterli_veri_yok():

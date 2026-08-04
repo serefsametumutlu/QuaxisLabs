@@ -740,6 +740,63 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       `pytest tests/` (808 test, 5 yeni regresyon). Detay: `06_BILINEN_SORUNLAR.md`
       §A39.
 
+- [x] **Faz 16.3 (Sektör ortalaması + mevsimsellik derinliği düzeltmesi +
+      YENİ "Değerleme Analizi" paneli, kullanıcı raporu, 2026-08-04)** —
+      kullanıcı Derin Kart'ta üç eksiklik bildirdi: (1) sektör ortalaması
+      çizgisi hâlâ 1 çizgiye düşüyordu, (2) mevsimsellik grupları sadece
+      1-2 yıl gösteriyordu (4 yıl istendi), (3) bilanço iyi olsa bile
+      fiyatın "ucuz mu pahalı mı" olduğunu ayırt eden bir mekanizma yoktu.
+
+      **(1) Sektör ortalaması:** kök neden `Company.sector`'ün 59 şirketin
+      33'ünde HİÇ doldurulmamış olmasıydı (`scripts/refresh_sector_cache.py`
+      eklendiğinden beri yeniden çalıştırılmamış) — çalıştırılınca TÜM BİST
+      şirketlerinin sektörü doldu, THYAO/PGSUS gibi gerçek eşleşmeler
+      ortaya çıktı (bug değildi, veri bakımı eksikti).
+
+      **(2) Mevsimsellik derinliği:** kök neden pipeline'ın HER analizde
+      sadece son 8 çeyrek (2 yıl) veri çekip saklamasıydı. İş Yatırım'ın ve
+      SEC EDGAR'ın CANLI olarak 4+ yıl geriye veri verdiği doğrulandıktan
+      sonra `isyatirim.DEFAULT_HISTORY_QUARTERS`/`sec_edgar.DEFAULT_HISTORY_QUARTERS`
+      (YENİ, her ikisi 16 çeyrek = 4 yıl) eklendi, `pipeline.py`'deki 3 ayrı
+      `count=8` referansı buna bağlandı; `trends.SEASONALITY_FETCH_PERIODS`
+      (YENİ, 20) ile Derin Kart artık DB'den daha derin bir pencere okuyor
+      (`MAX_TREND_PERIODS=12` ile gösterilen 7 sabit grafik ETKİLENMEDİ,
+      SADECE mevsimsellik bundan faydalanıyor). THYAO ile CANLI doğrulandı:
+      4 mevsimsellik grubunun hepsi artık 3-4 gerçek yıl gösteriyor (önceden
+      2 yıl).
+
+      **(3) YENİ "Değerleme Analizi" paneli:** `src/analysis/valuation.py`
+      (YENİ, SAF matematik) — şirketin GÜNCEL F/K, PD/DD'sini AYNI sektördeki
+      DİĞER taranmış şirketlerin GÜNCEL ortalama çarpanıyla kıyaslayıp
+      "Sektöre Göre Ucuz/Makul/Pahalı" rozeti üretir (±%20 eşiği); son 1/3
+      aylık fiyat değişimini (`price_history.fetch_ohlcv`, zaten Teknik
+      Görünüm'de kullanılan fetcher) hesaplayıp %25'i aşan hızlı bir
+      yükselişte "kısa vadede aşırı ısınmış olabilir" notu ekler (kullanıcının
+      tam olarak tarif ettiği senaryo: "bilanço iyi ama son 1 ayda %50
+      yükselmiş, pahalı olabilir"); GERÇEK bir analist hedef fiyatı YERİNE
+      (böyle bir kaynak BİST için güvenilir/ücretsiz şekilde yok, kullanıcı
+      onayıyla) mevcut fiyatı sektör ortalama çarpanına yeniden ölçekleyerek
+      KENDİ hesapladığımız bir "ima edilen değer" üretir — kartta "gerçek bir
+      analist hedef fiyatı DEĞİLDİR" diye AÇIKÇA etiketlenir. Mevcut Bilanço
+      Skoru'na BİLİNÇLİ olarak DOKUNULMADI (kullanıcı tercihi: "şirket iyi mi"
+      ile "şu an almak mantıklı mı" ayrı sorular) — deep_card.html'e SADECE
+      YENİ, ayrı bir "Değerleme Analizi" bölümü eklendi (peer_count=0 ise
+      panel gizlenir). `telegram_bot._compute_deep_card_valuation()` peer'lerin
+      güncel fiyatını (hafif, ikincil istek — Kural 9: hata olursa panel
+      SESSİZCE gizlenir, Derin Kart'ın geri kalanı ETKİLENMEZ) çekip
+      `calculator.compute_valuation()`'ı (KOPYALANMADAN) yeniden kullanır.
+      CANLI doğrulandı (THYAO/PGSUS): "Sektöre Göre Ucuz" (F/K 3,08x, sektör
+      7,82x), 1 ay %-5,1, ima edilen değer 804₺ (F/K bazlı). Görsel inceleme
+      sırasında yakalanan bir CSS hatası da düzeltildi: `.stat-value`/
+      `.stat-sub` kuralı `.positive`/`.negative` renklerini kaynak sırası
+      yüzünden EZİYORDU (1/3 ay değişimi hep nötr renkte görünüyordu) —
+      bileşik seçiciyle (`.stat-value.positive` vb.) kesin olarak düzeltildi.
+
+      Test: `pytest tests/` (826 test, 18 yeni: `tests/test_valuation.py`
+      15 test + `tests/test_deep_card.py` 3 yeni test). Demo:
+      `python scripts/demo_derin_kart.py THYAO --with-valuation` (opsiyonel
+      bayrak, CANLI fiyat isteği gerektirir). Detay: `06_BILINEN_SORUNLAR.md`.
+
 ## Dizin Yapisi
 
 ```

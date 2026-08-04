@@ -164,6 +164,42 @@
   .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; }
   .metric-grid > .metric-chart:last-child:nth-child(odd) { grid-column: 1 / -1; }
 
+  /* --- Degerleme Analizi paneli (2026-08-04, kullanici istegi: "ucuz mu
+     pahali mi" + kisa vadeli momentum + kendi hesapladigimiz ima edilen
+     deger -- mevcut Bilanco Skoru'ndan BAGIMSIZ, AYRI bir panel, bkz.
+     src/analysis/valuation.py modul notu) --- */
+  .positive { color: var(--positive); font-weight: 700; }
+  .negative { color: var(--negative); font-weight: 700; }
+  .neutral { color: var(--secondary); font-weight: 700; }
+
+  .valuation-row { display: flex; align-items: stretch; gap: 18px; flex-wrap: wrap; }
+  .valuation-verdict {
+    display: flex; align-items: center; justify-content: center;
+    min-width: 150px; padding: 10px 16px; border-radius: 10px;
+    font-size: 15px; font-weight: 800; text-align: center; letter-spacing: 0.2px;
+  }
+  .verdict-ucuz { background: rgba(34, 197, 94, 0.12); color: var(--positive); border: 1px solid rgba(34, 197, 94, 0.35); }
+  .verdict-makul { background: rgba(148, 163, 184, 0.10); color: var(--heading); border: 1px solid var(--border); }
+  .verdict-pahali { background: rgba(239, 68, 68, 0.12); color: var(--negative); border: 1px solid rgba(239, 68, 68, 0.35); }
+
+  .valuation-stats { display: flex; flex: 1; flex-wrap: wrap; gap: 22px; }
+  .valuation-stat { display: flex; flex-direction: column; gap: 2px; min-width: 90px; }
+  .stat-label { font-size: 11px; color: var(--secondary); text-transform: uppercase; letter-spacing: 0.4px; }
+  .stat-value { font-size: 17px; font-weight: 700; color: var(--heading); }
+  .stat-sub { font-size: 11.5px; color: var(--secondary); }
+  /* CANLI GORSEL INCELEME (2026-08-04, THYAO): .positive/.negative renkleri
+     .stat-value/.stat-sub'in KENDI "color" kuralinin ALTINDA (sonra) tanimli
+     oldugu icin CSS aktarilirken (ayni ozgulluk, kaynak sirasi kazaniyor)
+     GORUNMEZ kalıyordu -- 1/3 ay fiyat degisimi ve ima edilen deger yuzdesi
+     her zaman notr renkte gorunuyordu. Bilesik secici ile ozgulluk artirilip
+     KESIN olarak kazandırıldı. */
+  .stat-value.positive, .stat-sub.positive { color: var(--positive); }
+  .stat-value.negative, .stat-sub.negative { color: var(--negative); }
+
+  .valuation-note { font-size: 12px; color: var(--secondary); margin-top: 10px; }
+  .valuation-warning { color: var(--accent); font-weight: 600; }
+  .valuation-disclaimer { font-size: 10.5px; color: var(--secondary); opacity: 0.7; margin-top: 6px; }
+
   /* --- Uyarilar --- */
   .warnings { display: flex; flex-direction: column; gap: 4px; }
   .warning-line { font-size: 11.5px; color: var(--secondary); letter-spacing: 0.2px; }
@@ -238,6 +274,53 @@
   <div class="empty-note">Yeterli veri yok.</div>
   {% endif %}
   {% endmacro %}
+
+  {% if valuation.has_data %}
+  <section class="section">
+    <div class="section-title">Değerleme Analizi</div>
+    <div class="valuation-row">
+      {% if valuation.verdict %}<div class="valuation-verdict {{ valuation.verdict_class }}">{{ valuation.verdict }}</div>{% endif %}
+      <div class="valuation-stats">
+        {% if valuation.own_pe_display != "N/A" %}
+        <div class="valuation-stat">
+          <span class="stat-label">F/K</span>
+          <span class="stat-value">{{ valuation.own_pe_display }}</span>
+          <span class="stat-sub">Sektör Ort.: {{ valuation.sector_avg_pe_display }}</span>
+        </div>
+        {% endif %}
+        {% if valuation.own_pb_display != "N/A" %}
+        <div class="valuation-stat">
+          <span class="stat-label">PD/DD</span>
+          <span class="stat-value">{{ valuation.own_pb_display }}</span>
+          <span class="stat-sub">Sektör Ort.: {{ valuation.sector_avg_pb_display }}</span>
+        </div>
+        {% endif %}
+        {% if valuation.price_change_1m_display != "N/A" %}
+        <div class="valuation-stat">
+          <span class="stat-label">Fiyat (1 Ay)</span>
+          <span class="stat-value {{ valuation.price_change_1m_class }}">{{ valuation.price_change_1m_display }}</span>
+        </div>
+        {% endif %}
+        {% if valuation.price_change_3m_display != "N/A" %}
+        <div class="valuation-stat">
+          <span class="stat-label">Fiyat (3 Ay)</span>
+          <span class="stat-value {{ valuation.price_change_3m_class }}">{{ valuation.price_change_3m_display }}</span>
+        </div>
+        {% endif %}
+        {% if valuation.implied_target_display != "N/A" %}
+        <div class="valuation-stat">
+          <span class="stat-label">İma Edilen Değer ({{ valuation.implied_target_basis }})</span>
+          <span class="stat-value">{{ valuation.implied_target_display }}</span>
+          <span class="stat-sub {{ valuation.implied_upside_class }}">{{ valuation.implied_upside_display }}</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% if valuation.verdict_reasoning %}<div class="valuation-note">{{ valuation.verdict_reasoning }}</div>{% endif %}
+    {% if valuation.momentum_note %}<div class="valuation-note valuation-warning">⚠️ {{ valuation.momentum_note }}</div>{% endif %}
+    <div class="valuation-disclaimer">İma edilen değer gerçek bir analist hedef fiyatı DEĞİLDİR -- {{ peer_count }} sektör benzeri şirketin güncel çarpanına göre kendi hesapladığımız bir tahmindir.</div>
+  </section>
+  {% endif %}
 
   <section class="section">
     <div class="section-title">Çok Dönemli Trend</div>

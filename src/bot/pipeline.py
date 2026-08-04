@@ -655,7 +655,10 @@ def _resolve_raw_financials(ticker: str, periods: list[Period] | None) -> isyati
     try:
         raw = isyatirim.fetch_financials(ticker)
     except isyatirim.FinancialDataNotAvailableError:
-        shifted = [calculator.previous_quarter_period(p) for p in isyatirim.guess_last_periods(count=8)]
+        shifted = [
+            calculator.previous_quarter_period(p)
+            for p in isyatirim.guess_last_periods(count=isyatirim.DEFAULT_HISTORY_QUARTERS)
+        ]
         logger.info("%s icin en guncel donem henuz yok, bir ceyrek geriye kayarak deneniyor.", ticker)
         return isyatirim.fetch_financials(ticker, periods=shifted)
 
@@ -665,7 +668,7 @@ def _resolve_raw_financials(ticker: str, periods: list[Period] | None) -> isyati
         return raw
 
     forward_periods: list[Period] = [true_newest]
-    while len(forward_periods) < 8:
+    while len(forward_periods) < isyatirim.DEFAULT_HISTORY_QUARTERS:
         forward_periods.append(calculator.previous_quarter_period(forward_periods[-1]))
     return isyatirim.fetch_financials(ticker, periods=forward_periods, financial_group=raw.financial_group)
 
@@ -887,7 +890,10 @@ def _fetch_and_store(ticker: str, periods: list[Period] | None) -> None:
         if kap_patch_period is not None and (actual_newest is None or kap_patch_period > actual_newest):
             actual_newest = kap_patch_period
         if actual_newest is not None and actual_newest < guessed_newest:
-            retry_periods = [calculator.previous_quarter_period(p) for p in isyatirim.guess_last_periods(count=8)]
+            retry_periods = [
+                calculator.previous_quarter_period(p)
+                for p in isyatirim.guess_last_periods(count=isyatirim.DEFAULT_HISTORY_QUARTERS)
+            ]
             raise PeriodNotAvailableError(ticker, quarter_label(guessed_newest), quarter_label(actual_newest), retry_periods)
 
     if raw.financial_group == "XI_29":

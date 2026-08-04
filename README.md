@@ -797,6 +797,42 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       `python scripts/demo_derin_kart.py THYAO --with-valuation` (opsiyonel
       bayrak, CANLI fiyat isteği gerektirir). Detay: `06_BILINEN_SORUNLAR.md`.
 
+- [x] **Faz 16.4 (Telegram özet metni → X/Twitter thread formatı, kullanıcı
+      isteği, 2026-08-04)** — kullanıcı, Telegram'a gelen tek bloklu özet
+      metni yerine doğrudan bir X/Twitter thread'ine (4 ayrı gönderi)
+      kopyalanabilecek bir format istedi, somut bir örnek paylaştı (gerçek
+      #TURSG paylaşımı).
+
+      **Format:** (1) Kanca — fotoğraf altyazısı, skor + tek cümlelik
+      çarpıcı özet + "Detaylar thread'de 👇" + yasal uyarı; (2) Artışlar &
+      Azalışlar; (3) Bilanço Özeti (daha DETAYLI — `commentary.summary`
+      istem talimatı 3-5 cümleden 5-7 cümleye çıkarıldı); (4) Radar Skoru
+      Detayı — kompakt "isim (%ağırlık) → skor/10" satırları (Değerleme
+      bileşeninde kısa "(F/K X, PD/DD Y)" notu) + "Sizce bu skor adil mi?
+      Hangi hisseyi analiz edeyim?" CTA'sı. Her gönderi AYRI bir Telegram
+      mesajı olarak yollanır (`_gonder_thread_gonderileri()`, her biri
+      kendi try/except'i içinde — biri başarısız olsa diğerleri denenir,
+      OTKAR dersiyle AYNI ilke) ki kullanıcı bunları teker teker X'e
+      kopyalayabilsin.
+
+      **YENİ `Commentary.hook` alanı:** Gemini şemasına eklendi ("%X,Y"
+      rakamlı format zorunlu, "yüzde" YAZILMAZ — SADECE bu alan için,
+      diğer alanlar mevcut "yüzde X,Y" yazımını korur); LLM'siz yedek
+      modda YENİ bir cümle UYDURULMAZ, ilk 2 öncelikli bulgu (`_fallback_sentence`
+      ile AYNI kaynak) yeniden kullanılır. `CommentaryCache` tablosuna
+      `hook` sütunu eklendi (idempotent ALTER TABLE migration, `models.
+      _migrate_add_commentary_hook_column()` — `_migrate_add_market_column()`
+      ile AYNI ilke); eski (bu alandan önce) önbelleklenmiş satırlar NULL
+      kalır, `pipeline._get_or_generate_commentary()` bu durumda `positives`'ten
+      yeniden kurar (YENİ bir Gemini çağrısı GEREKMEZ).
+
+      CANLI doğrulandı (TURSG, gerçek Gemini yanıtıyla): skor/bileşen
+      kırılımı kullanıcının paylaştığı örnekle BİREBİR eşleşti (8,55/10
+      SAĞLAM, Prim Büyümesi/Teknik Denge Marjı/ROE/Değerleme hepsi %25,
+      F/K 5,3 — PD/DD 2,1). Test: `pytest tests/` (828 test, `_bilanco_ozeti_metni`/
+      `_score_caption` testleri 4 yeni thread-post fonksiyonu testiyle
+      değiştirildi + `Commentary.hook` fallback testi eklendi).
+
 ## Dizin Yapisi
 
 ```

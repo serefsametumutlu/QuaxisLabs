@@ -49,6 +49,7 @@ from src.analysis.calculator import Period
 from src.analysis.trends import MultiPeriodTrend, PeriodTrendPoint, SeasonalityGroup, SectorAveragePoint
 from src.analysis.valuation import ValuationAssessment
 from src.formatting import format_currency_short, format_number_tr, format_percent_tr
+from src.render import valuation_view
 
 _DISCLAIMER = "Bu içerik yatırım tavsiyesi değildir; yatırım kararı için profesyonel danışmanlık alınmalıdır."
 
@@ -93,7 +94,9 @@ def _fmt_pct(value: Decimal | None, decimals: int = 1) -> str:
 
 
 def _fmt_ratio(value: Decimal | None) -> str:
-    return f"{format_number_tr(value, 2)}x" if value is not None else "N/A"
+    # CANLI KULLANICI GERI BILDIRIMI (2026-08-04): "x" ibaresi (orn. "5,30x")
+    # gereksiz/kalabalik bulundu -- SADECE sayi gosterilsin istendi.
+    return format_number_tr(value, 2) if value is not None else "N/A"
 
 
 def _fmt_score(value: Decimal | None) -> str:
@@ -267,51 +270,12 @@ def _build_seasonality_charts(seasonality: tuple[SeasonalityGroup, ...], ticker:
     return charts
 
 
-_VERDICT_CLASS: dict[str, str] = {
-    "Sektöre Göre Ucuz": "verdict-ucuz",
-    "Sektöre Göre Makul": "verdict-makul",
-    "Sektöre Göre Pahalı": "verdict-pahali",
-}
-
-
-def _pct_class(value: Decimal | None) -> str:
-    if value is None:
-        return "neutral"
-    if value > 0:
-        return "positive"
-    if value < 0:
-        return "negative"
-    return "neutral"
-
-
 def _build_valuation_context(assessment: ValuationAssessment | None, market: str) -> dict:
-    """"Değerleme Analizi" paneli için context -- SADECE Türkçe biçimlendirme
-    (bkz. modül üst notu/04_KART_VE_GORSEL.md Kural 4: render katmanı hiçbir
-    oran HESAPLAMAZ, `src.analysis.valuation.compute_valuation_assessment()`
-    zaten hesaplanmış bir `ValuationAssessment` verir)."""
-    if assessment is None or not assessment.has_data:
-        return {"has_data": False}
-
-    return {
-        "has_data": True,
-        "peer_count": assessment.peer_count,
-        "verdict": assessment.verdict,
-        "verdict_class": _VERDICT_CLASS.get(assessment.verdict or "", "verdict-makul"),
-        "verdict_reasoning": assessment.verdict_reasoning,
-        "own_pe_display": _fmt_ratio(assessment.own_pe),
-        "own_pb_display": _fmt_ratio(assessment.own_pb),
-        "sector_avg_pe_display": _fmt_ratio(assessment.sector_avg_pe),
-        "sector_avg_pb_display": _fmt_ratio(assessment.sector_avg_pb),
-        "price_change_1m_display": _fmt_pct(assessment.price_change_1m_pct),
-        "price_change_1m_class": _pct_class(assessment.price_change_1m_pct),
-        "price_change_3m_display": _fmt_pct(assessment.price_change_3m_pct),
-        "price_change_3m_class": _pct_class(assessment.price_change_3m_pct),
-        "momentum_note": assessment.momentum_note,
-        "implied_target_display": _fmt_currency(assessment.implied_target_price, market),
-        "implied_target_basis": assessment.implied_target_basis,
-        "implied_upside_display": _fmt_pct(assessment.implied_upside_pct),
-        "implied_upside_class": _pct_class(assessment.implied_upside_pct),
-    }
+    """"Değerleme Analizi" paneli için context -- HEM Derin Kart HEM Bilanço
+    kartının (`card.py`) PAYLAŞTIĞI `src.render.valuation_view.build_valuation_view()`'e
+    ince bir sarmalayıcı (Kural 4: render katmanı hiçbir oran HESAPLAMAZ,
+    formatlama mantığı İKİ KEZ YAZILMASIN diye tek yerde tutulur)."""
+    return valuation_view.build_valuation_view(assessment, market)
 
 
 def build_deep_card_context(

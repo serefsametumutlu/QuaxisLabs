@@ -24,6 +24,11 @@ context semasi (build_card_context'in urettigi, render_card'in bekledigi):
         fk, pd_dd, fd_favok, fd_hasilat, pd_efk -- fiyat/sermaye ikisi de
         yoksa None, bkz. calculator.compute_valuation; Net Borç burada YOK,
         SADECE balance_rows icinde gosterilir),
+    valuation_analysis (dict: has_data + verdict/graham_verdict/peg_verdict/
+        hedef fiyatlar -- bkz. src.render.valuation_view.build_valuation_view,
+        BİLANÇO SKORU bölümündeki kompakt Değerleme Analizi kutusu icin,
+        yukaridaki `valuation` ile KARISTIRILMASIN -- o ust banttaki F/K/
+        PD-DD seridi icin AYRI bir semadir),
     headline, summary, show_ebitda (bool),
     income_rows (dict: revenue/gross_profit/operating_profit/ebitda/net_income
         -> {label,current,comparison,change_display,color_class} | None),
@@ -59,8 +64,10 @@ import jinja2
 import config
 from src.ai import commentary as commentary_module
 from src.analysis import calculator, scorer
+from src.analysis.valuation import ValuationAssessment
 from src.fetchers import company_logo, kap
 from src.formatting import format_currency_short, format_number_tr, format_percent_tr
+from src.render import valuation_view
 
 logger = logging.getLogger(__name__)
 
@@ -568,13 +575,24 @@ def build_card_context(
     sector: str | None = None,
     price: Decimal | None = None,
     valuation: calculator.ValuationMetrics | None = None,
+    valuation_assessment: ValuationAssessment | None = None,
     data_sources_note: str = "İş Yatırım, KAP",
     now: datetime | None = None,
 ) -> dict:
     """calculator/scorer/commentary ciktisini render_card()'in bekledigi
     duz dict'e cevirir (bkz. modul docstring'indeki sema). Hicbir sayi
     HESAPLAMAZ -- sadece Turkce bicimlendirir ve gorsel siniflara (renk,
-    rozet) esler."""
+    rozet) esler.
+
+    `valuation_assessment` (2026-08-04, kullanıcı isteği): BİLANÇO SKORU
+    bölümündeki kompakt "Değerleme Analizi" kutusu için -- context'e
+    `valuation_analysis` anahtarıyla eklenir (mevcut `valuation` anahtarı
+    ÜST BANTTAKİ Piyasa Değeri/F-K/PD-DD şeridi için ZATEN kullanıldığından
+    ÇAKIŞMASIN diye AYRI bir anahtar). `src.render.valuation_view` (Derin
+    Kart'ın da kullandığı PAYLAŞILAN formatlayıcı, bkz. o modülün
+    docstring'i) ile biçimlendirilir -- hesaplamanın kendisi burada
+    YAPILMAZ, sadece `src.analysis.valuation.compute_valuation_assessment()`
+    çıktısı (varsa) Türkçeleştirilir."""
     disclosures = disclosures or []
     now = now or datetime.now()
 
@@ -631,6 +649,7 @@ def build_card_context(
         "report_timestamp": now.strftime("%d.%m.%Y %H:%M"),
         "price_display": f"{format_number_tr(price, decimals=2)} ₺" if price is not None else None,
         "valuation": _valuation_context(valuation),
+        "valuation_analysis": valuation_view.build_valuation_view(valuation_assessment, "BIST"),
         "headline": commentary.headline,
         "summary": commentary.summary,
         "show_ebitda": show_ebitda,
@@ -662,6 +681,7 @@ def build_us_card_context(
     sector: str | None = None,
     price: Decimal | None = None,
     valuation: calculator.ValuationMetrics | None = None,
+    valuation_assessment: ValuationAssessment | None = None,
     data_sources_note: str = "SEC EDGAR (XBRL)",
     now: datetime | None = None,
 ) -> dict:
@@ -744,6 +764,7 @@ def build_us_card_context(
         "report_timestamp": now.strftime("%d.%m.%Y %H:%M"),
         "price_display": f"{_USD_SYMBOL}{format_number_tr(price, decimals=2)}" if price is not None else None,
         "valuation": _valuation_context(valuation, _USD_SYMBOL),
+        "valuation_analysis": valuation_view.build_valuation_view(valuation_assessment, "NASDAQ"),
         "headline": commentary.headline,
         "summary": commentary.summary,
         "show_ebitda": show_ebitda,
@@ -836,6 +857,14 @@ def build_bank_card_context(
         "report_timestamp": now.strftime("%d.%m.%Y %H:%M"),
         "price_display": f"{format_number_tr(price, decimals=2)} ₺" if price is not None else None,
         "valuation": _valuation_context_bank(valuation),
+        # Değerleme Analizi kutusu (bkz. build_card_context docstring'i) BU
+        # FAZDA banka/sigorta kartlarına EKLENMEDİ (kapsam kararı: Derin
+        # Kart'ın da SADECE XI_29/US_GAAP desteklediği emsaliyle tutarlı) --
+        # ama card.html şablonu SADECE `sector_template` DEĞİL, `score_rows`
+        # döngüsünün HEMEN ALTINDA KOŞULSUZ `valuation_analysis.has_data`
+        # kontrolü yapıyor (bkz. şablon), bu yüzden anahtar HER context'te
+        # (has_data=False ile) bulunmalı, yoksa Jinja UndefinedError fırlatır.
+        "valuation_analysis": {"has_data": False},
         "headline": commentary.headline,
         "summary": commentary.summary,
         "show_ebitda": False,
@@ -916,6 +945,9 @@ def build_insurance_card_context(
         "report_timestamp": now.strftime("%d.%m.%Y %H:%M"),
         "price_display": f"{format_number_tr(price, decimals=2)} ₺" if price is not None else None,
         "valuation": _valuation_context_insurance(valuation),
+        # bkz. build_bank_card_context() içindeki aynı notu -- bu faz
+        # kapsamına girmiyor ama anahtar şablon için HER ZAMAN gerekli.
+        "valuation_analysis": {"has_data": False},
         "headline": commentary.headline,
         "summary": commentary.summary,
         "show_ebitda": False,

@@ -12,6 +12,7 @@ import pytest
 
 from src.ai.commentary import Commentary
 from src.analysis import calculator, scorer
+from src.analysis.valuation import PeerMultiple, compute_valuation_assessment
 from src.fetchers import kap
 from src.render import card
 
@@ -507,6 +508,59 @@ def test_build_card_context_fiyat_verilirse_iki_ondalikli_formatlanir() -> None:
     skor = scorer.score_industrial(analiz)
     context = card.build_card_context(analiz, skor, _ornek_commentary(), price=Decimal("142.5"))
     assert context["price_display"] == "142,50 ₺"
+
+
+def test_build_card_context_valuation_assessment_verilmezse_has_data_false() -> None:
+    """Bilanço kartındaki kompakt Değerleme Analizi kutusu (2026-08-04
+    kullanıcı isteği) -- `valuation_assessment` verilmezse (varsayılan None)
+    context'te `valuation_analysis` anahtarı HER ZAMAN bulunmalı (bkz.
+    card.html'in koşulsuz `valuation_analysis.has_data` kontrolü), sadece
+    has_data=False olmalı."""
+    analiz = calculator.analyze("TESTAS", _saglikli_finansallar())
+    skor = scorer.score_industrial(analiz)
+    context = card.build_card_context(analiz, skor, _ornek_commentary())
+    assert context["valuation_analysis"] == {"has_data": False}
+
+
+def test_build_card_context_valuation_assessment_verilirse_dogru_formatlanir() -> None:
+    peers = [PeerMultiple(ticker="PGSUS", pe_ratio=Decimal(10), pb_ratio=Decimal(4))]
+    assessment = compute_valuation_assessment(Decimal(15), Decimal(6), peers, Decimal(130), Decimal(100), None)
+
+    analiz = calculator.analyze("TESTAS", _saglikli_finansallar())
+    skor = scorer.score_industrial(analiz)
+    context = card.build_card_context(analiz, skor, _ornek_commentary(), valuation_assessment=assessment)
+    val = context["valuation_analysis"]
+
+    assert val["has_data"] is True
+    assert val["verdict"] == "Sektöre Göre Pahalı"
+    assert val["graham_verdict"] is not None
+    assert val["sector_implied_target_display"] != "N/A"
+
+
+def test_build_bank_card_context_valuation_analysis_her_zaman_has_data_false() -> None:
+    """Banka/sigorta kartları bu fazın kapsamı DIŞINDA (bkz. build_card_context
+    docstring'i) ama şablon `valuation_analysis.has_data`'ya KOŞULSUZ bakıyor
+    -- anahtar EKSİK olursa Jinja UndefinedError fırlatır (canlı doğrulandı,
+    AKBNK render denemesinde). Bu test o regresyonu kilitler."""
+    from src.analysis import calculator as calc
+
+    analiz = calc.analyze_bank(
+        "BANKTEST",
+        {
+            (2026, 3): {
+                "interest_income": Decimal(1000), "interest_income_cum": Decimal(1000),
+                "interest_expense": Decimal(-600), "interest_expense_cum": Decimal(-600),
+                "net_fee_income": Decimal(100), "net_fee_income_cum": Decimal(100),
+                "net_operating_profit": Decimal(300), "net_operating_profit_cum": Decimal(300),
+                "net_income": Decimal(200), "net_income_cum": Decimal(200),
+                "loans": Decimal(5000), "deposits": Decimal(6000), "provisions": Decimal(100),
+                "total_assets": Decimal(9000), "equity": Decimal(1500),
+            },
+        },
+    )
+    skor = scorer.score_bank(analiz)
+    context = card.build_bank_card_context(analiz, skor, _ornek_commentary())
+    assert context["valuation_analysis"] == {"has_data": False}
 
 
 def test_build_card_context_badge_class_eslemesi() -> None:

@@ -278,47 +278,63 @@
   {% if valuation.has_data %}
   <section class="section">
     <div class="section-title">Değerleme Analizi</div>
-    <div class="valuation-row">
-      {% if valuation.verdict %}<div class="valuation-verdict {{ valuation.verdict_class }}">{{ valuation.verdict }}</div>{% endif %}
-      <div class="valuation-stats">
-        {% if valuation.own_pe_display != "N/A" %}
-        <div class="valuation-stat">
-          <span class="stat-label">F/K</span>
-          <span class="stat-value">{{ valuation.own_pe_display }}</span>
-          <span class="stat-sub">Sektör Ort.: {{ valuation.sector_avg_pe_display }}</span>
+    <div class="valuation-methods">
+      {% if valuation.verdict %}
+      <div class="valuation-method">
+        <div class="valuation-method-title">Sektöre Göre</div>
+        <div class="valuation-verdict {{ valuation.verdict_class }}">{{ valuation.verdict }}</div>
+        <div class="valuation-method-stats">
+          {% if valuation.own_pe_display != "N/A" %}<span>F/K {{ valuation.own_pe_display }} <span class="stat-sub">(sektör {{ valuation.sector_avg_pe_display }})</span></span>{% endif %}
+          {% if valuation.own_pb_display != "N/A" %}<span>PD/DD {{ valuation.own_pb_display }} <span class="stat-sub">(sektör {{ valuation.sector_avg_pb_display }})</span></span>{% endif %}
+          {% if valuation.sector_implied_target_display != "N/A" %}
+          <span>Hedef: {{ valuation.sector_implied_target_display }} <span class="stat-sub {{ valuation.sector_implied_upside_class }}">({{ valuation.sector_implied_upside_display }})</span></span>
+          {% endif %}
         </div>
-        {% endif %}
-        {% if valuation.own_pb_display != "N/A" %}
-        <div class="valuation-stat">
-          <span class="stat-label">PD/DD</span>
-          <span class="stat-value">{{ valuation.own_pb_display }}</span>
-          <span class="stat-sub">Sektör Ort.: {{ valuation.sector_avg_pb_display }}</span>
-        </div>
-        {% endif %}
-        {% if valuation.price_change_1m_display != "N/A" %}
-        <div class="valuation-stat">
-          <span class="stat-label">Fiyat (1 Ay)</span>
-          <span class="stat-value {{ valuation.price_change_1m_class }}">{{ valuation.price_change_1m_display }}</span>
-        </div>
-        {% endif %}
-        {% if valuation.price_change_3m_display != "N/A" %}
-        <div class="valuation-stat">
-          <span class="stat-label">Fiyat (3 Ay)</span>
-          <span class="stat-value {{ valuation.price_change_3m_class }}">{{ valuation.price_change_3m_display }}</span>
-        </div>
-        {% endif %}
-        {% if valuation.implied_target_display != "N/A" %}
-        <div class="valuation-stat">
-          <span class="stat-label">İma Edilen Değer ({{ valuation.implied_target_basis }})</span>
-          <span class="stat-value">{{ valuation.implied_target_display }}</span>
-          <span class="stat-sub {{ valuation.implied_upside_class }}">{{ valuation.implied_upside_display }}</span>
-        </div>
-        {% endif %}
       </div>
+      {% endif %}
+      {% if valuation.graham_verdict %}
+      <div class="valuation-method">
+        <div class="valuation-method-title">Benjamin Graham Ölçütü</div>
+        <div class="valuation-verdict {{ valuation.graham_verdict_class }}">{{ valuation.graham_verdict }}</div>
+        <div class="valuation-method-stats">
+          <span>F/K×PD/DD: {{ valuation.graham_multiple_display }} <span class="stat-sub">(eşik 22,5)</span></span>
+          {% if valuation.graham_target_display != "N/A" %}
+          <span>Adil Değer: {{ valuation.graham_target_display }} <span class="stat-sub {{ valuation.graham_upside_class }}">({{ valuation.graham_upside_display }})</span></span>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+      {% if valuation.peg_verdict %}
+      <div class="valuation-method">
+        <div class="valuation-method-title">Peter Lynch (PEG)</div>
+        <div class="valuation-verdict {{ valuation.peg_verdict_class }}">{{ valuation.peg_verdict }}</div>
+        <div class="valuation-method-stats">
+          <span>PEG: {{ valuation.peg_ratio_display }} <span class="stat-sub">(F/K ÷ büyüme%)</span></span>
+        </div>
+      </div>
+      {% endif %}
+      {% if valuation.damodaran_verdict %}
+      <div class="valuation-method">
+        <div class="valuation-method-title">Aswath Damodaran (FCFE)</div>
+        <div class="valuation-verdict {{ valuation.damodaran_verdict_class }}">{{ valuation.damodaran_verdict }}</div>
+        <div class="valuation-method-stats">
+          <span>Özkaynak Maliyeti: {{ valuation.damodaran_cost_of_equity_display }} <span class="stat-sub">(g: {{ valuation.damodaran_growth_used_display }})</span></span>
+          {% if valuation.damodaran_target_display != "N/A" %}
+          <span>Adil Değer: {{ valuation.damodaran_target_display }} <span class="stat-sub {{ valuation.damodaran_upside_class }}">({{ valuation.damodaran_upside_display }})</span></span>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
     </div>
+    {% if valuation.price_change_1m_display != "N/A" or valuation.price_change_3m_display != "N/A" %}
+    <div class="valuation-momentum">
+      {% if valuation.price_change_1m_display != "N/A" %}<span>Fiyat (1 Ay): <span class="{{ valuation.price_change_1m_class }}">{{ valuation.price_change_1m_display }}</span></span>{% endif %}
+      {% if valuation.price_change_3m_display != "N/A" %}<span>Fiyat (3 Ay): <span class="{{ valuation.price_change_3m_class }}">{{ valuation.price_change_3m_display }}</span></span>{% endif %}
+    </div>
+    {% endif %}
     {% if valuation.verdict_reasoning %}<div class="valuation-note">{{ valuation.verdict_reasoning }}</div>{% endif %}
     {% if valuation.momentum_note %}<div class="valuation-note valuation-warning">⚠️ {{ valuation.momentum_note }}</div>{% endif %}
-    <div class="valuation-disclaimer">İma edilen değer gerçek bir analist hedef fiyatı DEĞİLDİR -- {{ peer_count }} sektör benzeri şirketin güncel çarpanına göre kendi hesapladığımız bir tahmindir.</div>
+    <div class="valuation-disclaimer">Yukarıdaki hedef/adil değerler GERÇEK bir analist tahmini DEĞİLDİR -- Benjamin Graham (F/K×PD/DD ≤ 22,5), Peter Lynch (PEG) ve Aswath Damodaran (istikrarlı büyüme FCFE modeli, basitleştirilmiş varsayımlarla) gibi klasik yöntemlerle + {{ peer_count }} sektör benzeri şirketin güncel çarpanına göre kendi hesapladığımız tahminlerdir.</div>
   </section>
   {% endif %}
 

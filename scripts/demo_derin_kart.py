@@ -12,8 +12,9 @@ src/analysis/trends.py modül notu).
 gerektirir -- kendisi + her sektör peer'i için 1 kapanış fiyatı sorgusu):
 "Değerleme Analizi" panelini de (sektöre göre ucuz/pahalı + 1/3 ay fiyat
 momentumu + ima edilen hedef fiyat) hesaplayıp gösterir -- bkz.
-src/analysis/valuation.py, src/bot/telegram_bot.py::_compute_deep_card_valuation
-(AYNI orkestrasyon burada TEKRAR KULLANILIR, kopyalanmaz).
+src/analysis/valuation.py, src/bot/pipeline.py::compute_valuation_assessment_for_ticker
+(AYNI orkestrasyon burada TEKRAR KULLANILIR, kopyalanmaz -- Derin Kart VE
+tek çeyreklik Bilanço kartı da AYNI fonksiyonu paylaşır).
 
 Kullanım:
     python scripts/demo_derin_kart.py THYAO
@@ -32,7 +33,7 @@ sys.path.insert(0, str(BASE_DIR))
 
 import config  # noqa: E402
 from src.analysis import trends  # noqa: E402
-from src.bot.telegram_bot import _compute_deep_card_valuation  # noqa: E402
+from src.bot.pipeline import compute_valuation_assessment_for_ticker  # noqa: E402
 from src.db import models, repository  # noqa: E402
 from src.render import card, deep_card  # noqa: E402
 
@@ -104,8 +105,10 @@ def main() -> int:
         print("\nTrend üretilemedi (yeterli veri yok).")
 
     valuation_assessment = None
-    if args.with_valuation and peer_tickers:
-        valuation_assessment = _compute_deep_card_valuation(
+    if args.with_valuation:
+        # Faz 16.6: peer_tickers BOŞ olsa bile çağrılır -- Graham/PEG
+        # ölçütleri sektör peer'i GEREKTİRMEZ (bkz. valuation.py modül notu).
+        valuation_assessment = compute_valuation_assessment_for_ticker(
             ticker, args.market, financial_group, financials_by_period, peer_tickers, peer_financials_list
         )
         if valuation_assessment and valuation_assessment.has_data:
@@ -113,12 +116,12 @@ def main() -> int:
                 f"\nDeğerleme Analizi: verdict={valuation_assessment.verdict}, "
                 f"F/K={valuation_assessment.own_pe} (sektör {valuation_assessment.sector_avg_pe}), "
                 f"1 ay={valuation_assessment.price_change_1m_pct}, "
-                f"ima edilen değer={valuation_assessment.implied_target_price} ({valuation_assessment.implied_target_basis})"
+                f"sektöre göre ima edilen değer={valuation_assessment.implied_target_price} ({valuation_assessment.implied_target_basis}), "
+                f"Graham={valuation_assessment.graham_fair_value_price} ({valuation_assessment.graham_verdict}), "
+                f"PEG={valuation_assessment.peg_ratio} ({valuation_assessment.peg_verdict})"
             )
         else:
-            print("\nDeğerleme Analizi için yeterli veri yok (fiyat/peer eşleşmesi bulunamadı).")
-    elif args.with_valuation:
-        print("\nDeğerleme Analizi atlandı (sektör peer'i yok).")
+            print("\nDeğerleme Analizi için yeterli veri yok (fiyat/F-K-PD-DD bulunamadı).")
 
     context = deep_card.build_deep_card_context(
         trend, score_history, ticker, args.market, company_name=company_name,

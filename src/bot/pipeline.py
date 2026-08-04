@@ -55,16 +55,16 @@ import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
 import config
 from src.ai import commentary as commentary_module
-from src.analysis import calculator, scorer
+from src.analysis import calculator, scorer, valuation
 from src.db import models, repository
-from src.fetchers import earnings_calendar, isyatirim, kap, kap_financials, sec_edgar, stockanalysis
+from src.fetchers import earnings_calendar, isyatirim, kap, kap_financials, price_history, sec_edgar, stockanalysis
 from src.render import card
 
 logger = logging.getLogger(__name__)
@@ -569,7 +569,21 @@ def _probe_period_has_data(ticker: str, candidate: Period, known_good_periods: l
     try:
         isyatirim.fetch_financials(ticker, periods=probe_periods, financial_group=financial_group)
         return True
-    except isyatirim.FinancialDataNotAvailableError:
+    except (isyatirim.FinancialDataNotAvailableError, isyatirim.CompanyNotFoundError):
+        # CompanyNotFoundError da MUMKUN (canli hata, RAYSG): resolved_group
+        # ("UFRS_K" gibi bu modulun ic siniflandirma etiketi) buraya TEK
+        # BASINA financial_group olarak gecilince fetch_financials bunu
+        # DOGRUDAN API parametresi sanip sorguluyor -- bazi sirketlerde
+        # (RAYSG) bu TEK-grup sorgusu 0 satir donduruyor (sirket zaten
+        # dogrulanmis olsa BILE), CompanyNotFoundError firlatiliyor. Bu
+        # istisna yakalanmazsa _find_true_newest_period -> _resolve_raw_financials
+        # -> _fetch_and_store zincirinde CompanyNotFoundError olarak kalip
+        # YANLISLIKLA TickerNotFoundError'a cevriliyordu (kullanici raporu,
+        # 2026-08-04: RAYSG BIST'te GERCEKTEN var ve verisi ZATEN basariyla
+        # cekilmisti, sadece bu ileri-prob adiminda YANLIS "bulunamadi"
+        # sonucuna dusuluyordu). Burada da FinancialDataNotAvailableError ile
+        # AYNI anlama geliyor: "bu aday donem icin veri yok", ticker'in
+        # kendisi zaten `raw` ile dogrulanmis durumda.
         return False
 
 
@@ -604,7 +618,7 @@ def _has_newer_period_available(ticker: str, cached_newest: Period, financial_gr
                 ticker, exc_info=True,
             )
 
-    if financial_group not in ("XI_29", "UFRS"):
+    if financial_group not in ("XI_29", "UFRS", "UFRS_K"):
         return False
     try:
         ref = kap_financials.find_latest_financial_report(ticker)
@@ -827,6 +841,57 @@ def _kap_patch_records_for_ufrs(ticker: str, newest_isyatirim_period: Period) ->
     return records, raw_kap.period
 
 
+def _kap_patch_records_for_ufrs_k(ticker: str, newest_isyatirim_period: Period) -> tuple[list[repository.FinancialRecord], Period | None]:
+    """_kap_patch_records_for_xi29()'un sigorta (UFRS_K) karsiligi -- bkz.
+    kap_financials.py STANDARD_ITEM_MAP_KAP_UFRS_K_* modul notu (RAYSG ile
+    CANLI dogrulandi: net_income 1.896.687.175 TL, kullanicinin Fintables'te
+    gordugu "1,9 mr TL" ile birebir eslesti). SADECE financial_group=='UFRS_K'
+    icin cagrilmali. Kart'in gosterdigi TUM alanlar (prim/teknik gelir-gider,
+    net kar, alacaklar/borclar, teknik karsiliklar, nakit+finansal varliklar,
+    ozkaynak/sermaye) bu yamayla doldurulur -- bazi bilesik stok kalemleri
+    (cash_and_equivalents'in 1A bileseni, technical_provisions_noncurrent'in
+    2MD bileseni) Is Yatirim henuz 2Ç26'yi dondurmedigi icin CROSS-PERIOD
+    dogrulanamadi, en yakin karsilikla dolduruldu (bkz. kap_financials.py
+    modul notu) -- Is Yatirim kendi verisini isleyince bu alanlar zaten onun
+    DAHA GUVENILIR degeriyle EZILECEK. Bu fonksiyon ASLA istisna FIRLATMAZ
+    (bkz. _kap_patch_records_for_xi29 ile ayni ilke)."""
+    try:
+        ref = kap_financials.find_latest_financial_report(ticker)
+    except Exception as exc:  # noqa: BLE001 -- bkz. docstring
+        logger.warning("%s icin KAP Finansal Rapor kontrolu basarisiz (Is Yatirim verisiyle devam edilecek): %s", ticker, exc)
+        return [], None
+
+    if ref is None or ref.period <= newest_isyatirim_period:
+        return [], None
+
+    logger.info(
+        "%s (sigorta) icin KAP'ta Is Yatirim'dan (%s) daha yeni bir Finansal Rapor bulundu: %s (disclosure_index=%s)",
+        ticker, quarter_label(newest_isyatirim_period), quarter_label(ref.period), ref.disclosure_index,
+    )
+    raw_kap = kap_financials.fetch_latest_ufrs_k_financials(ticker)
+    if raw_kap is None:
+        return [], None
+
+    values = kap_financials.standardized_record_values_ufrs_k(raw_kap)
+    year, period_no = raw_kap.period
+    records: list[repository.FinancialRecord] = []
+    for field, value in values.items():
+        if value is None:
+            continue
+        label = calculator.FIELD_LABELS_TR.get(field, field)
+        records.append((year, period_no, field, label, value))
+
+    if not records:
+        logger.warning(
+            "%s (sigorta) icin KAP Finansal Rapor (disclosure_index=%s) ayristirildi ama hicbir "
+            "standart alan cikarilamadi -- Is Yatirim verisiyle devam edilecek.",
+            ticker, raw_kap.disclosure_index,
+        )
+        return [], None
+
+    return records, raw_kap.period
+
+
 def _ensure_sector_populated(session: Session, ticker: str) -> None:
     """Faz 16.5 (kullanıcı raporu, 2026-08-04): ULAŞTIRMA sektöründe 3-4
     yeni şirket analiz edildiği hâlde Derin Kart hâlâ "1 karşılaştırma
@@ -907,6 +972,8 @@ def _fetch_and_store(ticker: str, periods: list[Period] | None) -> None:
         kap_patch_records, kap_patch_period = _kap_patch_records_for_xi29(ticker, max(raw.periods), raw)
     elif raw.financial_group == "UFRS" and raw.periods:
         kap_patch_records, kap_patch_period = _kap_patch_records_for_ufrs(ticker, max(raw.periods))
+    elif raw.financial_group == "UFRS_K" and raw.periods:
+        kap_patch_records, kap_patch_period = _kap_patch_records_for_ufrs_k(ticker, max(raw.periods))
 
     # Eger _resolve_raw_financials bir ceyrek geriye kaydirdiysa (periods
     # parametresi None olarak baslayip raw.periods'in en yenisi guess_last_periods'in
@@ -1050,6 +1117,94 @@ def _fetch_and_store_us_gaap(ticker: str, periods: list[Period] | None) -> None:
         repository.set_company_info(session, ticker, name=raw.company_name, financial_group="US_GAAP", market="NASDAQ")
 
 
+def _closest_close(bars: list, target_date) -> "None | object":
+    """`bars` (price_history.OhlcvBar listesi, artan tarih) içinde
+    `target_date`'e EN YAKIN kapanışı döner -- tam o gün işlem olmayabilir
+    (hafta sonu/tatil), bu yüzden en yakın GERÇEK işlem günü seçilir. Bars
+    boşsa None döner (K4/Kural 9: yeterli veri yoksa None, uydurma yapılmaz)."""
+    if not bars:
+        return None
+    closest = min(bars, key=lambda bar: abs((bar.trade_date - target_date).days))
+    return closest.close
+
+
+def compute_valuation_assessment_for_ticker(
+    ticker: str,
+    market: str,
+    financial_group: str,
+    financials_by_period: dict,
+    peer_tickers: list[str],
+    peer_financials_list: list[dict],
+) -> "valuation.ValuationAssessment | None":
+    """Değerleme Analizi paneli (sektör-göreli F/K-PD/DD karşılaştırması +
+    kısa vadeli fiyat momentumu + Benjamin Graham/Peter Lynch ölçütleri)
+    hesabını orkestre eder (bkz. src/analysis/valuation.py modül notu --
+    HESAPLAMANIN KENDİSİ orada, saf matematik olarak yapılır). Hem Derin
+    Kart (`telegram_bot._gonder_derin_analiz`) HEM tek çeyreklik Bilanço
+    kartı (`run_pipeline` aşağıda) tarafından PAYLAŞILIR (Kural: hesaplama/
+    orkestrasyon mantığı KOPYALANMAZ) -- telegram_bot.py bunu doğrudan
+    `pipeline.compute_valuation_assessment_for_ticker(...)` ile çağırır.
+
+    `peer_tickers` BOŞ olsa bile çağrılabilir -- Graham/PEG ölçütleri SEKTÖR
+    PEER'İ GEREKTİRMEZ (bkz. valuation.py), sadece sektör-göreli kısım (F/K/
+    PD-DD karşılaştırması, sektöre göre ima edilen değer) `peer_tickers`
+    doluysa dolar. Bu fonksiyon SADECE `get_sector_peer_tickers()` ile
+    bulunan gerçek peer'lerin GÜNCEL fiyatını (`price_history.fetch_ohlcv`,
+    YENİ ama hafif/ikincil bir istek -- Kural 9: başarısız olursa SESSİZCE
+    atlanır, kartın geri kalanını BLOKE ETMEZ) çeker; peer'ler HER ZAMAN
+    BİST/XI_29'dur (sektör verisi SADECE BİST kapsar, bkz. 01_MIMARI.md §8)."""
+    own_bars = price_history.fetch_ohlcv(ticker, market, days=100)
+    if not own_bars:
+        return None
+    current_price = own_bars[-1].close
+    price_30d_ago = _closest_close(own_bars, own_bars[-1].trade_date - timedelta(days=30))
+    price_90d_ago = _closest_close(own_bars, own_bars[-1].trade_date - timedelta(days=90))
+
+    if financial_group == "US_GAAP":
+        own_analysis = calculator.analyze_us(ticker, financials_by_period)
+        own_share_field = "shares_outstanding"
+    else:
+        own_analysis = calculator.analyze(ticker, financials_by_period)
+        own_share_field = "share_capital"
+    own_share_count = financials_by_period.get(own_analysis.latest_period, {}).get(own_share_field)
+    own_metrics = calculator.compute_valuation(own_analysis, current_price, own_share_count)
+
+    peer_multiples: list[valuation.PeerMultiple] = []
+    for peer_ticker, peer_financials in zip(peer_tickers, peer_financials_list):
+        if not peer_financials:
+            continue
+        peer_analysis = calculator.analyze(peer_ticker, peer_financials)
+        peer_bars = price_history.fetch_ohlcv(peer_ticker, "BIST", days=15)
+        peer_price = peer_bars[-1].close if peer_bars else None
+        peer_share_capital = peer_financials.get(peer_analysis.latest_period, {}).get("share_capital")
+        peer_metrics = calculator.compute_valuation(peer_analysis, peer_price, peer_share_capital)
+        peer_multiples.append(
+            valuation.PeerMultiple(
+                ticker=peer_ticker,
+                pe_ratio=peer_metrics.pe_ratio if peer_metrics else None,
+                pb_ratio=peer_metrics.pb_ratio if peer_metrics else None,
+            )
+        )
+
+    return valuation.compute_valuation_assessment(
+        own_pe=own_metrics.pe_ratio if own_metrics else None,
+        own_pb=own_metrics.pb_ratio if own_metrics else None,
+        peer_multiples=peer_multiples,
+        current_price=current_price,
+        price_30d_ago=price_30d_ago,
+        price_90d_ago=price_90d_ago,
+        growth_rate_pct=own_analysis.ratios.revenue_growth_yoy_pct,
+        # Faz 16.7 -- Damodaran istikrarlı büyüme FCFE modeli icin: TTM net
+        # kâr + ROE (zaten hesaplanmış, calculator.Ratios) + pay adedi (yukarıda
+        # own_metrics icin de kullanılan own_share_count) + para birimi (hangi
+        # risksiz faiz/özkaynak risk primi setinin seçileceğini belirler).
+        ttm_net_income=own_analysis.ratios.ttm_net_income,
+        roe_pct=own_analysis.ratios.roe_annualized,
+        share_capital=own_share_count,
+        currency=own_analysis.currency,
+    )
+
+
 def run_pipeline(ticker: str, *, periods: list[Period] | None = None, market: str = "BIST") -> PipelineResult:
     """Tam boru hattini calistirir: onbellek -> (gerekirse) fetch -> hesapla
     -> puanla -> yorum -> kart. SENKRON'dur (fetcher'lar/Playwright sync
@@ -1144,6 +1299,21 @@ def run_pipeline(ticker: str, *, periods: list[Period] | None = None, market: st
         financials_by_period = repository.get_financials(session, ticker, n_periods=8)
         disclosures_db = [] if is_us else repository.get_recent_disclosures(session, ticker, days=config.KAP_LOOKBACK_DAYS)
         company = session.get(models.Company, ticker)
+        # Bilanço kartındaki kompakt Değerleme Analizi bileşeni (2026-08-04
+        # kullanıcı isteği) için sektör peer'leri -- SADECE BIST'te (sektör
+        # verisi başka hiçbir markette YOK, bkz. 01_MIMARI.md §8) VE
+        # Company.sector doluysa (bkz. repository.get_sector_peer_tickers
+        # docstring'i) anlamlıdır. Peer'in tek bir dönemi yeterli (n_periods=1)
+        # -- burada peer'in KENDİ trend'i değil, SADECE güncel F/K-PD/DD'si
+        # için share_capital/net_income/equity gerekir (bkz.
+        # compute_valuation_assessment_for_ticker).
+        peer_tickers: list[str] = []
+        peer_financials_list: list[dict] = []
+        if not is_us and company and company.sector:
+            peer_tickers = repository.get_sector_peer_tickers(
+                session, company.sector, company.financial_group, exclude_ticker=ticker
+            )
+            peer_financials_list = [repository.get_financials(session, peer, n_periods=1) for peer in peer_tickers]
 
     if not financials_by_period:
         price_executor.shutdown(wait=False)
@@ -1157,6 +1327,23 @@ def run_pipeline(ticker: str, *, periods: list[Period] | None = None, market: st
 
     price = price_future.result()
     price_executor.shutdown(wait=True)
+
+    # Bilanço kartındaki kompakt Değerleme Analizi bileşeni (2026-08-04
+    # kullanıcı isteği) -- SADECE XI_29 (sanayi) ve US_GAAP kartlarına
+    # eklendi (Derin Kart'ın da SADECE bu ikisini desteklediği emsaliyle
+    # tutarlı, bkz. _DERIN_ANALIZ_DESTEKLENEN_GRUPLAR); banka/sigorta bir
+    # SONRAKİ adıma bırakıldı. Fiyat/eş şirket verisi İKİNCİL olduğu için
+    # (Kural 9) herhangi bir hata bu bloğu SESSİZCE atlar, kartın geri
+    # kalanı bundan ETKİLENMEZ.
+    valuation_assessment = None
+    if is_us or not (is_bank or is_insurance):
+        financial_group = "US_GAAP" if is_us else (company.financial_group if company else None)
+        try:
+            valuation_assessment = compute_valuation_assessment_for_ticker(
+                ticker, market, financial_group, financials_by_period, peer_tickers, peer_financials_list
+            )
+        except Exception:
+            logger.warning("%s için Değerleme Analizi paneli hesaplanamadı, panel gizlenecek.", ticker, exc_info=True)
 
     if is_us:
         # bkz. _standardize_to_records_us_gaap() ici not (§B20) -- SADECE
@@ -1189,6 +1376,7 @@ def run_pipeline(ticker: str, *, periods: list[Period] | None = None, market: st
             sector=sector,
             price=price,
             valuation=valuation,
+            valuation_assessment=valuation_assessment,
             now=datetime.now(),
         )
     elif is_bank:
@@ -1279,6 +1467,7 @@ def run_pipeline(ticker: str, *, periods: list[Period] | None = None, market: st
             sector=sector,
             price=price,
             valuation=valuation,
+            valuation_assessment=valuation_assessment,
             now=datetime.now(),
         )
 

@@ -113,12 +113,12 @@ def test_build_deep_card_context_valuation_assessment_pahali_verdict_dogru_forma
     assert val["has_data"] is True
     assert val["verdict"] == "Sektöre Göre Pahalı"
     assert val["verdict_class"] == "verdict-pahali"
-    assert val["own_pe_display"] == "15,00x"
-    assert val["sector_avg_pe_display"] == "10,00x"
+    assert val["own_pe_display"] == "15,00"
+    assert val["sector_avg_pe_display"] == "10,00"
     assert val["price_change_1m_display"] == "%30,0"
     assert val["price_change_1m_class"] == "positive"
     assert "aşırı ısınmış olabilir" in val["momentum_note"]
-    assert val["implied_target_basis"] in ("F/K", "PD/DD")
+    assert val["sector_implied_target_basis"] in ("F/K", "PD/DD")
 
 
 def test_build_deep_card_context_valuation_assessment_nasdaq_dolar_gosterir():
@@ -128,7 +128,7 @@ def test_build_deep_card_context_valuation_assessment_nasdaq_dolar_gosterir():
     context = deep_card.build_deep_card_context(_trend(), [], "AAPL", "NASDAQ", valuation_assessment=assessment)
     val = context["valuation"]
 
-    assert "$" in val["implied_target_display"]
+    assert "$" in val["sector_implied_target_display"]
 
 
 def test_build_deep_card_context_tek_donemde_grafikler_yeterli_veri_yok():
@@ -287,10 +287,12 @@ def test_build_deep_card_context_sektor_verisi_hicbir_alanda_yoksa_ikinci_cizgi_
 
 
 def test_build_deep_card_context_cari_oran_dogru_formatlanir():
+    # CANLI KULLANICI GERI BILDIRIMI (2026-08-04): "x" ibaresi kaldirildi --
+    # gridline etiketleri artik SADECE sayi (orn. "1,50"), "x" ICERMEMELI.
     context = deep_card.build_deep_card_context(_trend(), [], "THYAO", "BIST")
     chart = _metric_chart(context, "Cari Oran")["chart"]
     assert chart["has_data"] is True
-    assert any("x" in gl["display"] for gl in chart["gridlines"])
+    assert not any("x" in gl["display"] for gl in chart["gridlines"])
 
 
 # --- Skor gecmisi -----------------------------------------------------

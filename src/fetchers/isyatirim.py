@@ -57,6 +57,20 @@ PRICE_ENDPOINT = "https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Com
 # sonra araci kurum.
 FINANCIAL_GROUPS: tuple[str, ...] = ("XI_29", "UFRS", "UFRS_K")
 
+# CANLI KULLANICI RAPORU (2026-08-04, coklu farkli hisse -- KLKIM dahil):
+# bazi sirketler icin TUM financialGroup denemeleri AYNI ANDA bos "value": []
+# donuyordu, HTTP seviyesinde herhangi bir hata/durum kodu OLMADAN (bu yuzden
+# _request_chunk'in @retry'i -- SADECE httpx.RequestError'da devreye giriyor --
+# bunu YAKALAMIYOR). Ayni hisseyi az sonra tekrar sormak (manuel mudahale)
+# HER SEFERINDE basariyla veri donduruyordu -- yani bu GERCEKTEN "hisse yok"
+# DEGIL, uc nokta tarafinda GECICI/ara sira olusan bos yanit. Bu yuzden tum
+# grup dizisi (XI_29/UFRS/UFRS_K) BOS donerse, CompanyNotFoundError firlatmadan
+# ONCE dizi bastan birkac kez daha denenir; GERCEKTEN var olmayan bir kod icin
+# bu ekstra denemeler de bos doner (davranis degismez, sadece bulunamama
+# durumunda birkac saniyelik gecikme eklenir).
+_NOT_FOUND_RETRY_ATTEMPTS = 2
+_NOT_FOUND_RETRY_DELAY_SECONDS = 3.0
+
 _HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -288,6 +302,31 @@ STANDARD_ITEM_MAP_UFRS_K: dict[str, str] = {
 CUMULATIVE_FIELDS_UFRS_K: frozenset[str] = frozenset(
     {"gross_written_premiums", "net_premiums_earned", "technical_income", "technical_expense", "net_income"}
 )
+
+# CANLI hata (kullanici raporu, RAYSG): "net_income" -> "3NJA" eslemesi
+# ANSGR ile dogrulanmisti ama RAYSG'de "3NJA" kodu HIC YOK -- Is Yatirim
+# itemCode'lari sirketin konsolide/azinlik payi kirilimi RAPORLAYIP
+# RAPORLAMAMASINA gore KAYIYOR: ANSGR "Ana Ortaklik Paylari"/"Azinlik
+# Paylari" kirilimini "3Z"/"3ZA" kodlarinda RAPORLUYOR, bu da "N- Donem Net
+# Kari veya Zarari" satisini bir seviye asagi ("3NJA") itiyor. RAYSG bu
+# kirilimi HIC RAPORLAMIYOR (canli dogrulandi) -- "N- Donem Net Kari veya
+# Zarari" DOGRUDAN "3Z" kodunda cikiyor, alt kirilimlari (Donem Kari Ve
+# Zarari/Vergi Karsiliklari/Net Kar veya Zarari/Enflasyon Duzeltme) ANSGR'nin
+# 3NJB/3NJC/3NJD/3NJE'siyle BIREBIR ayni anlamda 3ZA/3ZB/3ZC/3ZD'de.
+# Bu yuzden "3Z" SADECE "3NJA" raw.items'da HIC YOKSA (ANSGR gibi minority-
+# interest kirilimi olan sirketlerde "3Z" TAMAMEN FARKLI -- "Ana Ortaklik
+# Paylari" -- bir anlama geldigi icin oralarda fallback ASLA devreye girmez)
+# fallback olarak denenir.
+_NET_INCOME_FALLBACK_ITEM_CODE_UFRS_K = "3Z"
+
+
+def _net_income_item_code_ufrs_k(raw: RawFinancials) -> str:
+    primary = STANDARD_ITEM_MAP_UFRS_K["net_income"]
+    if primary in raw.items:
+        return primary
+    if _NET_INCOME_FALLBACK_ITEM_CODE_UFRS_K in raw.items:
+        return _NET_INCOME_FALLBACK_ITEM_CODE_UFRS_K
+    return primary
 
 
 # --- Kalem esleme tablosu (SADECE UFRS - katilim bankasi) --------
@@ -615,35 +654,51 @@ def fetch_financials(
     items: dict[str, FinancialItem] = {}
     achieved_periods: list[Period] = []
 
-    for index, group in enumerate(groups_to_try):
-        # "UFRS_KATILIM" GERCEK bir Is Yatirim financialGroup degeri DEGILDIR
-        # (bu modulun kendi ic siniflandirma etiketidir, bkz. _resolve_actual_group) --
-        # API'ye HER ZAMAN "UFRS" olarak sorulur (canli dogrulandi: API'nin
-        # tanimadigi bir deger BOS doner, orn. "UFRS_KONSOLIDE" 0 satir verdi).
-        api_group = "UFRS" if group == "UFRS_KATILIM" else group
-        payload = _request_chunk(company_code, api_group, chunks[0])
-        rows = payload.get("value") or []
+    for not_found_attempt in range(1, _NOT_FOUND_RETRY_ATTEMPTS + 1):
+        for index, group in enumerate(groups_to_try):
+            # "UFRS_KATILIM" GERCEK bir Is Yatirim financialGroup degeri DEGILDIR
+            # (bu modulun kendi ic siniflandirma etiketidir, bkz. _resolve_actual_group) --
+            # API'ye HER ZAMAN "UFRS" olarak sorulur (canli dogrulandi: API'nin
+            # tanimadigi bir deger BOS doner, orn. "UFRS_KONSOLIDE" 0 satir verdi).
+            api_group = "UFRS" if group == "UFRS_KATILIM" else group
+            payload = _request_chunk(company_code, api_group, chunks[0])
+            rows = payload.get("value") or []
 
-        if rows:
-            resolved_group = _resolve_actual_group(group, rows, company_code)
-            request_group = api_group
-            items = _rows_to_items(rows, chunks[0])
-            achieved_periods = list(chunks[0])
+            if rows:
+                resolved_group = _resolve_actual_group(group, rows, company_code)
+                request_group = api_group
+                items = _rows_to_items(rows, chunks[0])
+                achieved_periods = list(chunks[0])
+                break
+
+            logger.info(
+                "companyCode=%s financialGroup=%s icin veri bulunamadi, siradaki grup denenecek.",
+                company_code,
+                group,
+            )
+            if index < len(groups_to_try) - 1:
+                time.sleep(config.HTTP_RATE_LIMIT_DELAY_SECONDS)
+
+        if resolved_group is not None and request_group is not None:
             break
 
-        logger.info(
-            "companyCode=%s financialGroup=%s icin veri bulunamadi, siradaki grup denenecek.",
-            company_code,
-            group,
-        )
-        if index < len(groups_to_try) - 1:
-            time.sleep(config.HTTP_RATE_LIMIT_DELAY_SECONDS)
+        if not_found_attempt < _NOT_FOUND_RETRY_ATTEMPTS:
+            logger.warning(
+                "companyCode=%s: denenen hicbir financialGroup'ta (%s) veri yok (deneme %d/%d) -- "
+                "gecici bir yanit olabilir, %.0fs sonra tum dizi bastan denenecek.",
+                company_code,
+                ", ".join(groups_to_try),
+                not_found_attempt,
+                _NOT_FOUND_RETRY_ATTEMPTS,
+                _NOT_FOUND_RETRY_DELAY_SECONDS,
+            )
+            time.sleep(_NOT_FOUND_RETRY_DELAY_SECONDS)
 
     if resolved_group is None or request_group is None:
         raise CompanyNotFoundError(
-            f"'{ticker}' icin denenen hicbir financialGroup'ta ({', '.join(groups_to_try)}) "
-            "veri bulunamadi. Hisse kodunu kontrol edin; sirket henuz halka "
-            "acik olmayabilir veya kod hatali olabilir."
+            f"'{ticker}' icin denenen hicbir financialGroup'ta ({', '.join(groups_to_try)}), "
+            f"{_NOT_FOUND_RETRY_ATTEMPTS} denemede de veri bulunamadi. Hisse kodunu kontrol edin; "
+            "sirket henuz halka acik olmayabilir veya kod hatali olabilir."
         )
 
     newest_period = chunks[0][0]
@@ -895,18 +950,18 @@ def standardized_value_ufrs_k(raw: RawFinancials, field_name: str, period: Perio
     """standardized_value()'nin UFRS_K (sigorta) karsiligi. HAM (kumulatif
     olabilen) degeri doner."""
     _require_ufrs_k(raw)
-    item_code = STANDARD_ITEM_MAP_UFRS_K.get(field_name)
-    if item_code is None:
+    if field_name not in STANDARD_ITEM_MAP_UFRS_K:
         raise KeyError(f"Bilinmeyen sigorta alan adi: '{field_name}'")
+    item_code = _net_income_item_code_ufrs_k(raw) if field_name == "net_income" else STANDARD_ITEM_MAP_UFRS_K[field_name]
     return raw.value(item_code, period)
 
 
 def quarterly_standardized_value_ufrs_k(raw: RawFinancials, field_name: str, period: Period) -> Decimal | None:
     """quarterly_standardized_value()'nin UFRS_K (sigorta) karsiligi."""
     _require_ufrs_k(raw)
-    item_code = STANDARD_ITEM_MAP_UFRS_K.get(field_name)
-    if item_code is None:
+    if field_name not in STANDARD_ITEM_MAP_UFRS_K:
         raise KeyError(f"Bilinmeyen sigorta alan adi: '{field_name}'")
+    item_code = _net_income_item_code_ufrs_k(raw) if field_name == "net_income" else STANDARD_ITEM_MAP_UFRS_K[field_name]
 
     item = raw.items.get(item_code)
     if item is None:

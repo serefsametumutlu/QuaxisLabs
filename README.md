@@ -833,6 +833,27 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       `_score_caption` testleri 4 yeni thread-post fonksiyonu testiyle
       değiştirildi + `Commentary.hook` fallback testi eklendi).
 
+- [x] **Faz 16.7 (Değerleme Analizi paneline Aswath Damodaran FCFE modeli,
+      kullanıcı isteği, 2026-08-05)** — Graham/PEG'in yanına 4. bağımsız
+      yöntem eklendi: Damodaran'ın "istikrarlı büyüme (stable growth)"
+      tek-aşamalı FCFE modeli (`reinvestment_rate=g/ROE`,
+      `FCFE=TTM_Net_Kâr×(1-reinvestment_rate)`, Gordon büyüme ile
+      `Özkaynak Değeri=FCFE×(1+g)/(r-g)`). Tam çok-dönemli DCF (FCFF+WACC+
+      terminal değer) için gereken capex/vergi gideri/işletme sermayesi/beta
+      verisi hiçbir fetcher'da olmadığından (K3/K4), bu basitleştirilmiş
+      model tercih edildi; `r`/`g` tavanı için risksiz faiz + özkaynak risk
+      primi (TRY/USD ayrı) Graham'ın 22,5 sabiti gibi açıkça belgelenmiş,
+      elle güncellenmesi gereken makro varsayımlar olarak eklendi
+      (`valuation.py::_RISK_FREE_RATE_PCT`/`_EQUITY_RISK_PREMIUM_PCT`).
+      Hem Bilanço kartına (`card.html`) hem Derin Kart'a (`deep_card.html`)
+      Graham ile YAN YANA eklendi (aynı `compute_valuation_assessment_for_ticker`
+      orkestrasyonu, kopyalama yok). Dört yöntemin (sektöre göre/Graham/PEG/
+      Damodaran) tam formül/varsayım/sınır açıklaması YENİ
+      `PROJE_HAFIZASI/09_DEGERLEME_YONTEMLERI.md` dosyasına kaydedildi.
+      Test: `pytest tests/` (852 test, 9 yeni `test_valuation.py` testi —
+      normal hesap, büyüme/risksiz-faiz tavanı, ROE≤0/büyüme≤0/g≥ROE edge
+      case'leri, USD farklı makro varsayım seti).
+
 ## Dizin Yapisi
 
 ```

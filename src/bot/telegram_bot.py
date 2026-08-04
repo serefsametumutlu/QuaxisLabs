@@ -14,17 +14,16 @@ import logging
 import os
 import re
 import time
-from datetime import timedelta
 from typing import IO
 
 from telegram import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ChatAction
-from telegram.error import Conflict
+from telegram.error import Conflict, NetworkError
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 from telegram.request import HTTPXRequest
 
 import config
-from src.analysis import calculator, technical, trends, valuation
+from src.analysis import calculator, technical, trends
 from src.bot import menu, pipeline
 from src.db import models, repository
 from src.fetchers import price_history
@@ -85,6 +84,15 @@ async def _on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.warning(
             "Telegram getUpdates Conflict alindi (baska bir bot sureci mi calisiyor?): %s", context.error
         )
+        return
+    if isinstance(context.error, NetworkError):
+        # Gecici DNS/baglanti kesintisi (orn. httpx.ConnectError: getaddrinfo
+        # failed) -- PTB'nin kendi network_retry_loop'u bunu zaten otomatik
+        # tekrar dener (canli dogrulandi: birkac saniye sonra getUpdates
+        # yeniden 200 donuyor), bu yuzden FATAL degil. Once tam traceback
+        # "Beklenmeyen hata" olarak loglaniyordu -- her gecici internet
+        # kesintisinde terminali dev bir stack trace ile dolduruyordu.
+        logger.warning("Telegram'a gecici olarak ulasilamadi (otomatik tekrar denenecek): %s", context.error)
         return
     logger.exception("Beklenmeyen hata:", exc_info=context.error)
 
@@ -228,17 +236,30 @@ async def _send_card_photo(
     `sendDocument` dosyayi ORIJINAL BAYT BAZINDA iletir; kullanici oradan
     kaydedip paylasinca sadece TEK (X'in kendi) sikistirmasi uygulanir.
 
-    Ikisi TEK try/except altinda: gorsel gonderimi (hangi yontemle olursa
-    olsun) basarisiz olursa cagiran taraf zaten kendi try/except'inde
-    loglayip devam ediyor (ozet metni yine de denenir)."""
-    with open(png_path, "rb") as photo_file:
-        await context.bot.send_photo(chat_id=chat_id, photo=photo_file, caption=caption, reply_markup=reply_markup)
-    with open(png_path, "rb") as document_file:
-        await context.bot.send_document(
-            chat_id=chat_id,
-            document=document_file,
-            caption="🖼️ Orijinal kalite (X/Twitter'da paylaşmadan önce bunu kaydet)",
-        )
+    CANLI hata (kullanici raporu, 2026-08-04): send_photo VE send_document
+    ONCEDEN TEK try/except altinda ardisik cagriliyordu -- send_photo
+    (kotu/yavas baglantida, bkz. terminal loglari: WriteTimeout/ReadTimeout)
+    PATLAYINCA fonksiyon orada KESILIYOR, send_document (X'te paylasmadan
+    once kaydedilecek ORIJINAL kalite dosya) HIC calismadan cagiran tarafin
+    disaridaki try/except'ine dusuyordu -- kullanici "X'e atarken bozulmasin
+    diye gelen ikinci gorsel gelmedi" diye bildirdi. Artik ikisi BIRBIRINDEN
+    BAGIMSIZ denenir (ayri try/except) -- biri (agdan dolayi) basarisiz olsa
+    bile digeri yine de gonderilmeye calisilir."""
+    try:
+        with open(png_path, "rb") as photo_file:
+            await context.bot.send_photo(chat_id=chat_id, photo=photo_file, caption=caption, reply_markup=reply_markup)
+    except Exception:
+        logger.exception("Kart fotografi (onizleme) gonderilemedi, orijinal kalite dosya yine de denenecek.")
+
+    try:
+        with open(png_path, "rb") as document_file:
+            await context.bot.send_document(
+                chat_id=chat_id,
+                document=document_file,
+                caption="🖼️ Orijinal kalite (X/Twitter'da paylaşmadan önce bunu kaydet)",
+            )
+    except Exception:
+        logger.exception("Kart orijinal kalite dosyasi (X icin) gonderilemedi.")
 
 
 # --- Takvim (Faz 13) -----------------------------------------------------
@@ -358,78 +379,6 @@ async def handle_teknik_callback(update: Update, context: ContextTypes.DEFAULT_T
 _DERIN_ANALIZ_DESTEKLENEN_GRUPLAR = ("XI_29", "US_GAAP")
 
 
-def _closest_close(bars: list, target_date) -> "None | object":
-    """`bars` (price_history.OhlcvBar listesi, artan tarih) içinde
-    `target_date`'e EN YAKIN kapanışı döner -- tam o gün işlem olmayabilir
-    (hafta sonu/tatil), bu yüzden en yakın GERÇEK işlem günü seçilir. Bars
-    boşsa None döner (K4/Kural 9: yeterli veri yoksa None, uydurma yapılmaz)."""
-    if not bars:
-        return None
-    closest = min(bars, key=lambda bar: abs((bar.trade_date - target_date).days))
-    return closest.close
-
-
-def _compute_deep_card_valuation(
-    ticker: str,
-    market: str,
-    financial_group: str,
-    financials_by_period: dict,
-    peer_tickers: list[str],
-    peer_financials_list: list[dict],
-) -> "valuation.ValuationAssessment | None":
-    """Derin Kart'ın "Değerleme Analizi" paneli için sektör-göreli F/K-PD/DD
-    karşılaştırması + kısa vadeli fiyat momentumu + ima edilen hedef fiyat
-    hesabını orkestre eder (bkz. src/analysis/valuation.py modül notu --
-    HESAPLAMANIN KENDİSİ orada, saf matematik olarak yapılır).
-
-    Bu fonksiyon SADECE `get_sector_peer_tickers()` ile bulunan gerçek
-    peer'lerin GÜNCEL fiyatını (`price_history.fetch_ohlcv`, YENİ ama
-    hafif/ikincil bir istek -- Kural 9: başarısız olursa SESSİZCE atlanır,
-    Derin Kart'ın geri kalanını BLOKE ETMEZ) çeker; peer'ler HER ZAMAN BİST/
-    XI_29'dur (sektör verisi SADECE BİST kapsar, bkz. 01_MIMARI.md §8)."""
-    own_bars = price_history.fetch_ohlcv(ticker, market, days=100)
-    if not own_bars:
-        return None
-    current_price = own_bars[-1].close
-    price_30d_ago = _closest_close(own_bars, own_bars[-1].trade_date - timedelta(days=30))
-    price_90d_ago = _closest_close(own_bars, own_bars[-1].trade_date - timedelta(days=90))
-
-    if financial_group == "US_GAAP":
-        own_analysis = calculator.analyze_us(ticker, financials_by_period)
-        own_share_field = "shares_outstanding"
-    else:
-        own_analysis = calculator.analyze(ticker, financials_by_period)
-        own_share_field = "share_capital"
-    own_share_count = financials_by_period.get(own_analysis.latest_period, {}).get(own_share_field)
-    own_metrics = calculator.compute_valuation(own_analysis, current_price, own_share_count)
-
-    peer_multiples: list[valuation.PeerMultiple] = []
-    for peer_ticker, peer_financials in zip(peer_tickers, peer_financials_list):
-        if not peer_financials:
-            continue
-        peer_analysis = calculator.analyze(peer_ticker, peer_financials)
-        peer_bars = price_history.fetch_ohlcv(peer_ticker, "BIST", days=15)
-        peer_price = peer_bars[-1].close if peer_bars else None
-        peer_share_capital = peer_financials.get(peer_analysis.latest_period, {}).get("share_capital")
-        peer_metrics = calculator.compute_valuation(peer_analysis, peer_price, peer_share_capital)
-        peer_multiples.append(
-            valuation.PeerMultiple(
-                ticker=peer_ticker,
-                pe_ratio=peer_metrics.pe_ratio if peer_metrics else None,
-                pb_ratio=peer_metrics.pb_ratio if peer_metrics else None,
-            )
-        )
-
-    return valuation.compute_valuation_assessment(
-        own_pe=own_metrics.pe_ratio if own_metrics else None,
-        own_pb=own_metrics.pb_ratio if own_metrics else None,
-        peer_multiples=peer_multiples,
-        current_price=current_price,
-        price_30d_ago=price_30d_ago,
-        price_90d_ago=price_90d_ago,
-    )
-
-
 async def _gonder_derin_analiz(chat_id: int, context: ContextTypes.DEFAULT_TYPE, ticker: str, market: str) -> None:
     """'🔬 Detaylı Analiz' (Bilanço kartı altı) VEYA '📊 Temel Analiz' (Teknik
     kartı altı, handle_teknik_callback'in simetriği) butonuna basılınca AYNI
@@ -476,20 +425,22 @@ async def _gonder_derin_analiz(chat_id: int, context: ContextTypes.DEFAULT_TYPE,
 
     trend = trends.compute_multi_period_trend(financials_by_period)
 
-    # Değerleme Analizi paneli (2026-08-04, kullanıcı isteği) -- SADECE
-    # sektör peer'i varsa anlamlı (sektöre göre ucuz/pahalı kıyası için en az
-    # 1 karşılaştırma şirketi gerekir); fiyat/eş şirket verisi İKİNCİL
+    # Değerleme Analizi paneli (2026-08-04, kullanıcı isteği; Faz 16.6'da
+    # genişletildi) -- Faz 16.6'dan İTİBAREN `peer_tickers` BOŞ olsa bile
+    # HER ZAMAN çağrılır: Benjamin Graham/Peter Lynch ölçütleri SEKTÖR
+    # PEER'İ GEREKTİRMEZ (bkz. valuation.py modül notu), sadece own F/K-
+    # PD/DD + fiyat geçmişinden hesaplanır; sektöre-göreli kısım (peer
+    # varsa) bunun İÇİNDE ayrıca dolar. Fiyat/eş şirket verisi İKİNCİL
     # olduğu için (Kural 9) herhangi bir hata bu bloğu SESSİZCE atlar,
     # Derin Kart'ın geri kalanı (zaten üretilmiş trend/sektör verisi) bundan
     # ETKİLENMEZ.
     valuation_assessment = None
-    if peer_tickers:
-        try:
-            valuation_assessment = _compute_deep_card_valuation(
-                ticker, market, financial_group, financials_by_period, peer_tickers, peer_financials_list
-            )
-        except Exception:
-            logger.warning("%s için Değerleme Analizi paneli hesaplanamadı, panel gizlenecek.", ticker, exc_info=True)
+    try:
+        valuation_assessment = pipeline.compute_valuation_assessment_for_ticker(
+            ticker, market, financial_group, financials_by_period, peer_tickers, peer_financials_list
+        )
+    except Exception:
+        logger.warning("%s için Değerleme Analizi paneli hesaplanamadı, panel gizlenecek.", ticker, exc_info=True)
 
     deep_context = deep_card.build_deep_card_context(
         trend,
@@ -1059,4 +1010,11 @@ def run_bot() -> None:
     _acquire_single_instance_lock()
     application = build_application()
     logger.info("Bilanço Radar botu başlatılıyor (polling)...")
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    # CANLI hata (kullanici raporu, 2026-08-04): PTB'nin varsayilani
+    # bootstrap_retries=0 -- baslangicta (get_me() cagrisi sirasinda) internet
+    # o an kesikse (getaddrinfo failed vb.) TEK denemede pes edip run_polling'i
+    # yakalanmamis bir NetworkError ile PATLATIYORDU (terminalde cift
+    # traceback, bot tamamen COKUYORDU, manuel yeniden baslatma gerekiyordu).
+    # bootstrap_retries=-1 SINIRSIZ tekrar dener (PTB kendi ic-backoff'uyla,
+    # bkz. network_retry_loop) -- internet gelince bot kendiliginden acilir.
+    application.run_polling(allowed_updates=Update.ALL_TYPES, bootstrap_retries=-1)

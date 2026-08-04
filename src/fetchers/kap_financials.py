@@ -314,6 +314,127 @@ STANDARD_ITEM_MAP_KAP_UFRS_INCOME: dict[str, str] = {
 # İlgili Düzeltme" = vals=['105943187', '98262723'] (2 kolon).
 _DEPRECIATION_TAG = "ifrs-full_AdjustmentsForDepreciationAndAmortisationExpense"
 
+
+# --- Kalem esleme tablosu (SADECE UFRS_K - sigorta) --------
+#
+# RAYSG'nin (Ray Sigorta) 2Ç26 Finansal Rapor'u (disclosure_index=1643198,
+# 04.08.2026 20:07, "Konsolide Olmayan") ile CANLI dogrulandi (kullanici
+# raporu: RAYSG icin Is Yatirim hala 1Ç26 donduruyordu ama KAP'ta 2Ç26 ZATEN
+# vardi -- bkz. modul ust notu, TATGD ile AYNI gecikme deseni).
+#
+# "net_income": ifrs-full_ProfitLossAttributableToOwnersOfParent = 1.896.687.175
+# TL, kullanicinin Fintables'te gordugu "1,9 mr TL" ile BIREBIR eslesti.
+# "receivables_from_operations"/"payables_from_operations": KAP'ta bunlar
+# ZATEN TEK bir subtotal tag'i olarak geliyor, Is Yatirim'daki gibi elle
+# toplama GEREKMEZ -- CANLI dogrulandi: kap-fr_CurrentReceivablesFromMainOperations
+# (9.488.764.179) == kap-fr_CurrentReceivablesFromInsuranceOperations
+# (9.505.486.027) + kap-fr_ProvisionForCurrentReceivablesFromInsuranceOperations
+# (-16.721.848), yani isyatirim'in "1C" (Esas Faaliyetlerden Alacaklar)
+# toplamiyla AYNI kapsam (Şüpheli Alacaklar + %100 karşılığı RAYSG'de
+# birbirini tam gotürdüğü icin subtotal'a etkisi yok); ayni sekilde
+# kap-fr_ShortTermPayablesFromMainOperations (5.620.763.851) ==
+# kap-fr_ShortTermPayablesFromInsuranceOperations (digerleri 0) --
+# isyatirim'in "2B" (Esas Faaliyetlerden Borçlar) toplamiyla AYNI kapsam.
+# Digger alanlar (asagidaki tekil-tag OLMAYAN yardimcilar) icin bkz.
+# _cash_and_equivalents_ufrs_k/_financial_assets_ufrs_k/
+# _technical_provisions_noncurrent_ufrs_k/_technical_balance_*_ufrs_k.
+STANDARD_ITEM_MAP_KAP_UFRS_K_BALANCE: dict[str, str] = {
+    "equity": "ifrs-full_Equity",
+    "share_capital": "ifrs-full_IssuedCapital",
+    "receivables_from_operations": "kap-fr_CurrentReceivablesFromMainOperations",
+    "payables_from_operations": "kap-fr_ShortTermPayablesFromMainOperations",
+}
+
+STANDARD_ITEM_MAP_KAP_UFRS_K_INCOME: dict[str, str] = {
+    "gross_written_premiums": "kap-fr_GrossWrittenPremiumsClassifiedAsNonlifeTechnicalIncome",
+    "net_premiums_earned": "kap-fr_WrittenPremiumsClassifiedAsNonlifeTechnicalIncomeNetOfReinsurerShare",
+    "technical_income": "kap-fr_NonlifeTechnicalIncome",
+    "net_income": "ifrs-full_ProfitLossAttributableToOwnersOfParent",
+}
+
+# technical_income'in "B- Hayat Disi Teknik Gider(-)" karsiligi -- SADECE
+# technical_balance hesaplamak icin kullanilir (isyatirim.py'deki
+# STANDARD_ITEM_MAP_UFRS_K["technical_expense"] ile AYNI amac), tek basina
+# ayri bir alan olarak DB'ye YAZILMAZ.
+_TECHNICAL_EXPENSE_TAG_UFRS_K = "kap-fr_NonlifeTechnicalExpense"
+
+# isyatirim "1B" (B- Finansal Varlıklar ile Riski Sigortalılara Ait Finansal
+# Yatırımlar) karsiligi -- CANLI dogrulandi: bu TEK tag zaten kendi alt
+# kalemlerinin (AvailableForSaleCurrentFinancialAssets + CurrentFinancial
+# InvestmentsHeldToMaturity + CurrentFinancialAssetsHeldForTrading, RAYSG'de
+# digerleri 0) TOPLAMINA ESIT (5.983.337.894 = 0 + 4.273.074.553 +
+# 1.710.263.341) -- yani KAP sayfasinda ZATEN hazir bir subtotal, elle
+# toplama GEREKMEZ.
+_FINANCIAL_ASSETS_TAG_UFRS_K = "kap-fr_FinancialAssetsAndFinancialInvestmentsWithRisksOnPolicyholders"
+
+# isyatirim "1A" (A- Nakit Ve Nakit Benzeri Varlıklar) karsiligi -- isyatirim
+# semasinda "Banka Garantili ve Uç Aydan Kısa Vadeli Kredi Kartı Alacakları"
+# (1AE) bu toplamin bir PARCASIDIR (bkz. isyatirim.py STANDARD_ITEM_MAP_UFRS_K
+# "cash_and_equivalents":"1A" yorumu) -- KAP sayfasinda ise
+# ifrs-full_CashAndCashEquivalents'tan AYRI bir sibling satir olarak
+# gelistigi icin (CROSS-PERIOD dogrulanamadi, Is Yatirim henuz 2Ç26'yi
+# donmuyor) BURADA ELLE toplanir; bu FinansalAssets'in aksine subtotal
+# olarak dogrulanmamis bir tahmin -- yanlis olma riski digerlerinden
+# YUKSEK ama TAMAMEN N/A birakmaktan (bkz. kullanici geri bildirimi:
+# "her sey eksik, bu sekilde olmaz") daha az kotu kabul edildi.
+_CASH_TAGS_UFRS_K: tuple[str, ...] = (
+    "ifrs-full_CashAndCashEquivalents",
+    "kap-fr_BankGuaranteedCreditCardReceivablesWithMaturitiesLessThanThreeMonths",
+    "ifrs-full_OtherCashAndCashEquivalents",
+)
+
+# isyatirim "2MD" (uzun vadeli Sigortacılık Teknik Karşılıkları) karsiligi --
+# ayni sekilde CROSS-PERIOD dogrulanamadi (bkz. _CASH_TAGS_UFRS_K notu),
+# "IV- Uzun Vadeli Yükümlülükler" grubu altindaki iki teknik karsilik
+# satirinin (Sigortacilik + Diger) toplami olarak en-yakin karsilik kabul
+# edildi.
+_TECHNICAL_PROVISIONS_NONCURRENT_TAGS_UFRS_K: tuple[str, ...] = (
+    "kap-fr_LongTermInsuranceTechnicalProvisions",
+    "kap-fr_OtherLongTermTechnicalProvisions",
+)
+
+# isyatirim "2E" (kisa vadeli Sigortacılık Teknik Karşılıkları) karsiligi --
+# CANLI dogrulandi: RAYSG 1Ç26'da isyatirim "2E" toplami (23.133.721.147)
+# ile KAP 2Ç26 kap-fr_ShortTermInsuranceTechnicalProvisions (23.793.992.654)
+# BUYUKLUK MERTEBESI olarak tutarli (bir ceyrekte %2-3 artis makul).
+_TECHNICAL_PROVISIONS_CURRENT_TAG_UFRS_K = "kap-fr_ShortTermInsuranceTechnicalProvisions"
+
+
+def _sum_balance_tags_ufrs_k(raw: "RawKapFinancials", tags: tuple[str, ...]) -> Decimal | None:
+    values = [raw.balance_value(tag) for tag in tags]
+    if all(v is None for v in values):
+        return None
+    return sum((v for v in values if v is not None), Decimal(0))
+
+
+def _cash_and_equivalents_ufrs_k(raw: "RawKapFinancials") -> Decimal | None:
+    return _sum_balance_tags_ufrs_k(raw, _CASH_TAGS_UFRS_K)
+
+
+def _technical_provisions_noncurrent_ufrs_k(raw: "RawKapFinancials") -> Decimal | None:
+    return _sum_balance_tags_ufrs_k(raw, _TECHNICAL_PROVISIONS_NONCURRENT_TAGS_UFRS_K)
+
+
+def _technical_balance_cum_ufrs_k(raw: "RawKapFinancials") -> Decimal | None:
+    """isyatirim.technical_balance_ufrs_k()'nin KAP karsiligi -- Teknik Gelir
+    + Teknik Gider (KAP'ta da ZATEN negatif isaretle gelir). CANLI dogrulandi:
+    16.200.719.584 + (-13.958.520.691) = 2.242.198.893, sayfadaki hazir
+    "kap-fr_TechnicalPartBalanceNonlife" satiriyla (2.242.198.893) BIREBIR
+    eslesti."""
+    income = raw.income_cum_value(STANDARD_ITEM_MAP_KAP_UFRS_K_INCOME["technical_income"])
+    expense = raw.income_cum_value(_TECHNICAL_EXPENSE_TAG_UFRS_K)
+    if income is None and expense is None:
+        return None
+    return (income or Decimal(0)) + (expense or Decimal(0))
+
+
+def _technical_balance_quarterly_ufrs_k(raw: "RawKapFinancials") -> Decimal | None:
+    income = raw.income_quarterly_value(STANDARD_ITEM_MAP_KAP_UFRS_K_INCOME["technical_income"])
+    expense = raw.income_quarterly_value(_TECHNICAL_EXPENSE_TAG_UFRS_K)
+    if income is None and expense is None:
+        return None
+    return (income or Decimal(0)) + (expense or Decimal(0))
+
 # Kisa vadeli finansal borc TEK bir XBRL tag'i olarak raporlanmiyor --
 # ilişkili/ilişkili olmayan taraflardan kisa vadeli borclanmalar + uzun
 # vadeli borclanmalarin kisa vadeli kismi (TUMU "kap-fr_" Turkiye'ye ozgu
@@ -630,6 +751,25 @@ def fetch_latest_xi29_financials(ticker: str) -> RawKapFinancials | None:
         return None
 
 
+def fetch_latest_ufrs_k_financials(ticker: str) -> RawKapFinancials | None:
+    """fetch_latest_xi29_financials()'in sigorta (UFRS_K) karsiligi -- SADECE
+    UFRS_K icin (bkz. STANDARD_ITEM_MAP_KAP_UFRS_K_* modul notu). RAYSG (solo/
+    "Konsolide Olmayan") ile CANLI dogrulandi: bilanco satirlari XI_29 gibi 2
+    kolonlu (banka gibi 6 kolonlu DEGIL) -- balance_column_count VARSAYILANI
+    (2) kullanilir. Uygun bir rapor yoksa (veya ayristirma basarisiz olursa)
+    None doner -- HICBIR ISTISNA disariya SIZMAZ (bkz. fetch_latest_xi29_financials
+    docstring'i, ayni ilke)."""
+    try:
+        ref = find_latest_financial_report(ticker)
+        if ref is None:
+            return None
+        html = fetch_disclosure_html(ref.disclosure_index)
+        return parse_financial_report(html, ticker, ref.disclosure_index, ref.period)
+    except Exception as exc:  # noqa: BLE001 -- bkz. docstring: tazelik yamasi ASLA pipeline'i BLOKE ETMEMELI
+        logger.warning("%s icin KAP'tan (UFRS_K) tazelik yamasi cekilemedi (Is Yatirim verisiyle devam edilecek): %s", ticker, exc)
+        return None
+
+
 def fetch_latest_ufrs_financials(ticker: str) -> RawKapFinancials | None:
     """fetch_latest_xi29_financials()'in konvansiyonel banka (UFRS) karsiligi
     -- SADECE UFRS icin (bkz. STANDARD_ITEM_MAP_KAP_UFRS_* modul notu,
@@ -705,5 +845,47 @@ def standardized_record_values_ufrs(raw: RawKapFinancials) -> dict[str, Decimal 
     for field, tag in STANDARD_ITEM_MAP_KAP_UFRS_INCOME.items():
         out[f"{field}_cum"] = raw.income_cum_value(tag)
         out[field] = raw.income_quarterly_value(tag)
+
+    return out
+
+
+def standardized_record_values_ufrs_k(raw: RawKapFinancials) -> dict[str, Decimal | None]:
+    """standardized_record_values()'in sigorta (UFRS_K) karsiligi --
+    pipeline.py'nin _standardize_to_records_ufrs_k() ile AYNI alan
+    kumesini (gross_written_premiums/net_premiums_earned/technical_income/
+    net_income + _cum varyantlari, receivables_from_operations/
+    payables_from_operations/equity/share_capital, technical_balance(+_cum),
+    cash_and_financial_assets, technical_provisions) uretir. SADECE
+    financial_group=='UFRS_K' icin cagrilmali. Bkz. STANDARD_ITEM_MAP_KAP_UFRS_K_*
+    modul notu: bazi alanlar (cash_and_equivalents/1A bileseni,
+    technical_provisions_noncurrent/2MD bileseni) CROSS-PERIOD dogrulanamadi
+    (Is Yatirim henuz 2Ç26'yi donmuyor) -- en yakin karsilik kabul edildi,
+    Is Yatirim kendi verisini isleyince bu alanlar zaten onun DAHA GUVENILIR
+    degeriyle EZILECEK."""
+    out: dict[str, Decimal | None] = {}
+
+    for field, tag in STANDARD_ITEM_MAP_KAP_UFRS_K_BALANCE.items():
+        out[field] = raw.balance_value(tag)
+
+    for field, tag in STANDARD_ITEM_MAP_KAP_UFRS_K_INCOME.items():
+        out[f"{field}_cum"] = raw.income_cum_value(tag)
+        out[field] = raw.income_quarterly_value(tag)
+
+    cash = _cash_and_equivalents_ufrs_k(raw)
+    financial = raw.balance_value(_FINANCIAL_ASSETS_TAG_UFRS_K)
+    if cash is not None or financial is not None:
+        out["cash_and_financial_assets"] = (cash or Decimal(0)) + (financial or Decimal(0))
+
+    provisions_current = raw.balance_value(_TECHNICAL_PROVISIONS_CURRENT_TAG_UFRS_K)
+    provisions_noncurrent = _technical_provisions_noncurrent_ufrs_k(raw)
+    if provisions_current is not None or provisions_noncurrent is not None:
+        out["technical_provisions"] = (provisions_current or Decimal(0)) + (provisions_noncurrent or Decimal(0))
+
+    technical_balance_cum = _technical_balance_cum_ufrs_k(raw)
+    if technical_balance_cum is not None:
+        out["technical_balance_cum"] = technical_balance_cum
+    technical_balance = _technical_balance_quarterly_ufrs_k(raw)
+    if technical_balance is not None:
+        out["technical_balance"] = technical_balance
 
     return out

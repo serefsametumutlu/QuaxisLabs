@@ -248,10 +248,15 @@ def fetch_sector_map() -> dict[str, str]:
 
     ⚠️ Bu TEK istek ~640 şirketin TAMAMINI döner (bkz.
     scripts/explore_kap_sektor.py) -- bu yüzden pipeline.py'nin ana
-    (tek-ticker) akışından ÇAĞRILMAZ (Kural 9: yardımcı veri ana boru
-    hattını bloklamaz); bunun yerine ayrı, zamanlanmış bir süreçte
-    (scripts/refresh_sector_cache.py, refresh_takvim_cache.py ile AYNI
-    ilke) çağrılıp DB'ye toplu yazılır.
+    (tek-ticker) akışından HER SEFERİNDE ÇAĞRILMAZ; ayrı, zamanlanmış bir
+    süreçte (scripts/refresh_sector_cache.py, refresh_takvim_cache.py ile
+    AYNI ilke) çağrılıp DB'ye toplu yazılır. Faz 16.5'ten itibaren (kullanıcı
+    raporu: normal bot kullanımıyla eklenen yeni şirketlerin sektörü hiç
+    dolmuyordu) `pipeline._ensure_sector_populated()` da bunu çağırır --
+    AMA SADECE ilgili şirketin `sector` alanı hâlâ `None` ise (yani yeni
+    eklenmiş/hiç senkronize edilmemiş bir şirket), rutin/tekrarlanan
+    sorgularda TEKRAR ÇAĞRILMAZ (Kural 9: yardımcı veri ana boru hattını
+    bloklamaz, hata olursa sessizce atlanır).
 
     SADECE BIST kapsar -- NASDAQ şirketleri için bu kaynak KULLANILAMAZ.
 

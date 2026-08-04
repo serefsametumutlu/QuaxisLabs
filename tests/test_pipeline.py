@@ -37,6 +37,11 @@ def izole_db(monkeypatch, tmp_path):
     monkeypatch.setattr(repository, "_default_db_initialized", True)
     monkeypatch.setattr(config, "GEMINI_API_KEY", "")  # commentary'yi deterministik yedek moda zorla
     monkeypatch.setattr(isyatirim, "fetch_latest_price", lambda ticker, lookback_days=10: None)  # ag istegi atma
+    # Faz 16.5: _ensure_sector_populated() yeni (sector=None) XI_29 sirketlerinde
+    # kap.fetch_sector_map()'i CAGIRIR -- gercek ag istegi atilmasin diye BOS
+    # bir harita ile sahtelenir (davranisi ACIKCA test etmek isteyen testler
+    # kendi monkeypatch'leriyle EZEBILIR).
+    monkeypatch.setattr(kap, "fetch_sector_map", lambda: {})
     return engine
 
 
@@ -623,6 +628,64 @@ def test_fetch_and_store_kap_hatasi_pipeline_i_dusurmez(izole_db, monkeypatch) -
     with repository.get_session() as session:
         financials = repository.get_financials(session, "TESTAS")
     assert financials  # finansal veri yine de yazilmis
+
+
+# --- _ensure_sector_populated (Faz 16.5, kullanici raporu: yeni sirketlerin sektoru hic dolmuyordu) -----------------------------------------------------
+
+
+def test_fetch_and_store_yeni_sirkette_sektor_otomatik_doldurulur(izole_db, monkeypatch) -> None:
+    monkeypatch.setattr(isyatirim, "fetch_financials", _make_fake_fetch(_fake_raw_saglikli("TESTAS")))
+    monkeypatch.setattr(kap, "search_company", lambda ticker: kap.CompanyMatch(member_oid="1", name="Test A.Ş.", ticker_codes=(ticker.lower(),)))
+    monkeypatch.setattr(kap, "fetch_disclosures", lambda ticker, days=90: [])
+    monkeypatch.setattr(kap, "fetch_sector_map", lambda: {"TESTAS": "TEST SEKTORU"})
+
+    pipeline._fetch_and_store("TESTAS", None)
+
+    with repository.get_session() as session:
+        company = session.get(models.Company, "TESTAS")
+    assert company.sector == "TEST SEKTORU"
+
+
+def test_fetch_and_store_sektor_doluysa_fetch_sector_map_tekrar_cagrilmaz(izole_db, monkeypatch) -> None:
+    """Rutin/tekrarlanan sorgularda GEREKSIZ KAP istegi atilmasin -- sektor
+    ZATEN varsa fetch_sector_map() HIC CAGRILMAZ."""
+    monkeypatch.setattr(isyatirim, "fetch_financials", _make_fake_fetch(_fake_raw_saglikli("TESTAS")))
+    monkeypatch.setattr(kap, "search_company", lambda ticker: kap.CompanyMatch(member_oid="1", name="Test A.Ş.", ticker_codes=(ticker.lower(),)))
+    monkeypatch.setattr(kap, "fetch_disclosures", lambda ticker, days=90: [])
+
+    with repository.get_session() as session:
+        repository.set_company_info(session, "TESTAS", name="Test A.Ş.", financial_group="XI_29", sector="ZATEN VAR")
+
+    call_count = {"n": 0}
+
+    def sahte_fetch_sector_map():
+        call_count["n"] += 1
+        return {}
+
+    monkeypatch.setattr(kap, "fetch_sector_map", sahte_fetch_sector_map)
+    pipeline._fetch_and_store("TESTAS", None)
+
+    assert call_count["n"] == 0
+    with repository.get_session() as session:
+        company = session.get(models.Company, "TESTAS")
+    assert company.sector == "ZATEN VAR"
+
+
+def test_fetch_and_store_sektor_hatasi_pipeline_i_dusurmez(izole_db, monkeypatch) -> None:
+    """Kural 9: sektor (ikincil veri) cekilemezse pipeline'in geri kalani
+    ETKİLENMEMELİ."""
+    monkeypatch.setattr(isyatirim, "fetch_financials", _make_fake_fetch(_fake_raw_saglikli("TESTAS")))
+    monkeypatch.setattr(kap, "search_company", lambda ticker: kap.CompanyMatch(member_oid="1", name="Test A.Ş.", ticker_codes=(ticker.lower(),)))
+    monkeypatch.setattr(kap, "fetch_disclosures", lambda ticker, days=90: [])
+    monkeypatch.setattr(kap, "fetch_sector_map", lambda: (_ for _ in ()).throw(kap.KapNetworkError("ag hatasi")))
+
+    pipeline._fetch_and_store("TESTAS", None)  # exception firlatmamali
+
+    with repository.get_session() as session:
+        financials = repository.get_financials(session, "TESTAS")
+        company = session.get(models.Company, "TESTAS")
+    assert financials  # finansal veri yine de yazilmis
+    assert company.sector is None  # sektor bos kaldi ama pipeline cokmedi
 
 
 # --- _kap_patch_records_for_xi29: FAVOK/amortisman turetmesi (canli OTKAR hatasi) -----------------------------------------------------

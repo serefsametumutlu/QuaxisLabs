@@ -58,6 +58,8 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 
+from sqlalchemy.orm import Session
+
 import config
 from src.ai import commentary as commentary_module
 from src.analysis import calculator, scorer
@@ -825,6 +827,32 @@ def _kap_patch_records_for_ufrs(ticker: str, newest_isyatirim_period: Period) ->
     return records, raw_kap.period
 
 
+def _ensure_sector_populated(session: Session, ticker: str) -> None:
+    """Faz 16.5 (kullanıcı raporu, 2026-08-04): ULAŞTIRMA sektöründe 3-4
+    yeni şirket analiz edildiği hâlde Derin Kart hâlâ "1 karşılaştırma
+    şirketi" gösteriyordu -- kök neden: `Company.sector` SADECE elle
+    çalıştırılan `scripts/refresh_sector_cache.py` ile dolduruluyordu,
+    normal bot kullanımıyla eklenen YENİ şirketler `sector=None` kalıyordu
+    (script'in son çalıştığı tarihten SONRA sorgulanan HER şirket bu
+    sorunu yaşar). Bu fonksiyon HER XI_29 fetch'inde çağrılır ama SADECE
+    ilgili şirketin sektörü hâlâ `None` ise gerçekten bir KAP isteği atar
+    -- sektör ZATEN doluysa (büyük çoğunluk, rutin/tekrarlanan sorgular)
+    HİÇBİR ağ isteği YAPILMAZ. `kap.fetch_sector_map()` TEK istekte TÜM
+    BIST'i döndürdüğü için `repository.update_company_sectors()` bu ticker
+    İLE BİRLİKTE DB'deki BAŞKA eksik şirketleri de fırsattan yararlanıp
+    günceller (yan etki, zararsız). Kural 9: ikincil/yardımcı veri -- hata
+    olursa (ağ/parse) SESSİZCE loglanıp atlanır, ana pipeline'ı BLOKE ETMEZ."""
+    company = session.get(models.Company, ticker)
+    if company is None or company.sector is not None:
+        return
+    try:
+        sector_map = kap.fetch_sector_map()
+        updated = repository.update_company_sectors(session, sector_map)
+        logger.info("%s icin sektor senkronize edildi (%d sirket guncellendi).", ticker, updated)
+    except Exception:
+        logger.warning("%s icin sektor bilgisi guncellenemedi (ikincil veri, pipeline devam ediyor).", ticker, exc_info=True)
+
+
 def _fetch_and_store(ticker: str, periods: list[Period] | None) -> None:
     """Is Yatirim + KAP'tan veri cekip DB'ye standart alanlarla yazar.
 
@@ -914,6 +942,7 @@ def _fetch_and_store(ticker: str, periods: list[Period] | None) -> None:
         # reddedilsin) acikca yazildi.
         repository.upsert_financials(session, ticker, records, market="BIST")
         repository.set_company_info(session, ticker, name=company_name, financial_group=raw.financial_group)
+        _ensure_sector_populated(session, ticker)
 
         if disclosures:
             disclosure_records = [(d.date, d.title, d.category, d.importance, d.url) for d in disclosures]

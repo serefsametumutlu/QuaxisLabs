@@ -279,19 +279,6 @@
   <section class="section">
     <div class="section-title">Değerleme Analizi</div>
     <div class="valuation-methods">
-      {% if valuation.verdict %}
-      <div class="valuation-method">
-        <div class="valuation-method-title">Sektöre Göre</div>
-        <div class="valuation-verdict {{ valuation.verdict_class }}">{{ valuation.verdict }}</div>
-        <div class="valuation-method-stats">
-          {% if valuation.own_pe_display != "N/A" %}<span>F/K {{ valuation.own_pe_display }} <span class="stat-sub">(sektör {{ valuation.sector_avg_pe_display }})</span></span>{% endif %}
-          {% if valuation.own_pb_display != "N/A" %}<span>PD/DD {{ valuation.own_pb_display }} <span class="stat-sub">(sektör {{ valuation.sector_avg_pb_display }})</span></span>{% endif %}
-          {% if valuation.sector_implied_target_display != "N/A" %}
-          <span>Hedef: {{ valuation.sector_implied_target_display }} <span class="stat-sub {{ valuation.sector_implied_upside_class }}">({{ valuation.sector_implied_upside_display }})</span></span>
-          {% endif %}
-        </div>
-      </div>
-      {% endif %}
       {% if valuation.graham_verdict %}
       <div class="valuation-method">
         <div class="valuation-method-title">Benjamin Graham Ölçütü</div>
@@ -313,18 +300,6 @@
         </div>
       </div>
       {% endif %}
-      {% if valuation.damodaran_verdict %}
-      <div class="valuation-method">
-        <div class="valuation-method-title">Aswath Damodaran (FCFE)</div>
-        <div class="valuation-verdict {{ valuation.damodaran_verdict_class }}">{{ valuation.damodaran_verdict }}</div>
-        <div class="valuation-method-stats">
-          <span>Özkaynak Maliyeti: {{ valuation.damodaran_cost_of_equity_display }} <span class="stat-sub">(g: {{ valuation.damodaran_growth_used_display }})</span></span>
-          {% if valuation.damodaran_target_display != "N/A" %}
-          <span>Adil Değer: {{ valuation.damodaran_target_display }} <span class="stat-sub {{ valuation.damodaran_upside_class }}">({{ valuation.damodaran_upside_display }})</span></span>
-          {% endif %}
-        </div>
-      </div>
-      {% endif %}
     </div>
     {% if valuation.price_change_1m_display != "N/A" or valuation.price_change_3m_display != "N/A" %}
     <div class="valuation-momentum">
@@ -332,9 +307,8 @@
       {% if valuation.price_change_3m_display != "N/A" %}<span>Fiyat (3 Ay): <span class="{{ valuation.price_change_3m_class }}">{{ valuation.price_change_3m_display }}</span></span>{% endif %}
     </div>
     {% endif %}
-    {% if valuation.verdict_reasoning %}<div class="valuation-note">{{ valuation.verdict_reasoning }}</div>{% endif %}
     {% if valuation.momentum_note %}<div class="valuation-note valuation-warning">⚠️ {{ valuation.momentum_note }}</div>{% endif %}
-    <div class="valuation-disclaimer">Yukarıdaki hedef/adil değerler GERÇEK bir analist tahmini DEĞİLDİR -- Benjamin Graham (F/K×PD/DD ≤ 22,5), Peter Lynch (PEG) ve Aswath Damodaran (istikrarlı büyüme FCFE modeli, basitleştirilmiş varsayımlarla) gibi klasik yöntemlerle + {{ peer_count }} sektör benzeri şirketin güncel çarpanına göre kendi hesapladığımız tahminlerdir.</div>
+    <div class="valuation-disclaimer">Yukarıdaki adil değerler GERÇEK bir analist tahmini DEĞİLDİR -- Benjamin Graham (F/K×PD/DD ≤ 22,5) ve Peter Lynch (PEG) gibi klasik yöntemlerle kendi hesapladığımız tahminlerdir.</div>
   </section>
   {% endif %}
 

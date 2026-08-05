@@ -1088,16 +1088,12 @@
           {%- if valuation_analysis.graham_verdict %}{{ valuation_analysis.graham_verdict }} (çarpan {{ valuation_analysis.graham_multiple_display }}){% endif -%}
           {%- if valuation_analysis.graham_verdict and valuation_analysis.peg_verdict %} · {% endif -%}
           {%- if valuation_analysis.peg_verdict %}{{ valuation_analysis.peg_verdict }} (PEG {{ valuation_analysis.peg_ratio_display }}){% endif -%}
-          {%- if (valuation_analysis.graham_verdict or valuation_analysis.peg_verdict) and valuation_analysis.damodaran_verdict %} · {% endif -%}
-          {%- if valuation_analysis.damodaran_verdict %}{{ valuation_analysis.damodaran_verdict }} (FCFE){% endif -%}
         </div>
-        {% if valuation_analysis.sector_implied_target_display != "N/A" or valuation_analysis.graham_target_display != "N/A" or valuation_analysis.damodaran_target_display != "N/A" %}
+        {% if valuation_analysis.sector_implied_target_display != "N/A" or valuation_analysis.graham_target_display != "N/A" %}
         <div class="score-reasoning">
           {%- if valuation_analysis.sector_implied_target_display != "N/A" %}Hedef (sektör): {{ valuation_analysis.sector_implied_target_display }} <span class="{{ valuation_analysis.sector_implied_upside_class }}">({{ valuation_analysis.sector_implied_upside_display }})</span>{% endif -%}
           {%- if valuation_analysis.sector_implied_target_display != "N/A" and valuation_analysis.graham_target_display != "N/A" %} · {% endif -%}
           {%- if valuation_analysis.graham_target_display != "N/A" %}Graham Adil Değer: {{ valuation_analysis.graham_target_display }} <span class="{{ valuation_analysis.graham_upside_class }}">({{ valuation_analysis.graham_upside_display }})</span>{% endif -%}
-          {%- if (valuation_analysis.sector_implied_target_display != "N/A" or valuation_analysis.graham_target_display != "N/A") and valuation_analysis.damodaran_target_display != "N/A" %} · {% endif -%}
-          {%- if valuation_analysis.damodaran_target_display != "N/A" %}Damodaran Adil Değer: {{ valuation_analysis.damodaran_target_display }} <span class="{{ valuation_analysis.damodaran_upside_class }}">({{ valuation_analysis.damodaran_upside_display }})</span>{% endif -%}
         </div>
         {% endif %}
       </li>

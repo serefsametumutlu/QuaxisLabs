@@ -1,19 +1,21 @@
 """Fon günlük getiri TAHMİNİ kartı için orkestrasyon katmanı (Faz 19).
 
 `src.bot.pipeline` (şirket bilanço analizi) ile AYNI ilke: bu modül SADECE
-fetcher'ları (`tefas`/`kap_fund_portfolio`/`isyatirim`) ve saf hesaplayıcıyı
-(`src.analysis.fund_estimator`) birbirine bağlar -- kendi başına HİÇBİR
-sayı hesaplamaz.
+fetcher'ları (`tefas`/`kap_fund_portfolio`/`yahoo_quote`) ve saf
+hesaplayıcıyı (`src.analysis.fund_estimator`) birbirine bağlar -- kendi
+başına HİÇBİR sayı hesaplamaz.
 
-🚨 GERÇEK ZAMANLI/CANLI FİYAT KAYNAĞI YOK (Kural 8 -- açıkça belgelenir,
-gizlenmez): `isyatirim.fetch_price_history()` SADECE günlük (EOD) kapanış
-serisi döner, 'açılış'/anlık fiyat alanı hiçbir zaman yok (bkz. o modülün
-docstring'i). Bu yüzden BİST hisseleri için "günlük getiri", GÜN İÇİNDE
-"bugünün açılışına göre şu ana kadarki getiri" DEĞİL, EN SON İKİ KAPANMIŞ
-işlem gününün kapanış-kapanışa getirisidir -- piyasa açıkken bu pratikte
-DÜNKÜ getiridir (bugünün kapanışı henüz oluşmadığı için), kapanıştan sonra
-BUGÜNKÜ getiridir. Kart bu farkı SESSİZCE gizlemez, "en son kapanışa göre"
-ifadesiyle açıkça belirtir (bkz. `src.render.fund_card`).
+🚨 KULLANICI KARARI #7 (2026-08-05, CANLI hata + düzeltme): BİST hisse
+günlük getirisi ESKİDEN `isyatirim.fetch_price_history()` ile
+çekiliyordu -- CANLI kullanıcı raporuyla YAKALANDI: bu uç nokta BUGÜNÜN
+kapanışını YAYINLAMIYOR, en güncel satırı HER ZAMAN bir tam gün gecikmeli
+(OZATD örneği: kart %2,55 [aslında dünkü getiri] gösterirken gerçek
+bugünkü kapanış %8,41 idi). `src.fetchers.yahoo_quote` (Yahoo'nun public
+chart uç noktası, NASDAQ için `sec_edgar.py`'nin de kullandığı AYNI API,
+".IS" uzantılı BİST sembolleriyle) CANLI test edildi ve kullanıcının
+bildirdiği rakamla BİREBİR eşleşti -- artık BİST günlük getirisi BURADAN
+alınır (bkz. `_hisse_daily_return`). `isyatirim.py` projenin DİĞER
+akışlarında (teknik analiz, 400 günlük seri) DEĞİŞTİRİLMEDİ.
 
 Fon-içinde-fon (`instrument_type="fon"`) alt fonlarının getirisi
 `tefas.fetch_fund_returns(alt_kod).d1` ile -- yani TEFAS'ın kendi
@@ -37,7 +39,7 @@ from decimal import Decimal
 
 from src.analysis import fund_estimator
 from src.db import repository
-from src.fetchers import isyatirim, kap_fund_portfolio as kfp, tefas
+from src.fetchers import kap_fund_portfolio as kfp, tefas, yahoo_quote
 
 logger = logging.getLogger(__name__)
 
@@ -73,15 +75,16 @@ class FundEstimateResult:
 
 
 def _hisse_daily_return(ticker: str) -> Decimal | None:
-    rows = isyatirim.fetch_price_history(ticker, days=10)
-    closes = sorted(((r["date"], r["close"]) for r in rows if r.get("close")), key=lambda t: t[0])
-    if len(closes) < 2:
-        return None
-    prev_price = closes[-2][1]
-    last_price = closes[-1][1]
-    if not prev_price:
-        return None
-    return (last_price / prev_price - 1) * Decimal(100)
+    """🚨 KULLANICI KARARI #7 (2026-08-05, CANLI hata): eskiden
+    `isyatirim.fetch_price_history()` kullanılıyordu -- bu uç nokta
+    BUGÜNÜN kapanışını YAYINLAMIYOR (bir tam gün gecikmeli, CANLI
+    doğrulandı: OZATD örneğinde kart %2,55 [dünkü getiri] gösterirken
+    gerçek bugünkü kapanış %8,41 idi). `yahoo_quote.fetch_daily_return()`
+    (Yahoo'nun ".IS" uzantılı BİST sembolleri) CANLI test edildi ve
+    kullanıcının bildirdiği rakamla BİREBİR eşleşti -- bkz. o modülün
+    üst notu. `isyatirim.py` diğer akışlarda (teknik analiz vb.)
+    DEĞİŞTİRİLMEDİ, sadece BURADA (bugünün getirisi kritik) değişti."""
+    return yahoo_quote.fetch_daily_return(ticker, suffix=".IS")
 
 
 def _fon_daily_return(ticker: str) -> Decimal | None:

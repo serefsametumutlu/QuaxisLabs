@@ -408,3 +408,97 @@ def test_fetch_latest_portfolio_agsal_hatada_cokme_yok_none_doner(monkeypatch):
     monkeypatch.setattr(kap, "_post_json", _patlar)
 
     assert kfp.fetch_latest_portfolio("PHE") is None
+
+
+# --- resolve_fund_oid / find_portfolio_disclosures / fetch_portfolio_by_disclosure (Faz 18 hazirligi) --------
+
+
+def test_resolve_fund_oid_bulur(monkeypatch):
+    monkeypatch.setattr(kap, "_post_json", lambda url, body: _search_payload(_PHE_SEARCH_RESULT))
+
+    assert kfp.resolve_fund_oid("PHE") == "4028328c8e21cef8018e2de1258c2053"
+
+
+def test_resolve_fund_oid_bulunamazsa_none_doner(monkeypatch):
+    monkeypatch.setattr(kap, "_post_json", lambda url, body: _search_payload())
+
+    assert kfp.resolve_fund_oid("YOKTUR123") is None
+
+
+def test_find_portfolio_disclosures_tumunu_en_yeniden_eskiye_dondurur(monkeypatch):
+    html = _disclosure_list_html(
+        [
+            {
+                "publish_date": "08.07.2026 18:31:42",
+                "disclosure_index": 1629843,
+                "company_title": "PUSULA PORTFÖY HİSSE SENEDİ FONU",
+                "title": "Portföy Dağılım Raporu",
+                "summary": "PHE - PORTFÖY DAĞILIM RAPORU HAZİRAN 2026",
+                "year": 2026,
+                "period": 6,
+                "fund_code": "PHE",
+            },
+            {
+                "publish_date": "05.08.2026 12:04:23",
+                "disclosure_index": 1643421,
+                "company_title": "PUSULA PORTFÖY HİSSE SENEDİ FONU",
+                "title": "Portföy Dağılım Raporu",
+                "summary": "PHE - PORTFÖY DAĞILIM RAPORU TEMMUZ 2026",
+                "year": 2026,
+                "period": 7,
+                "fund_code": "PHE",
+            },
+        ]
+    )
+    monkeypatch.setattr(kfp, "_get", lambda url, params=None: _FakeResponse(text=html))
+
+    disclosures = kfp.find_portfolio_disclosures("some-oid")
+
+    assert [d["disclosure_index"] for d in disclosures] == [1643421, 1629843]  # en yeni once
+
+
+def test_find_portfolio_disclosures_bos_liste_doner(monkeypatch):
+    monkeypatch.setattr(kfp, "_get", lambda url, params=None: _FakeResponse(text=_disclosure_list_html([])))
+
+    assert kfp.find_portfolio_disclosures("some-oid") == []
+
+
+def test_report_period_end_ay_sonu_dogru_hesaplanir():
+    assert kfp.report_period_end(2026, 7) == date(2026, 7, 31)
+    assert kfp.report_period_end(2026, 2) == date(2026, 2, 28)
+    assert kfp.report_period_end(2026, 12) == date(2026, 12, 31)
+
+
+def test_fetch_portfolio_by_disclosure_as_of_ile_staleness_gecmise_gore_hesaplanir(monkeypatch):
+    detail_html = _detail_html("obj-123", "PHE_2026.07.pdf")
+
+    def _fake_get(url, params=None):
+        if "Bildirim/1643421" in url:
+            return _FakeResponse(text=detail_html)
+        if "file/download" in url:
+            return _FakeResponse(content=PHE_PDF_BYTES)
+        raise AssertionError(url)
+
+    monkeypatch.setattr(kfp, "_get", _fake_get)
+
+    disclosure = {
+        "disclosure_index": 1643421,
+        "publish_date": date(2026, 8, 5),
+        "summary": "PHE - PORTFÖY DAĞILIM RAPORU TEMMUZ 2026",
+        "year": 2026,
+        "period": 7,
+    }
+
+    result = kfp.fetch_portfolio_by_disclosure("PHE", disclosure, as_of=date(2026, 8, 20))
+
+    assert result.report_date == date(2026, 7, 31)
+    assert result.staleness_days == 20  # 2026-08-20 - 2026-07-31
+    assert len(result.holdings) == 27
+
+
+def test_fetch_portfolio_by_disclosure_pdf_indirilemezse_none_doner(monkeypatch):
+    monkeypatch.setattr(kfp, "_get", lambda url, params=None: _FakeResponse(text=_escape('{"no":"attachments"}')))
+
+    disclosure = {"disclosure_index": 1643421, "publish_date": date(2026, 8, 5), "summary": "", "year": 2026, "period": 7}
+
+    assert kfp.fetch_portfolio_by_disclosure("PHE", disclosure) is None

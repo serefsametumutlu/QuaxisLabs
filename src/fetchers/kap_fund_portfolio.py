@@ -242,35 +242,50 @@ _DISCLOSURE_ROW_RE = re.compile(
 )
 
 
-def _find_latest_portfolio_disclosure(fund_oid: str) -> dict | None:
+def _publish_dt(row: tuple) -> datetime:
+    return datetime.strptime(row[0], "%d.%m.%Y %H:%M:%S")
+
+
+def find_portfolio_disclosures(fund_oid: str) -> list[dict]:
     """`bildirim-sorgu-sonuc` sayfasını fonun oid'i ile sorgular, gömülü
-    `disclosureBasic` kayıtları arasından en YENİ "Portföy Dağılım Raporu"nu
-    döner. Bulunamazsa None döner (Kural 9).
+    `disclosureBasic` kayıtları arasından TÜM "Portföy Dağılım Raporu"
+    bildirimlerini (en yeniden en eskiye sıralı) döner -- boşsa boş liste.
 
     CANLI doğrulandı (2026-08-05): TLY/AFA/PBR/PHE'nin hepsinde bu sorgu
     gerçek "Portföy Dağılım Raporu" bildirimleri döndürdü -- eski
     `disclosure/members/byCriteria` API'sinin AKSİNE (bkz. modül üst notu).
+
+    Faz 18 geriye dönük doğrulama (`scripts/validate_fon_tahmini.py`)
+    İÇİN eklendi -- TEK bir "en güncel" rapor YETMEZ, geçmiş bir tarih
+    için "O TARİHTE YAYINLANMIŞ OLAN en güncel rapor"ı bulabilmek
+    (look-ahead bias YAPMADAN, bkz. `scripts/validate_fon_tahmini.py`
+    üst notu) TÜM listeye ihtiyaç duyar.
     """
     response = _get(_SEARCH_RESULT_ENDPOINT, params={"srcbar": "Y", "cmp": "N", "cat": "2", "m": fund_oid})
     text = _unescape_next_js_string(response.text)
 
     matches = _DISCLOSURE_ROW_RE.findall(text)
     candidates = [m for m in matches if m[2] == _PORTFOLIO_REPORT_TITLE]
-    if not candidates:
-        return None
 
-    def _publish_dt(row: tuple) -> datetime:
-        return datetime.strptime(row[0], "%d.%m.%Y %H:%M:%S")
+    disclosures = [
+        {
+            "disclosure_index": int(disclosure_index),
+            "publish_date": _publish_dt(m).date(),
+            "summary": summary,
+            "year": int(year),
+            "period": int(period),
+        }
+        for m in candidates
+        for (publish_date_str, disclosure_index, _title, summary, year, period) in [m]
+    ]
+    disclosures.sort(key=lambda d: d["publish_date"], reverse=True)
+    return disclosures
 
-    latest = max(candidates, key=_publish_dt)
-    publish_date_str, disclosure_index, _title, summary, year, period = latest
-    return {
-        "disclosure_index": int(disclosure_index),
-        "publish_date": _publish_dt(latest).date(),
-        "summary": summary,
-        "year": int(year),
-        "period": int(period),  # ay numarasi (1-12)
-    }
+
+def _find_latest_portfolio_disclosure(fund_oid: str) -> dict | None:
+    """`find_portfolio_disclosures()`'ın en yenisini döner, yoksa None."""
+    disclosures = find_portfolio_disclosures(fund_oid)
+    return disclosures[0] if disclosures else None
 
 
 _ATTACHMENT_RE = re.compile(r'"attachments":\[\{"objId":"([^"]+)","fileName":"([^"]+)"')
@@ -541,6 +556,57 @@ def _parse_portfolio_pdf(pdf_bytes: bytes) -> list[Holding]:
 # --- Genel API -----------------------------------------------------
 
 
+def report_period_end(year: int, month: int) -> date:
+    next_month_first = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+    return next_month_first - timedelta(days=1)  # raporun ait oldugu ayin son gunu
+
+
+def resolve_fund_oid(fund_code: str) -> str | None:
+    """`_search_fund()`'ı sarar, SADECE oid'i döner -- bulunamazsa/hata
+    olursa None (Kural 9). `scripts/validate_fon_tahmini.py` gibi
+    çağıranların oid'i tek seferde çözüp `find_portfolio_disclosures()`
+    ile TEKRAR TEKRAR kullanabilmesi için (her seferinde `_search_fund`
+    tekrar çağrılmasın diye) dışarıya açıldı."""
+    try:
+        return _search_fund(fund_code)["memberOrFundOid"]
+    except FundNotFoundError:
+        logger.warning("'%s' KAP fon aramasında bulunamadı.", fund_code)
+        return None
+    except kap.KapError as exc:
+        logger.warning("KAP fon araması başarısız oldu: %s", exc)
+        return None
+
+
+def fetch_portfolio_by_disclosure(fund_code: str, disclosure: dict, as_of: date | None = None) -> FundPortfolio | None:
+    """Belirli bir bildirimin (bkz. `find_portfolio_disclosures()`
+    çıktısı) ekli PDF'ini indirip ayrıştırır. `as_of` verilirse
+    `staleness_days` o tarihe göre hesaplanır (GERİYE DÖNÜK doğrulama
+    için -- bkz. `scripts/validate_fon_tahmini.py`); verilmezse bugüne
+    göre hesaplanır (CANLI kullanım).
+
+    Hatalar fırlatmaz (Kural 9) -- PDF indirilemez/ayrıştırılamazsa None.
+    """
+    try:
+        pdf_bytes = _fetch_attachment_pdf(disclosure["disclosure_index"])
+    except (kap.KapError, KapFundPortfolioError) as exc:
+        logger.warning("KAP portföy dağılım raporu PDF'i indirilemedi (%s): %s", fund_code, exc)
+        return None
+    if pdf_bytes is None:
+        return None
+
+    holdings = _parse_portfolio_pdf(pdf_bytes)
+    report_date = report_period_end(disclosure["year"], disclosure["period"])
+    reference_date = as_of if as_of is not None else date.today()
+
+    return FundPortfolio(
+        fund_code=fund_code.strip().upper(),
+        report_date=report_date,
+        publish_date=disclosure["publish_date"],
+        holdings=holdings,
+        staleness_days=(reference_date - report_date).days,
+    )
+
+
 def fetch_latest_portfolio(fund_code: str) -> FundPortfolio | None:
     """Bir fonun EN GÜNCEL hisse-bazlı "Portföy Dağılım Raporu"nu KAP'tan
     çeker ve ayrıştırır.
@@ -549,16 +615,9 @@ def fetch_latest_portfolio(fund_code: str) -> FundPortfolio | None:
     fon bulunamazsa, hiç rapor yoksa, PDF indirilemezse veya ayrıştırma
     güvenilir sonuç vermezse None döner, sebep loglanır.
     """
-    try:
-        fund_row = _search_fund(fund_code)
-    except FundNotFoundError:
-        logger.warning("'%s' KAP fon aramasında bulunamadı.", fund_code)
+    fund_oid = resolve_fund_oid(fund_code)
+    if fund_oid is None:
         return None
-    except kap.KapError as exc:
-        logger.warning("KAP fon araması başarısız oldu: %s", exc)
-        return None
-
-    fund_oid = fund_row["memberOrFundOid"]
 
     try:
         disclosure = _find_latest_portfolio_disclosure(fund_oid)
@@ -570,25 +629,4 @@ def fetch_latest_portfolio(fund_code: str) -> FundPortfolio | None:
         logger.info("'%s' için KAP'ta hiç 'Portföy Dağılım Raporu' bulunamadı.", fund_code)
         return None
 
-    try:
-        pdf_bytes = _fetch_attachment_pdf(disclosure["disclosure_index"])
-    except (kap.KapError, KapFundPortfolioError) as exc:
-        logger.warning("KAP portföy dağılım raporu PDF'i indirilemedi (%s): %s", fund_code, exc)
-        return None
-
-    if pdf_bytes is None:
-        return None
-
-    holdings = _parse_portfolio_pdf(pdf_bytes)
-
-    year, month = disclosure["year"], disclosure["period"]
-    next_month_first = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
-    report_date = next_month_first - timedelta(days=1)  # raporun ait oldugu ayin son gunu
-
-    return FundPortfolio(
-        fund_code=fund_code.strip().upper(),
-        report_date=report_date,
-        publish_date=disclosure["publish_date"],
-        holdings=holdings,
-        staleness_days=(date.today() - report_date).days,
-    )
+    return fetch_portfolio_by_disclosure(fund_code, disclosure)

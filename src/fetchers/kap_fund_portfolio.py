@@ -48,15 +48,33 @@ sayısal alan) TOPLAMLARI da BİREBİR bu üç değere eşleşti:
 
 ⚠️ AMA BU ŞEMA HER FON İÇİN AYNI ÇIKMADI: TLY'nin Temmuz 2026 raporunda
 AYNI parser 5. kolon toplamını 199,77 verdi (100 olması gerekirken) --
-tek bir satır ("HMV", bir başka fon/yapıya ait görünen 99,77'lik bir
-kayıt) diğer TÜM hisselerin toplamıyla (tam 100,00) ÇAKIŞIYOR, kök neden
-bu oturumda tam çözülemedi (muhtemelen iç içe geçmiş bir fon-içinde-fon
-satırı ayrı bir alt-tabloya ait ama HİSSE SENETLERİ bölümüne karışıyor).
-Kural 3 gereği YANLIŞ rakamla devam EDİLMEDİ: `_parse_portfolio_pdf()`
-çıkardığı 5. kolon toplamının %100'e (±`_GROUP_TOTAL_TOLERANCE`) yakın
-olduğunu DOĞRULAR -- tutmuyorsa o fonun holdings'i BOŞ/None döner, hata
-FIRLATMAZ, sadece loglar (Kural 9). Bu, "bazı fonlarda çalışmıyor" riskini
-"sessizce yanlış rakam üretme" riskine TERCİH eder.
+kök neden sayfa sınırındaki bir satırın (HMV) adının bir SONRAKİ sayfanın
+başlığına taşmasıydı, sabit bir üst satır-aralığı sınırıyla (`_MAX_ROW_SPAN`)
+düzeltildi. Kural 3 gereği YANLIŞ rakamla devam EDİLMEDİ:
+`_parse_portfolio_pdf()` her bölümün grup toplamının %100'e
+(±`_GROUP_TOTAL_TOLERANCE`) yakın olduğunu DOĞRULAR -- tutmuyorsa o
+bölümün holdings'i BOŞ döner, hata FIRLATMAZ, sadece loglar (Kural 9).
+
+🚨 KULLANICI DÜZELTMESİ #2 (aynı oturum): kullanıcı raporun SADECE HİSSE
+değil, fon-içinde-fon gibi BAŞKA enstrüman türleri de içerdiğini ve
+toplamın %77,05 (sadece hisse) DEĞİL %100'e (fonun TAMAMI) tamamlanması
+gerektiğini belirtti -- HAKLI. PHE Temmuz 2026'da PDF'in "IV-FON TOPLAM
+DEĞERİ TABLOSU"su incelenince tam resim ortaya çıktı:
+  - HİSSE SENETLERİ: %77,05 (Fon Toplam Değeri'ne göre)
+  - TÜREV (VIOP Futures + Nakit Teminatı): ~%0,01 (ÇOK küçük, bu
+    oturumda AYRI bir parser YAZILMADI -- karmaşık/nadir bir yapı)
+  - DİĞER (bu örnekte "Y.Fonu Türk" -- başka fonların payları, örn.
+    "PCS-PUSULA PORTFÖY ÜÇÜNCÜ HİSSE SENEDİ SERBEST FON"): %20,60
+  - Toplam (Hisse+Türev+Diğer) = %97,66 = PDF'in kendi "A-)FON PORTFÖY
+    DEĞERİ" satırıyla BİREBİR eşleşti.
+  - Kalan %2,34 menkul kıymet DEĞİL -- fonun nakit/alacak/borç
+    kalemleri (HAZIR DEĞERLER +%0,03, ALACAKLAR +%13,89, BORÇLAR
+    -%11,58 vb.) -- tek tek "holding" olarak İZLENEMEZ, doğası gereği.
+`_parse_portfolio_pdf()` artık HEM "HİSSE SENETLERİ" HEM "DİĞER"
+bölümünü ayrıştırıyor (`instrument_type="hisse"`/`"fon"`), HER BÖLÜM
+KENDİ GRUP TOPLAMIYLA AYRI AYRI öz-doğrulanıyor (PHE'de DİĞER de %20,60
+ile BİREBİR eşleşti). TÜREV bölümü (genelde ihmal edilebilir büyüklükte)
+bu oturumda KAPSAM DIŞI bırakıldı -- gelecekte eklenebilir.
 """
 
 from __future__ import annotations
@@ -93,19 +111,29 @@ _HEADERS = {
 
 # PDF satır ayrıştırma sabitleri -- PHE (Temmuz 2026) ve TLY (Temmuz 2026)
 # raporlarıyla CANLI kalibre edildi (bkz. modül üst notu).
-_TICKER_RE = re.compile(r"^[A-ZÇĞİÖŞÜ]{2,6}\d?$")
+_STOCK_TICKER_RE = re.compile(r"^[A-ZÇĞİÖŞÜ]{2,6}\d?$")  # "AKSEN", "ALKLC" gibi
+_FUND_TICKER_RE = re.compile(r"^[A-Z]{2,6}-")  # "PCS-PUSULA..." gibi -- fon-icinde-fon satirlari
 _ISIN_RE = re.compile(r"^TR[A-Z0-9]{10,11}$")
 _PURE_INT_RE = re.compile(r"^\d{5,10}$")  # borsa sözleşme no gibi virgülsüz tam sayı -- atlanır
-_SECTION_START = "HİSSE SENETLERİ"
-_OTHER_SECTION_HEADERS = (
+_ALL_SECTION_HEADERS = (
     "BORÇLANMA SENETLERİ",
     "KİRA SERTİFİKALARI",
     "TÜREV",
     "DİĞER",
-    "REPO",
-    "TERS REPO",
-    "VIOP",
     "TAKAS",
+)
+# (bölüm başlığı, ayrıştırma başlarken aranan enstrüman tipi, satır-başlangıcı
+# ticker deseni, satır-içi dikey tolerans) -- HİSSE SENETLERİ + DİĞER
+# (fon-içinde-fon) bu oturumda ayrıştırılıyor; TÜREV (genelde ihmal
+# edilebilir büyüklükte, çok farklı bir satır yapısı) BİLİNÇLİ olarak
+# kapsam dışı (bkz. modül üst notu). Dikey tolerans CANLI kalibre edildi:
+# HİSSE bölümünde ticker/TL/sayılar TAM AYNI 'top' değerinde (tolerans 1pt
+# yeterli); DİĞER (fon) bölümünde ~2pt fark GÖZLEMLENDİ (PCS-PUSULA örneği)
+# -- tek bir ortak tolerans kullanmak HİSSE'de YANLIŞ satır birleşmelerine
+# yol açtığı için (CANLI gözlemlendi) bölüm bazında AYRI tutuluyor.
+_PARSEABLE_SECTIONS = (
+    ("HİSSE SENETLERİ", "hisse", _STOCK_TICKER_RE, 1),
+    ("DİĞER", "fon", _FUND_TICKER_RE, 3),
 )
 _GROUP_TOTAL_TOLERANCE = Decimal("2.0")  # grup toplamı %100'den en fazla bu kadar sapabilir
 
@@ -126,8 +154,8 @@ class FundNotFoundError(KapFundPortfolioError):
 
 @dataclass(frozen=True)
 class Holding:
-    instrument_type: str  # şu an SADECE "hisse" dolduruluyor (bkz. modül üst notu)
-    ticker: str | None  # hisse ise BİST kodu
+    instrument_type: str  # "hisse" | "fon" (fon-içinde-fon) -- bkz. modül üst notu; TÜREV/nakit KAPSAM DIŞI
+    ticker: str | None  # BİST kodu (hisse) veya TEFAS fon kodu (fon)
     name: str
     weight_pct: Decimal  # Fon Toplam Değeri'ne göre pay (TEFAS portfoyOrani ile AYNI anlam)
 
@@ -267,71 +295,78 @@ def _to_decimal(text: str) -> Decimal | None:
         return None
 
 
-def _extract_hisse_words(pdf: "pdfplumber.PDF") -> list[dict]:
-    """TÜM sayfalardaki kelimeleri, SADECE 'HİSSE SENETLERİ' bölümünün
+def _extract_section_words(pdf: "pdfplumber.PDF", section_start: str) -> list[dict]:
+    """TÜM sayfalardaki kelimeleri, SADECE `section_start` başlığının
     başlangıcı ile bir sonraki bilinen bölüm başlığı arasında kalanları,
     sayfa sınırları arasında da doğru sıralama korunacak şekilde
-    (her sayfaya büyük bir 'top' ofseti eklenerek) toplar."""
+    (her sayfaya büyük bir 'top' ofseti eklenerek) toplar.
+
+    `_PARSEABLE_SECTIONS`'taki HER bölüm için AYRI AYRI çağrılır -- örn.
+    "DİĞER" araması "HİSSE SENETLERİ" satırlarını YAKALAMAZ, tam tersi de
+    geçerli (section_start'ın KENDİSİ terminator listesinden çıkarılır)."""
     PAGE_OFFSET = 100_000  # tek bir sayfanın gercek yuksekligini asan guvenli bir aralik
+    terminators = [h for h in _ALL_SECTION_HEADERS if h != section_start]
+    section_words = section_start.split()  # örn. ["HİSSE","SENETLERİ"] veya ["DİĞER"]
+
     collected: list[dict] = []
     in_section = False
 
     for page_index, page in enumerate(pdf.pages):
         words = page.extract_words()
         page_text = page.extract_text() or ""
-        if not in_section and _SECTION_START not in page_text:
+        if not in_section and section_start not in page_text:
             continue
 
         for word in words:
             text = word["text"]
             if not in_section:
-                if text in ("HİSSE", "SENETLERİ") and _SECTION_START in page_text:
-                    # basit bir yaklasim: bu sayfada bolum basliyor, basligin
-                    # gectigi satirdan itibaren toplamaya basla
+                if text in section_words and section_start in page_text:
                     in_section = True
                 else:
                     continue
-            if any(header in text for header in ("BORÇLANMA", "TÜREV", "DİĞER", "TAKAS")):
+            if any(header.split()[0] in text for header in terminators):
                 in_section = False
                 continue
             adjusted = dict(word)
             adjusted["top"] = word["top"] + page_index * PAGE_OFFSET
             collected.append(adjusted)
 
-        if not in_section:
-            # bolum bu sayfada kapandiysa sonraki sayfalari tarama
-            if collected:
-                break
+        if not in_section and collected:
+            break  # bolum bu sayfada kapandiysa sonraki sayfalari tarama
 
     return collected
 
 
-def _parse_portfolio_pdf(pdf_bytes: bytes) -> list[Holding]:
-    """PDF'teki 'HİSSE SENETLERİ' tablosunu satır satır ayrıştırır ve
-    her benzersiz (ticker, ISIN) için lot'ları toplayarak NET ağırlığı
-    hesaplar.
+# Bir satirin (isim + ISIN dahil) en fazla ~10 satir/120pt kadar surmesi
+# beklenir (en uzun isim bile CANLI ornekte 5-6 satirdan kisaydi) -- bu ust
+# sinir olmadan, bir BOLUMUN SON satiri icin bir sonraki satir bulunamayinca
+# (idx+1 yok) araligin bir SONRAKI SAYFANIN basligina/sutun basliklarina
+# TASMASI riski var (CANLI gozlemlendi: PHE'de BALSU, TLY'de HMV).
+_MAX_ROW_SPAN = 120
+
+
+def _parse_section_rows(words: list[dict], ticker_re: re.Pattern, instrument_type: str, row_tolerance: int = 1) -> list[Holding]:
+    """Bir bölümün (HİSSE SENETLERİ veya DİĞER) kelime listesini satır
+    satır ayrıştırır, her benzersiz (ticker, ISIN) için lot'ları toplayarak
+    NET ağırlığı hesaplar.
 
     Öz-doğrulama (Kural 3): "GRUP %" kolonunun (her zaman kendi grubu
     içinde toplamı %100 olması gereken kolon) toplamı `_GROUP_TOTAL_TOLERANCE`
-    içinde değilse (bkz. modül üst notu, TLY örneği) BOŞ liste döner --
-    yanlış/güvenilmez rakam üretmek yerine hiç veri döndürmemeyi tercih eder.
+    içinde değilse BOŞ liste döner -- yanlış/güvenilmez rakam üretmek
+    yerine hiç veri döndürmemeyi tercih eder.
     """
-    try:
-        with pdfplumber.open(BytesIO(pdf_bytes)) as pdf:
-            words = _extract_hisse_words(pdf)
-    except Exception as exc:  # pdfplumber bozuk/beklenmeyen bir PDF'te cesitli hatalar firlatabilir
-        logger.warning("KAP portföy dağılım PDF'i açılamadı/ayrıştırılamadı: %s", exc)
-        return []
-
     if not words:
-        logger.info("PDF'te 'HİSSE SENETLERİ' bölümü bulunamadı (fon hiç hisse tutmuyor olabilir).")
         return []
 
     row_starts = []
     for i, word in enumerate(words):
-        if 18 <= word["x0"] <= 22 and _TICKER_RE.match(word["text"]):
+        if 18 <= word["x0"] <= 22 and ticker_re.match(word["text"]):
             for candidate in words[i : i + 3]:
-                if abs(candidate["top"] - word["top"]) < 1 and 99 <= candidate["x0"] <= 102 and candidate["text"] == "TL":
+                if (
+                    abs(candidate["top"] - word["top"]) < row_tolerance
+                    and 99 <= candidate["x0"] <= 102
+                    and candidate["text"] == "TL"
+                ):
                     row_starts.append(i)
                     break
 
@@ -339,31 +374,26 @@ def _parse_portfolio_pdf(pdf_bytes: bytes) -> list[Holding]:
     aggregated: dict[tuple[str, str], Decimal] = {}
     names: dict[tuple[str, str], str] = {}
 
-    # Bir satirin (hisse adi + ISIN dahil) en fazla ~10 satir/80pt kadar
-    # surmesi beklenir (en uzun sirket adi bile CANLI ornekte 5 satirdan
-    # kisaydi) -- bu ust sinir olmadan, SECTION'daki SON satir icin bir
-    # sonraki satir bulunamayinca (idx+1 yok) araligin bir SONRAKI SAYFANIN
-    # basligina/tablo sutun basliklarina TASMASI riski var (CANLI gozlemlendi,
-    # PHE'de BALSU son satiriydi ve adi sayfa 2'nin basligiyla karisiyordu).
-    _MAX_ROW_SPAN = 120
     for idx, start_i in enumerate(row_starts):
         start_top = words[start_i]["top"]
         natural_end = words[row_starts[idx + 1]]["top"] if idx + 1 < len(row_starts) else start_top + _MAX_ROW_SPAN
-        # Bir sonraki satir SAYFA ATLAYARAK geliyorsa (PAGE_OFFSET nedeniyle
-        # cok buyuk bir 'top' farki olusur) dogal sinir yerine sabit ust
-        # sinir kullanilir -- aksi halde sayfa sonu/basi bosluğundaki
-        # tekrarlanan belge basligi/sutun basliklari isme KARISIR (CANLI
-        # gozlemlendi: PHE'de BALSU, sayfa 1'in son satiriydi).
         end_top = min(natural_end, start_top + _MAX_ROW_SPAN)
         block = [w for w in words if start_top - 3 <= w["top"] < end_top]
 
-        ticker = words[start_i]["text"]
+        raw_ticker = words[start_i]["text"]
+        ticker = raw_ticker.split("-")[0]  # fon satırlarında "PCS-PUSULA..." -> "PCS"
         isin = next((w["text"] for w in block if _ISIN_RE.match(w["text"])), None)
         if isin is None:
             continue
 
-        first_line = [w for w in block if abs(w["top"] - start_top) < 1 and w["x0"] > 110]
-        first_line = [w for w in first_line if not _PURE_INT_RE.match(w["text"]) and not _ISIN_RE.match(w["text"])]
+        first_line = [w for w in block if abs(w["top"] - start_top) < row_tolerance and w["x0"] > 110]
+        first_line = [
+            w
+            for w in first_line
+            if not _PURE_INT_RE.match(w["text"])
+            and not _ISIN_RE.match(w["text"])
+            and any(ch.isdigit() for ch in w["text"])  # "PUSULA" gibi metin (kurucu adının basi) sayisal DEGIL -- atlanir
+        ]
         first_line.sort(key=lambda w: w["x0"])
         if len(first_line) != 8:
             continue  # beklenmeyen kolon sayisi -- bu satiri guvenilir sekilde ayristiramiyoruz (Kural 3)
@@ -372,7 +402,10 @@ def _parse_portfolio_pdf(pdf_bytes: bytes) -> list[Holding]:
         name_words = [
             w
             for w in block
-            if start_top - 3 <= w["top"] < name_end_top and 108 < w["x0"] < 350 and not _ISIN_RE.match(w["text"]) and w["text"] != "TL"
+            if start_top - 3 <= w["top"] < name_end_top
+            and 108 < w["x0"] < 350
+            and not _ISIN_RE.match(w["text"])
+            and w["text"] != "TL"
         ]
         name_words.sort(key=lambda w: (w["top"], w["x0"]))
         name = " ".join(w["text"] for w in name_words).strip()
@@ -388,18 +421,50 @@ def _parse_portfolio_pdf(pdf_bytes: bytes) -> list[Holding]:
         if name:
             names[key] = name
 
+    if not aggregated:
+        return []
+
     if abs(group_pct_total - Decimal(100)) > _GROUP_TOTAL_TOLERANCE:
         logger.warning(
-            "KAP portföy dağılım PDF'inin 'HİSSE SENETLERİ' grup toplamı beklenenden (%%100) "
-            "sapıyor (%s) -- ayrıştırma bu fon için GÜVENİLİR DEĞİL, boş liste dönüyor (Kural 3).",
+            "KAP portföy dağılım PDF'inin '%s' bölümü grup toplamı beklenenden (%%100) "
+            "sapıyor (%s) -- ayrıştırma bu bölüm için GÜVENİLİR DEĞİL, boş liste dönüyor (Kural 3).",
+            instrument_type,
             group_pct_total,
         )
         return []
 
     return [
-        Holding(instrument_type="hisse", ticker=ticker, name=names.get((ticker, isin), ""), weight_pct=weight)
+        Holding(instrument_type=instrument_type, ticker=ticker, name=names.get((ticker, isin), ""), weight_pct=weight)
         for (ticker, isin), weight in sorted(aggregated.items(), key=lambda kv: -kv[1])
     ]
+
+
+def _parse_portfolio_pdf(pdf_bytes: bytes) -> list[Holding]:
+    """PDF'teki ayrıştırılabilir bölümleri (`_PARSEABLE_SECTIONS` --
+    HİSSE SENETLERİ + DİĞER/fon-içinde-fon) satır satır ayrıştırır. HER
+    BÖLÜM kendi grup toplamıyla AYRI AYRI öz-doğrulanır (bkz.
+    `_parse_section_rows`) -- bir bölüm güvenilmez çıkarsa SADECE o bölüm
+    atlanır, diğerleri yine döner.
+
+    ⚠️ Sonucun toplamı fonun TAMAMINI (%100) KAPSAMAYABİLİR: TÜREV
+    (genelde ihmal edilebilir) bu oturumda ayrıştırılmıyor, ayrıca
+    fonun nakit/alacak/borç kalemleri (menkul kıymet OLMAYAN kısım)
+    doğası gereği "holding" olarak izlenemez (bkz. modül üst notu).
+    """
+    try:
+        with pdfplumber.open(BytesIO(pdf_bytes)) as pdf:
+            all_holdings: list[Holding] = []
+            for section_start, instrument_type, ticker_re, row_tolerance in _PARSEABLE_SECTIONS:
+                words = _extract_section_words(pdf, section_start)
+                if not words:
+                    logger.info("PDF'te '%s' bölümü bulunamadı.", section_start)
+                    continue
+                all_holdings.extend(_parse_section_rows(words, ticker_re, instrument_type, row_tolerance))
+    except Exception as exc:  # pdfplumber bozuk/beklenmeyen bir PDF'te cesitli hatalar firlatabilir
+        logger.warning("KAP portföy dağılım PDF'i açılamadı/ayrıştırılamadı: %s", exc)
+        return []
+
+    return sorted(all_holdings, key=lambda h: -h.weight_pct)
 
 
 # --- Genel API -----------------------------------------------------

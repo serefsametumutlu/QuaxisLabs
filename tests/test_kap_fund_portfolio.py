@@ -222,32 +222,79 @@ def test_fetch_attachment_pdf_pdf_disinda_dosyayi_atlar(monkeypatch):
 # --- _parse_portfolio_pdf (GERÇEK PDF fixture ile) --------------------------------------------
 
 
-def test_parse_portfolio_pdf_gercek_rapor_grup_toplamiyla_esler():
-    """CANLI doğrulama (Kural 3): PHE Temmuz 2026 raporunun kendi 'GRUP
-    TOPLAMI' satırı 21 hisse için %77,05 (Fon Toplam Değeri'ne göre)
-    veriyor -- parser'ın çıktısı bununla BİREBİR eşleşmeli."""
+def test_parse_portfolio_pdf_gercek_rapor_grup_toplamlariyla_esler():
+    """CANLI doğrulama (Kural 3): PHE Temmuz 2026 raporunun 'HİSSE
+    SENETLERİ' bölümü 21 satır/%77,05, 'DİĞER' (fon-içinde-fon) bölümü
+    4 satır/%20,60 (Fon Toplam Değeri'ne göre) veriyor -- ikisi de
+    PDF'in KENDİ 'GRUP TOPLAMI' satırlarıyla BİREBİR eşleşmeli. Toplam
+    (%97,65) fonun "FON PORTFÖY DEĞERİ" (%97,66, PDF'in IV. tablosu)
+    ile ~1 baz puan farkla (yuvarlama) tutarlı -- kalan kısım nakit/
+    alacak/borç kalemleri, tek tek "holding" olarak izlenmez (bkz.
+    modül üst notu)."""
     holdings = kfp._parse_portfolio_pdf(PHE_PDF_BYTES)
 
-    assert len(holdings) == 21
-    assert all(h.instrument_type == "hisse" for h in holdings)
-    assert sum(h.weight_pct for h in holdings) == Decimal("77.05")
+    hisse = [h for h in holdings if h.instrument_type == "hisse"]
+    fon = [h for h in holdings if h.instrument_type == "fon"]
 
-    by_ticker = {h.ticker: h for h in holdings}
+    assert len(hisse) == 21
+    assert sum(h.weight_pct for h in hisse) == Decimal("77.05")
+    assert len(fon) == 4
+    assert sum(h.weight_pct for h in fon) == Decimal("20.60")
+
+    by_ticker = {h.ticker: h for h in hisse}
     assert by_ticker["ODINE"].weight_pct == Decimal("14.50")
     assert by_ticker["ODINE"].name == "ODİNE SOLUTİON S TEKNOLOJİ TİCARET VE SANAYİ A.Ş."
+
+    fon_tickers = {h.ticker for h in fon}
+    assert fon_tickers == {"PCS", "PDG", "PKZ", "PRY"}
 
 
 def test_parse_portfolio_pdf_gecersiz_pdf_bos_liste_doner():
     assert kfp._parse_portfolio_pdf(b"gecerli bir PDF degil") == []
 
 
-def test_parse_portfolio_pdf_grup_toplami_tutmuyorsa_bos_liste_doner(monkeypatch):
-    """Kural 3: grup toplamı %100'den (±tolerans) saparsa güvenilmez
-    sayılır, yanlış rakam üretmek yerine boş liste döner."""
-    monkeypatch.setattr(kfp, "_GROUP_TOTAL_TOLERANCE", Decimal("0.001"))
-    monkeypatch.setattr(kfp, "_extract_hisse_words", lambda pdf: [])
+def _fake_word(text: str, x0: float, top: float) -> dict:
+    return {"text": text, "x0": x0, "top": top}
 
-    assert kfp._parse_portfolio_pdf(PHE_PDF_BYTES) == []
+
+def _fake_hisse_row(top: float, ticker: str, isin: str, group_pct: str, weight_pct: str) -> list[dict]:
+    """Tek bir hisse satırının (ad hariç) minimal kelime listesini üretir --
+    `_parse_section_rows`'un beklediği 8 sayısal alan + ISIN + ticker+TL
+    başlangıç işaretiyle."""
+    return [
+        _fake_word(ticker, 20.0, top),
+        _fake_word("TL", 100.4, top),
+        _fake_word("1.000,00", 368.3, top),
+        _fake_word("10,000000", 426.0, top),
+        _fake_word("01/07/26", 466.9, top),
+        _fake_word("10,000000", 718.9, top),
+        _fake_word("10.000,00", 762.5, top),
+        _fake_word(group_pct, 836.4, top),
+        _fake_word("50,00", 866.4, top),
+        _fake_word(weight_pct, 896.4, top),
+        _fake_word(isin, 225.3, top + 6),
+    ]
+
+
+def test_parse_section_rows_grup_toplami_tutmuyorsa_bos_liste_doner():
+    """Kural 3: sentetik bir satırda GRUP (%) kolonu tek başına %50 --
+    grup toplamı %100'e (±tolerans) yakın olmadığı için güvenilmez
+    sayılır, yanlış rakam üretmek yerine boş liste döner."""
+    words = _fake_hisse_row(100.0, "TESTA", "TRTESTA00011", group_pct="50,00", weight_pct="40,00")
+
+    holdings = kfp._parse_section_rows(words, kfp._STOCK_TICKER_RE, "hisse")
+
+    assert holdings == []
+
+
+def test_parse_section_rows_grup_toplami_tutuyorsa_holding_doner():
+    words = _fake_hisse_row(100.0, "TESTA", "TRTESTA00011", group_pct="100,00", weight_pct="40,00")
+
+    holdings = kfp._parse_section_rows(words, kfp._STOCK_TICKER_RE, "hisse")
+
+    assert len(holdings) == 1
+    assert holdings[0].ticker == "TESTA"
+    assert holdings[0].weight_pct == Decimal("40.00")
 
 
 # --- fetch_latest_portfolio (uçtan uca, mock'lu) --------------------------------------------
@@ -290,7 +337,7 @@ def test_fetch_latest_portfolio_uctan_uca(monkeypatch):
     assert result.report_date == date(2026, 7, 31)
     assert result.publish_date == date(2026, 8, 5)
     assert result.staleness_days == (date.today() - date(2026, 7, 31)).days
-    assert len(result.holdings) == 21
+    assert len(result.holdings) == 25  # 21 hisse + 4 fon-içinde-fon
 
 
 def test_fetch_latest_portfolio_fon_bulunamazsa_none_doner(monkeypatch):

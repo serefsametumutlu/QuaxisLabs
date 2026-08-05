@@ -888,9 +888,21 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       hisseyle uçtan uca doğrulandı). Test: `pytest tests/` (884 test,
       GERÇEK bir KAP PDF'i test fixture'ı olarak kullanılıyor —
       `tests/fixtures/kap_portfoy_dagilim_phe_2026_07.pdf`, ağ isteği
-      YOK). Faz 18 notu: getiri tahmini için hisse fiyatları da
-      gerekecek — bunlar ücretsiz kaynaklarla ancak 15 dk gecikmeli
-      çekilebilir (KAP'ın kendisi değil, BIST fiyat verisi gecikmeli).
+      YOK). **3. tur (kullanıcı düzeltmesi #2):** kullanıcı raporun
+      SADECE hisse değil fon-içinde-fon gibi başka enstrümanlar da
+      içerdiğini, toplamın %77,05 değil (mümkün olduğunca) %100'e
+      yaklaşması gerektiğini belirtti — PDF'in "IV-FON TOPLAM DEĞERİ
+      TABLOSU"su incelenip parser "DİĞER" (fon-içinde-fon,
+      `instrument_type="fon"`) bölümünü de ayrıştıracak şekilde
+      genişletildi; PHE'de Hisse (%77,05) + Fon (%20,60) = %97,65 —
+      PDF'in kendi "FON PORTFÖY DEĞERİ" (%97,66) rakamıyla ~1 baz puan
+      farkla (yuvarlama) tutarlı. Kalan ~%2,3 nakit/alacak-borç kalemi
+      doğası gereği "holding" olarak izlenemez. TÜREV (VIOP/futures,
+      genelde ihmal edilebilir büyüklükte) bilinçli olarak kapsam
+      dışında bırakıldı. 885 test, hepsi yeşil. Faz 18 notu: getiri
+      tahmini için hisse/fon fiyatları da gerekecek — bunlar ücretsiz
+      kaynaklarla ancak 15 dk gecikmeli çekilebilir (KAP'ın raporu
+      değil, BIST/TEFAS fiyat verisi gecikmeli).
 
 ## Dizin Yapisi
 

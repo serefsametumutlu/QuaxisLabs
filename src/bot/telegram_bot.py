@@ -762,6 +762,44 @@ async def _gonder_thread_gonderileri(
         logger.exception("istek ticker=%s: thread 4. gönderisi (skor detayı) gönderilemedi", ticker)
 
 
+# --- X/Twitter Teaser Kartı (Faz 14) -----------------------------------------------------
+
+
+async def _gonder_teaser(chat_id: int, context: ContextTypes.DEFAULT_TYPE, sonuc: pipeline.PipelineResult, market: str) -> None:
+    """X/Twitter akışında TIKLANMADAN (16:9, kırpılmadan) okunabilen
+    'teaser' kartı üretir ve ANA karttan AYRI bir fotoğraf olarak gönderir
+    -- roadmap notu: "İKİ görsel gönderilsin: teaser + detay kart".
+    Sektöre göre 4 context builder'dan (sanayi/US_GAAP paylaşımlı, banka,
+    sigorta) doğrusu seçilir -- build_card_context() ailesinin market/tip
+    dallanmasıyla AYNI mantık (bkz. pipeline.run_pipeline).
+
+    İkincil bir görsel olduğu için (Kural 9) hata SADECE loglanır, ana
+    kart/thread akışını BLOKE ETMEZ (çağıran taraf zaten kendi
+    try/except'i içinde çağırır)."""
+    if isinstance(sonuc.analysis, calculator.BankAnalysisResult):
+        teaser_context = card.build_bank_teaser_context(
+            sonuc.analysis, sonuc.score, sonuc.commentary, company_name=sonuc.company_name, price=sonuc.price
+        )
+    elif isinstance(sonuc.analysis, calculator.InsuranceAnalysisResult):
+        teaser_context = card.build_insurance_teaser_context(
+            sonuc.analysis, sonuc.score, sonuc.commentary, company_name=sonuc.company_name, price=sonuc.price
+        )
+    elif market == "NASDAQ":
+        teaser_context = card.build_teaser_context(
+            sonuc.analysis, sonuc.score, sonuc.commentary, company_name=sonuc.company_name, price=sonuc.price,
+            market="NASDAQ", currency_symbol="$", data_sources_note="SEC EDGAR (XBRL)",
+        )
+    else:
+        teaser_context = card.build_teaser_context(
+            sonuc.analysis, sonuc.score, sonuc.commentary, company_name=sonuc.company_name, price=sonuc.price
+        )
+
+    out_path = config.DATA_DIR / "cards" / f"{sonuc.ticker}_teaser.png"
+    png_path = await asyncio.to_thread(card.render_card, teaser_context, str(out_path), "teaser_card.html", "#teaser-card")
+    caption = f"📤 X/Twitter için hazır (16:9) · #{sonuc.ticker} · Radar Skoru {teaser_context['score_total_display']}/10"
+    await _send_card_photo(context, chat_id, png_path, caption)
+
+
 async def _execute_and_send(
     ticker: str,
     update: Update,
@@ -890,6 +928,15 @@ async def _execute_and_send(
         # notu) send_message'a HIC ULASILMIYORDU. Artik HER gonderi KENDI
         # try/except'i icinde -- biri basarisiz olsa bile digerleri yine de
         # denenir (bkz. _gonder_thread_gonderileri, Faz 16.4).
+        # Faz 14: teaser (16:9) DETAY karttan ÖNCE gönderilir -- kullanıcı
+        # X'e atacağı görseli en üstte/ilk bulsun. İkincil bir görsel
+        # olduğu için (Kural 9) kendi try/except'i içinde -- başarısız
+        # olursa SADECE loglanır, detay kart/thread akışı ETKİLENMEZ.
+        try:
+            await _gonder_teaser(chat_id, context, sonuc, market)
+        except Exception:
+            logger.exception("istek user=%s ticker=%s: teaser kartı gönderilemedi (detay kart yine de denenecek)", user_id, ticker)
+
         try:
             await _send_card_photo(context, chat_id, sonuc.png_path, _thread_post_1_kanca(sonuc))
         except Exception:

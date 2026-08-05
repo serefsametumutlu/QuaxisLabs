@@ -546,6 +546,29 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       dokunuşla yeni arama" butonları eklendi (kullanıcı geri bildirimi: menü
       akışı çok adımlıydı). Test: `pytest tests/` (594 test, 28 yeni, hiçbir
       regresyon yok).
+- [x] **Faz 14 (X/Twitter Teaser Kartı, 16:9, 2026-08-05)** — Roadmap'in
+      ana zincirindeki (9→10→11→12→13→14) eksik halkası: mevcut ana kart
+      (dikey, ~2080px) X akışında 16:9'a kırpılıp okuma süresini
+      sıfırlıyordu. `src/render/templates/teaser_card.html` (1600×900,
+      cihaz ölçeği 2x → 3200×1800): sol logo+TICKER (~108px) + şirket adı
+      + dönem + fiyat, sağ Radar Skoru dev punto (~210px), alt şeritte 3
+      metrik kutusu (Satışlar/FAVÖK/Net Kâr YoY — banka/sigortada Faiz
+      Geliri/Faaliyet Kârı, Prim Üretimi/Teknik Denge karşılıklarıyla),
+      tek cümlelik hüküm + yasal uyarı. Roadmap kuralı: en fazla 7 sayı
+      (skor+fiyat+3 metrik = 5). `card.py`: `build_teaser_context()`
+      (sanayi+US_GAAP paylaşımlı) + `build_bank_teaser_context()` +
+      `build_insurance_teaser_context()`, ortak alanlar `_teaser_base_
+      fields()`'ta (kopyala-yapıştır yok); `_line_item_row()`'un renk
+      mantığı paylaşılan `_item_color_class()`'a çıkarıldı. `pipeline.
+      PipelineResult`'a `price` alanı eklendi (teaser'ın ikinci bir fiyat
+      isteği atmasına gerek kalmasın diye). Telegram: `_gonder_teaser()`
+      detay karttan ÖNCE gönderilir, ikincil olduğu için kendi try/
+      except'i içinde (başarısız olursa detay kart/thread akışı
+      etkilenmez). X paylaşımına hazır metin zaten mevcut thread
+      post'larıyla (Bölüm 3 kalıp ①'e uygun, "Sizce bu skor adil mi?"
+      ile biten) karşılanıyordu — yeniden icat edilmedi. CANLI THYAO
+      (sanayi) ve GARAN (banka) ile doğrulandı. `pytest tests/ -q` →
+      **942 test, hepsi yeşil** (yeni: `test_teaser_card.py`, 13 test).
 - [x] **Faz 15 (Teknik Analiz Katmanı ve Kartı, 2026-08-03)** — BİST/NASDAQ
       için ayrı bir **teknik görünüm** hattı: `src/fetchers/price_history.py`
       (`fetch_ohlcv()`) BİST'te İş Yatırım HisseTekil'in düzeltilmiş

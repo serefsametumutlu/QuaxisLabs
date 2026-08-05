@@ -201,6 +201,12 @@ class PipelineResult:
     png_path: str
     company_name: str
     sector: str | None
+    # Faz 14 (X teaser kartı) icin eklendi -- ana kart zaten `price`'i
+    # build_*_card_context()'e geciriyordu ama run_pipeline() donduginde
+    # bu yerel degisken KAYBOLUYORDU; teaser karti AYRI bir fiyat cekme
+    # istegine gerek KALMADAN (ikincil veri, Kural 9) burada tekrar
+    # kullanabilsin diye PipelineResult'a eklendi.
+    price: Decimal | None = None
 
 
 def quarter_label(period: Period, annual_only: bool = False) -> str:
@@ -1479,7 +1485,7 @@ def run_pipeline(ticker: str, *, periods: list[Period] | None = None, market: st
 
     return PipelineResult(
         ticker=ticker, analysis=analysis, score=score, commentary=yorum,
-        png_path=png_path, company_name=company_name, sector=sector,
+        png_path=png_path, company_name=company_name, sector=sector, price=price,
     )
 
 

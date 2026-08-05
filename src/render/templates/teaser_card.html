@@ -1,0 +1,158 @@
+<!--
+  Bilanco Radar X/Twitter TEASER karti (Faz 14) -- 16:9, X akisinda
+  TIKLANMADAN (kirpilmadan) okunabilsin diye ANA karttan (card.html,
+  dikey/yogun) KASITLI olarak COK daha az bilgi tasir.
+
+  MUTLAK KURAL (roadmap): kartta EN FAZLA 7 SAYI. Tipografi ana karttan
+  EN AZ 2 KAT buyuk, bosluk comert. HICBIR sayi/formatlama HESAPLANMAZ --
+  src.render.card.build_teaser_context() (+ banka/sigorta karsiliklari)
+  ONCEDEN bicimlendirir.
+-->
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>{{ ticker }} · Radar Skoru {{ score_total_display }}</title>
+<style>
+  :root {
+    --bg: #0a0e12;
+    --panel: rgba(255, 255, 255, 0.03);
+    --panel-strong: rgba(255, 255, 255, 0.05);
+    --border: rgba(226, 232, 240, 0.10);
+    --heading: #e2e8f0;
+    --secondary: #64748b;
+    --positive: #22c55e;
+    --negative: #ef4444;
+    --neutral: #94a3b8;
+    --accent: #2dd4bf;
+    --mixed: #f97316;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); }
+
+  .teaser-card {
+    position: relative;
+    width: 1600px;
+    height: 900px;
+    background: radial-gradient(circle at 8% -10%, rgba(45, 212, 191, 0.07), transparent 42%),
+      radial-gradient(circle at 100% 0%, rgba(34, 197, 94, 0.05), transparent 38%),
+      var(--bg);
+    color: var(--heading);
+    font-family: "Cascadia Code", "Cascadia Mono", Consolas, "JetBrains Mono", "IBM Plex Mono",
+      "SFMono-Regular", Menlo, Monaco, ui-monospace, monospace;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    padding: 48px 56px 36px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 34px;
+  }
+
+  .scanlines {
+    position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.018) 0px, rgba(255,255,255,0.018) 1px, transparent 1px, transparent 3px);
+    mix-blend-mode: overlay;
+  }
+
+  .badge-saglam-text { color: var(--positive); }
+  .badge-dengeli-text { color: var(--accent); }
+  .badge-karisik-text { color: var(--mixed); }
+  .badge-riskli-text { color: var(--negative); }
+  .badge-yetersiz-text { color: var(--secondary); }
+
+  /* --- Ust sira: sol (kimlik) / sag (skor) --- */
+  .top-row { display: flex; justify-content: space-between; align-items: center; }
+
+  .left-block { display: flex; flex-direction: column; gap: 14px; }
+  .ticker-row { display: flex; align-items: center; gap: 20px; }
+  .ticker-logo { height: 100px; width: 100px; border-radius: 20px; object-fit: contain; background: var(--panel); border: 1px solid var(--border); }
+  .ticker-text { font-size: 108px; font-weight: 800; letter-spacing: 1px; line-height: 1; color: var(--heading); }
+  .company-name { font-size: 26px; color: var(--secondary); font-weight: 600; max-width: 700px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .meta-row { display: flex; align-items: center; gap: 16px; }
+  .period-badge {
+    display: inline-flex; align-items: center; padding: 6px 18px; border: 1px solid var(--border);
+    border-radius: 999px; background: var(--panel); font-size: 20px; font-weight: 700; color: var(--heading);
+  }
+  .price { font-size: 24px; font-weight: 700; color: var(--heading); }
+
+  .right-block { text-align: center; padding: 0 20px; }
+  .score-value { font-size: 210px; font-weight: 800; line-height: 1; letter-spacing: -2px; }
+  .score-badge-text { font-size: 30px; font-weight: 800; letter-spacing: 1px; margin-top: 4px; }
+
+  /* --- Alt serit: 3 metrik kutusu --- */
+  .metrics-row { display: flex; gap: 20px; }
+  .metric-box {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+    padding: 20px 10px; border-radius: 16px; border: 1px solid var(--border); background: var(--panel-strong);
+  }
+  .metric-label { font-size: 18px; letter-spacing: 1.5px; color: var(--secondary); font-weight: 700; }
+  .metric-value { font-size: 44px; font-weight: 800; }
+  .metric-value.positive { color: var(--positive); }
+  .metric-value.negative { color: var(--negative); }
+  .metric-value.neutral { color: var(--neutral); }
+
+  /* --- Hukum satiri --- */
+  .headline-row {
+    font-size: 30px; font-weight: 700; line-height: 1.35; color: var(--heading);
+    padding: 0 4px; flex-shrink: 0;
+  }
+
+  /* --- Alt bant --- */
+  .bottom-row { display: flex; justify-content: space-between; align-items: center; padding-top: 6px; border-top: 1px solid var(--border); }
+  .disclaimer { font-size: 15px; color: var(--secondary); max-width: 950px; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-logo { height: 34px; width: 34px; border-radius: 50%; }
+  .brand-text { font-size: 20px; font-weight: 800; color: var(--heading); }
+</style>
+</head>
+<body>
+<div id="teaser-card" class="teaser-card">
+  <div class="scanlines"></div>
+
+  <div class="top-row">
+    <div class="left-block">
+      <div class="ticker-row">
+        {% if company_logo_data_uri %}
+        <img class="ticker-logo" src="{{ company_logo_data_uri }}" alt="{{ ticker }}">
+        {% endif %}
+        <span class="ticker-text">{{ ticker }}</span>
+      </div>
+      <div class="company-name">{{ company_name }}</div>
+      <div class="meta-row">
+        <span class="period-badge">{{ period_label }}</span>
+        {% if price_display %}<span class="price">{{ price_display }}</span>{% endif %}
+      </div>
+    </div>
+    <div class="right-block">
+      {% if score_data_sufficient %}
+      <div class="score-value badge-{{ score_badge_class }}-text">{{ score_total_display }}</div>
+      {% else %}
+      <div class="score-value badge-{{ score_badge_class }}-text">—</div>
+      {% endif %}
+      <div class="score-badge-text badge-{{ score_badge_class }}-text">{{ score_badge }}</div>
+    </div>
+  </div>
+
+  <div class="metrics-row">
+    {% for m in metrics %}
+    <div class="metric-box">
+      <div class="metric-label">{{ m.label }}</div>
+      <div class="metric-value {{ m.color_class }}">{{ m.display }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="headline-row">{{ headline }}</div>
+
+  <div class="bottom-row">
+    <div class="disclaimer">{{ disclaimer }}</div>
+    <div class="brand">
+      <img class="brand-logo" src="{{ logo_data_uri }}" alt="QuaxisLabs">
+      <span class="brand-text">@QuaxisLabs</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>

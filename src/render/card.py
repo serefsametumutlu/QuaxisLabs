@@ -200,6 +200,32 @@ def _ratio_or_na(value: Decimal | None, decimals: int = 2, suffix: str = "") -> 
     return f"{format_number_tr(value, decimals=decimals)}{suffix}" if value is not None else "N/A"
 
 
+def _item_color_class(item: calculator.LineItemChange, *, lower_is_better: bool = False) -> str:
+    """`_line_item_row()`'dan (Faz 14'te `build_teaser_context()` ile de
+    PAYLAŞILSIN diye) çıkarılan renk mantığı -- kopyala-yapıştır yerine
+    ortak yardımcı (proje ilkesi, bkz. 01_MIMARI.md).
+
+    Renk, öncelikle YÜZDENİN KENDİ İŞARETİNE göre belirlenir (kullanıcı
+    geri bildirimi: "pozitifler yeşil, negatifler kırmızı olmalı" -- eski
+    mantık YATAY (|değişim|<%5) etiketini HER ZAMAN nötr/gri boyuyordu).
+    percent_change None ise (geçiş etiketleri: zarardan kâra geçti/kârdan
+    zarara geçti, ya da veri yok) etikete göre renklendirilir (bkz.
+    `_LABEL_COLOR_CLASS`).
+
+    CANLI hata (kullanıcı raporu, Fintables karşılaştırması): Net Borç
+    için AZALIŞ İYİ (daha az borç/daha fazla net nakit) haberdir --
+    `lower_is_better=True` (SADECE net_debt satırı için) işareti TERSİNE
+    çevirir."""
+    if item.percent_change is not None:
+        sign = -item.percent_change if lower_is_better else item.percent_change
+        if sign > 0:
+            return "positive"
+        if sign < 0:
+            return "negative"
+        return "neutral"
+    return _LABEL_COLOR_CLASS.get(item.change_label, "neutral")
+
+
 def _line_item_row(
     item: calculator.LineItemChange | None,
     *,
@@ -233,34 +259,7 @@ def _line_item_row(
         change_display = format_percent_tr(item.percent_change)
     else:
         change_display = item.change_label
-    # Renk, oncelikle YUZDENIN KENDI ISARETINE gore belirlenir (kullanici
-    # geri bildirimi: "pozitifler yesil, negatifler kirmizi olmali" -- eski
-    # mantik YATAY (|degisim|<%5) etiketini HER ZAMAN notr/gri boyuyordu,
-    # bu da orn. "%-2,1" gibi KUCUK ama yine de EKSI bir yuzdenin gri
-    # gorunmesine (bazi negatiflerin kirmizi, bazilarinin gri gorunmesine)
-    # yol aciyordu. percent_change sayisal bir deger oldugu surece isareti
-    # NET'tir (ARTIS/AZALIS/GUCLU_ARTIS/SERT_DUSUS/YATAY etiketinden BAGIMSIZ
-    # olarak dogrudan +/- kullanilir); percent_change None ise (ozel gecis
-    # etiketleri: zarardan kara gecti / kara karsin zarar, ya da veri yok)
-    # bu durumda etikete gore renklendirilir (bkz. _LABEL_COLOR_CLASS).
-    #
-    # CANLI hata (kullanici raporu, Fintables karsilastirmasi): Net Borc
-    # icin AZALIS iyi (daha az borc/daha fazla net nakit) haberdir, ama bu
-    # mantik ARTIS=yesil/AZALIS=kirmizi varsayimini KOSULSUZ uyguluyordu --
-    # orn. net borc %-103 (daha da negatife, yani daha fazla net nakde)
-    # gitmisken KIRMIZI gosteriliyordu, Fintables ise (dogru sekilde) YESIL
-    # gosteriyor. `lower_is_better=True` (SADECE net_debt satiri icin)
-    # isareti TERSINE cevirir.
-    if item.percent_change is not None:
-        sign = -item.percent_change if lower_is_better else item.percent_change
-        if sign > 0:
-            color_class = "positive"
-        elif sign < 0:
-            color_class = "negative"
-        else:
-            color_class = "neutral"
-    else:
-        color_class = _LABEL_COLOR_CLASS.get(item.change_label, "neutral")
+    color_class = _item_color_class(item, lower_is_better=lower_is_better)
     # CANLI hata (kullanici raporu): guncel donem degeri (gelir tablosu VE
     # bilanco) HER ZAMAN duz/beyaz gosterilmeli, eski donem (comparison) HER
     # ZAMAN gri ("secondary", bkz. card.html) -- rengi tasiyan tek sutun
@@ -964,6 +963,178 @@ def build_insurance_card_context(
         "data_sources_note": data_sources_note,
         "disclaimer": "Bu içerik yatırım tavsiyesi değildir; yatırım kararı için profesyonel danışmanlık alınmalıdır.",
     }
+
+
+_TEASER_HEADLINE_MAX_CHARS = 90  # roadmap kurali: "maks ~90 karakter, tasarsa kelime sinirinda kes + …"
+_TEASER_DISCLAIMER = "Bu içerik yatırım tavsiyesi değildir; yatırım kararı için profesyonel danışmanlık alınmalıdır."
+
+
+def _truncate_headline(text: str, max_chars: int = _TEASER_HEADLINE_MAX_CHARS) -> str:
+    """Teaser kartinin KISITLI tek-cumlelik alani icin -- kelime SINIRINDA
+    keser (ortasinda kelime kesmek okunmaz gorunur), sonuna "…" ekler."""
+    if len(text) <= max_chars:
+        return text
+    truncated = text[:max_chars].rsplit(" ", 1)[0]
+    return truncated.rstrip(".,;: ") + "…"
+
+
+def _teaser_metric(item: calculator.LineItemChange | None, label: str, *, lower_is_better: bool = False) -> dict:
+    """Faz 14 alt seridindeki 3 kutudan biri (Satışlar/FAVÖK/Net Kâr YoY
+    vb.) -- `_line_item_row()`'un KISALTILMIŞ hali (SADECE yüzde + renk,
+    tutar YOK -- teaser'da yer kısıtı var). Veri yoksa "N/A" (Kural 8:
+    uydurma yok)."""
+    if item is None:
+        return {"label": label, "display": "N/A", "color_class": "neutral"}
+    if item.percent_change is None:
+        return {"label": label, "display": item.change_label, "color_class": _LABEL_COLOR_CLASS.get(item.change_label, "neutral")}
+    return {
+        "label": label,
+        "display": format_percent_tr(item.percent_change),
+        "color_class": _item_color_class(item, lower_is_better=lower_is_better),
+    }
+
+
+def _teaser_base_fields(
+    ticker: str,
+    score: scorer.ScoreResult,
+    commentary: commentary_module.Commentary,
+    *,
+    company_name: str | None,
+    price: Decimal | None,
+    market: str,
+    currency_symbol: str,
+    period_label: str,
+    data_sources_note: str,
+    now: datetime,
+) -> dict:
+    """4 sektör varyantının (sanayi/US/banka/sigorta) ORTAK alanları --
+    kopyala-yapıştır yerine tek yerde (Faz 16 ilkesi: "ortak kodu çıkar").
+    Her `build_*_teaser_context()` bunu SADECE kendi `metrics` listesiyle
+    tamamlar.
+
+    Fiyat biçimi: $ ÖNEKTE ("$100,00"), ₺ SONEKTE ("142,50 ₺") -- ana
+    kart ailesindeki (build_us_card_context/build_card_context) MEVCUT
+    kuralla AYNI (bkz. o fonksiyonların price_display satırları), yeni
+    bir kural İCAT EDİLMEDİ."""
+    if price is None:
+        price_display = None
+    elif currency_symbol == _USD_SYMBOL:
+        price_display = f"{currency_symbol}{format_number_tr(price, decimals=2)}"
+    else:
+        price_display = f"{format_number_tr(price, decimals=2)} {currency_symbol}"
+    return {
+        "ticker": ticker,
+        "company_logo_data_uri": _company_logo_data_uri(ticker, market=market),
+        "company_name": company_name or ticker,
+        "period_label": period_label,
+        "price_display": price_display,
+        **_score_display_context(score),
+        "headline": _truncate_headline(commentary.headline),
+        "report_timestamp": now.strftime("%d.%m.%Y %H:%M"),
+        "data_sources_note": data_sources_note,
+        "disclaimer": _TEASER_DISCLAIMER,
+    }
+
+
+def build_teaser_context(
+    analysis: calculator.AnalysisResult,
+    score: scorer.ScoreResult,
+    commentary: commentary_module.Commentary,
+    *,
+    company_name: str | None = None,
+    price: Decimal | None = None,
+    market: str = "BIST",
+    currency_symbol: str = "₺",
+    data_sources_note: str = "İş Yatırım, KAP",
+    now: datetime | None = None,
+) -> dict:
+    """Faz 14: X/Twitter akışında TIKLANMADAN okunabilen 16:9 'teaser'
+    kart context'i -- SADECE build_card_context() ile AYNI girdilerden
+    (analysis/score/commentary, zaten hesaplanmış) biçimlendirir, HİÇBİR
+    YENİ hesap YAPMAZ. US_GAAP (Faz 9/10) sanayi ile AYNI AnalysisResult
+    tipini paylaştığı için (bkz. build_us_card_context docstring'i) BU
+    fonksiyon HER İKİSİNDE de kullanılır -- `market="NASDAQ"` verilince
+    dönem etiketi `_fiscal_quarter_label()` (mali yıl, `analysis.
+    is_annual_only` ile), `market="BIST"` (varsayılan) `_quarter_label()`
+    (takvim çeyreği) kullanır -- çağıran taraf (telegram_bot.py) bu
+    ayrımı BİLMEK ZORUNDA DEĞİL, SADECE `market` geçer (private
+    yardımcı fonksiyonlara modül dışından erişim GEREKMEZ).
+
+    Kart TASARIMI (roadmap, FAZ 14): en fazla 7 sayı, EN FAZLA 1 cümlelik
+    hüküm -- X akışında kırpılmadan (16:9) okunsun diye kasıtlı olarak
+    ana karttan ÇOK daha az bilgi taşır."""
+    now = now or datetime.now()
+    if market == "NASDAQ":
+        period_label = _fiscal_quarter_label(analysis.latest_period, annual_only=analysis.is_annual_only)
+    else:
+        period_label = _quarter_label(analysis.latest_period)
+    base = _teaser_base_fields(
+        analysis.ticker, score, commentary,
+        company_name=company_name, price=price, market=market, currency_symbol=currency_symbol,
+        period_label=period_label, data_sources_note=data_sources_note, now=now,
+    )
+    base["metrics"] = [
+        _teaser_metric(analysis.income_statement.revenue, "SATIŞLAR"),
+        _teaser_metric(analysis.income_statement.ebitda, "FAVÖK"),
+        _teaser_metric(analysis.income_statement.net_income, "NET KÂR"),
+    ]
+    return base
+
+
+def build_bank_teaser_context(
+    analysis: calculator.BankAnalysisResult,
+    score: scorer.ScoreResult,
+    commentary: commentary_module.Commentary,
+    *,
+    company_name: str | None = None,
+    price: Decimal | None = None,
+    data_sources_note: str = "İş Yatırım (solo)",
+    now: datetime | None = None,
+) -> dict:
+    """build_teaser_context()'in banka karşılığı -- BankIncomeStatementSummary
+    sanayiden FARKLI kalemler taşıdığı için (revenue/ebitda YOK) alt şerit
+    metrikleri banka'ya uygun karşılıklarla değiştirilir (roadmap notu:
+    "banka/sigortada uygun karşılıkları kullan")."""
+    now = now or datetime.now()
+    base = _teaser_base_fields(
+        analysis.ticker, score, commentary,
+        company_name=company_name, price=price, market="BIST", currency_symbol="₺",
+        period_label=_quarter_label(analysis.latest_period), data_sources_note=data_sources_note, now=now,
+    )
+    base["metrics"] = [
+        _teaser_metric(analysis.income_statement.interest_income, "FAİZ GELİRİ"),
+        _teaser_metric(analysis.income_statement.net_operating_profit, "FAALİYET KÂRI"),
+        _teaser_metric(analysis.income_statement.net_income, "NET KÂR"),
+    ]
+    return base
+
+
+def build_insurance_teaser_context(
+    analysis: calculator.InsuranceAnalysisResult,
+    score: scorer.ScoreResult,
+    commentary: commentary_module.Commentary,
+    *,
+    company_name: str | None = None,
+    price: Decimal | None = None,
+    data_sources_note: str = "İş Yatırım, KAP",
+    now: datetime | None = None,
+) -> dict:
+    """build_teaser_context()'in sigorta karşılığı -- InsuranceIncomeStatementSummary
+    sanayiden FARKLI kalemler taşıdığı için alt şerit metrikleri sigortaya
+    uygun karşılıklarla değiştirilir (roadmap notu: "banka/sigortada
+    uygun karşılıkları kullan")."""
+    now = now or datetime.now()
+    base = _teaser_base_fields(
+        analysis.ticker, score, commentary,
+        company_name=company_name, price=price, market="BIST", currency_symbol="₺",
+        period_label=_quarter_label(analysis.latest_period), data_sources_note=data_sources_note, now=now,
+    )
+    base["metrics"] = [
+        _teaser_metric(analysis.income_statement.gross_written_premiums, "PRİM ÜRETİMİ"),
+        _teaser_metric(analysis.income_statement.technical_balance, "TEKNİK DENGE"),
+        _teaser_metric(analysis.income_statement.net_income, "NET KÂR"),
+    ]
+    return base
 
 
 def render_html(context: dict, template_name: str = "card.html") -> str:

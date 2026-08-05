@@ -18,20 +18,39 @@ bulgular var) CANLI doğrulanan gerçekler:
   BULUNAMADI (NullPointerException) ve bir Playwright yedeği de WAF
   tarafından reddedildi -- bu yüzden `FundInfo.allocation` HER ZAMAN boş
   sözlük döner (Kural 3: emin olunmayan veri uydurulmaz).
-- Aynı nedenle fiyat GEÇMİŞİ (`fonFiyatBilgiGetir` çoklu-dönem) ve getiri
-  bilgisi (`fonGetiriBazliBilgiGetir`) için de doğru istek gövdesi
-  BULUNAMADI -- `fetch_fund_returns()`/`fetch_price_history()` bu yüzden
-  HER ZAMAN boş/None döner, loglanır, hata FIRLATMAZ (Kural 9).
 - Fiyat AÇIKLANMA ZAMANLAMASI (T+1 sabah mı, aynı gün akşam mı) bu
   oturumda DOĞRULANAMADI -- `fonBilgiGetir` yanıtında fiyata ait bir
   tarih alanı YOK, bu netleştirme gelecek bir faza bırakıldı.
 
-Ne ÇALIŞIYOR (CANLI doğrulandı, AFA fonuyla):
+🚨 DÜZELTME (2026-08-05, aynı gün, Faz 18 hazırlığı): `fonFiyatBilgiGetir`
+İLK turda "Sistem Hatası!!" veriyordu çünkü zorunlu bir alan (`dil`)
+EKSİKTİ. TEFAS'ın kendi JS paketini (chunk 8609, `FundPriceChart`
+komponenti) inceleyince gerçek istek gövdesi bulundu:
+
+    POST /api/funds/fonFiyatBilgiGetir
+    Body: {"fonKodu": "PHE", "dil": "TR", "periyod": 12}
+
+`periyod` SABİT bir enum (JS kaynağında CANLI görüldü): 1=aylık,
+3=3 ay, 6=6 ay, 12=1 yıl, 36=3 yıl, 60=5 yıl (+ 0=yılbaşından beri,
+13=haftalık -- bu ikisi kullanılmıyor). CANLI doğrulandı (PHE):
+periyod=1 → 22 satır (1 aylık işlem günü), periyod=12 → 252 satır,
+periyod=60 → 600 satır (üst sınır gibi görünüyor -- 5 yıl TAM
+gelmeyebilir, `fetch_fund_returns()` bu durumda ilgili alanı None
+bırakır). `fetch_price_history()` artık ÇALIŞIYOR;
+`fetch_fund_returns()` bunun üzerine İNŞA edilir (ayrı bir getiri
+API'si hâlâ bulunamadı ama buna GEREK KALMADI -- fiyat serisinden
+hesaplanıyor).
+
+Ne ÇALIŞIYOR (CANLI doğrulandı, AFA/PHE/TLY fonlarıyla):
   - search_fund(): `getFplFonList` (TÜM TEFAS fon evreni, tek istek) +
     Python'da alt-dize eşleme.
   - fetch_fund_info(): `fonBilgiGetir` (fiyat, günlük getiri, pay adet,
     toplam değer, kategori, yatırımcı sayısı, pazar payı) + kurucu adı
     için `getFplFonList` evren listesinden eşleme.
+  - fetch_price_history(): `fonFiyatBilgiGetir` (günlük fiyat serisi).
+  - fetch_fund_returns(): fetch_price_history()'nin sonucundan HESAPLANIR
+    (ayrı bir API çağrısı YAPMAZ) -- yeterli derinlik yoksa (örn. 3/5
+    yıllık) ilgili alan None kalır (Kural 3).
 """
 
 from __future__ import annotations
@@ -39,6 +58,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import date
+from datetime import timedelta as _timedelta
 from decimal import Decimal, InvalidOperation
 
 import httpx
@@ -265,40 +285,112 @@ def fetch_fund_info(code: str) -> FundInfo:
     )
 
 
-def fetch_fund_returns(code: str) -> FundReturns:
-    """Bir fonun çok-dönemli getiri bilgisini (1G/1H/1A/3A/6A/1Y/3Y/5Y/YB)
-    döner.
+_PERIYOD_ENUM_STEPS = (1, 3, 6, 12, 36, 60)  # ay -- fonFiyatBilgiGetir SADECE bu degerleri kabul eder (CANLI dogrulandi)
 
-    🚨 TEFAS'ın bu veriyi veren uç noktasının (fonGetiriBazliBilgiGetir /
-    fonTurDnmGetiriGetir) doğru istek gövdesi bu oturumda BULUNAMADI --
-    veri sayfanın sunucu-taraflı render payload'ına gömülü geliyor
-    (`periyodikData`, CANLI görüldü) ama bu bot korumasının ARKASINDA,
-    güvenilir şekilde otomatikleştirilemedi (bkz. modül üst notu). Bu
-    yüzden fonksiyon HER ZAMAN tüm alanları None olan bir FundReturns
-    döner -- hata FIRLATMAZ (Kural 9: yardımcı veri ana akışı bloklamaz),
-    sadece loglar. Gelecekte doğru uç nokta bulunursa BURASI güncellenmeli.
-    """
-    logger.warning(
-        "TEFAS getiri API'sinin istek gövdesi bu oturumda doğrulanamadı (bkz. "
-        "scripts/explore_tefas.py) -- '%s' için tüm getiri alanları None dönüyor.",
-        code,
-    )
-    return FundReturns(d1=None, w1=None, m1=None, m3=None, m6=None, y1=None, y3=None, y5=None, ytd=None)
+
+def _map_months_to_periyod(months: int) -> int:
+    """İstenen ay sayısını TEFAS'ın sabit enum'undaki en küçük yeterli
+    değere yuvarlar (örn. 2 ay istenirse periyod=3 kullanılır)."""
+    for step in _PERIYOD_ENUM_STEPS:
+        if months <= step:
+            return step
+    return _PERIYOD_ENUM_STEPS[-1]
 
 
 def fetch_price_history(code: str, months: int) -> list[tuple[date, Decimal]]:
-    """Bir fonun geçmiş fiyat serisini (son `months` ay, TEFAS'ın sabit
-    geriye-bakış enum'u {1,3,6,12,36,60} ay ile sınırlı) döner.
+    """Bir fonun geçmiş GÜNLÜK fiyat serisini (son `months` ay, TEFAS'ın
+    sabit geriye-bakış enum'u {1,3,6,12,36,60} ay ile sınırlı -- istenen
+    değer en yakın YETERLİ enum'a yuvarlanır) tarih artan sırada döner.
 
-    🚨 TEFAS'ın fiyat geçmişi uç noktasının (fonFiyatBilgiGetir, çoklu
-    dönem) doğru istek gövdesi bu oturumda BULUNAMADI -- tüm denemeler
-    "Sistem Hatası!!" döndü (bkz. modül üst notu). Bu yüzden fonksiyon
-    HER ZAMAN boş liste döner -- hata FIRLATMAZ (Kural 9), sadece loglar.
-    Gelecekte doğru uç nokta bulunursa BURASI güncellenmeli.
+    CANLI doğrulandı (PHE): `months=1` → 22 gün, `months=12` → 252 gün,
+    `months=60` → 600 gün (5 yıllık TAM veri her zaman gelmeyebilir --
+    üst sınır gibi görünüyor, bkz. modül üst notu). Fiyatı `0` olan
+    kayıtlar (fonun ilk işlem gününden ÖNCEye ait dolgu satırları,
+    CANLI gözlemlendi) ATLANIR (Kural 3: sıfır fiyat gerçek bir işlem
+    değildir).
+
+    Hatalar:
+        TefasNetworkError: Ağ hatası veya beklenmeyen yanıt biçimi.
     """
-    logger.warning(
-        "TEFAS fiyat geçmişi API'sinin istek gövdesi bu oturumda doğrulanamadı (bkz. "
-        "scripts/explore_tefas.py) -- '%s' için boş liste dönüyor.",
-        code,
+    normalized = code.strip().upper()
+    periyod = _map_months_to_periyod(months)
+    payload = _post_json(f"{FUNDS_BASE}/fonFiyatBilgiGetir", {"fonKodu": normalized, "dil": "TR", "periyod": periyod})
+    rows = payload.get("resultList") or []
+
+    history: list[tuple[date, Decimal]] = []
+    for row in rows:
+        raw_date = row.get("tarih")
+        price = _to_decimal(row.get("fiyat"))
+        if not raw_date or price is None or price <= 0:
+            continue
+        try:
+            trade_date = date.fromisoformat(raw_date)
+        except ValueError:
+            continue
+        history.append((trade_date, price))
+
+    history.sort(key=lambda item: item[0])
+    return history
+
+
+def _price_on_or_before(history: list[tuple[date, Decimal]], target: date) -> Decimal | None:
+    """`history` (tarih artan sıralı) içinde `target`e eşit veya ondan
+    ÖNCEKİ en yakın işlem gününün fiyatını döner -- yoksa None (Kural 3:
+    yetersiz derinlik varsayımsal bir fiyatla doldurulmaz)."""
+    candidate: Decimal | None = None
+    for trade_date, price in history:
+        if trade_date <= target:
+            candidate = price
+        else:
+            break
+    return candidate
+
+
+def fetch_fund_returns(code: str) -> FundReturns:
+    """Bir fonun çok-dönemli getiri bilgisini (1G/1H/1A/3A/6A/1Y/3Y/5Y/YB)
+    döner -- AYRI bir TEFAS API'si YOK, `fetch_price_history()`'nin
+    döndürdüğü günlük fiyat serisinden HESAPLANIR (Kural 3: veri
+    kaynağı ile hesaplama arasında tutarlılık -- ayrıca fonGetiriBazliBilgiGetir/
+    fonTurDnmGetiriGetir'in gerçek istek gövdesi hâlâ bulunamadı, buna
+    GEREK KALMADI).
+
+    `d1` (günlük getiri) SON İKİ işlem gününün fiyatlarından; diğerleri
+    (`w1`.."y5") takvim günü bazlı en yakın "eşit veya önceki" işlem
+    gününden hesaplanır. TEFAS'ın 5 yıllık istekte bile ~600 günle
+    (≈2,4 yıl) sınırlı görünen yanıtı nedeniyle (bkz. modül üst notu)
+    `y3`/`y5` çoğu zaman None kalır -- bu YETERSİZ VERİ demektir,
+    UYDURULMAZ (Kural 3). Hata fırlatmaz (Kural 9); ağ hatasında da
+    tüm alanlar None döner.
+    """
+    try:
+        history = fetch_price_history(code, months=60)
+    except TefasError as exc:
+        logger.warning("TEFAS fiyat geçmişi çekilemedi (%s), getiri alanları None dönüyor: %s", code, exc)
+        history = []
+
+    if len(history) < 2:
+        return FundReturns(d1=None, w1=None, m1=None, m3=None, m6=None, y1=None, y3=None, y5=None, ytd=None)
+
+    last_date, last_price = history[-1]
+    prev_date, prev_price = history[-2]
+
+    def pct(days_back: int) -> Decimal | None:
+        base_price = _price_on_or_before(history, last_date - _timedelta(days=days_back))
+        if base_price is None or base_price == 0:
+            return None
+        return (last_price / base_price - 1) * 100
+
+    ytd_base = _price_on_or_before(history, date(last_date.year - 1, 12, 31))
+    ytd = (last_price / ytd_base - 1) * 100 if ytd_base and ytd_base != 0 else None
+
+    return FundReturns(
+        d1=(last_price / prev_price - 1) * 100 if prev_price else None,
+        w1=pct(7),
+        m1=pct(30),
+        m3=pct(91),
+        m6=pct(182),
+        y1=pct(365),
+        y3=pct(365 * 3),
+        y5=pct(365 * 5),
+        ytd=ytd,
     )
-    return []

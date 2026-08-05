@@ -225,21 +225,27 @@ def test_fetch_attachment_pdf_pdf_disinda_dosyayi_atlar(monkeypatch):
 def test_parse_portfolio_pdf_gercek_rapor_grup_toplamlariyla_esler():
     """CANLI doğrulama (Kural 3): PHE Temmuz 2026 raporunun 'HİSSE
     SENETLERİ' bölümü 21 satır/%77,05, 'DİĞER' (fon-içinde-fon) bölümü
-    4 satır/%20,60 (Fon Toplam Değeri'ne göre) veriyor -- ikisi de
-    PDF'in KENDİ 'GRUP TOPLAMI' satırlarıyla BİREBİR eşleşmeli. Toplam
-    (%97,65) fonun "FON PORTFÖY DEĞERİ" (%97,66, PDF'in IV. tablosu)
-    ile ~1 baz puan farkla (yuvarlama) tutarlı -- kalan kısım nakit/
-    alacak/borç kalemleri, tek tek "holding" olarak izlenmez (bkz.
-    modül üst notu)."""
+    4 satır/%20,60, 'TÜREV' (VIOP Nakit Teminatı) %0,01 veriyor -- HEPSİ
+    PDF'in KENDİ 'GRUP TOPLAMI' satırlarıyla BİREBİR eşleşmeli. Kalan
+    fark (%2,34) tek bir 'nakit' sözde-satırı olarak eklenir; NİHAİ
+    TOPLAM %100,00'e ulaşmalı (bkz. modül üst notu)."""
     holdings = kfp._parse_portfolio_pdf(PHE_PDF_BYTES)
 
     hisse = [h for h in holdings if h.instrument_type == "hisse"]
     fon = [h for h in holdings if h.instrument_type == "fon"]
+    turev = [h for h in holdings if h.instrument_type == "türev"]
+    nakit = [h for h in holdings if h.instrument_type == "nakit"]
 
     assert len(hisse) == 21
     assert sum(h.weight_pct for h in hisse) == Decimal("77.05")
     assert len(fon) == 4
     assert sum(h.weight_pct for h in fon) == Decimal("20.60")
+    assert len(turev) == 1
+    assert turev[0].weight_pct == Decimal("0.01")
+    assert len(nakit) == 1
+    assert nakit[0].weight_pct == Decimal("2.34")
+
+    assert sum(h.weight_pct for h in holdings) == Decimal("100.00")
 
     by_ticker = {h.ticker: h for h in hisse}
     assert by_ticker["ODINE"].weight_pct == Decimal("14.50")
@@ -297,6 +303,47 @@ def test_parse_section_rows_grup_toplami_tutuyorsa_holding_doner():
     assert holdings[0].weight_pct == Decimal("40.00")
 
 
+# --- _parse_viop_cash_collateral --------------------------------------------
+
+
+def test_parse_viop_cash_collateral_veri_satirini_bulur():
+    words = [
+        _fake_word("VIOP", 20.0, 100.0),
+        _fake_word("Nakit", 46.6, 100.0),
+        _fake_word("Teminatı", 73.8, 100.0),  # sadece etiket satiri -- sayisal veri YOK
+        _fake_word("VIOP", 20.0, 130.0),
+        _fake_word("Nakit", 38.6, 130.0),
+        _fake_word("Teminatı", 56.5, 130.0),
+        _fake_word("4.828.762,67", 372.1, 130.0),
+        _fake_word("4.828.762,67", 776.1, 130.0),
+        _fake_word("100,00", 828.6, 130.0),
+        _fake_word("0,01", 866.4, 130.0),
+    ]
+
+    holding = kfp._parse_viop_cash_collateral(words)
+
+    assert holding is not None
+    assert holding.instrument_type == "türev"
+    assert holding.weight_pct == Decimal("0.01")
+
+
+def test_parse_viop_cash_collateral_bulunamazsa_none_doner():
+    assert kfp._parse_viop_cash_collateral([]) is None
+
+
+# --- nakit residual --------------------------------------------
+
+
+def test_parse_portfolio_pdf_hicbir_bolum_ayristirilamazsa_residual_eklenmez(monkeypatch):
+    """Kural 3: hiçbir bölüm güvenilir ayrıştırılamadıysa (`all_holdings`
+    boş) residual 'nakit' satırı da eklenmez -- aksi halde '%100 nakit'
+    gibi YANLIŞ bir izlenim verirdi."""
+    monkeypatch.setattr(kfp, "_extract_section_words", lambda pdf, section_start: [])
+    monkeypatch.setattr(kfp, "_parse_viop_cash_collateral", lambda words: None)
+
+    assert kfp._parse_portfolio_pdf(PHE_PDF_BYTES) == []
+
+
 # --- fetch_latest_portfolio (uçtan uca, mock'lu) --------------------------------------------
 
 
@@ -337,7 +384,8 @@ def test_fetch_latest_portfolio_uctan_uca(monkeypatch):
     assert result.report_date == date(2026, 7, 31)
     assert result.publish_date == date(2026, 8, 5)
     assert result.staleness_days == (date.today() - date(2026, 7, 31)).days
-    assert len(result.holdings) == 25  # 21 hisse + 4 fon-içinde-fon
+    assert len(result.holdings) == 27  # 21 hisse + 4 fon + 1 türev (VIOP nakit teminatı) + 1 nakit residual
+    assert sum(h.weight_pct for h in result.holdings) == Decimal("100.00")
 
 
 def test_fetch_latest_portfolio_fon_bulunamazsa_none_doner(monkeypatch):

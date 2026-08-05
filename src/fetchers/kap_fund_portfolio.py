@@ -61,20 +61,30 @@ toplamın %77,05 (sadece hisse) DEĞİL %100'e (fonun TAMAMI) tamamlanması
 gerektiğini belirtti -- HAKLI. PHE Temmuz 2026'da PDF'in "IV-FON TOPLAM
 DEĞERİ TABLOSU"su incelenince tam resim ortaya çıktı:
   - HİSSE SENETLERİ: %77,05 (Fon Toplam Değeri'ne göre)
-  - TÜREV (VIOP Futures + Nakit Teminatı): ~%0,01 (ÇOK küçük, bu
-    oturumda AYRI bir parser YAZILMADI -- karmaşık/nadir bir yapı)
+  - TÜREV (VIOP Futures + Nakit Teminatı): ~%0,01
   - DİĞER (bu örnekte "Y.Fonu Türk" -- başka fonların payları, örn.
     "PCS-PUSULA PORTFÖY ÜÇÜNCÜ HİSSE SENEDİ SERBEST FON"): %20,60
-  - Toplam (Hisse+Türev+Diğer) = %97,66 = PDF'in kendi "A-)FON PORTFÖY
-    DEĞERİ" satırıyla BİREBİR eşleşti.
+  - Toplam (Hisse+Türev+Diğer) = "A-)FON PORTFÖY DEĞERİ" = %97,66
   - Kalan %2,34 menkul kıymet DEĞİL -- fonun nakit/alacak/borç
-    kalemleri (HAZIR DEĞERLER +%0,03, ALACAKLAR +%13,89, BORÇLAR
-    -%11,58 vb.) -- tek tek "holding" olarak İZLENEMEZ, doğası gereği.
-`_parse_portfolio_pdf()` artık HEM "HİSSE SENETLERİ" HEM "DİĞER"
-bölümünü ayrıştırıyor (`instrument_type="hisse"`/`"fon"`), HER BÖLÜM
-KENDİ GRUP TOPLAMIYLA AYRI AYRI öz-doğrulanıyor (PHE'de DİĞER de %20,60
-ile BİREBİR eşleşti). TÜREV bölümü (genelde ihmal edilebilir büyüklükte)
-bu oturumda KAPSAM DIŞI bırakıldı -- gelecekte eklenebilir.
+    kalemleri (B-)HAZIR DEĞERLER +%0,03, C-)ALACAKLAR +%13,89,
+    E-)BORÇLAR -%11,58 vb., "IV-FON TOPLAM DEĞERİ TABLOSU"dan) -- tek
+    tek "holding" olarak İZLENEMEZ (kaç ayrı kalem olduğu itemize
+    EDİLMİYOR) ama TOPLAM etkisi tek bir "nakit" sözde-satırı
+    (`instrument_type="nakit"`) olarak eklenir.
+`_parse_portfolio_pdf()` HİSSE + DİĞER + TÜREV (`instrument_type=
+"türev"`) bölümlerini AYRI AYRI (her biri kendi grup toplamıyla)
+ayrıştırıp öz-doğruluyor, ARDINDAN kalan farkı (100 - toplam) TEK bir
+"nakit" sözde-satırı olarak ekliyor -- nihai toplam PHE'de %100,00'e
+ulaşıyor (kendi IV-tablosundaki B..G kalemlerinin toplamıyla tutarlı).
+
+🚨 TÜREV bölümünün İKİ alt-yapısı VAR, hisse/fon satır biçiminden
+FARKLI: Futures satırı ("F_XU0300826") ticker+TL işaretiyle BAŞLAR ama
+gerçek bir ISIN (TR...) YERİNE kontrat kodu TEKRARLANIYOR --
+`_CONTRACT_CODE_RE` ile eşleştirilip pseudo-kimlik olarak kullanılıyor.
+"VIOP Nakit Teminatı" satırının ise ticker+TL işareti HİÇ YOK (3
+kelimelik düz bir etiket, sadece 4 sayısal alan) -- genel satır
+ayrıştırıcıya UYMUYOR, `_parse_viop_cash_collateral()` adlı ayrı, küçük
+bir yardımcıyla TEK bir toplam değer olarak okunuyor.
 """
 
 from __future__ import annotations
@@ -113,7 +123,9 @@ _HEADERS = {
 # raporlarıyla CANLI kalibre edildi (bkz. modül üst notu).
 _STOCK_TICKER_RE = re.compile(r"^[A-ZÇĞİÖŞÜ]{2,6}\d?$")  # "AKSEN", "ALKLC" gibi
 _FUND_TICKER_RE = re.compile(r"^[A-Z]{2,6}-")  # "PCS-PUSULA..." gibi -- fon-icinde-fon satirlari
+_FUTURES_TICKER_RE = re.compile(r"^F_[A-Z0-9]+$")  # "F_XU0300826" gibi -- VIOP futures kontrati
 _ISIN_RE = re.compile(r"^TR[A-Z0-9]{10,11}$")
+_CONTRACT_CODE_RE = re.compile(r"^F_[A-Z0-9]+$")  # futures satirinda ISIN YERINE kontrat kodu tekrarlanir
 _PURE_INT_RE = re.compile(r"^\d{5,10}$")  # borsa sözleşme no gibi virgülsüz tam sayı -- atlanır
 _ALL_SECTION_HEADERS = (
     "BORÇLANMA SENETLERİ",
@@ -122,18 +134,16 @@ _ALL_SECTION_HEADERS = (
     "DİĞER",
     "TAKAS",
 )
-# (bölüm başlığı, ayrıştırma başlarken aranan enstrüman tipi, satır-başlangıcı
-# ticker deseni, satır-içi dikey tolerans) -- HİSSE SENETLERİ + DİĞER
-# (fon-içinde-fon) bu oturumda ayrıştırılıyor; TÜREV (genelde ihmal
-# edilebilir büyüklükte, çok farklı bir satır yapısı) BİLİNÇLİ olarak
-# kapsam dışı (bkz. modül üst notu). Dikey tolerans CANLI kalibre edildi:
-# HİSSE bölümünde ticker/TL/sayılar TAM AYNI 'top' değerinde (tolerans 1pt
-# yeterli); DİĞER (fon) bölümünde ~2pt fark GÖZLEMLENDİ (PCS-PUSULA örneği)
-# -- tek bir ortak tolerans kullanmak HİSSE'de YANLIŞ satır birleşmelerine
+# (bölüm başlığı, enstrüman tipi, satır-başlangıcı ticker deseni, satır-içi
+# dikey tolerans, "ISIN" yerine kullanılacak kimlik deseni) -- dikey tolerans
+# CANLI kalibre edildi: HİSSE'de ticker/TL/sayılar TAM AYNI 'top' değerinde
+# (1pt yeterli); DİĞER (fon) ve TÜREV (futures) bölümlerinde ~2pt fark
+# GÖZLEMLENDİ -- tek bir ortak tolerans HİSSE'de YANLIŞ satır birleşmelerine
 # yol açtığı için (CANLI gözlemlendi) bölüm bazında AYRI tutuluyor.
 _PARSEABLE_SECTIONS = (
-    ("HİSSE SENETLERİ", "hisse", _STOCK_TICKER_RE, 1),
-    ("DİĞER", "fon", _FUND_TICKER_RE, 3),
+    ("HİSSE SENETLERİ", "hisse", _STOCK_TICKER_RE, 1, _ISIN_RE),
+    ("DİĞER", "fon", _FUND_TICKER_RE, 3, _ISIN_RE),
+    ("TÜREV", "türev", _FUTURES_TICKER_RE, 3, _CONTRACT_CODE_RE),
 )
 _GROUP_TOTAL_TOLERANCE = Decimal("2.0")  # grup toplamı %100'den en fazla bu kadar sapabilir
 
@@ -345,10 +355,17 @@ def _extract_section_words(pdf: "pdfplumber.PDF", section_start: str) -> list[di
 _MAX_ROW_SPAN = 120
 
 
-def _parse_section_rows(words: list[dict], ticker_re: re.Pattern, instrument_type: str, row_tolerance: int = 1) -> list[Holding]:
-    """Bir bölümün (HİSSE SENETLERİ veya DİĞER) kelime listesini satır
-    satır ayrıştırır, her benzersiz (ticker, ISIN) için lot'ları toplayarak
-    NET ağırlığı hesaplar.
+def _parse_section_rows(
+    words: list[dict],
+    ticker_re: re.Pattern,
+    instrument_type: str,
+    row_tolerance: int = 1,
+    id_re: re.Pattern = _ISIN_RE,
+) -> list[Holding]:
+    """Bir bölümün (HİSSE SENETLERİ / DİĞER / TÜREV) kelime listesini
+    satır satır ayrıştırır, her benzersiz (ticker, kimlik) için lot'ları
+    toplayarak NET ağırlığı hesaplar. `id_re` HİSSE/DİĞER'de gerçek ISIN
+    (`_ISIN_RE`), TÜREV'de kontrat kodu (`_CONTRACT_CODE_RE`) arar.
 
     Öz-doğrulama (Kural 3): "GRUP %" kolonunun (her zaman kendi grubu
     içinde toplamı %100 olması gereken kolon) toplamı `_GROUP_TOTAL_TOLERANCE`
@@ -382,8 +399,8 @@ def _parse_section_rows(words: list[dict], ticker_re: re.Pattern, instrument_typ
 
         raw_ticker = words[start_i]["text"]
         ticker = raw_ticker.split("-")[0]  # fon satırlarında "PCS-PUSULA..." -> "PCS"
-        isin = next((w["text"] for w in block if _ISIN_RE.match(w["text"])), None)
-        if isin is None:
+        item_id = next((w["text"] for w in block if id_re.match(w["text"])), None)
+        if item_id is None:
             continue
 
         first_line = [w for w in block if abs(w["top"] - start_top) < row_tolerance and w["x0"] > 110]
@@ -391,7 +408,7 @@ def _parse_section_rows(words: list[dict], ticker_re: re.Pattern, instrument_typ
             w
             for w in first_line
             if not _PURE_INT_RE.match(w["text"])
-            and not _ISIN_RE.match(w["text"])
+            and not id_re.match(w["text"])
             and any(ch.isdigit() for ch in w["text"])  # "PUSULA" gibi metin (kurucu adının basi) sayisal DEGIL -- atlanir
         ]
         first_line.sort(key=lambda w: w["x0"])
@@ -404,7 +421,7 @@ def _parse_section_rows(words: list[dict], ticker_re: re.Pattern, instrument_typ
             for w in block
             if start_top - 3 <= w["top"] < name_end_top
             and 108 < w["x0"] < 350
-            and not _ISIN_RE.match(w["text"])
+            and not id_re.match(w["text"])
             and w["text"] != "TL"
         ]
         name_words.sort(key=lambda w: (w["top"], w["x0"]))
@@ -416,7 +433,7 @@ def _parse_section_rows(words: list[dict], ticker_re: re.Pattern, instrument_typ
             continue
 
         group_pct_total += group_pct
-        key = (ticker, isin)
+        key = (ticker, item_id)
         aggregated[key] = aggregated.get(key, Decimal(0)) + weight_pct
         if name:
             names[key] = name
@@ -434,35 +451,89 @@ def _parse_section_rows(words: list[dict], ticker_re: re.Pattern, instrument_typ
         return []
 
     return [
-        Holding(instrument_type=instrument_type, ticker=ticker, name=names.get((ticker, isin), ""), weight_pct=weight)
-        for (ticker, isin), weight in sorted(aggregated.items(), key=lambda kv: -kv[1])
+        Holding(instrument_type=instrument_type, ticker=ticker, name=names.get((ticker, item_id), ""), weight_pct=weight)
+        for (ticker, item_id), weight in sorted(aggregated.items(), key=lambda kv: -kv[1])
     ]
+
+
+def _parse_viop_cash_collateral(turev_words: list[dict]) -> Holding | None:
+    """'VIOP Nakit Teminatı' satırı diğer TÜM satırlardan FARKLI bir
+    yapıya sahiptir -- ticker+"TL" işareti YOK (sadece 3 kelimelik düz
+    bir etiket, "VIOP Nakit Teminatı"), sadece 2 sayısal (nominal +
+    toplam değer) VE 2 yüzde alanı var (8 DEĞİL) -- bu yüzden genel
+    `_parse_section_rows()`'a UYMAZ, ayrı bir mini-ayrıştırıcı gerekir.
+    Etiket İKİ KEZ görünür (önce salt başlık satırı, sonra veri satırı,
+    CANLI gözlemlendi) -- sayısal içeriği OLAN satır alınır."""
+    for word in turev_words:
+        if word["text"] != "VIOP" or word["x0"] > 22:
+            continue
+        row_top = word["top"]
+        same_line = [w for w in turev_words if abs(w["top"] - row_top) < 3]
+        numeric = [w for w in same_line if w["x0"] > 300 and any(ch.isdigit() for ch in w["text"])]
+        if len(numeric) < 2:
+            continue  # bu sadece etiket satırı, veri satırı DEĞİL
+        numeric.sort(key=lambda w: w["x0"])
+        weight_pct = _to_decimal(numeric[-1]["text"])  # son sayısal alan = fon toplam değerine göre pay
+        if weight_pct is None:
+            continue
+        return Holding(instrument_type="türev", ticker=None, name="VIOP Nakit Teminatı", weight_pct=weight_pct)
+    return None
 
 
 def _parse_portfolio_pdf(pdf_bytes: bytes) -> list[Holding]:
     """PDF'teki ayrıştırılabilir bölümleri (`_PARSEABLE_SECTIONS` --
-    HİSSE SENETLERİ + DİĞER/fon-içinde-fon) satır satır ayrıştırır. HER
-    BÖLÜM kendi grup toplamıyla AYRI AYRI öz-doğrulanır (bkz.
-    `_parse_section_rows`) -- bir bölüm güvenilmez çıkarsa SADECE o bölüm
-    atlanır, diğerleri yine döner.
+    HİSSE SENETLERİ + DİĞER/fon-içinde-fon + TÜREV) satır satır
+    ayrıştırır. HER BÖLÜM kendi grup toplamıyla AYRI AYRI öz-doğrulanır
+    (bkz. `_parse_section_rows`) -- bir bölüm güvenilmez çıkarsa SADECE o
+    bölüm atlanır, diğerleri yine döner. TÜREV'in "VIOP Nakit Teminatı"
+    alt-kalemi farklı bir satır yapısına sahip olduğu için AYRI bir
+    mini-ayrıştırıcıyla (`_parse_viop_cash_collateral`) okunur.
 
-    ⚠️ Sonucun toplamı fonun TAMAMINI (%100) KAPSAMAYABİLİR: TÜREV
-    (genelde ihmal edilebilir) bu oturumda ayrıştırılmıyor, ayrıca
-    fonun nakit/alacak/borç kalemleri (menkul kıymet OLMAYAN kısım)
-    doğası gereği "holding" olarak izlenemez (bkz. modül üst notu).
+    Kalan fark (100 - toplam ağırlık) menkul kıymet OLMAYAN nakit/alacak/
+    borç kalemlerini (fonun "IV-FON TOPLAM DEĞERİ TABLOSU"sundaki
+    B..G satırları) temsil eder -- bunlar tek tek itemize EDİLEMEDİĞİ
+    için TEK bir `instrument_type="nakit"` sözde-satırı olarak eklenir
+    (bkz. modül üst notu). ⚠️ Bu residual SADECE en az bir gerçek bölüm
+    başarıyla ayrıştırıldıysa eklenir -- HİÇBİR bölüm ayrıştırılamazsa
+    (`all_holdings` boşsa) residual da eklenmez (aksi halde "%100 nakit"
+    gibi YANLIŞ bir izlenim verirdi, Kural 3).
     """
     try:
         with pdfplumber.open(BytesIO(pdf_bytes)) as pdf:
             all_holdings: list[Holding] = []
-            for section_start, instrument_type, ticker_re, row_tolerance in _PARSEABLE_SECTIONS:
+            turev_words: list[dict] = []
+            for section_start, instrument_type, ticker_re, row_tolerance, id_re in _PARSEABLE_SECTIONS:
                 words = _extract_section_words(pdf, section_start)
+                if section_start == "TÜREV":
+                    turev_words = words
                 if not words:
                     logger.info("PDF'te '%s' bölümü bulunamadı.", section_start)
                     continue
-                all_holdings.extend(_parse_section_rows(words, ticker_re, instrument_type, row_tolerance))
+                all_holdings.extend(_parse_section_rows(words, ticker_re, instrument_type, row_tolerance, id_re))
+
+            viop_holding = _parse_viop_cash_collateral(turev_words)
+            if viop_holding is not None:
+                all_holdings.append(viop_holding)
     except Exception as exc:  # pdfplumber bozuk/beklenmeyen bir PDF'te cesitli hatalar firlatabilir
         logger.warning("KAP portföy dağılım PDF'i açılamadı/ayrıştırılamadı: %s", exc)
         return []
+
+    if all_holdings:
+        total = sum(h.weight_pct for h in all_holdings)
+        residual = Decimal(100) - total
+        if Decimal("0.005") < residual <= Decimal(100):
+            all_holdings.append(
+                Holding(instrument_type="nakit", ticker=None, name="Nakit ve Diğer Varlıklar (kalan)", weight_pct=residual)
+            )
+        elif residual < Decimal("-0.5"):
+            # Ayrıştırılan toplam %100'ü ANLAMLI ölçüde asiyorsa (mukerrer
+            # sayim / bir bolumun yanlis ayristirilmasi ihtimali) residual
+            # EKLENMEZ ve durum loglanir -- Kural 3.
+            logger.warning(
+                "KAP portföy dağılım PDF'inde ayrıştırılan toplam ağırlık %%100'ü aşıyor (%s) -- "
+                "residual 'nakit' satırı eklenmedi, bir bölümde mükerrer sayım olabilir.",
+                total,
+            )
 
     return sorted(all_holdings, key=lambda h: -h.weight_pct)
 

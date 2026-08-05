@@ -9,6 +9,7 @@ yanit semasindan alinmistir (bkz. data/exploration/tefas_findings_notes.md).
 
 from __future__ import annotations
 
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -174,19 +175,112 @@ def test_fetch_fund_info_universe_hatasinda_founder_none_kalir_cokme_yok(monkeyp
     assert info.founder is None
 
 
-# --- fetch_fund_returns / fetch_price_history (bilinçli olarak dogrulanamayan uc noktalar) --------
+# --- fetch_price_history / fetch_fund_returns --------
+# CANLI doğrulandı (2026-08-05, Faz 18 hazırlığı): fonFiyatBilgiGetir'in
+# GERÇEK istek gövdesinde eksik olan "dil" alanı bulundu (bkz. tefas.py
+# modül üst notu) -- artık ÇALIŞIYOR. fetch_fund_returns() bunun üzerine
+# kurulu; hesaplanan d1 (%0,4057) PHE için fonBilgiGetir'in kendi
+# "gunlukGetiri" alanıyla (aynı gün CANLI çekildi) BİREBİR eşleşti.
+
+_D = Decimal  # kisa takma ad -- asagidaki test verilerinde okunabilirlik icin
 
 
-def test_fetch_fund_returns_tum_alanlar_none_doner():
-    """Kural 3: TEFAS getiri API'sinin istek govdesi bu oturumda
-    bulunamadigi icin (bkz. modul ust notu) fonksiyon HER ZAMAN None
-    alanli bir FundReturns doner, hata FIRLATMAZ."""
-    returns = tefas.fetch_fund_returns("AFA")
+def _price_row(tarih: str, fiyat: float) -> dict:
+    return {"fonKodu": "PHE", "tarih": tarih, "fiyat": fiyat}
 
-    assert returns == tefas.FundReturns(
+
+def test_fetch_price_history_gunluk_seriyi_dogru_ayristirir(monkeypatch):
+    payload = {
+        "errorCode": None,
+        "resultList": [
+            _price_row("2026-07-06", 3.751613),
+            _price_row("2026-08-05", 3.835123),
+        ],
+    }
+    captured = {}
+
+    def _fake_post_json(url, body):
+        captured["url"] = url
+        captured["body"] = body
+        return payload
+
+    monkeypatch.setattr(tefas, "_post_json", _fake_post_json)
+
+    history = tefas.fetch_price_history("phe", months=1)
+
+    assert captured["url"].endswith("/fonFiyatBilgiGetir")
+    assert captured["body"] == {"fonKodu": "PHE", "dil": "TR", "periyod": 1}
+    assert history == [
+        (date(2026, 7, 6), Decimal("3.751613")),
+        (date(2026, 8, 5), Decimal("3.835123")),
+    ]
+
+
+def test_fetch_price_history_ay_sayisi_en_yakin_enuma_yuvarlanir(monkeypatch):
+    captured = {}
+    monkeypatch.setattr(tefas, "_post_json", lambda url, body: captured.update(body) or {"resultList": []})
+
+    tefas.fetch_price_history("PHE", months=2)
+
+    assert captured["periyod"] == 3  # {1,3,6,12,36,60} enum'unda 2'yi karsilayan en kucuk deger
+
+
+def test_fetch_price_history_sifir_fiyatli_satiri_atlar(monkeypatch):
+    """CANLI gözlemlendi (5 yıllık istekte): fonun ilk işlem gününden
+    ÖNCEye ait dolgu satırlarında fiyat 0 geliyor -- Kural 3 gereği
+    gerçek bir işlem değil, atlanır."""
+    payload = {"resultList": [_price_row("2024-01-01", 0), _price_row("2024-01-02", 1.5)]}
+    monkeypatch.setattr(tefas, "_post_json", lambda url, body: payload)
+
+    history = tefas.fetch_price_history("PHE", months=60)
+
+    assert history == [(date(2024, 1, 2), Decimal("1.5"))]
+
+
+def test_fetch_fund_returns_yetersiz_veride_tum_alanlar_none_doner(monkeypatch):
+    monkeypatch.setattr(tefas, "fetch_price_history", lambda code, months: [])
+
+    assert tefas.fetch_fund_returns("PHE") == tefas.FundReturns(
         d1=None, w1=None, m1=None, m3=None, m6=None, y1=None, y3=None, y5=None, ytd=None
     )
 
 
-def test_fetch_price_history_bos_liste_doner():
-    assert tefas.fetch_price_history("AFA", months=3) == []
+def test_fetch_fund_returns_gunluk_getiriyi_dogru_hesaplar(monkeypatch):
+    """CANLI çapraz doğrulama: PHE için hesaplanan d1 (%0,4057...),
+    fonBilgiGetir'in kendi 'gunlukGetiri' alanıyla (0,4057) aynı gün
+    BİREBİR eşleşti (bkz. tefas.py modül üst notu)."""
+    history = [
+        (date(2026, 8, 4), _D("3.81962677417716324870002400262")),
+        (date(2026, 8, 5), _D("3.835123")),
+    ]
+    monkeypatch.setattr(tefas, "fetch_price_history", lambda code, months: history)
+
+    returns = tefas.fetch_fund_returns("PHE")
+
+    assert round(returns.d1, 4) == _D("0.4057")
+
+
+def test_fetch_fund_returns_ytd_dogru_hesaplar(monkeypatch):
+    history = [
+        (date(2025, 12, 31), _D("2.0")),
+        (date(2026, 6, 1), _D("2.5")),
+        (date(2026, 8, 5), _D("3.0")),
+    ]
+    monkeypatch.setattr(tefas, "fetch_price_history", lambda code, months: history)
+
+    returns = tefas.fetch_fund_returns("PHE")
+
+    assert returns.ytd == _D("50")  # (3.0/2.0 - 1) * 100
+
+
+def test_fetch_fund_returns_yetersiz_derinlikte_uzun_donem_none_kalir(monkeypatch):
+    """5 yıllık veri derinliği yoksa (CANLI gözlemlendi: TEFAS ~600 günle
+    sınırlı) y3/y5 UYDURULMAZ, None kalır (Kural 3)."""
+    history = [(date(2026, 7, 1), _D("1.0")), (date(2026, 8, 5), _D("1.1"))]
+    monkeypatch.setattr(tefas, "fetch_price_history", lambda code, months: history)
+
+    returns = tefas.fetch_fund_returns("PHE")
+
+    assert returns.y3 is None
+    assert returns.y5 is None
+    assert returns.m1 is not None

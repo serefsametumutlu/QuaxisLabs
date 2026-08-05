@@ -69,12 +69,15 @@ kümesiyle -- "hisse"/"fon"/"türev"/"nakit" -- sınırlı, bkz. o modülün
 Görev tanımının kendi sınıflandırması, TEFAS `fonKategori` alanıyla
 eşlenir (CANLI görülen değerler: "Hisse Senedi Fonu", "Serbest Fon" vb.):
   ✅ yüksek güven adayı : Hisse Senedi Fonu, Endeks Fonu
-  ⚠️ orta güven adayı   : Karma Fon, Değişken Fon, Değişken Şemsiye Fon
-  ❌ UYGULANAMAZ        : Serbest Fon, Serbest Şemsiye Fon, Borçlanma
-                          Araçları Fonu, Para Piyasası Fonu, Fon Sepeti
-                          Fonu, Katılım şemsiyeleri (portföy istikrarsız/
-                          şeffaf değil VEYA hisse-fiyat hareketiyle
-                          zaten ilişkisiz)
+  ⚠️ orta güven adayı   : Karma Fon, Değişken Fon, Değişken Şemsiye Fon,
+                          Serbest Fon, Serbest Şemsiye Fon (bkz. aşağıdaki
+                          not -- kategori adı TEK BAŞINA şeffaflığı
+                          belirlemiyor, gerçek kapsam/tazelik güven
+                          skoruyla ayrıca değerlendiriliyor)
+  ❌ UYGULANAMAZ        : Borçlanma Araçları Fonu, Para Piyasası Fonu,
+                          Fon Sepeti Fonu, Katılım şemsiyeleri (yapısı
+                          gereği hisse-fiyat hareketiyle ilişkisiz VEYA
+                          KAP'ta hisse-bazlı portföy raporu YAYINLAMIYOR)
   ❓ bilinmeyen kategori : UYGULANAMAZ (Kural 3: temkinli varsayım)
 Bu liste `_NOT_APPLICABLE_CATEGORIES`/`_HIGH_APPLICABLE_CATEGORIES` altında
 AÇIK sabitler olarak tutulur -- CANLI gözlemlenmemiş bir kategori
@@ -104,11 +107,23 @@ from typing import Protocol
 # CANLI gözlemlenen TEFAS "fonKategori" değerleriyle eşlenir (bkz. modül üst
 # notu). Bilinmeyen/eşleşmeyen HER kategori _NOT_APPLICABLE sayılır (Kural 3).
 _HIGH_APPLICABLE_CATEGORIES = frozenset({"Hisse Senedi Fonu", "Endeks Fonu"})
-_MEDIUM_APPLICABLE_CATEGORIES = frozenset({"Karma Fon", "Değişken Fon", "Değişken Şemsiye Fon"})
+# "Serbest Fon"/"Serbest Şemsiye Fon" BURAYA (orta güven) taşındı -- ilk
+# varsayım ("opaque portföy") CANLI veriyle YANLIŞLANDI: 2026-08-05'te 15
+# hedef fon teşhis edildiğinde TLY (Serbest Fon) %81,83 hisse kapsamı + 5
+# günlük tazelikle PHE (Hisse Senedi Fonu) kadar İYİ çıktı; buna karşın BMU
+# (yine Serbest Fon) neredeyse HİÇ ayrıştırılabilir içerik vermedi (%99,45
+# residual). Yani "Serbest Fon" TEK BAŞINA şeffaflığı belirlemiyor -- fon
+# fon'a DEĞİŞİYOR. Kategori adına göre TOPTAN reddetmek yerine, gerçek
+# `covered_weight_pct`/tazelik bu fonları zaten `estimate_daily_return()`
+# içindeki güven skoruyla (bkz. aşağı) doğru yere ("düşük" güven, geniş
+# aralık) düşürüyor -- bu YETERLİ bir güvenlik ağı (Kural 3 hâlâ geçerli:
+# emin olunmayan durumda geniş aralık/"düşük" güven verilir, susarak
+# EMİNMİŞ gibi davranılmaz).
+_MEDIUM_APPLICABLE_CATEGORIES = frozenset(
+    {"Karma Fon", "Değişken Fon", "Değişken Şemsiye Fon", "Serbest Fon", "Serbest Şemsiye Fon"}
+)
 _NOT_APPLICABLE_CATEGORIES = frozenset(
     {
-        "Serbest Fon",
-        "Serbest Şemsiye Fon",
         "Borçlanma Araçları Fonu",
         "Para Piyasası Fonu",
         "Fon Sepeti Fonu",
@@ -353,8 +368,9 @@ def estimate_daily_return(
     uncovered_note: str | None = None
     if covered_weight < Decimal(100):
         uncovered_pct = Decimal(100) - covered_weight
+        uncovered_pct_display = f"{uncovered_pct:.2f}".replace(".", ",")  # Turkce ondalik ayrac (virgul)
         uncovered_note = (
-            f"Portföyün %{uncovered_pct:.2f}'i (fiyatlandırılamayan hisse/fon/türev/nakit "
+            f"Portföyün %{uncovered_pct_display}'i (fiyatlandırılamayan hisse/fon/türev/nakit "
             "kalemleri) tahmine dahil edilemedi -- bu kalemler %0 getiri VARSAYILDI, gerçek "
             "katkıları farklı olabilir."
         )

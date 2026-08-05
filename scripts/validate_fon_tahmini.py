@@ -340,14 +340,13 @@ def _discover_funds(candidates: list[str], min_count: int = 10) -> list[tuple[st
 def main() -> int:
     config.setup_logging()
 
-    # CANLI tarandı (2026-08-05): "hisse senedi" adı geçen ~36 TEFAS fonu
-    # arasından TEFAS kategorisi uygun ("Hisse Senedi Fonu"), KAP'ta
-    # GERÇEKTEN ayrıştırılabilir VE hisse ağırlığı anlamlı (≥%50) olan 10
-    # fon. Elenenler (Serbest Fon kategorisi VEYA KAP parser'ı güvenilir
-    # sonuç veremedi) bu dosyanın geliştirme sürecinde ayrı ayrı loglandı
-    # (bkz. PROJE_HAFIZASI/08_DEGISIKLIK_GUNLUGU.md) -- burada TEKRAR
-    # taranmaları gereksiz zaman/istek harcar, bu yüzden sabitlendi.
-    candidates = ["PHE", "ACC", "AEV", "AK3", "AKU", "ALC", "BDY", "BHA", "BID", "ADP"]
+    # 2026-08-05 (ikinci tur): kullanıcının Telegram "Fon Analiz" özelliği
+    # için istediği 15 hedef fon -- ilk turun rastgele taranmış 10 fonu
+    # YERİNE artık DOĞRUDAN ŞİMDİ YAYINLANACAK fonlarla doğrulanıyor (bkz.
+    # PROJE_HAFIZASI/08_DEGISIKLIK_GUNLUGU.md). `_discover_funds` YİNE DE
+    # kategori+hisse ağırlığı (≥%50) filtresini uygular -- düşük kapsamlı
+    # fonlar (TMV/DKR/BMU gibi) otomatik ELENİR, bu BEKLENEN bir davranış.
+    candidates = ["TLY", "TMV", "PHE", "PBR", "DFI", "DKR", "LTL", "RIH", "PUK", "SNY", "BMU", "RSK", "KHA", "YIT", "IJC"]
 
     print("=== Faz 18 doğrulama: uygulanabilir fon taraması ===")
     discovered = _discover_funds(candidates)

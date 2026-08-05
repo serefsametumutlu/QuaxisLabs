@@ -25,11 +25,11 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fi
 
 import config
 from src.analysis import calculator, technical, trends
-from src.bot import menu, pipeline
+from src.bot import fund_pipeline, menu, pipeline
 from src.db import models, repository
 from src.fetchers import price_history
 from src.formatting import format_number_tr
-from src.render import calendar_card, card, deep_card, technical_card
+from src.render import calendar_card, card, deep_card, fund_card, technical_card
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +103,7 @@ async def _on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
 # gerekir.
 _TICKER_RE_BIST = re.compile(r"^[A-Z]{3,6}$")
 _TICKER_RE_NASDAQ = re.compile(r"^[A-Z]{1,5}(\.[A-Z])?$")
+_TICKER_RE_FON = re.compile(r"^[A-Z]{2,5}$")  # TEFAS fon kodlari (orn. PHE, TLY) -- BIST'ten AYRI/daha gevsek desen
 
 # --- Es zamanlilik / hiz siniri (bellek-ici, tek surec varsayimiyla) -----------------------------------------------------
 
@@ -350,6 +351,67 @@ async def _gonder_takvim(chat_id: int, context: ContextTypes.DEFAULT_TYPE, marke
         await context.bot.send_message(chat_id=chat_id, text=calendar_card.build_calendar_share_text(takvim_context))
     except Exception:
         logger.exception("%s takvim metni gönderilemedi", market)
+
+
+# --- Fon Analiz (Faz 19) -----------------------------------------------------
+
+
+async def _gonder_fon_tekli(chat_id: int, context: ContextTypes.DEFAULT_TYPE, fund_code: str) -> None:
+    """Tek bir fon kodu için DENEYSEL günlük getiri tahmini üretir ve
+    detaylı kartı gönderir. `fund_pipeline.compute_fund_estimate()` hata
+    fırlatmaz (Kural 9) -- `result.estimate is None` ise `result.reason`
+    kullanıcıya AÇIKÇA gösterilir (Kural 3: sessizce başarısız olunmaz)."""
+    result = await asyncio.to_thread(fund_pipeline.compute_fund_estimate, fund_code)
+
+    if result.estimate is None:
+        await context.bot.send_message(
+            chat_id,
+            f"⚠️ {fund_code} için tahmin üretilemedi: {result.reason}",
+        )
+        return
+
+    fund_context = fund_card.build_fund_estimate_card_context(result)
+    out_path = config.DATA_DIR / "cards" / f"fon_{fund_code}.png"
+    try:
+        png_path = await asyncio.to_thread(card.render_card, fund_context, str(out_path), "fund_card.html", "#fund-card")
+    except card.CardRenderError:
+        logger.exception("%s fon tahmini kartı render edilemedi", fund_code)
+        await context.bot.send_message(chat_id, "⚠️ Fon tahmini görseli üretilemedi, birkaç dakika sonra tekrar dene.")
+        return
+
+    caption = f"💰 Quaxis Fon Tahmini · {fund_code} · {fund_context['estimated_return_display']}"
+    await _send_card_photo(context, chat_id, png_path, caption)
+
+
+# Kullanıcının "öne çıkan fonlar" / "tüm liste" dediği iki sabit mod --
+# gerçek fon kodu listeleri `fund_pipeline` içinde (bkz. o modülün üst
+# notu, TARGET_FUND_CODES/FEATURED_FUND_CODES).
+_FON_GRUP_BASLIKLARI = {
+    "onplan": "⭐ ÖNE ÇIKAN FONLAR",
+    "tumliste": "📋 TÜM FONLAR",
+}
+
+
+async def _gonder_fon_grup(chat_id: int, context: ContextTypes.DEFAULT_TYPE, mode: str) -> None:
+    """'Öne çıkan fonlar' (6 fon) ya da 'tüm liste' (15 fon) -- SADECE
+    tahmini getiriyi gösteren özet kart. Bir fondaki hata/eksik veri
+    DİĞERLERİNİ etkilemez (bkz. `fund_pipeline.compute_fund_estimates`)."""
+    codes = fund_pipeline.FEATURED_FUND_CODES if mode == "onplan" else fund_pipeline.TARGET_FUND_CODES
+    results = await asyncio.to_thread(fund_pipeline.compute_fund_estimates, codes)
+
+    group_context = fund_card.build_fund_group_card_context(results, _FON_GRUP_BASLIKLARI[mode])
+    out_path = config.DATA_DIR / "cards" / f"fon_grup_{mode}.png"
+    try:
+        png_path = await asyncio.to_thread(
+            card.render_card, group_context, str(out_path), "fund_group_card.html", "#fund-group-card"
+        )
+    except card.CardRenderError:
+        logger.exception("%s fon grup kartı render edilemedi", mode)
+        await context.bot.send_message(chat_id, "⚠️ Fon tahmini görseli üretilemedi, birkaç dakika sonra tekrar dene.")
+        return
+
+    caption = f"💰 Quaxis Fon Tahmini · {_FON_GRUP_BASLIKLARI[mode]}"
+    await _send_card_photo(context, chat_id, png_path, caption)
 
 
 # --- Teknik Görünüm (Faz 15) -----------------------------------------------------
@@ -825,6 +887,33 @@ async def handle_ticker_message(update: Update, context: ContextTypes.DEFAULT_TY
     raw_text = update.message.text or ""
 
     islem = menu.peek_bekleyen_islem(context.user_data)
+
+    if islem is not None and islem.tip == "fonanaliz":
+        # Fon kodu akışı (Faz 19) -- BIST/NASDAQ ticker akışından TAMAMEN
+        # AYRI bir doğrulama/hedef kullanır (market kavramı YOK), bu yüzden
+        # aşağıdaki ticker/market çözümlemesinden ÖNCE ayrı bir dal olarak
+        # ele alınır.
+        menu.clear_bekleyen_islem(context.user_data)
+        fund_code = raw_text.strip().lstrip("$#").strip().upper()
+        if not _TICKER_RE_FON.fullmatch(fund_code):
+            await update.message.reply_text("Anlayamadım. Lütfen 2-5 harfli bir fon kodu yaz (örn: PHE, TLY).")
+            return
+
+        if user.id in _active_users:
+            await update.message.reply_text("⏳ Önceki isteğin hâlâ işleniyor, lütfen onu bekle.")
+            return
+        if not _check_rate_limit(user.id):
+            await update.message.reply_text("🐢 Çok hızlı istek gönderiyorsun. Dakikada en fazla 3 analiz yapabilirim, biraz bekle.")
+            return
+
+        _active_users.add(user.id)
+        try:
+            await update.message.reply_text(f"💰 {fund_code} için tahmin hazırlanıyor... (~10-20 sn)")
+            await _gonder_fon_tekli(update.effective_chat.id, context, fund_code)
+        finally:
+            _active_users.discard(user.id)
+        return
+
     # CANLI KULLANICI GERİ BİLDİRİMİ (§B18): menüsüz dogrudan ticker yazan
     # kullanicilar icin varsayilan piyasa ARTIK sabit "BIST" DEGIL -- en son
     # kullanilan/secilen piyasa (menu.get_son_market, TTL'siz) kullanilir.
@@ -955,6 +1044,22 @@ async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             await _gonder_takvim(query.message.chat_id, context, market)
         else:
             await query.edit_message_text(menu.TAKVIM_MENU_TEXT, reply_markup=menu.build_takvim_menu())
+        return
+
+    if screen == "fonanaliz":
+        if sub == "tekli":
+            menu.set_bekleyen_islem(context.user_data, tip="fonanaliz", market="-")
+            await query.edit_message_text(menu.FONANALIZ_TEKLI_PROMPT, reply_markup=menu.build_fonanaliz_bekleniyor_menu())
+        elif sub in ("onplan", "tumliste"):
+            menu.clear_bekleyen_islem(context.user_data)
+            await query.edit_message_text(
+                "💰 Fon tahminleri hazırlanıyor... (~1-2 dakika, birden fazla fon için veri çekiliyor)",
+                reply_markup=menu.build_fonanaliz_bekleniyor_menu(),
+            )
+            await _gonder_fon_grup(query.message.chat_id, context, sub)
+        else:
+            menu.clear_bekleyen_islem(context.user_data)
+            await query.edit_message_text(menu.FONANALIZ_MENU_TEXT, reply_markup=menu.build_fonanaliz_menu())
         return
 
     if screen == "son":

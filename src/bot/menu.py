@@ -29,8 +29,8 @@ _BEKLEYEN_ISLEM_TTL_SECONDS = 600.0
 
 @dataclass
 class BekleyenIslem:
-    tip: str  # "analiz" (temel) | "teknik" (Faz 15)
-    market: str  # "BIST" | "NASDAQ"
+    tip: str  # "analiz" (temel) | "teknik" (Faz 15) | "fonanaliz" (Faz 19)
+    market: str  # "BIST" | "NASDAQ" -- tip="fonanaliz" icin kullanilmaz, "-" sabiti konur
     expires_at: float  # time.monotonic() bazli
 
 
@@ -88,6 +88,7 @@ def build_root_menu() -> InlineKeyboardMarkup:
             [InlineKeyboardButton("📊 Bilanço Analizi", callback_data="menu:analiz")],
             [InlineKeyboardButton("📈 Teknik Görünüm", callback_data="menu:teknikanaliz")],
             [InlineKeyboardButton("🔬 Detaylı Analiz (Derin Kart)", callback_data="menu:derinanaliz")],
+            [InlineKeyboardButton("💰 Fon Analiz", callback_data="menu:fonanaliz")],
             [InlineKeyboardButton("📅 Yaklaşan Bilanço Tarihleri", callback_data="menu:takvim")],
             [InlineKeyboardButton("🕘 Son Kartlar", callback_data="menu:son")],
             [InlineKeyboardButton("ℹ️ Hakkında", callback_data="menu:hakkinda")],
@@ -131,6 +132,26 @@ def build_derin_menu() -> InlineKeyboardMarkup:
             [InlineKeyboardButton("⬅️ Geri", callback_data="menu:root")],
         ]
     )
+
+
+def build_fonanaliz_menu() -> InlineKeyboardMarkup:
+    """'💰 Fon Analiz' -- Faz 19. Üç mod (kullanıcı isteği): tekli fon
+    (kod yazılır, detaylı kart), öne çıkan fonlar (sabit 6 fon, özet
+    kart), tüm liste (sabit 15 fon, özet kart). Son ikisi metin GİRİŞİ
+    GEREKTİRMEZ -- takvim akışıyla AYNI şekilde doğrudan tetiklenir."""
+    return InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("🔍 Tek Fon Analizi", callback_data="menu:fonanaliz:tekli")],
+            [InlineKeyboardButton("⭐ Öne Çıkan Fonlar", callback_data="menu:fonanaliz:onplan")],
+            [InlineKeyboardButton("📋 Tüm Liste (15 Fon)", callback_data="menu:fonanaliz:tumliste")],
+            [InlineKeyboardButton("⬅️ Geri", callback_data="menu:root")],
+        ]
+    )
+
+
+def build_fonanaliz_bekleniyor_menu() -> InlineKeyboardMarkup:
+    """Tekli fon icin 'fon kodunu yaz' ekrani -- Geri, menu:fonanaliz'e doner."""
+    return _geri_menu("menu:fonanaliz")
 
 
 def build_takvim_menu() -> InlineKeyboardMarkup:
@@ -234,6 +255,8 @@ ANALIZ_MENU_TEXT = "📊 Bilanço Analizi — hangi piyasa?"
 TEKNIK_MENU_TEXT = "📈 Teknik Görünüm — hangi piyasa?"
 DERIN_MENU_TEXT = "🔬 Detaylı Analiz (Derin Kart) — hangi piyasa?"
 TAKVIM_MENU_TEXT = "📅 Yaklaşan Bilanço Tarihleri — hangi piyasa?"
+FONANALIZ_MENU_TEXT = "💰 Fon Analiz — ne görmek istersin?"
+FONANALIZ_TEKLI_PROMPT = "Fon kodunu yaz (örn: PHE, TLY)"
 
 ANALIZ_BIST_PROMPT = "Hisse kodunu yaz (örn: THYAO)"
 ANALIZ_NASDAQ_PROMPT = "Sembolü yaz (örn: AAPL)"

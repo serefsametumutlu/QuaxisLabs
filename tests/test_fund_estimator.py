@@ -42,10 +42,21 @@ def test_is_estimable_hisse_senedi_fonu_uygulanabilir():
     assert reason == ""
 
 
-def test_is_estimable_serbest_fon_uygulanamaz():
+def test_is_estimable_serbest_fon_orta_guvenle_uygulanabilir():
+    """CANLI veriyle (2026-08-05, 15 hedef fon teşhisi) 'Serbest Fon'
+    kategorisinin TEK BAŞINA şeffaflığı belirlemediği görüldü (TLY iyi
+    kapsam/tazelik verirken BMU neredeyse hiç veri vermedi) -- bu yüzden
+    artık toptan reddedilmiyor, orta güven adayı sayılıp gerçek kapsam/
+    tazelik `estimate_daily_return()`'daki güven skoruna bırakılıyor."""
     ok, reason = fe.is_estimable_fund_type("Serbest Fon")
+    assert ok is True
+    assert reason == ""
+
+
+def test_is_estimable_borclanma_araclari_fonu_uygulanamaz():
+    ok, reason = fe.is_estimable_fund_type("Borçlanma Araçları Fonu")
     assert ok is False
-    assert "Serbest Fon" in reason
+    assert "Borçlanma Araçları Fonu" in reason
 
 
 def test_is_estimable_none_uygulanamaz():
@@ -130,7 +141,7 @@ def test_estimate_daily_return_eksik_fiyatli_holding_kapsam_disi_kalir():
     assert result.estimated_return_pct == Decimal("2.00")  # 0.50*4 + 0.50*0(kapsam disi)
     assert result.covered_weight_pct == Decimal("50")
     assert result.uncovered_note is not None
-    assert "50" in result.uncovered_note
+    assert "%50,00'i" in result.uncovered_note  # Turkce ondalik ayrac (virgul) -- CANLI hata, bkz. 08_DEGISIKLIK_GUNLUGU.md
 
     by_ticker = {c.ticker: c for c in result.contributions}
     assert by_ticker["CCC"].daily_return_pct is None
@@ -172,7 +183,7 @@ def test_estimate_daily_return_uygulanamaz_fon_tipi_none_doner():
     holdings = [_Holding("hisse", "AAA", "A A.Ş.", Decimal("100"))]
     portfolio = _portfolio(holdings)
 
-    result = fe.estimate_daily_return(portfolio, {"AAA": Decimal("1")}, fund_category="Serbest Fon")
+    result = fe.estimate_daily_return(portfolio, {"AAA": Decimal("1")}, fund_category="Borçlanma Araçları Fonu")
 
     assert result is None
 

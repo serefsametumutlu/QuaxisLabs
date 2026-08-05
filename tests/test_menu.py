@@ -20,12 +20,13 @@ def _callback_data_grid(markup) -> list[list[str]]:
     return [[button.callback_data for button in row] for row in markup.inline_keyboard]
 
 
-def test_build_root_menu_alti_dal_icerir() -> None:
+def test_build_root_menu_yedi_dal_icerir() -> None:
     grid = _callback_data_grid(menu.build_root_menu())
     assert grid == [
         ["menu:analiz"],
         ["menu:teknikanaliz"],
         ["menu:derinanaliz"],
+        ["menu:fonanaliz"],
         ["menu:takvim"],
         ["menu:son"],
         ["menu:hakkinda"],

@@ -225,25 +225,23 @@ def test_fetch_attachment_pdf_pdf_disinda_dosyayi_atlar(monkeypatch):
 def test_parse_portfolio_pdf_gercek_rapor_grup_toplamlariyla_esler():
     """CANLI doğrulama (Kural 3): PHE Temmuz 2026 raporunun 'HİSSE
     SENETLERİ' bölümü 21 satır/%77,05, 'DİĞER' (fon-içinde-fon) bölümü
-    4 satır/%20,60, 'TÜREV' (VIOP Nakit Teminatı) %0,01 veriyor -- HEPSİ
-    PDF'in KENDİ 'GRUP TOPLAMI' satırlarıyla BİREBİR eşleşmeli. Kalan
-    fark (%2,34) tek bir 'nakit' sözde-satırı olarak eklenir; NİHAİ
-    TOPLAM %100,00'e ulaşmalı (bkz. modül üst notu)."""
+    4 satır/%20,60 veriyor -- HER İKİSİ de PDF'in KENDİ 'GRUP TOPLAMI'
+    satırlarıyla BİREBİR eşleşmeli. TÜREV artık AYRIŞTIRILMIYOR (bkz.
+    modül üst notu, Kullanıcı Kararı #3) -- onun küçük ağırlığı (%0,01)
+    da DAHİL kalan fark (%2,35) tek bir 'nakit' sözde-satırı olarak
+    eklenir; NİHAİ TOPLAM %100,00'e ulaşmalı."""
     holdings = kfp._parse_portfolio_pdf(PHE_PDF_BYTES)
 
     hisse = [h for h in holdings if h.instrument_type == "hisse"]
     fon = [h for h in holdings if h.instrument_type == "fon"]
-    turev = [h for h in holdings if h.instrument_type == "türev"]
     nakit = [h for h in holdings if h.instrument_type == "nakit"]
 
     assert len(hisse) == 21
     assert sum(h.weight_pct for h in hisse) == Decimal("77.05")
     assert len(fon) == 4
     assert sum(h.weight_pct for h in fon) == Decimal("20.60")
-    assert len(turev) == 1
-    assert turev[0].weight_pct == Decimal("0.01")
     assert len(nakit) == 1
-    assert nakit[0].weight_pct == Decimal("2.34")
+    assert nakit[0].weight_pct == Decimal("2.35")
 
     assert sum(h.weight_pct for h in holdings) == Decimal("100.00")
 
@@ -303,34 +301,6 @@ def test_parse_section_rows_grup_toplami_tutuyorsa_holding_doner():
     assert holdings[0].weight_pct == Decimal("40.00")
 
 
-# --- _parse_viop_cash_collateral --------------------------------------------
-
-
-def test_parse_viop_cash_collateral_veri_satirini_bulur():
-    words = [
-        _fake_word("VIOP", 20.0, 100.0),
-        _fake_word("Nakit", 46.6, 100.0),
-        _fake_word("Teminatı", 73.8, 100.0),  # sadece etiket satiri -- sayisal veri YOK
-        _fake_word("VIOP", 20.0, 130.0),
-        _fake_word("Nakit", 38.6, 130.0),
-        _fake_word("Teminatı", 56.5, 130.0),
-        _fake_word("4.828.762,67", 372.1, 130.0),
-        _fake_word("4.828.762,67", 776.1, 130.0),
-        _fake_word("100,00", 828.6, 130.0),
-        _fake_word("0,01", 866.4, 130.0),
-    ]
-
-    holding = kfp._parse_viop_cash_collateral(words)
-
-    assert holding is not None
-    assert holding.instrument_type == "türev"
-    assert holding.weight_pct == Decimal("0.01")
-
-
-def test_parse_viop_cash_collateral_bulunamazsa_none_doner():
-    assert kfp._parse_viop_cash_collateral([]) is None
-
-
 # --- nakit residual --------------------------------------------
 
 
@@ -339,7 +309,52 @@ def test_parse_portfolio_pdf_hicbir_bolum_ayristirilamazsa_residual_eklenmez(mon
     boş) residual 'nakit' satırı da eklenmez -- aksi halde '%100 nakit'
     gibi YANLIŞ bir izlenim verirdi."""
     monkeypatch.setattr(kfp, "_extract_section_words", lambda pdf, section_start: [])
-    monkeypatch.setattr(kfp, "_parse_viop_cash_collateral", lambda words: None)
+
+    assert kfp._parse_portfolio_pdf(PHE_PDF_BYTES) == []
+
+
+def _section_words_by_start(hisse_words: list[dict], fon_words: list[dict]):
+    def _fake_extract(pdf, section_start):
+        if section_start == "HİSSE SENETLERİ":
+            return hisse_words
+        if section_start == "DİĞER":
+            return fon_words
+        return []
+
+    return _fake_extract
+
+
+def test_parse_portfolio_pdf_toplam_hafifce_asarsa_orantisal_olceklenir(monkeypatch):
+    """Kullanıcı Kararı #4 (düzeltilmiş hâli): HİSSE (%95) + fon (%10) AYRI
+    AYRI kendi grup toplamını geçer ama BİRLİKTE %105'e ulaşır -- bu,
+    `_MAX_OVERAGE_FOR_RESCALE` (8.0) içinde kaldığı için veri ATILMAZ,
+    TÜM ağırlıklar 100/105 ile orantısal olarak yeniden ölçeklenir
+    (CANLI PUK/PHE-Temmuz vakalarıyla aynı senaryo, bkz. modül üst notu)."""
+    hisse_words = _fake_hisse_row(100.0, "TESTA", "TRTESTA00011", group_pct="100,00", weight_pct="95,00")
+    fon_words = _fake_hisse_row(100.0, "ABC-FONX", "TRFONAB00019", group_pct="100,00", weight_pct="10,00")
+
+    monkeypatch.setattr(kfp, "_extract_section_words", _section_words_by_start(hisse_words, fon_words))
+
+    holdings = kfp._parse_portfolio_pdf(PHE_PDF_BYTES)
+
+    assert len(holdings) == 2
+    total = sum(h.weight_pct for h in holdings)
+    assert total == Decimal("100.00")
+    hisse = next(h for h in holdings if h.instrument_type == "hisse")
+    fon = next(h for h in holdings if h.instrument_type == "fon")
+    # Orijinal oran (95:10) AYNEN korunmalı -- capraz carpim esitligi,
+    # yuvarlama farkindan BAGIMSIZ kesin bir dogrulama.
+    assert hisse.weight_pct * Decimal(10) == fon.weight_pct * Decimal(95)
+
+
+def test_parse_portfolio_pdf_toplam_asiri_asarsa_bos_liste_doner(monkeypatch):
+    """Toplam `_MAX_OVERAGE_FOR_RESCALE`'i de aşarsa (ör. %115) artık
+    orantısal ölçeklemeyle AÇIKLANAMAZ -- muhtemelen gerçek bir
+    ayrıştırma hatası, TÜM portföy güvenilmez sayılıp boş liste döner."""
+    hisse_words = _fake_hisse_row(100.0, "TESTA", "TRTESTA00011", group_pct="100,00", weight_pct="95,00")
+    fon_words = _fake_hisse_row(100.0, "ABC-FONX", "TRFONAB00019", group_pct="100,00", weight_pct="20,00")
+
+    monkeypatch.setattr(kfp, "_extract_section_words", _section_words_by_start(hisse_words, fon_words))
 
     assert kfp._parse_portfolio_pdf(PHE_PDF_BYTES) == []
 
@@ -384,7 +399,7 @@ def test_fetch_latest_portfolio_uctan_uca(monkeypatch):
     assert result.report_date == date(2026, 7, 31)
     assert result.publish_date == date(2026, 8, 5)
     assert result.staleness_days == (date.today() - date(2026, 7, 31)).days
-    assert len(result.holdings) == 27  # 21 hisse + 4 fon + 1 türev (VIOP nakit teminatı) + 1 nakit residual
+    assert len(result.holdings) == 26  # 21 hisse + 4 fon + 1 nakit residual (türev artık ayrıştırılmıyor)
     assert sum(h.weight_pct for h in result.holdings) == Decimal("100.00")
 
 
@@ -493,7 +508,7 @@ def test_fetch_portfolio_by_disclosure_as_of_ile_staleness_gecmise_gore_hesaplan
 
     assert result.report_date == date(2026, 7, 31)
     assert result.staleness_days == 20  # 2026-08-20 - 2026-07-31
-    assert len(result.holdings) == 27
+    assert len(result.holdings) == 26  # 21 hisse + 4 fon + 1 nakit residual (türev artık ayrıştırılmıyor)
 
 
 def test_fetch_portfolio_by_disclosure_pdf_indirilemezse_none_doner(monkeypatch):

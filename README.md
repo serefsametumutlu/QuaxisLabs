@@ -923,6 +923,25 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       TERS çıktı (yüksek güven MAE'si orta güvenden kötü). Detay:
       `data/exploration/fon_tahmini_dogrulama_raporu.txt`,
       `PROJE_HAFIZASI/06_BILINEN_SORUNLAR.md` §B28. 917 test, hepsi yeşil.
+- [x] **Faz 19** — Telegram "💰 Fon Analiz" özelliği eklendi: tek fon
+      kodu → detaylı kart (hisse bazında ağırlık/getiri/katkı, "en çok
+      katkı sağlayan/kaybettiren" iki sütun), "öne çıkan fonlar" (6 fon)
+      ve "tüm liste" (15 fon) → özet kartlar. TÜREV desteği kaldırıldı
+      (ihmal edilebilir ağırlık + hep "bulunamadı" uyarısı üretiyordu).
+      `is_estimable_fund_type()`'ta "Serbest Fon" toptan redden orta
+      güven adaylığına taşındı (kategori adı tek başına şeffaflığı
+      belirlemiyor — CANLI kanıtlandı). PUK'ta bulunan çift-sayım
+      hatası veri atmak yerine orantısal yeniden ölçekleme ile
+      düzeltildi. **🚨 MAE hâlâ hedefin üstünde (15 hedef fonla ikinci
+      doğrulama: MAE=2,17, 6/15 fon uygulanabilir çıktı) ama kullanıcı
+      özelliği "🚨 DENEYSEL TAHMİN" uyarı bandıyla YAYINLAMAYA karar
+      verdi** (Faz 18 kuralının bilinçli istisnası). 7/15 hedef fonun
+      KAP PDF şablonu hiç ayrıştırılamıyor (aynı portföy yönetim
+      şirketi içinde bile şablon fon türüne göre değişiyor) ve gerçek
+      zamanlı/15-dk-gecikmeli hisse fiyatı kaynağımız yok (sadece günlük
+      kapanış) — ikisi de açık risk olarak belgelendi. Detay:
+      `PROJE_HAFIZASI/06_BILINEN_SORUNLAR.md` §B28/§B29/§B30,
+      `08_DEGISIKLIK_GUNLUGU.md` "yirminci tur". 918 test, hepsi yeşil.
 
 ## Dizin Yapisi
 

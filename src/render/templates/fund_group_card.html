@@ -1,0 +1,183 @@
+<!--
+  Bilanco Radar FON TAHMINI grup karti sablonu (Faz 19 -- 'öne çıkan
+  fonlar' ve 'tüm liste' modları AYNI şablonu kullanır, sadece `title`
+  ve `rows` farklıdır). fund_card.html ile AYNI marka dili/renk sistemi.
+-->
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>{{ title }}</title>
+<style>
+  :root {
+    --bg: #0a0e12;
+    --panel: rgba(255, 255, 255, 0.02);
+    --border: rgba(226, 232, 240, 0.09);
+    --border-soft: rgba(226, 232, 240, 0.06);
+    --heading: #e2e8f0;
+    --secondary: #64748b;
+    --positive: #22c55e;
+    --negative: #ef4444;
+    --neutral: #94a3b8;
+    --accent: #2dd4bf;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); }
+
+  .fund-group-card {
+    position: relative;
+    width: 900px;
+    background: radial-gradient(circle at 10% -10%, rgba(45, 212, 191, 0.06), transparent 40%), var(--bg);
+    color: var(--heading);
+    font-family: "Cascadia Code", "Cascadia Mono", Consolas, "JetBrains Mono", "IBM Plex Mono",
+      "SFMono-Regular", Menlo, Monaco, ui-monospace, monospace;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    overflow: hidden;
+    padding: 28px 32px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .scanlines {
+    position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.018) 0px, rgba(255,255,255,0.018) 1px, transparent 1px, transparent 3px);
+    mix-blend-mode: overlay;
+  }
+
+  .top-band {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 20px 24px;
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--accent);
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(45, 212, 191, 0.06), transparent 55%), var(--panel);
+  }
+
+  .masthead { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .masthead-logo { height: 38px; width: 38px; border-radius: 50%; display: block; }
+  .masthead-text { font-size: 15px; font-weight: 800; letter-spacing: 0.4px; }
+  .masthead-brand { color: var(--heading); }
+  .masthead-accent { color: var(--accent); }
+  .masthead-product { color: var(--secondary); font-weight: 600; }
+
+  .title-line { font-size: 22px; font-weight: 800; color: var(--heading); }
+  .date-badge { text-align: right; font-size: 12.5px; color: var(--secondary); white-space: nowrap; }
+  .date-badge-value { font-size: 14px; font-weight: 700; color: var(--heading); }
+
+  .warning-band {
+    font-size: 11.5px; color: #fbbf24; padding: 9px 14px; border-radius: 10px;
+    border: 1px solid rgba(251, 191, 36, 0.3); background: rgba(251, 191, 36, 0.06);
+  }
+
+  .rows { display: flex; flex-direction: column; gap: 8px; }
+
+  .fund-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-radius: 10px;
+    background: var(--panel);
+    border: 1px solid var(--border-soft);
+  }
+
+  .fund-row-left { min-width: 0; display: flex; align-items: baseline; gap: 10px; }
+  .fund-row-code { font-size: 17px; font-weight: 800; color: var(--heading); }
+  .fund-row-name { font-size: 12px; color: var(--secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 420px; }
+
+  .fund-row-right { text-align: right; flex-shrink: 0; padding-left: 12px; }
+  .fund-row-return { font-size: 20px; font-weight: 800; }
+  .fund-row-return.positive { color: var(--positive); }
+  .fund-row-return.negative { color: var(--negative); }
+  .fund-row-return.neutral { color: var(--neutral); }
+  .fund-row-confidence { font-size: 10.5px; color: var(--secondary); margin-top: 2px; }
+
+  .unavailable-section { margin-top: 4px; }
+  .unavailable-heading { font-size: 12px; font-weight: 700; color: var(--secondary); margin-bottom: 8px; letter-spacing: 0.3px; }
+  .unavailable-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 14px; border-radius: 8px; background: var(--panel);
+    border: 1px dashed var(--border); margin-bottom: 6px; font-size: 12px; color: var(--secondary);
+  }
+  .unavailable-code { font-weight: 700; color: var(--heading); margin-right: 10px; }
+
+  .empty-state { padding: 24px 16px; text-align: center; color: var(--secondary); font-size: 13px; }
+
+  .bottom-band {
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .disclaimer { font-size: 10.5px; color: var(--secondary); max-width: 560px; }
+  .footer-meta { font-size: 10.5px; color: var(--secondary); opacity: 0.75; white-space: nowrap; }
+  .footer-handle { color: var(--heading); font-weight: 700; opacity: 0.9; }
+  .dot-sep { margin: 0 8px; color: var(--secondary); }
+</style>
+</head>
+<body>
+<div id="fund-group-card" class="fund-group-card">
+  <div class="scanlines"></div>
+
+  <header class="top-band">
+    <div>
+      <div class="masthead">
+        <img class="masthead-logo" src="{{ logo_data_uri }}" alt="QuaxisLabs">
+        <span class="masthead-text"><span class="masthead-brand">QUAXIS<span class="masthead-accent">LABS</span></span><span class="masthead-product"> · FON TAHMİNİ</span></span>
+      </div>
+      <div class="title-line">{{ title }}</div>
+    </div>
+    <div class="date-badge">
+      <div>Tahmin Tarihi</div>
+      <div class="date-badge-value">{{ date_label }}</div>
+    </div>
+  </header>
+
+  <div class="warning-band">🚨 DENEYSEL TAHMİN -- gerçekleşmiş/açıklanmış fon getirisi DEĞİLDİR, mevcut portföy içeriği + güncel fiyat hareketlerine dayalı bir kestirimdir.</div>
+
+  {% if is_empty %}
+  <div class="empty-state">Bu grup için şu an hiçbir fon tahmini üretilemedi.</div>
+  {% endif %}
+
+  {% if rows %}
+  <div class="rows">
+    {% for row in rows %}
+    <div class="fund-row">
+      <div class="fund-row-left">
+        <span class="fund-row-code">{{ row.fund_code }}</span>
+        <span class="fund-row-name">{{ row.fund_name }}</span>
+      </div>
+      <div class="fund-row-right">
+        <div class="fund-row-return {{ row.return_color_class }}">{{ row.return_display }}</div>
+        <div class="fund-row-confidence">{{ row.confidence_label }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if not is_unavailable_empty %}
+  <div class="unavailable-section">
+    <div class="unavailable-heading">TAHMİN ÜRETİLEMEYEN FONLAR</div>
+    {% for row in unavailable_rows %}
+    <div class="unavailable-row">
+      <span><span class="unavailable-code">{{ row.fund_code }}</span>{{ row.fund_name }}</span>
+      <span>{{ row.reason }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <footer class="bottom-band">
+    <div class="disclaimer">{{ disclaimer }}</div>
+    <div class="footer-meta">Üretim: {{ report_timestamp }}<span class="dot-sep">·</span>Kaynaklar: KAP, TEFAS, İş Yatırım<span class="dot-sep">·</span><span class="footer-handle">@QuaxisLabs</span></div>
+  </footer>
+</div>
+</body>
+</html>

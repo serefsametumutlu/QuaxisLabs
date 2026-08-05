@@ -77,14 +77,21 @@ ayrıştırıp öz-doğruluyor, ARDINDAN kalan farkı (100 - toplam) TEK bir
 "nakit" sözde-satırı olarak ekliyor -- nihai toplam PHE'de %100,00'e
 ulaşıyor (kendi IV-tablosundaki B..G kalemlerinin toplamıyla tutarlı).
 
-🚨 TÜREV bölümünün İKİ alt-yapısı VAR, hisse/fon satır biçiminden
-FARKLI: Futures satırı ("F_XU0300826") ticker+TL işaretiyle BAŞLAR ama
-gerçek bir ISIN (TR...) YERİNE kontrat kodu TEKRARLANIYOR --
-`_CONTRACT_CODE_RE` ile eşleştirilip pseudo-kimlik olarak kullanılıyor.
-"VIOP Nakit Teminatı" satırının ise ticker+TL işareti HİÇ YOK (3
-kelimelik düz bir etiket, sadece 4 sayısal alan) -- genel satır
-ayrıştırıcıya UYMUYOR, `_parse_viop_cash_collateral()` adlı ayrı, küçük
-bir yardımcıyla TEK bir toplam değer olarak okunuyor.
+🚨 KULLANICI KARARI #3 (2026-08-05, aynı oturum): TÜREV bölümünün ayrı
+ayrıştırılması KALDIRILDI. Gerekçe: (a) CANLI gözlemde ağırlığı ihmal
+edilebilir düzeyde (PHE'de %0,01), (b) İKİ farklı alt-yapısı (futures
+satırı + "VIOP Nakit Teminatı" mini-ayrıştırıcısı) kod karmaşıklığına
+oranla değer katmıyor, (c) Faz 18 doğrulamasında TÜREV ayrıştırması HER
+ZAMAN "bulunamadı" ya da "grup toplamı sapıyor" uyarısı üretti (bkz.
+`data/exploration/fon_tahmini_dogrulama_raporu.txt` log'u) -- yani zaten
+FİİLEN hiç veri katkısı yapmıyordu, sadece log gürültüsüydü. TÜREV artık
+`_PARSEABLE_SECTIONS`'ta YOK; TÜREV başlığı YİNE DE `_ALL_SECTION_HEADERS`
+listesinde TUTULUYOR (SADECE bir bölüm SINIRI/terminator olarak -- HİSSE
+veya DİĞER bölümünün TÜREV başlığına taşıp yanlış satır karıştırmasını
+ÖNLEMEK için, bkz. `_extract_section_words`). TÜREV'in küçük ağırlığı
+artık ayrıştırılmıyor bile olsa, portföyün TOPLAM %100'e tamamlanması
+etkilenmiyor: parçalanmamış TÜM fark (türev dahil) tek bir "nakit"
+residual satırına düşüyor (bkz. `_parse_portfolio_pdf`).
 """
 
 from __future__ import annotations
@@ -123,10 +130,11 @@ _HEADERS = {
 # raporlarıyla CANLI kalibre edildi (bkz. modül üst notu).
 _STOCK_TICKER_RE = re.compile(r"^[A-ZÇĞİÖŞÜ]{2,6}\d?$")  # "AKSEN", "ALKLC" gibi
 _FUND_TICKER_RE = re.compile(r"^[A-Z]{2,6}-")  # "PCS-PUSULA..." gibi -- fon-icinde-fon satirlari
-_FUTURES_TICKER_RE = re.compile(r"^F_[A-Z0-9]+$")  # "F_XU0300826" gibi -- VIOP futures kontrati
 _ISIN_RE = re.compile(r"^TR[A-Z0-9]{10,11}$")
-_CONTRACT_CODE_RE = re.compile(r"^F_[A-Z0-9]+$")  # futures satirinda ISIN YERINE kontrat kodu tekrarlanir
 _PURE_INT_RE = re.compile(r"^\d{5,10}$")  # borsa sözleşme no gibi virgülsüz tam sayı -- atlanır
+# TÜREV artık AYRIŞTIRILMIYOR (bkz. modül üst notu, Kullanıcı Kararı #3) ama
+# HİSSE/DİĞER bölümlerinin TÜREV başlığına TAŞMAMASI için bölüm SINIRI
+# (terminator) olarak listede TUTULUYOR.
 _ALL_SECTION_HEADERS = (
     "BORÇLANMA SENETLERİ",
     "KİRA SERTİFİKALARI",
@@ -137,15 +145,19 @@ _ALL_SECTION_HEADERS = (
 # (bölüm başlığı, enstrüman tipi, satır-başlangıcı ticker deseni, satır-içi
 # dikey tolerans, "ISIN" yerine kullanılacak kimlik deseni) -- dikey tolerans
 # CANLI kalibre edildi: HİSSE'de ticker/TL/sayılar TAM AYNI 'top' değerinde
-# (1pt yeterli); DİĞER (fon) ve TÜREV (futures) bölümlerinde ~2pt fark
-# GÖZLEMLENDİ -- tek bir ortak tolerans HİSSE'de YANLIŞ satır birleşmelerine
-# yol açtığı için (CANLI gözlemlendi) bölüm bazında AYRI tutuluyor.
+# (1pt yeterli); DİĞER (fon) bölümünde ~2pt fark GÖZLEMLENDİ -- tek bir ortak
+# tolerans HİSSE'de YANLIŞ satır birleşmelerine yol açtığı için (CANLI
+# gözlemlendi) bölüm bazında AYRI tutuluyor.
 _PARSEABLE_SECTIONS = (
     ("HİSSE SENETLERİ", "hisse", _STOCK_TICKER_RE, 1, _ISIN_RE),
     ("DİĞER", "fon", _FUND_TICKER_RE, 3, _ISIN_RE),
-    ("TÜREV", "türev", _FUTURES_TICKER_RE, 3, _CONTRACT_CODE_RE),
 )
 _GROUP_TOTAL_TOLERANCE = Decimal("2.0")  # grup toplamı %100'den en fazla bu kadar sapabilir
+# Bölümler AYRI AYRI geçerliyken BİRLİKTE %100'ü bu kadara kadar aşarsa
+# (Kullanıcı Kararı #4, bkz. `_parse_portfolio_pdf`) veri ATILMAZ,
+# ORANTISAL olarak yeniden ölçeklenir -- CANLI gözlemlenen iki durumdan
+# (PUK %103,23, PHE Temmuz %103,68) daha geniş bir pay bırakır.
+_MAX_OVERAGE_FOR_RESCALE = Decimal("8.0")
 
 
 # --- Hata sınıfları -----------------------------------------------------
@@ -164,7 +176,7 @@ class FundNotFoundError(KapFundPortfolioError):
 
 @dataclass(frozen=True)
 class Holding:
-    instrument_type: str  # "hisse" | "fon" (fon-içinde-fon) -- bkz. modül üst notu; TÜREV/nakit KAPSAM DIŞI
+    instrument_type: str  # "hisse" | "fon" (fon-içinde-fon) | "nakit" (residual sözde-satır, bkz. modül üst notu)
     ticker: str | None  # BİST kodu (hisse) veya TEFAS fon kodu (fon)
     name: str
     weight_pct: Decimal  # Fon Toplam Değeri'ne göre pay (TEFAS portfoyOrani ile AYNI anlam)
@@ -471,64 +483,60 @@ def _parse_section_rows(
     ]
 
 
-def _parse_viop_cash_collateral(turev_words: list[dict]) -> Holding | None:
-    """'VIOP Nakit Teminatı' satırı diğer TÜM satırlardan FARKLI bir
-    yapıya sahiptir -- ticker+"TL" işareti YOK (sadece 3 kelimelik düz
-    bir etiket, "VIOP Nakit Teminatı"), sadece 2 sayısal (nominal +
-    toplam değer) VE 2 yüzde alanı var (8 DEĞİL) -- bu yüzden genel
-    `_parse_section_rows()`'a UYMAZ, ayrı bir mini-ayrıştırıcı gerekir.
-    Etiket İKİ KEZ görünür (önce salt başlık satırı, sonra veri satırı,
-    CANLI gözlemlendi) -- sayısal içeriği OLAN satır alınır."""
-    for word in turev_words:
-        if word["text"] != "VIOP" or word["x0"] > 22:
-            continue
-        row_top = word["top"]
-        same_line = [w for w in turev_words if abs(w["top"] - row_top) < 3]
-        numeric = [w for w in same_line if w["x0"] > 300 and any(ch.isdigit() for ch in w["text"])]
-        if len(numeric) < 2:
-            continue  # bu sadece etiket satırı, veri satırı DEĞİL
-        numeric.sort(key=lambda w: w["x0"])
-        weight_pct = _to_decimal(numeric[-1]["text"])  # son sayısal alan = fon toplam değerine göre pay
-        if weight_pct is None:
-            continue
-        return Holding(instrument_type="türev", ticker=None, name="VIOP Nakit Teminatı", weight_pct=weight_pct)
-    return None
-
-
 def _parse_portfolio_pdf(pdf_bytes: bytes) -> list[Holding]:
     """PDF'teki ayrıştırılabilir bölümleri (`_PARSEABLE_SECTIONS` --
-    HİSSE SENETLERİ + DİĞER/fon-içinde-fon + TÜREV) satır satır
-    ayrıştırır. HER BÖLÜM kendi grup toplamıyla AYRI AYRI öz-doğrulanır
-    (bkz. `_parse_section_rows`) -- bir bölüm güvenilmez çıkarsa SADECE o
-    bölüm atlanır, diğerleri yine döner. TÜREV'in "VIOP Nakit Teminatı"
-    alt-kalemi farklı bir satır yapısına sahip olduğu için AYRI bir
-    mini-ayrıştırıcıyla (`_parse_viop_cash_collateral`) okunur.
+    HİSSE SENETLERİ + DİĞER/fon-içinde-fon) satır satır ayrıştırır. HER
+    BÖLÜM kendi grup toplamıyla AYRI AYRI öz-doğrulanır (bkz.
+    `_parse_section_rows`) -- bir bölüm güvenilmez çıkarsa SADECE o bölüm
+    atlanır, diğerleri yine döner. TÜREV bölümü ARTIK ayrıştırılmıyor
+    (bkz. modül üst notu, Kullanıcı Kararı #3) -- ağırlığı diğer nakit/
+    alacak/borç kalemleriyle BİRLİKTE residual'a düşer.
 
     Kalan fark (100 - toplam ağırlık) menkul kıymet OLMAYAN nakit/alacak/
     borç kalemlerini (fonun "IV-FON TOPLAM DEĞERİ TABLOSU"sundaki
-    B..G satırları) temsil eder -- bunlar tek tek itemize EDİLEMEDİĞİ
-    için TEK bir `instrument_type="nakit"` sözde-satırı olarak eklenir
-    (bkz. modül üst notu). ⚠️ Bu residual SADECE en az bir gerçek bölüm
-    başarıyla ayrıştırıldıysa eklenir -- HİÇBİR bölüm ayrıştırılamazsa
-    (`all_holdings` boşsa) residual da eklenmez (aksi halde "%100 nakit"
-    gibi YANLIŞ bir izlenim verirdi, Kural 3).
+    B..G satırları, ARTIK TÜREV'i de İÇEREREK) temsil eder -- bunlar tek
+    tek itemize EDİLEMEDİĞİ için TEK bir `instrument_type="nakit"`
+    sözde-satırı olarak eklenir (bkz. modül üst notu). ⚠️ Bu residual
+    SADECE en az bir gerçek bölüm başarıyla ayrıştırıldıysa eklenir --
+    HİÇBİR bölüm ayrıştırılamazsa (`all_holdings` boşsa) residual da
+    eklenmez (aksi halde "%100 nakit" gibi YANLIŞ bir izlenim verirdi,
+    Kural 3).
+
+    🚨 KULLANICI KARARI #4 (2026-08-05, hedef 15 fon teşhisinde bulundu,
+    AYNI GÜN İÇİNDE DÜZELTİLDİ): PUK'ta HİSSE (%93,13) + DİĞER/fon
+    (%10,10) toplamı %103,23 çıktı -- HER İKİ bölüm de KENDİ "GRUP
+    TOPLAMI" öz-doğrulamasını AYRI AYRI geçmişti (bkz.
+    `_parse_section_rows`, ±`_GROUP_TOTAL_TOLERANCE` ile), ama BİRLİKTE
+    %100'ü aşıyorlardı. İLK düzeltme (toplam >102 ise TÜM portföyü BOŞ
+    döndür) çok AGRESİF çıktı: `scripts/validate_fon_tahmini.py`
+    yeniden çalıştırılınca PHE'nin TEMMUZ raporu da %103,68 ile AYNI
+    eşiği geçip TAMAMEN ELENDİ -- oysa PHE en TİTİZ doğrulanmış fondu
+    (bkz. `src/analysis/fund_estimator.py` üst notu). Kök neden: iki
+    AYRI bölümün kendi ±2 toleransı BİRLEŞİNCE (istatistiksel olarak)
+    ±4'e kadar BİRİKEBİLİR -- bu, gerçek bir çift-sayım/yanlış-kolon
+    hatasından ZORUNLU olarak AYIRT edilemez, sadece TEK bir fonun (ör.
+    PUK) hangisi olduğu bu oturumda DOĞRULANAMADI.
+
+    Bu yüzden ARTIK: toplam 100'ü `_GROUP_TOTAL_TOLERANCE` kadar aşan
+    AMA `_MAX_OVERAGE_FOR_RESCALE` içinde kalan durumlarda TÜM ağırlıklar
+    ORANTISAL olarak 100'e YENİDEN ÖLÇEKLENİR (veri ATILMAZ, sadece
+    normalize edilir) -- bu, göreceli katkı oranlarını KORUR ve iki
+    bağımsız-doğru bölümün toleranslarının üst üste binmesi durumunda
+    veri kaybını ÖNLER. SADECE bu üst sınırı da AŞAN (muhtemelen GERÇEK
+    bir ayrıştırma hatası, ör. AEV'nin "fon" bölümünün %13,87 toplaması
+    gibi -- ki o zaten KENDİ bölüm-içi kontrolünde YAKALANIR, buraya
+    hiç ulaşmaz) durumlarda TÜM portföy boş döner. Her iki durum da
+    AÇIKÇA loglanır (Kural 3: sessiz normalize/ret YOK).
     """
     try:
         with pdfplumber.open(BytesIO(pdf_bytes)) as pdf:
             all_holdings: list[Holding] = []
-            turev_words: list[dict] = []
             for section_start, instrument_type, ticker_re, row_tolerance, id_re in _PARSEABLE_SECTIONS:
                 words = _extract_section_words(pdf, section_start)
-                if section_start == "TÜREV":
-                    turev_words = words
                 if not words:
                     logger.info("PDF'te '%s' bölümü bulunamadı.", section_start)
                     continue
                 all_holdings.extend(_parse_section_rows(words, ticker_re, instrument_type, row_tolerance, id_re))
-
-            viop_holding = _parse_viop_cash_collateral(turev_words)
-            if viop_holding is not None:
-                all_holdings.append(viop_holding)
     except Exception as exc:  # pdfplumber bozuk/beklenmeyen bir PDF'te cesitli hatalar firlatabilir
         logger.warning("KAP portföy dağılım PDF'i açılamadı/ayrıştırılamadı: %s", exc)
         return []
@@ -536,17 +544,45 @@ def _parse_portfolio_pdf(pdf_bytes: bytes) -> list[Holding]:
     if all_holdings:
         total = sum(h.weight_pct for h in all_holdings)
         residual = Decimal(100) - total
-        if Decimal("0.005") < residual <= Decimal(100):
+        if total > Decimal(100) + _GROUP_TOTAL_TOLERANCE:
+            if total <= Decimal(100) + _MAX_OVERAGE_FOR_RESCALE:
+                # Bolumler ayri ayri gecerli ama BIRLIKTE hafifce %100'u
+                # asiyor (Kullanici Karari #4, DUZELTILMIS) -- veriyi
+                # ATMAK yerine ORANTISAL olarak 100'e yeniden olcekle.
+                logger.warning(
+                    "KAP portföy dağılım PDF'inde ayrıştırılan toplam ağırlık %%100'ü aşıyor (%s) -- "
+                    "bölümler ayrı ayrı tutarlı olduğu için TÜM ağırlıklar orantısal olarak 100'e "
+                    "yeniden ölçeklendi (veri atılmadı).",
+                    total,
+                )
+                scale = Decimal(100) / total
+                all_holdings = [
+                    Holding(instrument_type=h.instrument_type, ticker=h.ticker, name=h.name, weight_pct=h.weight_pct * scale)
+                    for h in all_holdings
+                ]
+            else:
+                # Asirilik makul bir yeniden-olcekleme ile ACIKLANAMAYACAK
+                # kadar buyuk -- muhtemelen gercek bir ayristirma hatasi,
+                # TUM portfoy guvenilmez sayilir (Kural 3).
+                logger.warning(
+                    "KAP portföy dağılım PDF'inde ayrıştırılan toplam ağırlık %%100'ü anlamlı ölçüde "
+                    "aşıyor (%s) -- yeniden ölçekleme ile açıklanamayacak kadar büyük bir sapma, "
+                    "TÜM portföy boş dönüyor (Kural 3).",
+                    total,
+                )
+                return []
+        elif Decimal("0.005") < residual <= Decimal(100):
             all_holdings.append(
                 Holding(instrument_type="nakit", ticker=None, name="Nakit ve Diğer Varlıklar (kalan)", weight_pct=residual)
             )
         elif residual < Decimal("-0.5"):
-            # Ayrıştırılan toplam %100'ü ANLAMLI ölçüde asiyorsa (mukerrer
-            # sayim / bir bolumun yanlis ayristirilmasi ihtimali) residual
-            # EKLENMEZ ve durum loglanir -- Kural 3.
+            # 100'ü asan ama tolerans icinde kalan (residual eklenemeyecek
+            # kadar negatif ama yukaridaki esikleri gecmeyen) ARA durum --
+            # residual EKLENMEZ, mevcut (hafifce sisirilmis) holdings AYNEN
+            # doner, durum loglanir (Kural 3: sessiz kalinmaz).
             logger.warning(
-                "KAP portföy dağılım PDF'inde ayrıştırılan toplam ağırlık %%100'ü aşıyor (%s) -- "
-                "residual 'nakit' satırı eklenmedi, bir bölümde mükerrer sayım olabilir.",
+                "KAP portföy dağılım PDF'inde ayrıştırılan toplam ağırlık %%100'ü hafifçe aşıyor (%s) "
+                "-- residual 'nakit' satırı eklenmedi.",
                 total,
             )
 

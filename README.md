@@ -899,10 +899,30 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       farkla (yuvarlama) tutarlı. Kalan ~%2,3 nakit/alacak-borç kalemi
       doğası gereği "holding" olarak izlenemez. TÜREV (VIOP/futures,
       genelde ihmal edilebilir büyüklükte) bilinçli olarak kapsam
-      dışında bırakıldı. 885 test, hepsi yeşil. Faz 18 notu: getiri
-      tahmini için hisse/fon fiyatları da gerekecek — bunlar ücretsiz
-      kaynaklarla ancak 15 dk gecikmeli çekilebilir (KAP'ın raporu
-      değil, BIST/TEFAS fiyat verisi gecikmeli).
+      dışında bırakıldı. 885 test, hepsi yeşil.
+- [x] **Faz 18** — Fon günlük getiri TAHMİN motoru YAZILDI ve ZORUNLU
+      geriye dönük doğrulaması ÇALIŞTIRILDI. **🚨 SONUÇ: MAE=1,3558 puan
+      (hedef 0,15, kabul edilemez eşik 0,50) — bu özellik YAYINLANMADI,
+      hiçbir bot/kart akışına bağlanmadı.** Yol boyunca iki önemli alt
+      kazanım elde edildi: (1) `kap_fund_portfolio.py`'ye TÜREV bölümü
+      (Futures + VIOP Nakit Teminatı) + "nakit" residual eklendi, portföy
+      toplamı artık %100'e tamamlanıyor; (2) TEFAS'ın günlük fiyat
+      geçmişi uç noktası (`fonFiyatBilgiGetir`) eksik bir "dil" parametresi
+      yüzünden çalışmıyordu, TEFAS'ın kendi JS paketi incelenip düzeltildi
+      — `tefas.fetch_price_history()`/`fetch_fund_returns()` artık
+      ÇALIŞIYOR (hesaplanan günlük getiri TEFAS'ın kendi alanıyla BİREBİR
+      eşleşti). `src/analysis/fund_estimator.py` (SAF matematik,
+      ağırlıklı toplam − gider oranı, fon tipine göre uygulanabilirlik
+      kontrolü, tazelik/kapsam/belirsizlik ağırlıklı güven skoru) +
+      `scripts/validate_fon_tahmini.py` (10 fon × ~21 gün, 213 test
+      noktası, look-ahead bias'sız gerçek geriye dönük test) yazıldı.
+      En güçlü ipucu: en titiz doğrulanan fon (PHE, MAE=0,60) diğer 9
+      fondan (MAE 1,06-1,73) belirgin ölçüde iyi çıktı — KAP PDF'inin
+      yüzde kolonu anlamının farklı portföy yönetim şirketi şablonlarında
+      farklı olabileceği hipotezi güçlendi; ayrıca güven kalibrasyonu
+      TERS çıktı (yüksek güven MAE'si orta güvenden kötü). Detay:
+      `data/exploration/fon_tahmini_dogrulama_raporu.txt`,
+      `PROJE_HAFIZASI/06_BILINEN_SORUNLAR.md` §B28. 917 test, hepsi yeşil.
 
 ## Dizin Yapisi
 

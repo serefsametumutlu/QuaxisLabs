@@ -1,5 +1,26 @@
 """Fon günlük getiri TAHMİN motoru -- Faz 18.
 
+🚨🚨🚨 GERİYE DÖNÜK DOĞRULAMA SONUCU: BU MOTOR ŞU HALİYLE YAYINLANMAMALI.
+`scripts/validate_fon_tahmini.py` 2026-08-05'te 10 fon × ~20 gün (213 test
+noktası) üzerinde CANLI veriyle çalıştırıldı: **Ortalama Mutlak Hata (MAE)
+1,36 puan** -- hedefin (0,15) ~9 katı, "kabul edilemez" eşiğin (0,50)
+belirgin ÜSTÜNDE. Tam rapor: `data/exploration/fon_tahmini_dogrulama_raporu.txt`.
+Bu modülü herhangi bir bot/kart çıktısına BAĞLAMADAN ÖNCE bu durum
+ÇÖZÜLMELİ (bkz. PROJE_HAFIZASI/06_BILINEN_SORUNLAR.md açık risk maddesi).
+
+En güçlü ipucu: en TİTİZ doğrulanan fon (PHE -- KAP PDF'inin 3 yüzde
+kolonunun anlamı rakam rakam GRUP TOPLAMI'yla eşleştirilmişti) MAE=0,60
+ile diğer 9 fondan (MAE 1,06-1,73) BELİRGİN ÖLÇÜDE daha iyi çıktı. Bu,
+kolon anlamının (5./6./7. sayısal alan) PHE/TLY DIŞINDAKİ fonlarda/PMC'lerde
+(Ak Portföy, Allbatross, Atlas, QNB, Yapı Kredi, Bulls, İş Portföy, Ata
+Portföy) FARKLI olabileceğini düşündürüyor -- `kap_fund_portfolio.py`'nin
+öz-doğrulaması (grup toplamı ~%100) SADECE İÇ TUTARLILIĞI kontrol eder,
+kolonların GERÇEKTEN doğru YORUMLANDIĞINI garanti ETMEZ. Ayrıca güven
+kalibrasyonu TERS çıktı ("yüksek" güven MAE=1,63, "orta" güven MAE=1,21) --
+mevcut güven skoru formülü gerçek isabetle ÖRTÜŞMÜYOR, YENİDEN
+tasarlanmalı. Kesin kök neden bu oturumda BULUNAMADI/DOĞRULANAMADI --
+sadece güçlü bir hipotez.
+
 🚨 BU BİR TAHMİN MOTORUDUR, GERÇEK/AÇIKLANMIŞ FİYAT DEĞİLDİR. Fonun
 resmi fiyatı henüz TEFAS'a düşmeden ÖNCE, elimizdeki (KAP'ın aylık
 "Portföy Dağılım Raporu"ndan gelen, BAYAT olabilen) portföy içeriğine ve

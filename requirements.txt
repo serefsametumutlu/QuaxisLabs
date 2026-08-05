@@ -7,6 +7,9 @@ tenacity>=8.2
 # KAP finansal rapor HTML ayristirma (bkz. src/fetchers/kap_financials.py)
 beautifulsoup4>=4.12
 
+# KAP fon "Portfoy Dagilim Raporu" PDF ayristirma (bkz. src/fetchers/kap_fund_portfolio.py)
+pdfplumber>=0.11
+
 # Veritabani
 SQLAlchemy>=2.0
 

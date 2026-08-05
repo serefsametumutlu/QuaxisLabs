@@ -1,68 +1,57 @@
 """KEŞİF SCRİPTİ (Kural 3): KAP'ta yatırım fonu "Portföy Dağılım Raporu"
 arayışı -- Faz 17 (Türk yatırım fonları veri katmanı).
 
-YÖNTEM: kap.py'nin (BIST şirketleri için) zaten kullandığı
-`/tr/api/search/combined` + `/tr/api/disclosure/members/byCriteria` uç
-noktaları FONLAR için de çalışıyor mu diye CANLI test edildi.
+⚠️ BU DOSYA BİR KEZ DÜZELTİLDİ (2026-08-05, aynı oturum içinde): İLK
+turda `kap.py::DISCLOSURES_ENDPOINT` (`disclosure/members/byCriteria`,
+BIST şirketleri için kullanılan uç nokta) fon oid'leriyle sorgulanmış ve
+HER ZAMAN boş liste dönmüştü -- bu yüzden "hisse bazlı fon içeriği KAP'ta
+bulunamıyor" YANLIŞ sonucuna varılmıştı. Kullanıcı fvt.com.tr üzerinden
+GERÇEK bir örnek (PHE fonu, Temmuz 2026 raporu) paylaşıp bunu düzeltti.
 
-BULGULAR (2026-08-05, CANLI doğrulandı):
+DOĞRU YÖNTEM (CANLI doğrulandı, TLY/AFA/PBR/PHE'nin HEPSİNDE çalıştı):
 
-1. KAP'ın arama uç noktası fonları da tanıyor -- `searchType` alanı
-   şirketler için "C", fonlar için "F". Örnek: "afa" araması
-   `{"searchValue":"AK PORTFÖY AMERİKA YABANCI HİSSE SENEDİ FONU",
-   "searchType":"F","memberOrFundOid":"33E5FED7E40B00EAE0530A4A622B2AEA",
-   "cmpOrFundCode":"afa"}` döndü.
+```
+GET https://kap.org.tr/tr/bildirim-sorgu-sonuc
+    ?srcbar=Y&cmp=N&cat=2&m=<fonun mkkMemberOid'i>
+```
 
-2. 🚨 AMA `disclosure/members/byCriteria` bu fon oid'i ile sorgulandığında
-   (90/180/365 gün pencereleri denendi) HER SEFERİNDE BOŞ liste döndü --
-   fon, KAP'ın standart bildirim akışında (bu oid altında) HİÇBİR
-   bildirim YAYINLAMAMIŞ görünüyor.
+Bu (eski, klasik) arama sayfası -- `disclosure/members/byCriteria`'nın
+AKSİNE -- fonların "FON" tipi bildirimlerini (disclosureClass="DG")
+GERÇEKTEN döndürüyor. Yanıt HTML'inde `"data":[{"disclosureBasic":{...}}]`
+JSON dizisi gömülü geliyor (tek-seviye ters-eğik-çizgi escape'li, bot
+koruması YOK, düz `httpx` ile çalışıyor). Her satırda `title` alanı
+"Portföy Dağılım Raporu" olan kayıtlar aranan rapordur -- CANLI
+doğrulandı: PHE Haziran VE Temmuz 2026 için AYRI AYRI birer rapor var,
+yani AYLIK yayınlanıyor.
 
-3. Fonun KURUCUSU (portföy yönetim şirketi, "AK PORTFÖY YÖNETİMİ A.Ş.")
-   AYRI bir KAP şirket kaydı olarak bulundu (searchType "C",
-   oid "4028e4a240e8d16e0140e8f3623d0043") VE bu şirketin GERÇEKTEN
-   bildirimleri var -- ama 60 günlük pencerede görülen 7 bildirimin
-   TAMAMI şirketin KENDİ kurumsal bildirimleri (Faaliyet Raporu, Finansal
-   Rapor, Şirket Genel Bilgi Formu, Sorumluluk Beyanı) -- HİÇBİRİ "Portföy
-   Dağılım Raporu" veya benzeri bir fon-portföyü içeriği DEĞİL.
+Bildirim detay sayfası (`kap.org.tr/tr/Bildirim/{index}`) içinde ekli PDF
+dosyasının indirme linki gömülü: `"attachments":[{"objId":"...",
+"fileName":"..."}]` -> `https://kap.org.tr/tr/api/file/download/{objId}`.
 
-SONUÇ: Bu oturumda test edilen örnekte (AK PORTFÖY / AFA fonu), hisse
-bazlı fon portföy dağılımı KAP'ın PUBLIC disclosure API'si (kap.py'nin
-zaten kullandığı `disclosure/members/byCriteria` uç noktası) üzerinden
-GÜVENİLİR ŞEKİLDE ÇEKİLEMEDİ -- ne fonun kendi oid'i ne de kurucusunun
-oid'i altında böyle bir bildirim bulunabildi. Ayrıca kap.org.tr'nin
-"Yatırım Fonları" navigasyon linki (`/tr/YatirimFonlari`,
-`/tr/YatirimFonlari/BYF`) tarayıcıda 404 olarak gözlendi (bu gözlem bir
-tarayıcı oturumu çökmesiyle aynı ana denk geldiği için TAM güvenilir
-değil, ama en azından bu URL kalıbının GÜVENİLİR bir "fon bilgi sayfası"
-olmadığını gösteriyor).
+PDF İÇERİĞİ (CANLI doğrulandı, PHE Temmuz 2026 -- 3 sayfa, 21 hisse):
+HER hisse için ayrı satır(lar) -- BİST kodu, ISIN kodu, şirket adı,
+nominal değer, satın alma tarihi/fiyatı, toplam değer VE üç ayrı yüzde
+kolonu (grup-içi %, fon-portföyüne-göre %, fon-toplam-değerine-göre %).
+Aynı hisse birden fazla "lot" satırında görünebilir (ay içinde farklı
+tarihlerde alınıp satılan lotlar) -- NET ağırlık için ticker+ISIN bazında
+toplanmalı. Ayrıştırma mantığı ve doğrulama yöntemi:
+`src/fetchers/kap_fund_portfolio.py` modül üst notuna bkz. -- PDF'in
+KENDİ "GRUP TOPLAMI" satırıyla (PHE: 21 hisse, toplam %77,05) rakam
+rakam eşleşti.
 
-🚨 Bu, görev tanımının §"BİLİNEN DURUM" bölümünde belirtilen riski
-DOĞRULUYOR: "Hisse bazlı içerik SADECE KAP'taki aylık Portföy Dağılım
-Raporu'nda bulunur" varsayımı bu oturumda GÜVENİLİR ŞEKİLDE
-doğrulanamadı -- rapor GERÇEKTEN var olabilir ama (a) KAP'ın farklı bir
-alt sistemi/uç noktası üzerinden yayınlanıyor olabilir (bu oturumda
-bulunamadı), (b) sadece BELİRLİ fon TÜRLERİ için (örn. gayrimenkul/
-girişim sermayesi fonları, "F" tipi özel durumlar) zorunlu olabilir,
-ya da (c) gerçekten KAP'ın public API'sinde YOKTUR.
-
-ÖNERİ (Kural 3 gereği, uydurma veriyle DEVAM EDİLMEDİ):
-`src/fetchers/kap_fund_portfolio.py` fon+kurucu oid'lerini arayıp
-bulunan bildirimler arasında başlığında "portföy dağılım"/"portföy
-bilgi" geçenleri filtreler (böyle bir bildirim GERÇEKTEN varsa
-yakalar) -- ama bulunamazsa None döner, ASLA fabrike veri üretmez.
-Faz 18/19'un kapsamı bu bulguya göre daraltılmalı (bkz. teslim raporu).
+Ham çıktılar: data/exploration/kap_bildirim_sorgu_sonuc_phe.html,
+kap_bildirim_1643421.html, PHE_2026.07.pdf, TLY_portfoy_dagilim.pdf.
 
 Kullanım:
-    python scripts/explore_kap_fon.py [FON_KODU_VEYA_ARAMA_KELIMESI]
+    python scripts/explore_kap_fon.py [FON_KODU]
 """
 
 from __future__ import annotations
 
 import json
+import re
 import sys
-import time
-from datetime import date, timedelta
+from datetime import datetime
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -77,94 +66,77 @@ _HEADERS = {
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
     ),
-    "Accept": "application/json, text/plain, */*",
-    "Content-Type": "application/json",
-    "Referer": "https://www.kap.org.tr/",
 }
 
 SEARCH_ENDPOINT = "https://www.kap.org.tr/tr/api/search/combined"
-DISCLOSURES_ENDPOINT = "https://www.kap.org.tr/tr/api/disclosure/members/byCriteria"
+DISCLOSURE_LIST_ENDPOINT = "https://kap.org.tr/tr/bildirim-sorgu-sonuc"
+DISCLOSURE_DETAIL_TEMPLATE = "https://kap.org.tr/tr/Bildirim/{index}"
+FILE_DOWNLOAD_TEMPLATE = "https://kap.org.tr/tr/api/file/download/{obj_id}"
 
-_PORTFOLIO_REPORT_HINTS = ("portföy dağılım", "portfoy dagilim", "portföy bilgi", "portföy raporu")
+_DISCLOSURE_ROW_RE = re.compile(
+    r'"disclosureBasic":\{"publishDate":"([^"]+)","disclosureIndex":(\d+)[^{}]*?"title":"([^"]+)"[^{}]*?'
+    r'"summary":"([^"]*)"[^{}]*?"year":(\d+),"period":(\d+)'
+)
+_ATTACHMENT_RE = re.compile(r'"attachments":\[\{"objId":"([^"]+)","fileName":"([^"]+)"')
 
 
-def search_kap(keyword: str) -> list[dict]:
-    response = httpx.post(SEARCH_ENDPOINT, headers=_HEADERS, json={"keyword": keyword}, timeout=20)
-    response.raise_for_status()
+def _unescape(text: str) -> str:
+    return text.replace('\\"', '"').replace("\\\\", "\\")
+
+
+def search_fund(fund_code: str) -> dict | None:
+    response = httpx.post(SEARCH_ENDPOINT, headers=_HEADERS, json={"keyword": fund_code.lower()}, timeout=20)
     payload = response.json()
-    for category in payload:
-        if category.get("category") == "companyOrFunds":
-            return category.get("results", [])
-    return []
+    rows = next((c.get("results", []) for c in payload if c.get("category") == "companyOrFunds"), [])
+    for row in rows:
+        if row.get("searchType") == "F" and fund_code.lower() in (row.get("cmpOrFundCode") or "").split(","):
+            return row
+    return None
 
 
-def fetch_disclosures(member_oid: str, days: int = 365) -> list[dict]:
-    to_date = date.today()
-    from_date = to_date - timedelta(days=days)
-    body = {"fromDate": from_date.isoformat(), "toDate": to_date.isoformat(), "mkkMemberOidList": [member_oid]}
-    response = httpx.post(DISCLOSURES_ENDPOINT, headers=_HEADERS, json=body, timeout=20)
-    response.raise_for_status()
-    return response.json()
+def find_portfolio_disclosures(fund_oid: str) -> list[tuple]:
+    response = httpx.get(
+        DISCLOSURE_LIST_ENDPOINT,
+        params={"srcbar": "Y", "cmp": "N", "cat": "2", "m": fund_oid},
+        headers=_HEADERS,
+        timeout=20,
+    )
+    text = _unescape(response.text)
+    rows = _DISCLOSURE_ROW_RE.findall(text)
+    return [r for r in rows if r[2] == "Portföy Dağılım Raporu"]
 
 
 def main() -> int:
-    query = sys.argv[1] if len(sys.argv) > 1 else "afa"
+    fund_code = sys.argv[1] if len(sys.argv) > 1 else "PHE"
 
-    print(f"=== KAP arama: {query!r} ===")
-    results = search_kap(query)
-    funds = [r for r in results if r.get("searchType") == "F"]
-    companies = [r for r in results if r.get("searchType") == "C"]
-    print(f"{len(funds)} fon, {len(companies)} şirket eşleşmesi bulundu.")
+    print(f"=== KAP fon arama: {fund_code!r} ===")
+    fund = search_fund(fund_code)
+    if not fund:
+        print("Fon bulunamadı.")
+        return 1
+    print(f"Bulundu: {fund['searchValue']} (oid={fund['memberOrFundOid']})")
+
+    print("\n=== Portföy Dağılım Raporu bildirimleri aranıyor ===")
+    reports = find_portfolio_disclosures(fund["memberOrFundOid"])
+    print(f"{len(reports)} rapor bulundu.")
+    for publish_date, idx, _title, summary, year, period in sorted(
+        reports, key=lambda r: datetime.strptime(r[0], "%d.%m.%Y %H:%M:%S"), reverse=True
+    ):
+        print(f"  {publish_date} | idx={idx} | {year}/{period} | {summary.strip()}")
 
     out_dir = BASE_DIR / "data" / "exploration"
     out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / f"kap_fon_arama_{query.replace(' ', '_')}.json").write_text(
-        json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8"
+    (out_dir / f"kap_fon_{fund_code.lower()}_dagilim_raporlari.json").write_text(
+        json.dumps(reports, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
-    if not funds:
-        print("Fon bulunamadı.")
-        return 1
+    if not reports:
+        print("\nUYARI: Bu fon için hiç 'Portföy Dağılım Raporu' bulunamadı (bazı fonlar yayınlamıyor olabilir).")
+        return 2
 
-    fund = funds[0]
-    print(f"\nFon: {fund['searchValue']} (oid={fund['memberOrFundOid']})")
-    print("Fonun kendi oid'i ile bildirimler aranıyor (365 gün)...")
-    time.sleep(1)
-    fund_disclosures = fetch_disclosures(fund["memberOrFundOid"])
-    print(f"  {len(fund_disclosures)} bildirim bulundu.")
-    for row in fund_disclosures[:20]:
-        print("   -", row.get("publishDate"), "|", row.get("subject"), "|", (row.get("summary") or "")[:60])
-
-    portfolio_hits = [
-        row
-        for row in fund_disclosures
-        if any(hint in f"{row.get('subject', '')} {row.get('summary', '')}".lower() for hint in _PORTFOLIO_REPORT_HINTS)
-    ]
-    print(f"\n  'Portföy Dağılım Raporu' benzeri başlık içeren bildirim sayısı: {len(portfolio_hits)}")
-
-    if not portfolio_hits and companies:
-        # Kurucu şirketin oid'i ile de dene (fon kendi kaydında bildirim yayınlamıyor olabilir).
-        founder = next((c for c in companies if "portföy yönetimi" in c["searchValue"].lower()), None)
-        if founder:
-            print(f"\nKurucu şirket: {founder['searchValue']} (oid={founder['memberOrFundOid']})")
-            time.sleep(1)
-            founder_disclosures = fetch_disclosures(founder["memberOrFundOid"], days=60)
-            print(f"  {len(founder_disclosures)} bildirim bulundu (60 gün).")
-            for row in founder_disclosures[:20]:
-                print("   -", row.get("publishDate"), "|", row.get("subject"))
-            portfolio_hits = [
-                row
-                for row in founder_disclosures
-                if any(
-                    hint in f"{row.get('subject', '')} {row.get('summary', '')}".lower()
-                    for hint in _PORTFOLIO_REPORT_HINTS
-                )
-            ]
-            print(f"  Kurucuda 'Portföy Dağılım Raporu' benzeri bildirim sayısı: {len(portfolio_hits)}")
-
-    print("\nDetaylı keşif notları ve sonuç: modülün üst docstring'i +")
-    print("PROJE_HAFIZASI teslim raporu.")
-    return 0 if portfolio_hits else 2
+    print("\nDetaylı ayrıştırma: src/fetchers/kap_fund_portfolio.py::fetch_latest_portfolio()")
+    print("Demo: python scripts/demo_fon.py " + fund_code)
+    return 0
 
 
 if __name__ == "__main__":

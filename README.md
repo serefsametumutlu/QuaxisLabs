@@ -853,35 +853,44 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       Test: `pytest tests/` (852 test, 9 yeni `test_valuation.py` testi —
       normal hesap, büyüme/risksiz-faiz tavanı, ROE≤0/büyüme≤0/g≥ROE edge
       case'leri, USD farklı makro varsayım seti).
-- [x] **Faz 17** — Türk yatırım fonları (TEFAS/KAP) veri katmanı KURULDU
-      (tahmin/kart YAPILMADI, bu bilinçli olarak Faz 18/19'a bırakıldı).
-      **Keşif** (`scripts/explore_tefas.py`, `scripts/explore_kap_fon.py`):
-      TEFAS'ın eski uç noktaları (fundturkey.com.tr) emekliye ayrılmış, yeni
-      backend `tefas.gov.tr/api/funds/` + `/api/statistics/tefas/`. Sayfaları
-      (`/tr/...`) bir F5/Distil bot koruması ARKASINDA ama JSON API'leri
-      (`fonBilgiGetir`, `getFplFonList`) KORUMASIZ — düz `httpx` ile CANLI
-      doğrulandı (AFA fonuyla). `src/fetchers/tefas.py`: `search_fund()`
-      (tam fon evreni + Türkçe-güvenli alt-dize eşleme), `fetch_fund_info()`
-      (fiyat/toplam değer/yatırımcı sayısı/kategori) ÇALIŞIYOR. 🚨
-      `fetch_fund_returns()`/`fetch_price_history()` VE `FundInfo.allocation`
-      (varlık SINIF dağılımı) bu oturumda GÜVENİLİR bir uç nokta
-      bulunamadığı için HER ZAMAN boş/None döner (Kural 3 — veri sayfanın
-      sunucu-taraflı render payload'ına gömülü geliyor ama bir Playwright
-      yedeği de WAF tarafından reddedildi). KAP tarafında
-      `src/fetchers/kap_fund_portfolio.py` fonun/kurucusunun KAP kaydında
-      "Portföy Dağılım Raporu" arar (arama mekanizması ÇALIŞIYOR) ama test
-      edilen örnekte (AK PORTFÖY/AFA, 365 gün) HİÇBİR bildirime
-      rastlanmadı — **hisse-bazlı fon içeriği bu fazda güvenilir şekilde
-      alınamadı**, `fetch_latest_portfolio()` bu durumda None döner (uydurma
-      veri YOK). Yeni DB tabloları: `fund`, `fund_holding`
+- [x] **Faz 17** — Türk yatırım fonları (TEFAS/KAP) veri katmanı KURULDU,
+      **hisse-bazlı fon içeriği DAHİL** (tahmin/kart YAPILMADI, bilinçli
+      olarak Faz 18/19'a bırakıldı). İki turlu bir keşif oldu:
+      **1. tur** — TEFAS'ın eski uç noktaları (fundturkey.com.tr) emekliye
+      ayrılmış, yeni backend `tefas.gov.tr/api/funds/` +
+      `/api/statistics/tefas/`. Sayfaları (`/tr/...`) bir F5/Distil bot
+      koruması ARKASINDA ama JSON API'leri (`fonBilgiGetir`,
+      `getFplFonList`) KORUMASIZ — düz `httpx` ile CANLI doğrulandı.
+      `src/fetchers/tefas.py`: `search_fund()`/`fetch_fund_info()`
+      (fiyat/toplam değer/yatırımcı sayısı/kategori) ÇALIŞIYOR;
+      `fetch_fund_returns()`/`fetch_price_history()`/`FundInfo.allocation`
+      için güvenilir bir TEFAS uç noktası bulunamadı (None/boş döner).
+      **2. tur (kullanıcı düzeltmesi ile)** — kullanıcı fvt.com.tr
+      üzerinden gerçek bir "Portföy Dağılım Raporu" örneği (PHE fonu)
+      paylaşıp ilk turdaki "KAP'ta hisse bazlı içerik yok" sonucunun
+      YANLIŞ olduğunu gösterdi. Kök neden bulundu: fon bildirimleri
+      `disclosure/members/byCriteria` (BIST şirketleri için kullanılan uç
+      nokta) İLE DEĞİL, KAP'ın klasik `bildirim-sorgu-sonuc?cat=2&m=<fon
+      oid>` arama sayfasıyla sorgulanmalıymış — bu CANLI doğrulandı
+      (TLY/AFA/PBR/PHE'nin hepsinde çalıştı, AYLIK yayınlanıyor).
+      `src/fetchers/kap_fund_portfolio.py::fetch_latest_portfolio()`
+      artık GERÇEKTEN çalışıyor: bildirimi bulur → ekli PDF'i indirir →
+      `pdfplumber` ile hisse satırlarını (BİST kodu, ISIN, ağırlık%)
+      ayrıştırır. **Öz-doğrulama** (Kural 3): PDF'in kendi "GRUP TOPLAMI"
+      satırıyla karşılaştırılır (PHE Temmuz 2026: 21 hisse, toplam
+      %77,05 — BİREBİR eşleşti); bazı fonlarda (örn. AFA'nın yabancı
+      hisse bölümü, ya da nadir sayfa-sınırı kaynaklı ayrıştırma sapması)
+      bu doğrulama tutmuyorsa güvenilmez sayılıp BOŞ liste döner, yanlış
+      rakam ASLA üretilmez. Yeni DB tabloları: `fund`, `fund_holding`
       (`src/db/models.py`, `repository.save_fund_info`/`get_fund`/
-      `save_fund_holdings`/`get_latest_fund_holdings`). Demo:
-      `python scripts/demo_fon.py AFA`. Test: `pytest tests/` (874 test, 22
-      yeni — `test_tefas.py`, `test_kap_fund_portfolio.py`, `test_db.py`'ye
-      eklenen fon testleri; hepsi kaydedilmiş/sahte yanıtlarla, ağ isteği
-      YOK). Faz 18/19 kapsam önerisi: hisse-bazlı içerik yerine TEFAS'ın
-      sınıf-bazlı varlık dağılımına ve/veya farklı bir kaynağa göre
-      YENİDEN değerlendirilmeli — bkz. `PROJE_HAFIZASI/06_BILINEN_SORUNLAR.md`.
+      `save_fund_holdings`/`get_latest_fund_holdings`). Yeni bağımlılık:
+      `pdfplumber`. Demo: `python scripts/demo_fon.py PHE` (gerçek 21
+      hisseyle uçtan uca doğrulandı). Test: `pytest tests/` (884 test,
+      GERÇEK bir KAP PDF'i test fixture'ı olarak kullanılıyor —
+      `tests/fixtures/kap_portfoy_dagilim_phe_2026_07.pdf`, ağ isteği
+      YOK). Faz 18 notu: getiri tahmini için hisse fiyatları da
+      gerekecek — bunlar ücretsiz kaynaklarla ancak 15 dk gecikmeli
+      çekilebilir (KAP'ın kendisi değil, BIST fiyat verisi gecikmeli).
 
 ## Dizin Yapisi
 

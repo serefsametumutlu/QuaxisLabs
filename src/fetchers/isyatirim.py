@@ -199,6 +199,11 @@ STANDARD_ITEM_MAP_XI_29: dict[str, str] = {
     "short_term_financial_debt": "2AA",  # Kisa Vadeli Finansal Borclar (total_debt bileseni)
     "long_term_financial_debt": "2BA",  # Uzun Vadeli Finansal Borclar (total_debt bileseni)
     "share_capital": "2OA",  # Odenmis Sermaye (piyasa degeri = fiyat x sermaye hesabinin girdisi)
+    # Faz 21 (Degerleme ekrani -- Greenblatt Sihirli Formul/Carlisle Acquirer's
+    # Multiple/Piotroski F-Skoru) icin CANLI kesfedildi (2026-08-05, THYAO ile
+    # dogrulandi -- raw.items'ta description_tr taranarak bulundu):
+    "tangible_fixed_assets": "1BG",  # Maddi Duran Varliklar (Greenblatt "Net Fixed Assets" bileseni -- 1AK/"Duran Varliklar" TOPLAMI DEGIL, sadece bu alt kalem: goodwill/mali yatirim/ertelenmis vergi varligi gibi operasyonel OLMAYAN kalemleri DISLAR)
+    "operating_cash_flow": "4C",  # Isletme Faaliyetlerinden Kaynaklanan Net Nakit (Piotroski kriter 2/4 -- KUMULATIF, bkz. CUMULATIVE_FIELDS)
 }
 
 # Gelir tablosu / nakit akis alanlari kumulatiftir (yil icinde YTD toplanir).
@@ -213,6 +218,7 @@ CUMULATIVE_FIELDS: frozenset[str] = frozenset(
         "net_income",
         "net_income_total",
         "depreciation_amortization",
+        "operating_cash_flow",  # Nakit akis tablosu kalemi de KUMULATIF (YTD) basilir, digerleriyle AYNI kural
     }
 )
 

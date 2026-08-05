@@ -62,7 +62,7 @@ from sqlalchemy.orm import Session
 
 import config
 from src.ai import commentary as commentary_module
-from src.analysis import calculator, scorer, valuation
+from src.analysis import calculator, fundamental_screens, scorer, valuation
 from src.db import models, repository
 from src.fetchers import earnings_calendar, isyatirim, kap, kap_financials, price_history, sec_edgar, stockanalysis
 from src.render import card
@@ -78,6 +78,7 @@ _QUARTERLY_FIELDS: tuple[str, ...] = (
     "operating_profit_ebitda_base",
     "net_income",
     "depreciation_amortization",
+    "operating_cash_flow",  # Faz 21 (Degerleme ekrani) -- Piotroski F-Skoru kriter 2/4
 )
 _STOCK_FIELDS: tuple[str, ...] = (
     "total_assets",
@@ -88,6 +89,8 @@ _STOCK_FIELDS: tuple[str, ...] = (
     "financial_investments",
     "short_term_liabilities",
     "share_capital",
+    "tangible_fixed_assets",  # Faz 21 (Degerleme ekrani) -- Greenblatt "Net Fixed Assets" bileseni
+    "long_term_financial_debt",  # Faz 21 -- Piotroski "uzun vadeli kaldirac degisimi" kriteri (2BA zaten esleniyordu, sadece _STOCK_FIELDS'e eklendi)
 )
 
 # Banka (UFRS) alanlari -- bkz. isyatirim.STANDARD_ITEM_MAP_UFRS.
@@ -207,6 +210,21 @@ class PipelineResult:
     # istegine gerek KALMADAN (ikincil veri, Kural 9) burada tekrar
     # kullanabilsin diye PipelineResult'a eklendi.
     price: Decimal | None = None
+
+
+@dataclass(frozen=True)
+class FundamentalScreensResult:
+    """`compute_fundamental_screens_for_ticker()` çıktısı -- render katmanının
+    (fundamental_screens_card.py) ihtiyaç duyduğu ticker/şirket adı/fiyat
+    render/görüntüleme bilgisini `fundamental_screens.FundamentalScreens`
+    (SAF matematik, ticker/isim gibi görüntüleme alanı TAŞIMAZ) ile birlikte
+    tek bir pakette taşır -- `PipelineResult`'ın (yukarısı) AYNI ilkesi."""
+
+    ticker: str
+    company_name: str | None
+    price: Decimal | None
+    applicable: bool  # False: banka/sigorta/katılım bankası -- bu yöntem bu şirket türüne uygulanamaz
+    screens: "fundamental_screens.FundamentalScreens | None"  # applicable=True ise dolu
 
 
 def quarter_label(period: Period, annual_only: bool = False) -> str:
@@ -1211,45 +1229,19 @@ def compute_valuation_assessment_for_ticker(
     )
 
 
-def run_pipeline(ticker: str, *, periods: list[Period] | None = None, market: str = "BIST") -> PipelineResult:
-    """Tam boru hattini calistirir: onbellek -> (gerekirse) fetch -> hesapla
-    -> puanla -> yorum -> kart. SENKRON'dur (fetcher'lar/Playwright sync
-    calisir) -- Telegram bot tarafinda `asyncio.to_thread(run_pipeline, ...)`
-    ile cagrilmalidir.
-
-    `periods` verilirse onbellek TAZE olsa bile fetch zorlanir (kullanici
-    "onceki donemi analiz et" dedikten sonraki tekrar cagri icin).
-
-    `market`: "BIST" (varsayilan, davranis TAMAMEN DEGISMEDI -- mevcut
-    Telegram botu/399 BIST testi bu parametreyi HIC vermez) veya "NASDAQ"
-    (Faz 10 -- bkz. sec_edgar.py/calculator.analyze_us()/scorer.score_industrial_us()/
-    card.build_us_card_context()). Hangi ticker'in hangi market'e ait
-    oldugunu run_pipeline KENDI TAHMIN ETMEZ -- cagiran taraf (bot/demo
-    script) ACIKCA belirtmelidir; bu, İş Yatırım'a "AAPL" gibi var olmayan
-    bir kod sorup CompanyNotFoundError almak yerine (veya tam tersi, SEC'e
-    "THYAO" sorup CompanyNotFoundError almak yerine) DOGRU fetcher'in
-    BASTAN secilmesini saglar (Kural 3 ruhu: varsayimla/deneme-yanilma ile
-    DEGIL, ACIK bilgiyle davran).
-
-    NASDAQ dalinda KAP bildirimleri (`disclosures_db`) HER ZAMAN bos liste
-    -- ABD'nin KAP karsiligi (SEC 8-K haberleri) BU FAZIN KAPSAMI DISINDA
-    (gorev talimati). `_has_newer_period_available()` (İş Yatırım'a ozel
-    "taze onbellek ama yeni donem yayinlanmis olabilir" kontrolu) SADECE
-    BIST icin cagrilir -- sec_edgar.fetch_financials() zaten HER seferinde
-    GERCEKTEN en yeni donemi bulur (bkz. _fetch_and_store_us_gaap docstring'i),
-    bu ekstra kontrole GEREK YOK.
-
-    Fiyat cekme (isyatirim.fetch_latest_price / sec_edgar.fetch_latest_price),
-    finansal tablo fetch/onbellek islemleriyle BAGIMSIZ oldugu icin en basta
-    ayri bir is parcacigina verilir ve sonucu en son (kart context'i
-    olusturulmadan hemen once) toplanir -- boylece fiyat istegi diger
-    islerle AYNI ANDA surer, ek bekleme suresi eklemez.
-    """
-    ticker = ticker.strip().upper()
+def _ensure_financials_cached(ticker: str, market: str, periods: list[Period] | None) -> bool:
+    """DB onbelleginin TAZE olup olmadigini kontrol eder, degilse (veya
+    `periods` acikca verilmisse) fetch tetikleyip DB'ye yazar. Cagiran
+    tarafin (run_pipeline) yorum onbellegi icin ihtiyac duydugu `fresh`
+    bilgisini (fetch GEREKMEDI mi) DONDURUR -- finansal veri sonucunun
+    kendisi (`financials_by_period`) DONDURULMEZ, cagiran taraf bunu ayrica
+    `repository.get_financials()` ile okur. `run_pipeline()` (asagida) VE
+    `compute_fundamental_screens_for_ticker` tarafindan PAYLASILIR (Kural:
+    onbellek/fetch orkestrasyon mantigi KOPYALANMAZ) -- mantigin KENDISI
+    eskiden SADECE run_pipeline icindeydi, Faz 21'de (Değerleme ekrani,
+    DOĞRUDAN -- önce bir Bilanço Analizi çalıştırılmış olma ÖN KOŞULU
+    OLMADAN -- bir ticker sorgulayabilsin diye) buraya cikarildi."""
     is_us = market == "NASDAQ"
-    price_executor = ThreadPoolExecutor(max_workers=1)
-    price_future = price_executor.submit(_fetch_price_safe_us if is_us else _fetch_price_safe, ticker)
-
     with repository.get_session() as session:
         company_row = session.get(models.Company, ticker)
         # CANLI HATA (kullanici raporu, 2026-08-03): "AMD"/"ASTS" gibi HEM
@@ -1292,14 +1284,118 @@ def run_pipeline(ticker: str, *, periods: list[Period] | None = None, market: st
             fresh = False
 
     if not fresh:
-        try:
-            if is_us:
-                _fetch_and_store_us_gaap(ticker, periods)
-            else:
-                _fetch_and_store(ticker, periods)
-        except Exception:
-            price_executor.shutdown(wait=False)
-            raise
+        if is_us:
+            _fetch_and_store_us_gaap(ticker, periods)
+        else:
+            _fetch_and_store(ticker, periods)
+
+    return fresh
+
+
+def compute_fundamental_screens_for_ticker(ticker: str) -> FundamentalScreensResult:
+    """Faz 21 "Değerleme" ekranı için Graham + Greenblatt Sihirli Formül +
+    Carlisle Acquirer's Multiple + Piotroski F-Skoru hesabını orkestre eder
+    (bkz. src/analysis/fundamental_screens.py modül notu -- HESAPLAMANIN
+    KENDİSİ orada, saf matematik olarak yapılır). SEKTÖR PEER'İ HİÇ
+    ÇEKMEZ/KULLANMAZ (kullanıcı isteği, 2026-08-05: "sektörel... gelmesin
+    bi değer bu değerleme için" -- DB'de yeterli peer olmadan istatistiksel
+    olarak anlamsız).
+
+    `compute_valuation_assessment_for_ticker`'ın AKSİNE (o zaten fetch
+    edilmiş `financials_by_period` bekler, çağıran taraf -- run_pipeline/
+    Derin Kart -- ÖNCEDEN veri çekmiş OLMALIDIR) bu fonksiyon SADECE ticker
+    alır ve DB'yi KENDİSİ tazeler (`_ensure_financials_cached`) -- kullanıcı
+    Değerleme ekranına hiç Bilanço Analizi çalıştırmadan DOĞRUDAN bir ticker
+    yazabilsin diye (kullanıcı isteği: "değerleme ekranında yazılan hisse
+    için bu değerlemeleri hesaplayarak versin").
+
+    Ticker DB'de/hiçbir kaynakta hiç bulunamazsa (gerçekten var olmayan bir
+    kod) `TickerNotFoundError` FIRLAR (run_pipeline ile AYNI davranış,
+    çağıran taraf -- telegram_bot._gonder_degerleme -- bunu kullanıcı dostu
+    bir mesaja çevirir). Ticker BULUNUR ama BIST XI_29 (sanayi/ticaret)
+    DIŞINDA bir grupsa (banka/sigorta/katılım bankası) -- Greenblatt'ın
+    kendi metodolojisi farklı sermaye yapılı şirketleri BİLİNÇLİ dışladığı
+    için (bkz. fundamental_screens.py üst notu) -- `FundamentalScreensResult.
+    applicable=False` (`screens=None`) döner, hata FIRLATILMAZ (bu durum
+    "veri yok" değil "bu yöntem bu şirket türüne uygulanamaz" anlamına
+    gelir, ayırt edilebilir kalmalıdır)."""
+    ticker = ticker.strip().upper()
+    _ensure_financials_cached(ticker, "BIST", periods=None)
+
+    with repository.get_session() as session:
+        company_row = session.get(models.Company, ticker)
+        financials_by_period = repository.get_financials(session, ticker, n_periods=8)
+        company_name = company_row.name if company_row and company_row.name else None
+
+    if not financials_by_period:
+        raise TickerNotFoundError(f"'{ticker}' icin veritabaninda finansal veri bulunamadi.")
+
+    if company_row is None or company_row.financial_group != "XI_29":
+        return FundamentalScreensResult(ticker=ticker, company_name=company_name, price=None, applicable=False, screens=None)
+
+    own_bars = price_history.fetch_ohlcv(ticker, "BIST", days=30)
+    current_price = own_bars[-1].close if own_bars else None
+
+    own_analysis = calculator.analyze(ticker, financials_by_period)
+    own_share_count = financials_by_period.get(own_analysis.latest_period, {}).get("share_capital")
+    own_metrics = calculator.compute_valuation(own_analysis, current_price, own_share_count)
+
+    screens = fundamental_screens.compute_fundamental_screens(
+        financials_by_period,
+        price=current_price,
+        share_capital=own_share_count,
+        own_pe=own_metrics.pe_ratio if own_metrics else None,
+        own_pb=own_metrics.pb_ratio if own_metrics else None,
+    )
+    return FundamentalScreensResult(
+        ticker=ticker, company_name=company_name, price=current_price, applicable=True, screens=screens
+    )
+
+
+def run_pipeline(ticker: str, *, periods: list[Period] | None = None, market: str = "BIST") -> PipelineResult:
+    """Tam boru hattini calistirir: onbellek -> (gerekirse) fetch -> hesapla
+    -> puanla -> yorum -> kart. SENKRON'dur (fetcher'lar/Playwright sync
+    calisir) -- Telegram bot tarafinda `asyncio.to_thread(run_pipeline, ...)`
+    ile cagrilmalidir.
+
+    `periods` verilirse onbellek TAZE olsa bile fetch zorlanir (kullanici
+    "onceki donemi analiz et" dedikten sonraki tekrar cagri icin).
+
+    `market`: "BIST" (varsayilan, davranis TAMAMEN DEGISMEDI -- mevcut
+    Telegram botu/399 BIST testi bu parametreyi HIC vermez) veya "NASDAQ"
+    (Faz 10 -- bkz. sec_edgar.py/calculator.analyze_us()/scorer.score_industrial_us()/
+    card.build_us_card_context()). Hangi ticker'in hangi market'e ait
+    oldugunu run_pipeline KENDI TAHMIN ETMEZ -- cagiran taraf (bot/demo
+    script) ACIKCA belirtmelidir; bu, İş Yatırım'a "AAPL" gibi var olmayan
+    bir kod sorup CompanyNotFoundError almak yerine (veya tam tersi, SEC'e
+    "THYAO" sorup CompanyNotFoundError almak yerine) DOGRU fetcher'in
+    BASTAN secilmesini saglar (Kural 3 ruhu: varsayimla/deneme-yanilma ile
+    DEGIL, ACIK bilgiyle davran).
+
+    NASDAQ dalinda KAP bildirimleri (`disclosures_db`) HER ZAMAN bos liste
+    -- ABD'nin KAP karsiligi (SEC 8-K haberleri) BU FAZIN KAPSAMI DISINDA
+    (gorev talimati). `_has_newer_period_available()` (İş Yatırım'a ozel
+    "taze onbellek ama yeni donem yayinlanmis olabilir" kontrolu) SADECE
+    BIST icin cagrilir -- sec_edgar.fetch_financials() zaten HER seferinde
+    GERCEKTEN en yeni donemi bulur (bkz. _fetch_and_store_us_gaap docstring'i),
+    bu ekstra kontrole GEREK YOK.
+
+    Fiyat cekme (isyatirim.fetch_latest_price / sec_edgar.fetch_latest_price),
+    finansal tablo fetch/onbellek islemleriyle BAGIMSIZ oldugu icin en basta
+    ayri bir is parcacigina verilir ve sonucu en son (kart context'i
+    olusturulmadan hemen once) toplanir -- boylece fiyat istegi diger
+    islerle AYNI ANDA surer, ek bekleme suresi eklemez.
+    """
+    ticker = ticker.strip().upper()
+    is_us = market == "NASDAQ"
+    price_executor = ThreadPoolExecutor(max_workers=1)
+    price_future = price_executor.submit(_fetch_price_safe_us if is_us else _fetch_price_safe, ticker)
+
+    try:
+        fresh = _ensure_financials_cached(ticker, market, periods)
+    except Exception:
+        price_executor.shutdown(wait=False)
+        raise
 
     with repository.get_session() as session:
         financials_by_period = repository.get_financials(session, ticker, n_periods=8)

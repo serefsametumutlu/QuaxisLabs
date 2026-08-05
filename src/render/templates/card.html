@@ -727,33 +727,6 @@
     grid-column: 1 / -1;
   }
 
-  /* Değerleme Analizi kutusu (2026-08-04, kullanici istegi) -- 7 skor
-     bileseni + bu kutu = 9 birim = TAM 3 satir, bkz. card.py modul notu
-     (grid-column: span 2 secildi ki 7x1 + 1x2 = 9, bos alan KALMASIN). */
-  .score-list li.score-valuation-item {
-    grid-column: span 2;
-    border-left: 3px solid var(--accent);
-  }
-
-  /* Değerleme Analizi rozetleri -- deep_card.html'deki .valuation-verdict
-     ile AYNI renk mantığı (Ucuz=yeşil/Makul=gri/Pahalı=kırmızı), ama BURADA
-     score-row-top'un 26px'lik .score-value yerine kompakt bir rozet olarak
-     (metin "Sektöre Göre Ucuz" gibi UZUN olabildiği için .score-value'nun
-     büyük puntosu sığmaz). */
-  .score-valuation-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 12px;
-    border-radius: 8px;
-    font-size: 13.5px;
-    font-weight: 800;
-    white-space: nowrap;
-  }
-
-  .verdict-ucuz { background: rgba(34, 197, 94, 0.12); color: var(--positive); border: 1px solid rgba(34, 197, 94, 0.35); }
-  .verdict-makul { background: rgba(148, 163, 184, 0.10); color: var(--heading); border: 1px solid var(--border); }
-  .verdict-pahali { background: rgba(239, 68, 68, 0.12); color: var(--negative); border: 1px solid rgba(239, 68, 68, 0.35); }
-
   .score-list li {
     padding: 18px 20px;
     border: 1px solid var(--border-soft);
@@ -1076,28 +1049,6 @@
         <div class="score-reasoning">{{ row.reasoning }}</div>
       </li>
       {% endfor %}
-      {% if valuation_analysis.has_data %}
-      <li class="score-valuation-item">
-        <div class="score-row-top">
-          <span class="score-name">Değerleme Analizi</span>
-          {% if valuation_analysis.verdict %}
-          <span class="score-valuation-badge {{ valuation_analysis.verdict_class }}">{{ valuation_analysis.verdict }}</span>
-          {% endif %}
-        </div>
-        <div class="score-reasoning">
-          {%- if valuation_analysis.graham_verdict %}{{ valuation_analysis.graham_verdict }} (çarpan {{ valuation_analysis.graham_multiple_display }}){% endif -%}
-          {%- if valuation_analysis.graham_verdict and valuation_analysis.peg_verdict %} · {% endif -%}
-          {%- if valuation_analysis.peg_verdict %}{{ valuation_analysis.peg_verdict }} (PEG {{ valuation_analysis.peg_ratio_display }}){% endif -%}
-        </div>
-        {% if valuation_analysis.sector_implied_target_display != "N/A" or valuation_analysis.graham_target_display != "N/A" %}
-        <div class="score-reasoning">
-          {%- if valuation_analysis.sector_implied_target_display != "N/A" %}Hedef (sektör): {{ valuation_analysis.sector_implied_target_display }} <span class="{{ valuation_analysis.sector_implied_upside_class }}">({{ valuation_analysis.sector_implied_upside_display }})</span>{% endif -%}
-          {%- if valuation_analysis.sector_implied_target_display != "N/A" and valuation_analysis.graham_target_display != "N/A" %} · {% endif -%}
-          {%- if valuation_analysis.graham_target_display != "N/A" %}Graham Adil Değer: {{ valuation_analysis.graham_target_display }} <span class="{{ valuation_analysis.graham_upside_class }}">({{ valuation_analysis.graham_upside_display }})</span>{% endif -%}
-        </div>
-        {% endif %}
-      </li>
-      {% endif %}
     </ul>
     <div class="summary-block">
       <div class="section-title"><span class="title-text">BİLANÇO ÖZETİ</span></div>

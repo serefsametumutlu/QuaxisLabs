@@ -29,7 +29,7 @@ _BEKLEYEN_ISLEM_TTL_SECONDS = 600.0
 
 @dataclass
 class BekleyenIslem:
-    tip: str  # "analiz" (temel) | "teknik" (Faz 15) | "fonanaliz" (Faz 19)
+    tip: str  # "analiz" (temel) | "teknik" (Faz 15) | "fonanaliz" (Faz 19) | "degerleme" (Faz 21)
     market: str  # "BIST" | "NASDAQ" -- tip="fonanaliz" icin kullanilmaz, "-" sabiti konur
     expires_at: float  # time.monotonic() bazli
 
@@ -88,6 +88,7 @@ def build_root_menu() -> InlineKeyboardMarkup:
             [InlineKeyboardButton("📊 Bilanço Analizi", callback_data="menu:analiz")],
             [InlineKeyboardButton("📈 Teknik Görünüm", callback_data="menu:teknikanaliz")],
             [InlineKeyboardButton("🔬 Detaylı Analiz (Derin Kart)", callback_data="menu:derinanaliz")],
+            [InlineKeyboardButton("🧮 Değerleme", callback_data="menu:degerleme")],
             [InlineKeyboardButton("💰 Fon Analiz", callback_data="menu:fonanaliz")],
             [InlineKeyboardButton("📅 Yaklaşan Bilanço Tarihleri", callback_data="menu:takvim")],
             [InlineKeyboardButton("🕘 Son Kartlar", callback_data="menu:son")],
@@ -152,6 +153,15 @@ def build_fonanaliz_menu() -> InlineKeyboardMarkup:
 def build_fonanaliz_bekleniyor_menu() -> InlineKeyboardMarkup:
     """Tekli fon icin 'fon kodunu yaz' ekrani -- Geri, menu:fonanaliz'e doner."""
     return _geri_menu("menu:fonanaliz")
+
+
+def build_degerleme_bekleniyor_menu() -> InlineKeyboardMarkup:
+    """Değerleme icin 'hisse kodunu yaz' ekrani -- Faz 21, `fundamental_screens.py`
+    SADECE BIST XI_29 (sanayi/ticaret) icin anlamli oldugundan (bkz. modul
+    ust notu) build_teknik_menu/build_derin_menu'nun AKSINE BIST/NASDAQ
+    SECIM EKRANI YOK -- dogrudan 'hisse kodunu yaz' ekranina gidilir (Geri,
+    menu:root'a doner)."""
+    return _geri_menu("menu:root")
 
 
 def build_takvim_menu() -> InlineKeyboardMarkup:
@@ -257,6 +267,7 @@ DERIN_MENU_TEXT = "🔬 Detaylı Analiz (Derin Kart) — hangi piyasa?"
 TAKVIM_MENU_TEXT = "📅 Yaklaşan Bilanço Tarihleri — hangi piyasa?"
 FONANALIZ_MENU_TEXT = "💰 Fon Analiz — ne görmek istersin?"
 FONANALIZ_TEKLI_PROMPT = "Fon kodunu yaz (örn: PHE, TLY)"
+DEGERLEME_PROMPT = "🧮 Değerleme — hisse kodunu yaz (örn: THYAO). Sadece BİST sanayi/ticaret şirketleri desteklenir."
 
 ANALIZ_BIST_PROMPT = "Hisse kodunu yaz (örn: THYAO)"
 ANALIZ_NASDAQ_PROMPT = "Sembolü yaz (örn: AAPL)"

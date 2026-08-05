@@ -29,7 +29,7 @@ from src.bot import fund_pipeline, menu, pipeline
 from src.db import models, repository
 from src.fetchers import price_history
 from src.formatting import format_number_tr
-from src.render import calendar_card, card, deep_card, fund_card, technical_card
+from src.render import calendar_card, card, deep_card, fund_card, fundamental_screens_card, technical_card
 
 logger = logging.getLogger(__name__)
 
@@ -216,6 +216,25 @@ async def cmd_temel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     gelemiyorum") -- bu komut önce Bilanço Analizi'ne HİÇ uğramadan
     doğrudan (gerekirse önce fetch tetikleyerek) Derin Kart'a gider."""
     await update.message.reply_text(menu.DERIN_MENU_TEXT, reply_markup=menu.build_derin_menu())
+
+
+async def cmd_degerleme(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/degerleme -- Faz 21 Değerleme ekranı (Graham + Greenblatt + Carlisle +
+    Piotroski). SADECE BİST XI_29 (sanayi/ticaret) desteklendiği için
+    (bkz. fundamental_screens.py) cmd_teknik/cmd_temel'in AKSİNE BİST/NASDAQ
+    seçim ekranı YOK -- doğrudan 'hisse kodunu yaz' ekranına gider."""
+    menu.set_bekleyen_islem(context.user_data, tip="degerleme", market="BIST")
+    await update.message.reply_text(menu.DEGERLEME_PROMPT, reply_markup=menu.build_degerleme_bekleniyor_menu())
+
+
+async def cmd_fon(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/fon -- Faz 19 tekli fon tahminine (handle_ticker_message'daki
+    tip="fonanaliz" akışı, bkz. menu:fonanaliz:tekli ile AYNI hedef)
+    doğrudan bir kısayol. "Öne Çıkan Fonlar"/"Tüm Liste" (metin girişi
+    GEREKTİRMEYEN, sabit kod listeli modlar) bu komutun kapsamı DIŞINDA --
+    onlar için hâlâ /menu -> 💰 Fon Analiz kullanılmalı."""
+    menu.set_bekleyen_islem(context.user_data, tip="fonanaliz", market="-")
+    await update.message.reply_text(menu.FONANALIZ_TEKLI_PROMPT, reply_markup=menu.build_fonanaliz_bekleniyor_menu())
 
 
 @retry(
@@ -500,6 +519,51 @@ async def handle_teknik_callback(update: Update, context: ContextTypes.DEFAULT_T
     chat_id = query.message.chat_id
     await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
     await _gonder_teknik(chat_id, context, ticker, market)
+
+
+# --- Değerleme (Faz 21: Graham + Greenblatt + Carlisle + Piotroski) -----------------------------------------------------
+
+
+async def _gonder_degerleme(chat_id: int, context: ContextTypes.DEFAULT_TYPE, ticker: str) -> None:
+    """'🧮 Değerleme' menüsünden veya /degerleme komutundan gelen ticker için
+    Faz 21 Değerleme kartını üretir ve gönderir. `pipeline.
+    compute_fundamental_screens_for_ticker` DİĞER akışların (temel/derin/
+    teknik) AKSİNE ticker'ın DAHA ÖNCE bir Bilanço Analizi ile sorgulanmış
+    olmasını GEREKTİRMEZ -- DB'yi KENDİSİ tazeler/fetch eder (bkz. o
+    fonksiyonun docstring'i)."""
+    try:
+        sonuc = await asyncio.to_thread(pipeline.compute_fundamental_screens_for_ticker, ticker)
+    except pipeline.TickerNotFoundError:
+        await context.bot.send_message(chat_id, f"❌ {ticker} diye bir BİST hissesi bulamadım. Kodu kontrol eder misin?")
+        return
+    except Exception:
+        logger.exception("%s için Değerleme hesaplanamadı", ticker)
+        await context.bot.send_message(chat_id, "⚠️ Değerleme hesaplanamadı, birkaç dakika sonra tekrar dene.")
+        return
+
+    degerleme_context = fundamental_screens_card.build_fundamental_screens_context(
+        sonuc.screens, sonuc.ticker, sonuc.applicable, company_name=sonuc.company_name, price=sonuc.price
+    )
+
+    out_path = config.DATA_DIR / "cards" / f"{ticker}_degerleme.png"
+    try:
+        png_path = await asyncio.to_thread(
+            card.render_card, degerleme_context, str(out_path), "fundamental_screens_card.html", "#fundamental-screens-card"
+        )
+    except card.CardRenderError:
+        logger.exception("%s değerleme kartı render edilemedi", ticker)
+        await context.bot.send_message(chat_id, "⚠️ Değerleme görseli üretilemedi, birkaç dakika sonra tekrar dene.")
+        return
+
+    try:
+        caption = (
+            f"🧮 #{ticker} Değerleme — Graham · Greenblatt · Carlisle · Piotroski\n\n"
+            "Bu içerik yatırım tavsiyesi değildir; yatırım kararı için profesyonel danışmanlık alınmalıdır."
+        )
+        await _send_card_photo(context, chat_id, png_path, caption)
+    except Exception:
+        logger.exception("%s değerleme kartı gönderilemedi", ticker)
+
 
 
 # --- Derin Kart (çok dönemli temel analiz) -----------------------------------------------------
@@ -1006,6 +1070,7 @@ async def handle_ticker_message(update: Update, context: ContextTypes.DEFAULT_TY
 
     teknik_istegi = islem is not None and islem.tip == "teknik"
     derin_istegi = islem is not None and islem.tip == "derin"
+    degerleme_istegi = islem is not None and islem.tip == "degerleme"
 
     if islem is not None:
         menu.clear_bekleyen_islem(context.user_data)
@@ -1029,6 +1094,18 @@ async def handle_ticker_message(update: Update, context: ContextTypes.DEFAULT_TY
             chat_id = update.effective_chat.id
             await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
             await _gonder_teknik(chat_id, context, ticker, market)
+            return
+
+        if degerleme_istegi:
+            # /degerleme komutuyla (veya menu:degerleme butonuyla) baslatilan
+            # akis -- fundamental_screens SADECE BIST XI_29 icin anlamli,
+            # `_gonder_degerleme` DB'yi KENDISI tazeler/fetch eder (bkz. o
+            # fonksiyonun docstring'i, teknik'in AKSINE onceden bir Bilanco
+            # Analizi calistirilmis olma ON KOSULU YOK).
+            await update.message.reply_text(f"🧮 {ticker} için değerleme hazırlanıyor... (~10-20 sn)")
+            chat_id = update.effective_chat.id
+            await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
+            await _gonder_degerleme(chat_id, context, ticker)
             return
 
         if derin_istegi:
@@ -1135,6 +1212,11 @@ async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             await query.edit_message_text(menu.FONANALIZ_MENU_TEXT, reply_markup=menu.build_fonanaliz_menu())
         return
 
+    if screen == "degerleme":
+        menu.set_bekleyen_islem(context.user_data, tip="degerleme", market="BIST")
+        await query.edit_message_text(menu.DEGERLEME_PROMPT, reply_markup=menu.build_degerleme_bekleniyor_menu())
+        return
+
     if screen == "son":
         await query.edit_message_text(await _son_kartlar_metni(), reply_markup=menu.build_alt_ekran_menu())
         return
@@ -1176,6 +1258,8 @@ _BOT_COMMANDS = [
     BotCommand("menu", "Buton menüsünü aç"),
     BotCommand("teknik", "Teknik görünüm kartı için piyasa seç"),
     BotCommand("temel", "Detaylı (çok dönemli) analiz için piyasa seç"),
+    BotCommand("degerleme", "Graham/Greenblatt/Carlisle/Piotroski değerlemesi"),
+    BotCommand("fon", "Tek bir fon kodu için tahmin"),
     BotCommand("son", "Son üretilen 5 kartı listele"),
     BotCommand("takvim", "Yaklaşan bilanço tarihleri (BİST/NASDAQ)"),
     BotCommand("hakkinda", "Veri kaynakları ve sorumluluk reddi"),
@@ -1209,6 +1293,8 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("menu", cmd_menu))
     application.add_handler(CommandHandler("teknik", cmd_teknik))
     application.add_handler(CommandHandler("temel", cmd_temel))
+    application.add_handler(CommandHandler("degerleme", cmd_degerleme))
+    application.add_handler(CommandHandler("fon", cmd_fon))
     application.add_handler(CommandHandler("son", cmd_son))
     application.add_handler(CommandHandler("takvim", cmd_takvim))
     application.add_handler(CommandHandler("hakkinda", cmd_hakkinda))

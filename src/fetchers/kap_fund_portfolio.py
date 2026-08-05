@@ -152,7 +152,14 @@ _PARSEABLE_SECTIONS = (
     ("HİSSE SENETLERİ", "hisse", _STOCK_TICKER_RE, 1, _ISIN_RE),
     ("DİĞER", "fon", _FUND_TICKER_RE, 3, _ISIN_RE),
 )
-_GROUP_TOTAL_TOLERANCE = Decimal("2.0")  # grup toplamı %100'den en fazla bu kadar sapabilir
+_GROUP_TOTAL_TOLERANCE = Decimal("3.0")  # grup toplamı %100'den en fazla bu kadar sapabilir
+# CANLI gözlem (2026-08-05, PBR): bir hissenin (DSTKF) ikinci lot satırı
+# sayfa sınırında farklı bir 'TL' işareti geometrisiyle basılmış, bu
+# yüzden grup toplamı %97,60 (eskiden %2,0 toleransla REDDEDİLİYORDU).
+# %3,0'a genişletmek bu ve benzer sayfa-sınırı kayıplarını (küçük, tek
+# satırlık) veri ATMADAN kabul ediyor -- gerçekten bozuk ayrıştırmalar
+# (ör. AEV'nin %13,87'si) YİNE DE bu toleransın ÇOK dışında kalıp
+# reddedilmeye devam ediyor.
 # Bölümler AYRI AYRI geçerliyken BİRLİKTE %100'ü bu kadara kadar aşarsa
 # (Kullanıcı Kararı #4, bkz. `_parse_portfolio_pdf`) veri ATILMAZ,
 # ORANTISAL olarak yeniden ölçeklenir -- CANLI gözlemlenen iki durumdan
@@ -388,11 +395,17 @@ def _parse_section_rows(
     instrument_type: str,
     row_tolerance: int = 1,
     id_re: re.Pattern = _ISIN_RE,
+    decimal_parser=_to_decimal,
 ) -> list[Holding]:
     """Bir bölümün (HİSSE SENETLERİ / DİĞER / TÜREV) kelime listesini
     satır satır ayrıştırır, her benzersiz (ticker, kimlik) için lot'ları
     toplayarak NET ağırlığı hesaplar. `id_re` HİSSE/DİĞER'de gerçek ISIN
     (`_ISIN_RE`), TÜREV'de kontrat kodu (`_CONTRACT_CODE_RE`) arar.
+    `decimal_parser`: CANLI gözlem (2026-08-05, IJC -- Kullanıcı Kararı
+    #6) bazı fonlar AYNI 8-kolonlu format 1 GEOMETRİSİNİ kullanırken
+    sayıları ULUSLARARASI (nokta ondalık) yazıyor -- `_parse_portfolio_pdf`
+    Türkçe (`_to_decimal`) yorum başarısız olursa `_to_decimal_international`
+    ile YENİDEN dener (bkz. o fonksiyonun çağrı yeri).
 
     Öz-doğrulama (Kural 3): "GRUP %" kolonunun (her zaman kendi grubu
     içinde toplamı %100 olması gereken kolon) toplamı `_GROUP_TOTAL_TOLERANCE`
@@ -454,8 +467,8 @@ def _parse_section_rows(
         name_words.sort(key=lambda w: (w["top"], w["x0"]))
         name = " ".join(w["text"] for w in name_words).strip()
 
-        group_pct = _to_decimal(first_line[5]["text"])
-        weight_pct = _to_decimal(first_line[7]["text"])
+        group_pct = decimal_parser(first_line[5]["text"])
+        weight_pct = decimal_parser(first_line[7]["text"])
         if group_pct is None or weight_pct is None:
             continue
 
@@ -480,6 +493,184 @@ def _parse_section_rows(
     return [
         Holding(instrument_type=instrument_type, ticker=ticker, name=names.get((ticker, item_id), ""), weight_pct=weight)
         for (ticker, item_id), weight in sorted(aggregated.items(), key=lambda kv: -kv[1])
+    ]
+
+
+# --- PDF ayrıştırma (İKİNCİ ŞABLON -- "A) HİSSE SENETLERİ" harfli liste) ----------------------------------------
+
+
+# 🚨 KULLANICI KARARI #5 (2026-08-05, hedef 15 fon teşhisinde bulundu):
+# LTL/PBR/DFI/SNY/RSK/YIT/IJC'nin `_PARSEABLE_SECTIONS` (yukarısı, PHE/
+# TLY şablonu) ile 0 holding döndürmesi ÜZERİNE ilk turda "farklı PMC
+# şablonları var, tek oturumda çözülemez" denip VAZGEÇİLMİŞTİ. Kullanıcı
+# BUNA İTİRAZ ETTİ ("başkaları bu fonları da analiz edebiliyor, sen de
+# yapabilirsin") -- CANLI incelemede (page.extract_text() TAM sayfa,
+# ilk turda SADECE ilk 1000 karakter bakılmıştı, kök hata BUYDU) DFI/
+# SNY/RSK'nin GERÇEKTEN hisse verisi TAŞIDIĞI görüldü, sadece TAMAMEN
+# FARKLI bir tabloda:
+#   "3- FON PORTFÖY DEĞERİ TABLOSU" başlığı altında "A) HİSSE SENETLERİ",
+#   "B) VARANTLAR", "C) DEVLET TAHVİLİ VE BONOLAR" ... şeklinde HARFLİ
+#   bir kategori listesi var (format 1'in "HİSSE SENETLERİ"/"DİĞER"/
+#   "GRUP TOPLAMI" adlı başlıklarından TAMAMEN FARKLI). Satır başına
+#   TEK bir yüzde kolonu var (format 1'in 3 kolonundan farklı -- CANLI
+#   doğrulandı: RSK'de bu kolon zaten FON TOPLAM DEĞERİ'ne göre, "GRUP
+#   TOPLAMI"na göre DEĞİL, `Holding.weight_pct` ile AYNI anlam). Sayılar
+#   ULUSLARARASI (nokta ondalık, virgül binlik) yazılıyor -- format 1'in
+#   Türkçe (virgül ondalık) TERSİ, `_to_decimal_international()` ile
+#   AYRI ayrıştırılır. Öz-doğrulama farklı: "TOPLAM:" satırının KENDİ
+#   nominal+rayiç toplamları, satır satır toplanan nominal+rayiç
+#   değerleriyle KARŞILAŞTIRILIR (RSK'de CANLI doğrulandı: rakam rakam
+#   BİREBİR eşleşti) -- format 1'deki "grup %100'e yakın mı" yerine.
+#
+# Bu ikinci şablon SADECE format 1 (`_PARSEABLE_SECTIONS`) HİÇ hisse
+# holding'i DÖNDÜRMEDİYSE bir FALLBACK olarak denenir (bkz.
+# `_parse_portfolio_pdf`) -- format 1 zaten bir şeyler bulduysa (PHE/
+# TLY/PUK/KHA gibi) bu ikinci denemeye HİÇ gerek yoktur.
+_LETTERED_SECTION_MARKER_RE = re.compile(r"^[A-Z]\)$")
+_LETTERED_NUMBER_RE = re.compile(r"^-?[\d,]+\.\d{2}%?$")
+_LETTERED_NUMBER_FRAGMENT_RE = re.compile(r"^-?[\d,.]+%?$")  # kesirli/tam sayi FRAGMANLARINI da yakalar (isim SUTUNU x0'i fondan foNA KAYDIGI icin)
+_LETTERED_HEADER_SKIP_WORDS = frozenset({"HİSSE", "SENETLERİ", "TOPLAM:", "TOPLAM"})
+
+
+def _to_decimal_international(text: str) -> Decimal | None:
+    """`_to_decimal()`'in ULUSLARARASI (virgül binlik, nokta ondalık)
+    biçim karşılığı -- ikinci şablonun sayı gösterimi Türkçe (format 1)
+    ile TAM TERS (bkz. modül üst notu, Kullanıcı Kararı #5)."""
+    try:
+        return Decimal(text.rstrip("%").replace(",", ""))
+    except (InvalidOperation, ValueError):
+        return None
+
+
+def _extract_lettered_hisse_words(pdf: "pdfplumber.PDF") -> list[dict]:
+    """'A) HİSSE SENETLERİ' ile bir SONRAKİ harfli başlık ('B)' vb.)
+    arasındaki kelimeleri toplar -- bu başlık YOKSA (fon bu ikinci
+    şablonu KULLANMIYORSA) boş liste döner."""
+    PAGE_OFFSET = 100_000
+    collected: list[dict] = []
+    in_section = False
+
+    for page_index, page in enumerate(pdf.pages):
+        words = page.extract_words()
+        for i, word in enumerate(words):
+            if not in_section:
+                if (
+                    word["text"] == "A)"
+                    and i + 2 < len(words)
+                    and words[i + 1]["text"] == "HİSSE"
+                    and words[i + 2]["text"] == "SENETLERİ"
+                ):
+                    in_section = True
+                continue
+            if _LETTERED_SECTION_MARKER_RE.match(word["text"]):
+                in_section = False
+                break
+            adjusted = dict(word)
+            adjusted["top"] = word["top"] + page_index * PAGE_OFFSET
+            collected.append(adjusted)
+        if not in_section and collected:
+            break
+
+    return collected
+
+
+def _parse_lettered_hisse_rows(words: list[dict]) -> list[Holding]:
+    """`_extract_lettered_hisse_words()`'ün ürettiği kelime listesini
+    satır satır ayrıştırır. Öz-doğrulama (Kural 3): satır satır toplanan
+    nominal + rayiç değerleri, PDF'in KENDİ 'TOPLAM:' satırındaki iki
+    toplamla (±%0,5 bağıl tolerans, yuvarlama payı) eşleşmelidir --
+    tutmuyorsa boş liste döner (bkz. modül üst notu)."""
+    if not words:
+        return []
+
+    row_starts = [
+        i
+        for i, w in enumerate(words)
+        if 50 <= w["x0"] <= 110 and w["text"] not in _LETTERED_HEADER_SKIP_WORDS and _STOCK_TICKER_RE.match(w["text"])
+    ]
+    if not row_starts:
+        return []
+
+    toplam_word = next((w for w in words if w["text"] == "TOPLAM:"), None)
+    if toplam_word is None:
+        return []
+    toplam_numbers = sorted(
+        (w for w in words if abs(w["top"] - toplam_word["top"]) < 1 and _LETTERED_NUMBER_RE.match(w["text"])),
+        key=lambda w: w["x0"],
+    )
+    if len(toplam_numbers) != 2:
+        return []
+    toplam_nominal = _to_decimal_international(toplam_numbers[0]["text"])
+    toplam_rayic = _to_decimal_international(toplam_numbers[1]["text"])
+    if toplam_nominal is None or toplam_rayic is None:
+        return []
+
+    aggregated: dict[str, Decimal] = {}
+    names: dict[str, str] = {}
+    nominal_sum = Decimal(0)
+    rayic_sum = Decimal(0)
+
+    for idx, start_i in enumerate(row_starts):
+        start_top = words[start_i]["top"]
+        natural_end = words[row_starts[idx + 1]]["top"] if idx + 1 < len(row_starts) else toplam_word["top"]
+        end_top = min(natural_end, start_top + _MAX_ROW_SPAN)
+        block = [w for w in words if start_top - 1 <= w["top"] < end_top]
+
+        ticker = words[start_i]["text"]
+        numeric_fields = sorted(
+            (w for w in block if abs(w["top"] - start_top) < 1 and _LETTERED_NUMBER_RE.match(w["text"])),
+            key=lambda w: w["x0"],
+        )
+        if len(numeric_fields) != 3:  # nominal, rayic, yuzde -- baska sayida ise guvenilir ayristiramiyoruz
+            continue
+        nominal = _to_decimal_international(numeric_fields[0]["text"])
+        rayic = _to_decimal_international(numeric_fields[1]["text"])
+        weight_pct = _to_decimal_international(numeric_fields[2]["text"])
+        if nominal is None or rayic is None or weight_pct is None:
+            continue
+
+        # CANLI gözlem (DFI): nominal/rayiç/yüzde kolonlarının x0'i FON'DAN
+        # FONA kayabiliyor (RSK'de x0=364+, DFI'de x0=331+) -- bu yüzden
+        # isim sütunu SABİT bir x0 üst sınırıyla DEĞİL, sayı GİBİ görünen
+        # HER kelimeyi (x0'dan BAĞIMSIZ) dışlayarak ayrıştırılır.
+        name_words = [
+            w
+            for w in block
+            if 100 < w["x0"] < 360
+            and w["text"] not in _LETTERED_HEADER_SKIP_WORDS
+            and not _LETTERED_NUMBER_FRAGMENT_RE.match(w["text"])
+        ]
+        name_words.sort(key=lambda w: (w["top"], w["x0"]))
+        name = " ".join(w["text"] for w in name_words).strip()
+
+        nominal_sum += nominal
+        rayic_sum += rayic
+        aggregated[ticker] = aggregated.get(ticker, Decimal(0)) + weight_pct
+        if name:
+            names[ticker] = name
+
+    if not aggregated:
+        return []
+
+    # Oz-dogrulama: PDF'in KENDI 'TOPLAM:' satiriyla karsilastir (Kural 3).
+    for label, computed, expected in (("nominal", nominal_sum, toplam_nominal), ("rayiç", rayic_sum, toplam_rayic)):
+        if expected == 0:
+            continue
+        relative_diff = abs(computed - expected) / abs(expected)
+        if relative_diff > Decimal("0.005"):
+            logger.warning(
+                "KAP portföy dağılım PDF'inin (harfli şablon) HİSSE SENETLERİ bölümü '%s' toplamı "
+                "PDF'in kendi 'TOPLAM:' satırıyla tutmuyor (hesaplanan=%s, PDF=%s) -- ayrıştırma "
+                "GÜVENİLİR DEĞİL, boş liste dönüyor (Kural 3).",
+                label,
+                computed,
+                expected,
+            )
+            return []
+
+    return [
+        Holding(instrument_type="hisse", ticker=ticker, name=names.get(ticker, ""), weight_pct=weight)
+        for ticker, weight in sorted(aggregated.items(), key=lambda kv: -kv[1])
     ]
 
 
@@ -537,6 +728,34 @@ def _parse_portfolio_pdf(pdf_bytes: bytes) -> list[Holding]:
                     logger.info("PDF'te '%s' bölümü bulunamadı.", section_start)
                     continue
                 all_holdings.extend(_parse_section_rows(words, ticker_re, instrument_type, row_tolerance, id_re))
+
+            # Kullanıcı Kararı #5 (bkz. `_parse_lettered_hisse_rows` üst
+            # notu): format 1 HİÇ "hisse" holding'i bulamadıysa (bazı
+            # fonlar -- DFI/SNY/RSK gibi -- HİÇ "HİSSE SENETLERİ"/"DİĞER"
+            # adlı bölüm KULLANMIYOR, bunun yerine "A) HİSSE SENETLERİ"
+            # harfli bir liste kullanıyor), İKİNCİ bir şablonla FALLBACK
+            # denenir. Format 1 zaten bir şeyler bulduysa (PHE/TLY/PUK/
+            # KHA gibi) bu denemeye HİÇ gerek yoktur.
+            if not any(h.instrument_type == "hisse" for h in all_holdings):
+                lettered_words = _extract_lettered_hisse_words(pdf)
+                if lettered_words:
+                    all_holdings.extend(_parse_lettered_hisse_rows(lettered_words))
+
+            # Kullanıcı Kararı #6 (2026-08-05, IJC'de bulundu): bazı
+            # fonlar format 1'in AYNI 8-kolonlu geometrisini kullanır
+            # ama sayıları ULUSLARARASI (nokta ondalık) yazar -- Türkçe
+            # yorum group_pct'i YANLIŞ hesaplayıp öz-doğrulamada
+            # reddedilir. Format 1 VE harfli fallback İKİSİ DE hiç
+            # "hisse" bulamadıysa, AYNI HİSSE SENETLERİ bölümü
+            # `_to_decimal_international` ile YENİDEN denenir.
+            if not any(h.instrument_type == "hisse" for h in all_holdings):
+                hisse_words = _extract_section_words(pdf, "HİSSE SENETLERİ")
+                if hisse_words:
+                    all_holdings.extend(
+                        _parse_section_rows(
+                            hisse_words, _STOCK_TICKER_RE, "hisse", 1, _ISIN_RE, decimal_parser=_to_decimal_international
+                        )
+                    )
     except Exception as exc:  # pdfplumber bozuk/beklenmeyen bir PDF'te cesitli hatalar firlatabilir
         logger.warning("KAP portföy dağılım PDF'i açılamadı/ayrıştırılamadı: %s", exc)
         return []

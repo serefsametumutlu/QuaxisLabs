@@ -517,3 +517,73 @@ def test_fetch_portfolio_by_disclosure_pdf_indirilemezse_none_doner(monkeypatch)
     disclosure = {"disclosure_index": 1643421, "publish_date": date(2026, 8, 5), "summary": "", "year": 2026, "period": 7}
 
     assert kfp.fetch_portfolio_by_disclosure("PHE", disclosure) is None
+
+
+# --- İKİNCİ ŞABLON ("A) HİSSE SENETLERİ" harfli liste, Kullanıcı Kararı #5) --------------------------------------------
+
+
+def test_to_decimal_international_virgul_binlik_nokta_ondalik():
+    """`_to_decimal()`'in TERSİ -- format 1 Türkçe (virgül ondalık),
+    ikinci şablon ULUSLARARASI (nokta ondalık) yazıyor (CANLI doğrulandı:
+    RSK/DFI/SNY)."""
+    assert kfp._to_decimal_international("81,775,746.00") == Decimal("81775746.00")
+    assert kfp._to_decimal_international("64.78%") == Decimal("64.78")
+    assert kfp._to_decimal_international("-2,590,378.00") == Decimal("-2590378.00")
+    assert kfp._to_decimal_international("gecersiz") is None
+
+
+def _fake_lettered_row(top: float, ticker: str, name_words: list[tuple[str, float]], nominal: str, rayic: str, pct: str) -> list[dict]:
+    """RSK/DFI/SNY'de CANLI gözlemlenen geometriyle (ticker x0~66,
+    isim x0~140-360, nominal/rayiç/yüzde x0>360) minimal bir satır üretir."""
+    words = [_fake_word(ticker, 66.0, top)]
+    words += [_fake_word(text, x0, top) for text, x0 in name_words]
+    words += [
+        _fake_word(nominal, 366.9, top),
+        _fake_word(rayic, 418.7, top),
+        _fake_word(pct, 466.8, top),
+    ]
+    return words
+
+
+def test_parse_lettered_hisse_rows_toplam_tutuyorsa_holdings_doner():
+    """CANLI RSK verisiyle BİREBİR (AKBNK+AKFYE): nominal/rayiç toplamları
+    PDF'in kendi 'TOPLAM:' satırıyla rakam rakam eşleşiyor -- Kural 3 öz-
+    doğrulaması geçmeli."""
+    words = (
+        _fake_lettered_row(100.0, "AKBNK", [("AKBANK", 166.2), ("T.A.S.", 188.7)], "95,921.00", "7,385,917.00", "3.49%")
+        + _fake_lettered_row(110.0, "AKFYE", [("AKFEN", 166.2), ("ENERJİ", 184.9)], "500,000.00", "11,220,000.00", "5.31%")
+        + [_fake_word("TOPLAM:", 66.0, 120.0), _fake_word("595,921.00", 358.9, 120.0), _fake_word("18,605,917.00", 412.0, 120.0)]
+    )
+
+    holdings = kfp._parse_lettered_hisse_rows(words)
+
+    assert len(holdings) == 2
+    by_ticker = {h.ticker: h for h in holdings}
+    assert by_ticker["AKBNK"].weight_pct == Decimal("3.49")
+    assert by_ticker["AKBNK"].name == "AKBANK T.A.S."
+    assert by_ticker["AKBNK"].instrument_type == "hisse"
+    assert by_ticker["AKFYE"].weight_pct == Decimal("5.31")
+
+
+def test_parse_lettered_hisse_rows_toplam_tutmuyorsa_bos_liste_doner():
+    """Kural 3: 'TOPLAM:' satırındaki nominal/rayiç PDF'in kendi
+    toplamıyla TUTMUYORSA (ör. bir satır atlanmış/yanlış okunmuşsa)
+    güvenilmez sayılır, boş liste döner."""
+    words = (
+        _fake_lettered_row(100.0, "AKBNK", [("AKBANK", 166.2), ("T.A.S.", 188.7)], "95,921.00", "7,385,917.00", "3.49%")
+        + [_fake_word("TOPLAM:", 66.0, 120.0), _fake_word("999,999.00", 358.9, 120.0), _fake_word("999,999.00", 412.0, 120.0)]
+    )
+
+    assert kfp._parse_lettered_hisse_rows(words) == []
+
+
+def test_parse_lettered_hisse_rows_bos_kelime_listesi_bos_liste_doner():
+    assert kfp._parse_lettered_hisse_rows([]) == []
+
+
+def test_extract_lettered_hisse_words_format1_pdfte_bos_doner():
+    """PHE (format 1 -- 'HİSSE SENETLERİ'/'DİĞER' başlıklı) PDF'inde
+    'A) HİSSE SENETLERİ' harfli başlığı YOK -- boş liste dönmeli, bu
+    ikinci şablon YANLIŞLIKLA devreye girmemeli."""
+    with kfp.pdfplumber.open(kfp.BytesIO(PHE_PDF_BYTES)) as pdf:
+        assert kfp._extract_lettered_hisse_words(pdf) == []

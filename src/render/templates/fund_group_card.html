@@ -139,8 +139,6 @@
     </div>
   </header>
 
-  <div class="warning-band">🚨 DENEYSEL TAHMİN -- gerçekleşmiş/açıklanmış fon getirisi DEĞİLDİR, mevcut portföy içeriği + güncel fiyat hareketlerine dayalı bir kestirimdir.</div>
-
   {% if is_empty %}
   <div class="empty-state">Bu grup için şu an hiçbir fon tahmini üretilemedi.</div>
   {% endif %}
@@ -155,7 +153,6 @@
       </div>
       <div class="fund-row-right">
         <div class="fund-row-return {{ row.return_color_class }}">{{ row.return_display }}</div>
-        <div class="fund-row-confidence">{{ row.confidence_label }}</div>
       </div>
     </div>
     {% endfor %}

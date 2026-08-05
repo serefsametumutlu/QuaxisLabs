@@ -224,8 +224,6 @@
     </div>
   </header>
 
-  <div class="warning-band">🚨 DENEYSEL TAHMİN -- fonun henüz açıklanmamış günlük getirisinin, mevcut portföy içeriği ve güncel fiyat hareketlerine dayalı bir kestirimidir. Gerçekleşmiş/açıklanmış getiri DEĞİLDİR.</div>
-
   <section class="result-band">
     <div class="result-fund-code">{{ fund_code }}</div>
     <div class="result-value-block">
@@ -233,13 +231,6 @@
       <div class="result-value {{ estimated_return_color_class }}">{{ estimated_return_display }}</div>
     </div>
   </section>
-
-  <div class="meta-row">
-    <span class="meta-chip">{{ confidence_label }}</span>
-    <span class="meta-chip">Güven Aralığı: {{ confidence_interval_display }}</span>
-    <span class="meta-chip">Fiyatlandırılan Ağırlık: {{ covered_weight_display }}</span>
-    <span class="meta-chip">Portföy Tazeliği: {{ staleness_days }} gün</span>
-  </div>
 
   <div class="columns">
     <div class="column">
@@ -281,10 +272,6 @@
       {% endif %}
     </div>
   </div>
-
-  {% if uncovered_note %}
-  <div class="uncovered-note">ℹ️ {{ uncovered_note }}</div>
-  {% endif %}
 
   <footer class="bottom-band">
     <div class="disclaimer">{{ disclaimer }}</div>

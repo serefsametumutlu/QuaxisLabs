@@ -30,6 +30,8 @@ from src.db.models import (
     Disclosure,
     EarningsCalendar,
     FinancialPeriod,
+    Fund,
+    FundHolding,
     GeneratedCard,
     DefaultSessionLocal,
     utcnow_naive,
@@ -335,6 +337,104 @@ def is_data_fresh(session: Session, ticker: str, max_age_hours: int = 12) -> boo
     if company is None or company.last_updated is None:
         return False
     return (utcnow_naive() - company.last_updated) <= timedelta(hours=max_age_hours)
+
+
+# --- Fon (Faz 17, TEFAS/KAP) -----------------------------------------------------
+
+
+def save_fund_info(
+    session: Session,
+    code: str,
+    name: str | None,
+    founder: str | None,
+    fund_type: str | None,
+    last_price: Decimal | None,
+    last_price_date: date | None,
+) -> None:
+    """Fund satirini (code anahtarina gore) upsert eder -- ayni ticker/company
+    deseninde (bkz. _get_or_create_company), tekrar cagrilirsa GUNCELLENIR."""
+    fund = session.get(Fund, code)
+    if fund is None:
+        fund = Fund(code=code)
+        session.add(fund)
+    fund.name = name
+    fund.founder = founder
+    fund.fund_type = fund_type
+    fund.last_price = last_price
+    fund.last_price_date = last_price_date
+    fund.last_updated = utcnow_naive()
+    session.commit()
+
+
+def get_fund(session: Session, code: str) -> Fund | None:
+    return session.get(Fund, code)
+
+
+def save_fund_holdings(
+    session: Session,
+    fund_code: str,
+    report_date: date,
+    holdings: Iterable[tuple[str, str | None, str, Decimal]],
+) -> int:
+    """FundHolding satirlarini (fund_code, report_date, name) anahtarina
+    gore kaydeder -- ayni anahtar zaten varsa ATLANIR (bir rapor
+    yayinlandiktan sonra icerigi degismez, bkz. save_disclosures ile AYNI
+    ilke). `holdings`: (instrument_type, ticker, name, weight_pct) tuple'lari.
+
+    Donen deger: yeni EKLENEN satir sayisi.
+    """
+    holdings = list(holdings)
+    if not holdings:
+        return 0
+
+    if session.get(Fund, fund_code) is None:
+        session.add(Fund(code=fund_code))
+
+    existing_names = set(
+        session.execute(
+            select(FundHolding.name).where(
+                FundHolding.fund_code == fund_code, FundHolding.report_date == report_date
+            )
+        ).scalars().all()
+    )
+
+    inserted = 0
+    for instrument_type, ticker, name, weight_pct in holdings:
+        if name in existing_names:
+            continue
+        session.add(
+            FundHolding(
+                fund_code=fund_code,
+                report_date=report_date,
+                instrument_type=instrument_type,
+                ticker=ticker,
+                name=name,
+                weight_pct=weight_pct,
+            )
+        )
+        inserted += 1
+    session.commit()
+    return inserted
+
+
+def get_latest_fund_holdings(session: Session, fund_code: str) -> list[FundHolding]:
+    """Bir fonun EN GUNCEL rapor tarihine ait holding satirlarini doner
+    (agirliga gore buyukten kucuge siralanmis). Hic holding yoksa bos
+    liste doner."""
+    latest_date = session.execute(
+        select(FundHolding.report_date)
+        .where(FundHolding.fund_code == fund_code)
+        .order_by(FundHolding.report_date.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+    if latest_date is None:
+        return []
+    rows = session.execute(
+        select(FundHolding)
+        .where(FundHolding.fund_code == fund_code, FundHolding.report_date == latest_date)
+        .order_by(FundHolding.weight_pct.desc())
+    ).scalars().all()
+    return list(rows)
 
 
 def get_recent_cards(session: Session, limit: int = 5) -> list[GeneratedCard]:

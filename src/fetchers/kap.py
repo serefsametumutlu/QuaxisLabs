@@ -361,6 +361,36 @@ def _row_to_disclosure(row: dict) -> Disclosure:
     )
 
 
+def fetch_disclosures_by_oid(member_oid: str, days: int = 90) -> list[Disclosure]:
+    """`fetch_disclosures()` ile AYNI istegi, hisse kodu yerine KAP'in ic
+    uye kimligini (mkkMemberOid) dogrudan alarak yapar -- kap_fund_portfolio.py
+    fonlar/kurucu sirketler icin `search_company()`'yi (sadece searchType=='C'
+    filtreler) DEGIL, kendi arama sonucundaki oid'i dogrudan kullanmak
+    zorunda oldugu icin bu ayri, dusuk seviyeli fonksiyon dislariya acildi.
+
+    Hatalar:
+        KapNetworkError: Ag hatasi veya beklenmeyen yanit.
+    """
+    to_date = date.today()
+    from_date = to_date - timedelta(days=days)
+    body = {
+        "fromDate": from_date.isoformat(),
+        "toDate": to_date.isoformat(),
+        "mkkMemberOidList": [member_oid],
+    }
+    payload = _post_json(DISCLOSURES_ENDPOINT, body)
+
+    if isinstance(payload, dict):
+        error_message = payload.get("errorMessage", "bilinmeyen hata")
+        raise KapNetworkError(f"KAP bildirim sorgusu basarisiz: {error_message}")
+    if not isinstance(payload, list):
+        raise KapNetworkError("KAP bildirim yaniti beklenmeyen bicimde (liste degil).")
+
+    disclosures = [_row_to_disclosure(row) for row in payload]
+    disclosures.sort(key=lambda d: d.date, reverse=True)
+    return disclosures
+
+
 def fetch_disclosures(ticker: str, days: int = 90) -> list[Disclosure]:
     """Bir BIST sirketinin son `days` gunun KAP bildirimlerini ceker ve
     onem derecesine gore etiketler (en yeni -> en eski siralanmis doner).
@@ -374,24 +404,7 @@ def fetch_disclosures(ticker: str, days: int = 90) -> list[Disclosure]:
 
     time.sleep(config.HTTP_RATE_LIMIT_DELAY_SECONDS)
 
-    to_date = date.today()
-    from_date = to_date - timedelta(days=days)
-    body = {
-        "fromDate": from_date.isoformat(),
-        "toDate": to_date.isoformat(),
-        "mkkMemberOidList": [company.member_oid],
-    }
-    payload = _post_json(DISCLOSURES_ENDPOINT, body)
-
-    if isinstance(payload, dict):
-        error_message = payload.get("errorMessage", "bilinmeyen hata")
-        raise KapNetworkError(f"KAP bildirim sorgusu basarisiz: {error_message}")
-    if not isinstance(payload, list):
-        raise KapNetworkError("KAP bildirim yaniti beklenmeyen bicimde (liste degil).")
-
-    disclosures = [_row_to_disclosure(row) for row in payload]
-    disclosures.sort(key=lambda d: d.date, reverse=True)
-    return disclosures
+    return fetch_disclosures_by_oid(company.member_oid, days=days)
 
 
 def get_top_disclosures(disclosures: list[Disclosure], limit: int = 5) -> list[Disclosure]:

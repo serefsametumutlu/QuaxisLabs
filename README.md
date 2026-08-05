@@ -853,6 +853,35 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       Test: `pytest tests/` (852 test, 9 yeni `test_valuation.py` testi —
       normal hesap, büyüme/risksiz-faiz tavanı, ROE≤0/büyüme≤0/g≥ROE edge
       case'leri, USD farklı makro varsayım seti).
+- [x] **Faz 17** — Türk yatırım fonları (TEFAS/KAP) veri katmanı KURULDU
+      (tahmin/kart YAPILMADI, bu bilinçli olarak Faz 18/19'a bırakıldı).
+      **Keşif** (`scripts/explore_tefas.py`, `scripts/explore_kap_fon.py`):
+      TEFAS'ın eski uç noktaları (fundturkey.com.tr) emekliye ayrılmış, yeni
+      backend `tefas.gov.tr/api/funds/` + `/api/statistics/tefas/`. Sayfaları
+      (`/tr/...`) bir F5/Distil bot koruması ARKASINDA ama JSON API'leri
+      (`fonBilgiGetir`, `getFplFonList`) KORUMASIZ — düz `httpx` ile CANLI
+      doğrulandı (AFA fonuyla). `src/fetchers/tefas.py`: `search_fund()`
+      (tam fon evreni + Türkçe-güvenli alt-dize eşleme), `fetch_fund_info()`
+      (fiyat/toplam değer/yatırımcı sayısı/kategori) ÇALIŞIYOR. 🚨
+      `fetch_fund_returns()`/`fetch_price_history()` VE `FundInfo.allocation`
+      (varlık SINIF dağılımı) bu oturumda GÜVENİLİR bir uç nokta
+      bulunamadığı için HER ZAMAN boş/None döner (Kural 3 — veri sayfanın
+      sunucu-taraflı render payload'ına gömülü geliyor ama bir Playwright
+      yedeği de WAF tarafından reddedildi). KAP tarafında
+      `src/fetchers/kap_fund_portfolio.py` fonun/kurucusunun KAP kaydında
+      "Portföy Dağılım Raporu" arar (arama mekanizması ÇALIŞIYOR) ama test
+      edilen örnekte (AK PORTFÖY/AFA, 365 gün) HİÇBİR bildirime
+      rastlanmadı — **hisse-bazlı fon içeriği bu fazda güvenilir şekilde
+      alınamadı**, `fetch_latest_portfolio()` bu durumda None döner (uydurma
+      veri YOK). Yeni DB tabloları: `fund`, `fund_holding`
+      (`src/db/models.py`, `repository.save_fund_info`/`get_fund`/
+      `save_fund_holdings`/`get_latest_fund_holdings`). Demo:
+      `python scripts/demo_fon.py AFA`. Test: `pytest tests/` (874 test, 22
+      yeni — `test_tefas.py`, `test_kap_fund_portfolio.py`, `test_db.py`'ye
+      eklenen fon testleri; hepsi kaydedilmiş/sahte yanıtlarla, ağ isteği
+      YOK). Faz 18/19 kapsam önerisi: hisse-bazlı içerik yerine TEFAS'ın
+      sınıf-bazlı varlık dağılımına ve/veya farklı bir kaynağa göre
+      YENİDEN değerlendirilmeli — bkz. `PROJE_HAFIZASI/06_BILINEN_SORUNLAR.md`.
 
 ## Dizin Yapisi
 
@@ -864,7 +893,7 @@ bilanco-radar/
 ├── main.py                  # Giris noktasi
 ├── data/                    # SQLite dosyasi + loglar + onbellek
 ├── src/
-│   ├── fetchers/             # isyatirim.py, kap.py, sec_edgar.py (NASDAQ), earnings_calendar.py (takvim), price_history.py (teknik)
+│   ├── fetchers/             # isyatirim.py, kap.py, sec_edgar.py (NASDAQ), earnings_calendar.py (takvim), price_history.py (teknik), tefas.py + kap_fund_portfolio.py (fonlar)
 │   ├── db/                   # models.py, repository.py
 │   ├── analysis/              # calculator.py, scorer.py, technical.py (teknik göstergeler)
 │   ├── ai/                    # commentary.py

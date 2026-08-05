@@ -1,0 +1,14 @@
+200 6855
+<!DOCTYPE html>
+<html><head>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="-1"/>
+<meta http-equiv="CacheControl" content="no-cache"/>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<link rel="shortcut icon" href="data:;base64,iVBORw0KGgo="/>
+
+<script type="text/javascript">
+(function(){
+window["bobcmn"] = "101111111110112000000052000000052000000062000000012cbb509a2200000096200000000200000002300000000300000000300000006/TSPD/300000003zid300000007zid_DID300000005https3000000b008ce165641ab2000414965c2f070a183ea0d322d9e1da82d29d5060763f03940e3735002e166609d084fcea7a50a2800c8c7c284b0ac37498010e8be15d49d13982da974b45b0f4a9713ba7829d6b242399cf84439ac163e300000003wid200000000200000000";
+
+window["failureConfig"] = "524f6f70732e2e

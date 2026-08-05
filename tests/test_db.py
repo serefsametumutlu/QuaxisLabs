@@ -14,7 +14,7 @@ import pytest
 from sqlalchemy import select
 
 from src.db import models, repository
-from src.db.models import Company, Disclosure, EarningsCalendar, FinancialPeriod
+from src.db.models import Company, Disclosure, EarningsCalendar, FinancialPeriod, Fund, FundHolding
 
 
 @pytest.fixture()
@@ -430,3 +430,67 @@ def test_is_earnings_calendar_fresh_eskiyse_false(session) -> None:
 def test_is_earnings_calendar_fresh_farkli_market_etkilemez(session) -> None:
     repository.upsert_earnings_calendar(session, [_fake_earnings_record(market="BIST")])
     assert repository.is_earnings_calendar_fresh(session, market="NASDAQ") is False
+
+
+# --- Fon (Faz 17) -----------------------------------------------------
+
+
+def test_save_fund_info_ilk_cagrida_ekler_ikinci_cagrida_gunceller(session) -> None:
+    repository.save_fund_info(session, "AFA", "AK PORTFÖY AMERİKA", "AK PORTFÖY YÖNETİMİ A.Ş.", "Hisse Senedi Fonu", Decimal("1.259391"), None)
+
+    fund = repository.get_fund(session, "AFA")
+    assert fund is not None
+    assert fund.name == "AK PORTFÖY AMERİKA"
+    assert fund.last_price == Decimal("1.259391")
+
+    repository.save_fund_info(session, "AFA", "AK PORTFÖY AMERİKA", "AK PORTFÖY YÖNETİMİ A.Ş.", "Hisse Senedi Fonu", Decimal("1.3"), None)
+
+    rows = session.execute(select(Fund).where(Fund.code == "AFA")).scalars().all()
+    assert len(rows) == 1
+    assert rows[0].last_price == Decimal("1.3")
+
+
+def test_get_fund_bulunamayan_kod_none_doner(session) -> None:
+    assert repository.get_fund(session, "YOKTUR") is None
+
+
+def test_save_fund_holdings_ekler_ve_mukerrer_atlanir(session) -> None:
+    holdings = [
+        ("hisse", "AAPL", "Apple Inc.", Decimal("5.5")),
+        ("repo", None, "Ters-Repo", Decimal("3.09")),
+    ]
+    inserted = repository.save_fund_holdings(session, "AFA", date(2026, 7, 31), holdings)
+    assert inserted == 2
+
+    inserted_again = repository.save_fund_holdings(session, "AFA", date(2026, 7, 31), holdings)
+    assert inserted_again == 0
+
+    rows = session.execute(select(FundHolding).where(FundHolding.fund_code == "AFA")).scalars().all()
+    assert len(rows) == 2
+
+
+def test_save_fund_holdings_farkli_rapor_tarihi_ayri_satir_olur(session) -> None:
+    repository.save_fund_holdings(session, "AFA", date(2026, 6, 30), [("hisse", "AAPL", "Apple Inc.", Decimal("5.0"))])
+    repository.save_fund_holdings(session, "AFA", date(2026, 7, 31), [("hisse", "AAPL", "Apple Inc.", Decimal("5.5"))])
+
+    rows = session.execute(select(FundHolding).where(FundHolding.fund_code == "AFA")).scalars().all()
+    assert len(rows) == 2
+
+
+def test_get_latest_fund_holdings_en_guncel_tarihi_doner(session) -> None:
+    repository.save_fund_holdings(session, "AFA", date(2026, 6, 30), [("hisse", "AAPL", "Apple Inc.", Decimal("4.0"))])
+    repository.save_fund_holdings(
+        session,
+        "AFA",
+        date(2026, 7, 31),
+        [("hisse", "AAPL", "Apple Inc.", Decimal("5.5")), ("hisse", "MSFT", "Microsoft Corp.", Decimal("6.5"))],
+    )
+
+    latest = repository.get_latest_fund_holdings(session, "AFA")
+
+    assert [h.report_date for h in latest] == [date(2026, 7, 31), date(2026, 7, 31)]
+    assert [h.name for h in latest] == ["Microsoft Corp.", "Apple Inc."]  # agirliga gore buyukten kucuge
+
+
+def test_get_latest_fund_holdings_hic_veri_yoksa_bos_liste_doner(session) -> None:
+    assert repository.get_latest_fund_holdings(session, "YOKTUR") == []

@@ -144,6 +144,45 @@ class EarningsCalendar(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow_naive)
 
 
+class Fund(Base):
+    """Faz 17: Türk yatırım fonları (TEFAS) veri katmanı -- bkz.
+    src/fetchers/tefas.py. `code` TEFAS fon kodudur (örn. "AFA").
+    `last_price_date` HER ZAMAN None kalabilir -- tefas.py'nin
+    fonBilgiGetir yanıtında bu tarih YOK (bkz. tefas.py modül üst notu,
+    fiyat açıklanma zamanlaması bu fazda doğrulanamadı)."""
+
+    __tablename__ = "fund"
+
+    code: Mapped[str] = mapped_column(String(20), primary_key=True)
+    name: Mapped[str | None] = mapped_column(String(255))
+    founder: Mapped[str | None] = mapped_column(String(255))
+    fund_type: Mapped[str | None] = mapped_column(String(100))
+    last_price: Mapped[Decimal | None] = mapped_column(Numeric(24, 6))
+    last_price_date: Mapped[date | None] = mapped_column(Date)
+    last_updated: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class FundHolding(Base):
+    """Faz 17: bir fonun belirli bir rapor tarihindeki hisse/varlık bazlı
+    içeriği -- bkz. src/fetchers/kap_fund_portfolio.py. ⚠️ Bu fazda
+    kap_fund_portfolio.fetch_latest_portfolio() CANLI hiçbir "Portföy
+    Dağılım Raporu" örneğine ulaşamadığı için (bkz. o modülün üst notu)
+    bu tablo şu an İÇİ BOŞ kalır -- şema, gelecekte gerçek bir kaynak
+    bulunduğunda kullanılmak üzere hazırlandı (Kural: DB katmanı kur,
+    tahmin/kart YAPMA)."""
+
+    __tablename__ = "fund_holding"
+    __table_args__ = (UniqueConstraint("fund_code", "report_date", "name", name="uq_fund_holding_key"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    fund_code: Mapped[str] = mapped_column(ForeignKey("fund.code"), index=True)
+    report_date: Mapped[date] = mapped_column(Date)
+    instrument_type: Mapped[str] = mapped_column(String(50))  # "hisse" | "tahvil" | "repo" | ...
+    ticker: Mapped[str | None] = mapped_column(String(20))  # hisse ise BIST kodu
+    name: Mapped[str] = mapped_column(String(255))
+    weight_pct: Mapped[Decimal] = mapped_column(Numeric(9, 4))
+
+
 class GeneratedCard(Base):
     __tablename__ = "generated_card"
 

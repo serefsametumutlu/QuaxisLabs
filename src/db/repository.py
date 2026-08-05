@@ -376,10 +376,20 @@ def save_fund_holdings(
     report_date: date,
     holdings: Iterable[tuple[str, str | None, str, Decimal]],
 ) -> int:
-    """FundHolding satirlarini (fund_code, report_date, name) anahtarina
-    gore kaydeder -- ayni anahtar zaten varsa ATLANIR (bir rapor
+    """FundHolding satirlarini (fund_code, report_date, ticker, name)
+    anahtarina gore kaydeder -- ayni anahtar zaten varsa ATLANIR (bir rapor
     yayinlandiktan sonra icerigi degismez, bkz. save_disclosures ile AYNI
     ilke). `holdings`: (instrument_type, ticker, name, weight_pct) tuple'lari.
+
+    🚨 CANLI HATA + DÜZELTME (Faz 19, 2026-08-05): eskiden SADECE `name`
+    anahtar olarak kullanılıyordu -- fon-içinde-fon holding'lerinde `name`
+    YÖNETİCİ ŞİRKET adı olduğu için (bkz. `FundHolding.__table_args__`
+    üst notu) BİRDEN FAZLA farklı ticker AYNI ismi paylaşabiliyordu, bu da
+    `session.commit()` anında `IntegrityError` fırlatıp TÜM tahmin akışını
+    (kullanıcıya HİÇBİR yanıt gitmeden) sessizce çökertiyordu (kullanıcı
+    raporu: PHE sorgusu). Artık `ticker` de anahtara DAHİL -- hem Python
+    tarafındaki bu ön-kontrol HEM DB'nin kendi kısıtı (bkz. models.py)
+    AYNI (fund_code, report_date, ticker, name) anahtarını kullanıyor.
 
     Donen deger: yeni EKLENEN satir sayisi.
     """
@@ -390,17 +400,18 @@ def save_fund_holdings(
     if session.get(Fund, fund_code) is None:
         session.add(Fund(code=fund_code))
 
-    existing_names = set(
+    existing_keys = set(
         session.execute(
-            select(FundHolding.name).where(
+            select(FundHolding.ticker, FundHolding.name).where(
                 FundHolding.fund_code == fund_code, FundHolding.report_date == report_date
             )
-        ).scalars().all()
+        ).all()
     )
 
     inserted = 0
     for instrument_type, ticker, name, weight_pct in holdings:
-        if name in existing_names:
+        key = (ticker, name)
+        if key in existing_keys:
             continue
         session.add(
             FundHolding(
@@ -412,6 +423,7 @@ def save_fund_holdings(
                 weight_pct=weight_pct,
             )
         )
+        existing_keys.add(key)  # AYNI parti icinde tekrar edebilecek anahtarlari da yakalar
         inserted += 1
     session.commit()
     return inserted

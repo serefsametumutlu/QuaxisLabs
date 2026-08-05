@@ -172,7 +172,18 @@ class FundHolding(Base):
     tahmin/kart YAPMA)."""
 
     __tablename__ = "fund_holding"
-    __table_args__ = (UniqueConstraint("fund_code", "report_date", "name", name="uq_fund_holding_key"),)
+    # 🚨 CANLI HATA + DÜZELTME (Faz 19, 2026-08-05): eskiden kısıt
+    # (fund_code, report_date, name) idi -- 'name' fon-içinde-fon
+    # holding'lerinde YÖNETİCİ ŞİRKET adı (örn. "PUSULA PORTFÖY
+    # YÖNETİMİ A.Ş.") olduğu için BİRDEN FAZLA farklı ticker (PCS/PDG/
+    # PKZ/PRY gibi) AYNI ismi paylaşabiliyor -- IntegrityError'a yol
+    # açıyordu (kullanıcı raporu: PHE sorgusu 6-7 dakika "asılı kaldı",
+    # kök neden bu hatanın sessizce hiçbir yanıt gönderilmeden
+    # patlamasıydı). `ticker` (nakit residual'da None olsa bile rapor
+    # başına TEK bir residual satırı olur) doğru doğal anahtardır --
+    # bkz. `src.db.models._migrate_fix_fund_holding_unique_constraint`
+    # (eski kısıtlı tabloları otomatik düzeltir).
+    __table_args__ = (UniqueConstraint("fund_code", "report_date", "ticker", "name", name="uq_fund_holding_key"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     fund_code: Mapped[str] = mapped_column(ForeignKey("fund.code"), index=True)
@@ -249,6 +260,30 @@ def _migrate_add_commentary_hook_column(engine: Engine) -> None:
         connection.execute(text("ALTER TABLE commentary_cache ADD COLUMN hook VARCHAR(300)"))
 
 
+def _migrate_fix_fund_holding_unique_constraint(engine: Engine) -> None:
+    """Faz 19 CANLI hata (bkz. `FundHolding.__table_args__` üst notu):
+    ESKİ kısıtla (fund_code, report_date, name) oluşturulmuş bir
+    'fund_holding' tablosu varsa DÜŞÜRÜLÜR -- hemen ardından çağrılan
+    `create_all()` DOĞRU kısıtla (ticker DAHİL) yeniden oluşturur.
+
+    Veri kaybı riski YOK: bu tablo Faz 17'den beri hep BOŞ kalmıştı (Faz
+    19'un DB önbellek katmanı ilk gerçek yazıcısıydı, bkz. o modülün üst
+    notu) -- ne varsa zaten sadece birkaç saatlik bir önbellek, KAP'tan
+    HER ZAMAN yeniden türetilebilir. `create_all()`'DAN ÖNCE çağrılmalı
+    (SQLAlchemy var olan bir tabloya DOKUNMAZ, bu yüzden ESKİ şema
+    ÖNCE düşürülmeli ki create_all() onu YENİDEN, doğru şemayla kursun).
+    """
+    inspector = inspect(engine)
+    if "fund_holding" not in inspector.get_table_names():
+        return
+    for constraint in inspector.get_unique_constraints("fund_holding"):
+        if set(constraint.get("column_names", [])) == {"fund_code", "report_date", "name"}:
+            logger.info("Migration: eski kısıtlı 'fund_holding' tablosu düşürülüyor (doğru şemayla yeniden kurulacak).")
+            with engine.begin() as connection:
+                connection.execute(text("DROP TABLE fund_holding"))
+            return
+
+
 def init_db(engine: Engine | None = None) -> None:
     """Tablolari olusturur (varsa dokunmaz -- create_all idempotenttir) VE
     var olan tablolarda eksik sutunlari migrate eder (bkz. _migrate_add_market_column,
@@ -259,6 +294,7 @@ def init_db(engine: Engine | None = None) -> None:
     otomatik tetikler; testler kendi izole engine'leriyle acikca cagirir.
     """
     target_engine = engine if engine is not None else default_engine
+    _migrate_fix_fund_holding_unique_constraint(target_engine)  # create_all() ONCESI -- eski semali tabloyu dusurebilir
     Base.metadata.create_all(bind=target_engine)
     _migrate_add_market_column(target_engine)
     _migrate_add_commentary_hook_column(target_engine)

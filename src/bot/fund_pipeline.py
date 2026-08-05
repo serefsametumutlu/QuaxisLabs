@@ -165,14 +165,17 @@ def _cached_or_fresh_portfolio(fund_code: str) -> "kfp.FundPortfolio | None":
 
     portfolio = kfp.fetch_latest_portfolio(fund_code)
     if portfolio is not None and portfolio.holdings:
-        with repository.get_session() as session:
-            repository.save_fund_info(session, fund_code, None, None, None, None, None)
-            repository.save_fund_holdings(
-                session,
-                fund_code,
-                portfolio.report_date,
-                [(h.instrument_type, h.ticker, h.name, h.weight_pct) for h in portfolio.holdings],
-            )
+        try:
+            with repository.get_session() as session:
+                repository.save_fund_info(session, fund_code, None, None, None, None, None)
+                repository.save_fund_holdings(
+                    session,
+                    fund_code,
+                    portfolio.report_date,
+                    [(h.instrument_type, h.ticker, h.name, h.weight_pct) for h in portfolio.holdings],
+                )
+        except Exception:  # noqa: BLE001 -- onbellek YAZMA ikincildir (Kural 9), asla ana akisi BLOKE ETMEMELI
+            logger.warning("%s için portföy önbelleğe yazılamadı (yine de taze veriyle devam ediliyor)", fund_code, exc_info=True)
     return portfolio
 
 

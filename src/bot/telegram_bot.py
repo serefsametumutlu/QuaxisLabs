@@ -360,7 +360,22 @@ async def _gonder_fon_tekli(chat_id: int, context: ContextTypes.DEFAULT_TYPE, fu
     """Tek bir fon kodu için DENEYSEL günlük getiri tahmini üretir ve
     detaylı kartı gönderir. `fund_pipeline.compute_fund_estimate()` hata
     fırlatmaz (Kural 9) -- `result.estimate is None` ise `result.reason`
-    kullanıcıya AÇIKÇA gösterilir (Kural 3: sessizce başarısız olunmaz)."""
+    kullanıcıya AÇIKÇA gösterilir (Kural 3: sessizce başarısız olunmaz).
+
+    🚨 CANLI HATA (kullanıcı raporu, PHE): `compute_fund_estimate()`
+    beklenmedik bir istisna (ör. DB `IntegrityError`) fırlatınca bu
+    fonksiyon YARIDA kesiliyor, kullanıcıya HİÇBİR mesaj gitmiyordu --
+    "6-7 dakika sonuç gelmedi" izlenimi buradan geliyordu. Artık TÜM akış
+    tek bir try/except İÇİNDE -- beklenmedik HERHANGİ bir hata kullanıcıya
+    açık bir uyarı mesajıyla sonuçlanır, asla SESSİZ kalmaz."""
+    try:
+        await _gonder_fon_tekli_ic(chat_id, context, fund_code)
+    except Exception:
+        logger.exception("%s fon tahmini beklenmeyen bir hatayla başarısız oldu", fund_code)
+        await context.bot.send_message(chat_id, f"⚠️ {fund_code} için tahmin üretilirken beklenmedik bir hata oluştu, birkaç dakika sonra tekrar dener misin?")
+
+
+async def _gonder_fon_tekli_ic(chat_id: int, context: ContextTypes.DEFAULT_TYPE, fund_code: str) -> None:
     result = await asyncio.to_thread(fund_pipeline.compute_fund_estimate, fund_code)
 
     if result.estimate is None:
@@ -395,7 +410,18 @@ _FON_GRUP_BASLIKLARI = {
 async def _gonder_fon_grup(chat_id: int, context: ContextTypes.DEFAULT_TYPE, mode: str) -> None:
     """'Öne çıkan fonlar' (6 fon) ya da 'tüm liste' (15 fon) -- SADECE
     tahmini getiriyi gösteren özet kart. Bir fondaki hata/eksik veri
-    DİĞERLERİNİ etkilemez (bkz. `fund_pipeline.compute_fund_estimates`)."""
+    DİĞERLERİNİ etkilemez (bkz. `fund_pipeline.compute_fund_estimates`).
+
+    `_gonder_fon_tekli` ile AYNI sebepten (bkz. o fonksiyonun üst notu)
+    TÜM akış try/except içinde -- beklenmedik bir hata SESSİZ kalmaz."""
+    try:
+        await _gonder_fon_grup_ic(chat_id, context, mode)
+    except Exception:
+        logger.exception("%s fon grup kartı beklenmeyen bir hatayla başarısız oldu", mode)
+        await context.bot.send_message(chat_id, "⚠️ Fon tahminleri hazırlanırken beklenmedik bir hata oluştu, birkaç dakika sonra tekrar dener misin?")
+
+
+async def _gonder_fon_grup_ic(chat_id: int, context: ContextTypes.DEFAULT_TYPE, mode: str) -> None:
     codes = fund_pipeline.FEATURED_FUND_CODES if mode == "onplan" else fund_pipeline.TARGET_FUND_CODES
     results = await asyncio.to_thread(fund_pipeline.compute_fund_estimates, codes)
 

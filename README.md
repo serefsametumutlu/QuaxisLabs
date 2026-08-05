@@ -926,22 +926,37 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
 - [x] **Faz 19** — Telegram "💰 Fon Analiz" özelliği eklendi: tek fon
       kodu → detaylı kart (hisse bazında ağırlık/getiri/katkı, "en çok
       katkı sağlayan/kaybettiren" iki sütun), "öne çıkan fonlar" (6 fon)
-      ve "tüm liste" (15 fon) → özet kartlar. TÜREV desteği kaldırıldı
-      (ihmal edilebilir ağırlık + hep "bulunamadı" uyarısı üretiyordu).
-      `is_estimable_fund_type()`'ta "Serbest Fon" toptan redden orta
-      güven adaylığına taşındı (kategori adı tek başına şeffaflığı
-      belirlemiyor — CANLI kanıtlandı). PUK'ta bulunan çift-sayım
-      hatası veri atmak yerine orantısal yeniden ölçekleme ile
-      düzeltildi. **🚨 MAE hâlâ hedefin üstünde (15 hedef fonla ikinci
-      doğrulama: MAE=2,17, 6/15 fon uygulanabilir çıktı) ama kullanıcı
-      özelliği "🚨 DENEYSEL TAHMİN" uyarı bandıyla YAYINLAMAYA karar
-      verdi** (Faz 18 kuralının bilinçli istisnası). 7/15 hedef fonun
-      KAP PDF şablonu hiç ayrıştırılamıyor (aynı portföy yönetim
-      şirketi içinde bile şablon fon türüne göre değişiyor) ve gerçek
-      zamanlı/15-dk-gecikmeli hisse fiyatı kaynağımız yok (sadece günlük
-      kapanış) — ikisi de açık risk olarak belgelendi. Detay:
-      `PROJE_HAFIZASI/06_BILINEN_SORUNLAR.md` §B28/§B29/§B30,
-      `08_DEGISIKLIK_GUNLUGU.md` "yirminci tur". 918 test, hepsi yeşil.
+      ve "tüm liste" (15 fon) → özet kartlar; her ikisi de "Quaxis Fon
+      Tahmini" marka başlığını taşır. TÜREV desteği kaldırıldı, "Serbest
+      Fon" kategorisi toptan redden orta güven adaylığına taşındı,
+      PUK'taki çift-sayım hatası orantısal yeniden ölçeklemeyle
+      düzeltildi.
+      **Canlı kullanım turu (aynı gün, kullanıcı raporlarıyla):** (1)
+      KAP PDF'inin 3 FARKLI şablonu olduğu keşfedildi (PBR sayfa-sınırı
+      kaybı, DFI/SNY/RSK tamamen farklı "harfli liste" formatı) — YENİ
+      bir fallback parser eklendi, 15 fonun 10'u artık ayrıştırılabiliyor
+      (LTL/YIT/IJC/DKR/BMU hâlâ açık, bkz. §B29). (2) KAP portföyü artık
+      veritabanında önbelleklenir + fiyat çekme PARALEL — TLY sorgusu 4
+      dakikadan ~10-20 saniyeye indi. (3) **🚨 KRİTİK veri hatası
+      bulundu ve düzeltildi:** `isyatirim.fetch_price_history()` bugünün
+      kapanışını HİÇ yayınlamıyordu (her zaman bir gün gecikmeli) — kart
+      dünkü getiriyi "bugünkü" gösteriyordu (OZATD örneği: %2,55 yerine
+      gerçek %8,41). BİST hisse günlük getirisi artık Yahoo Finance'in
+      public chart API'sinden (`src/fetchers/yahoo_quote.py`) çekiliyor,
+      CANLI doğrulandı. (4) DB önbellek kısıtındaki bir hata (`name`
+      benzersiz anahtar sanılıyordu, fon-içinde-fon holding'lerinde
+      YÖNETİCİ ŞİRKET adı tekrarlanabiliyordu) PHE sorgusunu sessizce
+      çökertiyordu — düzeltildi + gelecekte benzer hatalar için genel
+      bir try/except güvenlik ağı eklendi. (5) Kullanıcı geri bildirimiyle
+      "DENEYSEL TAHMİN" uyarı bandı ve güven/tazelik kutuları kaldırılıp
+      kart sadeleştirildi.
+      **MAE:** genişletilmiş 9 fon/119 test noktasıyla üçüncü doğrulama
+      → **1,2076 puan** (0,50 eşiğinin hâlâ üstünde, ama 2,17'den
+      İYİLEŞTİ) — kullanıcı bunu bilerek "🚨 DENEYSEL TAHMİN" etiketiyle
+      yayınlamaya karar verdi (Faz 18 kuralının bilinçli istisnası).
+      Detay: `PROJE_HAFIZASI/06_BILINEN_SORUNLAR.md` §B28/§B29/§B30,
+      `08_DEGISIKLIK_GUNLUGU.md` "yirminci"/"yirmi birinci tur". 929
+      test, hepsi yeşil.
 
 ## Dizin Yapisi
 

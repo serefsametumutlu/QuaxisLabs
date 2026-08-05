@@ -1,0 +1,461 @@
+2026-08-05 20:07:37 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:07:37 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/statistics/tefas/getFplFonList "HTTP/1.1 200 OK"
+2026-08-05 20:07:39 | INFO     | httpx | HTTP Request: POST https://www.kap.org.tr/tr/api/search/combined "HTTP/1.1 200 OK"
+2026-08-05 20:07:40 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/bildirim-sorgu-sonuc?srcbar=Y&cmp=N&cat=2&m=4028328c7812c9c301781bc5fe843290 "HTTP/1.1 200 OK"
+2026-08-05 20:07:41 | INFO     | httpx | HTTP Request: GET https://www.kap.org.tr/tr/Bildirim/1642306 "HTTP/1.1 200 OK"
+2026-08-05 20:07:42 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/api/file/download/4028328c9f52dc3f019fc82f8f2d7200 "HTTP/1.1 200 OK"
+2026-08-05 20:07:46 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:07:47 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/statistics/tefas/getFplFonList "HTTP/1.1 200 OK"
+2026-08-05 20:07:48 | INFO     | httpx | HTTP Request: POST https://www.kap.org.tr/tr/api/search/combined "HTTP/1.1 200 OK"
+2026-08-05 20:07:49 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/bildirim-sorgu-sonuc?srcbar=Y&cmp=N&cat=2&m=4028328c812b72a30181903f43933a9b "HTTP/1.1 200 OK"
+2026-08-05 20:07:50 | INFO     | httpx | HTTP Request: GET https://www.kap.org.tr/tr/Bildirim/1642305 "HTTP/1.1 200 OK"
+2026-08-05 20:07:50 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/api/file/download/4028328c9f52dc3f019fc82f8e7971f6 "HTTP/1.1 200 OK"
+2026-08-05 20:07:52 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:07:53 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/statistics/tefas/getFplFonList "HTTP/1.1 200 OK"
+2026-08-05 20:07:54 | INFO     | httpx | HTTP Request: POST https://www.kap.org.tr/tr/api/search/combined "HTTP/1.1 200 OK"
+2026-08-05 20:07:55 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/bildirim-sorgu-sonuc?srcbar=Y&cmp=N&cat=2&m=4028328c8e21cef8018e2de1258c2053 "HTTP/1.1 200 OK"
+2026-08-05 20:07:56 | INFO     | httpx | HTTP Request: GET https://www.kap.org.tr/tr/Bildirim/1643421 "HTTP/1.1 200 OK"
+2026-08-05 20:07:58 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/api/file/download/4028328d9f52dddc019fd11ad3fa0d9d "HTTP/1.1 200 OK"
+2026-08-05 20:08:00 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:08:00 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/statistics/tefas/getFplFonList "HTTP/1.1 200 OK"
+2026-08-05 20:08:02 | INFO     | httpx | HTTP Request: POST https://www.kap.org.tr/tr/api/search/combined "HTTP/1.1 200 OK"
+2026-08-05 20:08:02 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/bildirim-sorgu-sonuc?srcbar=Y&cmp=N&cat=2&m=4028328c8e21cef7018e2ddaeff33aab "HTTP/1.1 200 OK"
+2026-08-05 20:08:03 | INFO     | httpx | HTTP Request: GET https://www.kap.org.tr/tr/Bildirim/1643420 "HTTP/1.1 200 OK"
+2026-08-05 20:08:04 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/api/file/download/4028328d9f52dddc019fd11f17470e28 "HTTP/1.1 200 OK"
+2026-08-05 20:08:05 | WARNING  | src.fetchers.kap_fund_portfolio | KAP portföy dağılım PDF'inin 'fon' bölümü grup toplamı beklenenden (%100) sapıyor (95.81) -- ayrıştırma bu bölüm için GÜVENİLİR DEĞİL, boş liste dönüyor (Kural 3).
+2026-08-05 20:08:06 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:08:07 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/statistics/tefas/getFplFonList "HTTP/1.1 200 OK"
+2026-08-05 20:08:08 | INFO     | httpx | HTTP Request: POST https://www.kap.org.tr/tr/api/search/combined "HTTP/1.1 200 OK"
+2026-08-05 20:08:08 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/bildirim-sorgu-sonuc?srcbar=Y&cmp=N&cat=2&m=4028328c819d4b9e0181a3f0a2410236 "HTTP/1.1 200 OK"
+2026-08-05 20:08:09 | INFO     | httpx | HTTP Request: GET https://www.kap.org.tr/tr/Bildirim/1627681 "HTTP/1.1 200 OK"
+2026-08-05 20:08:10 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/api/file/download/4028328d9f0a0a59019f36dbfbae1343 "HTTP/1.1 200 OK"
+2026-08-05 20:09:10 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:09:11 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/statistics/tefas/getFplFonList "HTTP/1.1 200 OK"
+2026-08-05 20:09:12 | INFO     | httpx | HTTP Request: POST https://www.kap.org.tr/tr/api/search/combined "HTTP/1.1 200 OK"
+2026-08-05 20:09:12 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/bildirim-sorgu-sonuc?srcbar=Y&cmp=N&cat=2&m=4028328c8e21cef8018f2e4c034b1e93 "HTTP/1.1 200 OK"
+2026-08-05 20:09:13 | INFO     | httpx | HTTP Request: GET https://www.kap.org.tr/tr/Bildirim/1643317 "HTTP/1.1 200 OK"
+2026-08-05 20:09:14 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/api/file/download/4028328d9f52dddc019fd09a8bf77e65 "HTTP/1.1 200 OK"
+2026-08-05 20:09:14 | WARNING  | src.fetchers.kap_fund_portfolio | KAP portföy dağılım PDF'inin 'hisse' bölümü grup toplamı beklenenden (%100) sapıyor (94.67) -- ayrıştırma bu bölüm için GÜVENİLİR DEĞİL, boş liste dönüyor (Kural 3).
+2026-08-05 20:09:15 | INFO     | src.fetchers.kap_fund_portfolio | PDF'te 'DİĞER' bölümü bulunamadı.
+2026-08-05 20:09:15 | WARNING  | src.fetchers.kap_fund_portfolio | KAP portföy dağılım PDF'inin 'hisse' bölümü grup toplamı beklenenden (%100) sapıyor (9467) -- ayrıştırma bu bölüm için GÜVENİLİR DEĞİL, boş liste dönüyor (Kural 3).
+2026-08-05 20:09:15 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:09:16 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/statistics/tefas/getFplFonList "HTTP/1.1 200 OK"
+2026-08-05 20:09:17 | INFO     | httpx | HTTP Request: POST https://www.kap.org.tr/tr/api/search/combined "HTTP/1.1 200 OK"
+2026-08-05 20:09:18 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/bildirim-sorgu-sonuc?srcbar=Y&cmp=N&cat=2&m=4028328d9b827483019c046a65ff2528 "HTTP/1.1 200 OK"
+2026-08-05 20:09:18 | INFO     | src.fetchers.kap_fund_portfolio | 'LTL' için KAP'ta hiç 'Portföy Dağılım Raporu' bulunamadı.
+2026-08-05 20:09:19 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:09:19 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/statistics/tefas/getFplFonList "HTTP/1.1 200 OK"
+2026-08-05 20:09:21 | INFO     | httpx | HTTP Request: POST https://www.kap.org.tr/tr/api/search/combined "HTTP/1.1 200 OK"
+2026-08-05 20:09:21 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/bildirim-sorgu-sonuc?srcbar=Y&cmp=N&cat=2&m=4028328c8588f3000185c40a663376a6 "HTTP/1.1 200 OK"
+2026-08-05 20:09:22 | INFO     | httpx | HTTP Request: GET https://www.kap.org.tr/tr/Bildirim/1643870 "HTTP/1.1 200 OK"
+2026-08-05 20:09:23 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/api/file/download/4028328c9f52dc40019fd1ae127d1be9 "HTTP/1.1 200 OK"
+2026-08-05 20:09:23 | WARNING  | src.fetchers.kap_fund_portfolio | KAP portföy dağılım PDF'inde ayrıştırılan toplam ağırlık %100'ü anlamlı ölçüde aşıyor (108.69) -- yeniden ölçekleme ile açıklanamayacak kadar büyük bir sapma, TÜM portföy boş dönüyor (Kural 3).
+2026-08-05 20:09:24 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:09:24 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/statistics/tefas/getFplFonList "HTTP/1.1 200 OK"
+2026-08-05 20:09:26 | INFO     | httpx | HTTP Request: POST https://www.kap.org.tr/tr/api/search/combined "HTTP/1.1 200 OK"
+2026-08-05 20:09:26 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/bildirim-sorgu-sonuc?srcbar=Y&cmp=N&cat=2&m=4028328d9d7b24c8019d9bd785e80ab8 "HTTP/1.1 200 OK"
+2026-08-05 20:09:27 | INFO     | httpx | HTTP Request: GET https://www.kap.org.tr/tr/Bildirim/1643429 "HTTP/1.1 200 OK"
+2026-08-05 20:09:28 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/api/file/download/4028328d9f52dddc019fd102e21309f5 "HTTP/1.1 200 OK"
+2026-08-05 20:09:29 | WARNING  | src.fetchers.kap_fund_portfolio | KAP portföy dağılım PDF'inde ayrıştırılan toplam ağırlık %100'ü aşıyor (103.23) -- bölümler ayrı ayrı tutarlı olduğu için TÜM ağırlıklar orantısal olarak 100'e yeniden ölçeklendi (veri atılmadı).
+2026-08-05 20:09:30 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:09:30 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/statistics/tefas/getFplFonList "HTTP/1.1 200 OK"
+2026-08-05 20:09:31 | INFO     | httpx | HTTP Request: POST https://www.kap.org.tr/tr/api/search/combined "HTTP/1.1 200 OK"
+2026-08-05 20:09:32 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/bildirim-sorgu-sonuc?srcbar=Y&cmp=N&cat=2&m=4028328d930ceaeb01934f2a76a2532c "HTTP/1.1 200 OK"
+2026-08-05 20:09:33 | INFO     | httpx | HTTP Request: GET https://www.kap.org.tr/tr/Bildirim/1627665 "HTTP/1.1 200 OK"
+2026-08-05 20:09:34 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/api/file/download/4028328d9f0a0a59019f36e8142414a1 "HTTP/1.1 200 OK"
+2026-08-05 20:10:08 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:10:09 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/statistics/tefas/getFplFonList "HTTP/1.1 200 OK"
+2026-08-05 20:10:10 | INFO     | httpx | HTTP Request: POST https://www.kap.org.tr/tr/api/search/combined "HTTP/1.1 200 OK"
+2026-08-05 20:10:11 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/bildirim-sorgu-sonuc?srcbar=Y&cmp=N&cat=2&m=4028328d976d2b83019778d85215108b "HTTP/1.1 200 OK"
+2026-08-05 20:10:12 | INFO     | httpx | HTTP Request: GET https://www.kap.org.tr/tr/Bildirim/1643523 "HTTP/1.1 200 OK"
+2026-08-05 20:10:12 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/api/file/download/4028328c9f52dc40019fd1bf94451e92 "HTTP/1.1 200 OK"
+2026-08-05 20:10:13 | WARNING  | src.fetchers.kap_fund_portfolio | KAP portföy dağılım PDF'inin 'hisse' bölümü grup toplamı beklenenden (%100) sapıyor (71.06) -- ayrıştırma bu bölüm için GÜVENİLİR DEĞİL, boş liste dönüyor (Kural 3).
+2026-08-05 20:10:13 | WARNING  | src.fetchers.kap_fund_portfolio | KAP portföy dağılım PDF'inin 'hisse' bölümü grup toplamı beklenenden (%100) sapıyor (7106) -- ayrıştırma bu bölüm için GÜVENİLİR DEĞİL, boş liste dönüyor (Kural 3).
+2026-08-05 20:10:14 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:10:14 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/statistics/tefas/getFplFonList "HTTP/1.1 200 OK"
+2026-08-05 20:10:16 | INFO     | httpx | HTTP Request: POST https://www.kap.org.tr/tr/api/search/combined "HTTP/1.1 200 OK"
+2026-08-05 20:10:17 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/bildirim-sorgu-sonuc?srcbar=Y&cmp=N&cat=2&m=4028328c95959ac40195b7437124477b "HTTP/1.1 200 OK"
+2026-08-05 20:10:18 | INFO     | httpx | HTTP Request: GET https://www.kap.org.tr/tr/Bildirim/1628496 "HTTP/1.1 200 OK"
+2026-08-05 20:10:19 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/api/file/download/4028328c9f0a085a019f281baf0765a7 "HTTP/1.1 200 OK"
+2026-08-05 20:10:38 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:10:38 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/statistics/tefas/getFplFonList "HTTP/1.1 200 OK"
+2026-08-05 20:10:40 | INFO     | httpx | HTTP Request: POST https://www.kap.org.tr/tr/api/search/combined "HTTP/1.1 200 OK"
+2026-08-05 20:10:40 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/bildirim-sorgu-sonuc?srcbar=Y&cmp=N&cat=2&m=4028328c8b2fcee8018cd9ebc25a3fba "HTTP/1.1 200 OK"
+2026-08-05 20:10:42 | INFO     | httpx | HTTP Request: GET https://www.kap.org.tr/tr/Bildirim/1643052 "HTTP/1.1 200 OK"
+2026-08-05 20:10:42 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/api/file/download/4028328d9f52dddd019fcd08d0c32c77 "HTTP/1.1 200 OK"
+2026-08-05 20:10:43 | WARNING  | src.fetchers.kap_fund_portfolio | KAP portföy dağılım PDF'inin 'fon' bölümü grup toplamı beklenenden (%100) sapıyor (43.33) -- ayrıştırma bu bölüm için GÜVENİLİR DEĞİL, boş liste dönüyor (Kural 3).
+2026-08-05 20:10:45 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:10:45 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/statistics/tefas/getFplFonList "HTTP/1.1 200 OK"
+2026-08-05 20:10:47 | INFO     | httpx | HTTP Request: POST https://www.kap.org.tr/tr/api/search/combined "HTTP/1.1 200 OK"
+2026-08-05 20:10:47 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/bildirim-sorgu-sonuc?srcbar=Y&cmp=N&cat=2&m=4028328c949953a00194d04a116351b0 "HTTP/1.1 200 OK"
+2026-08-05 20:10:48 | INFO     | httpx | HTTP Request: GET https://www.kap.org.tr/tr/Bildirim/1630109 "HTTP/1.1 200 OK"
+2026-08-05 20:10:49 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/api/file/download/4028328d9f0a0a58019f4278522649af "HTTP/1.1 200 OK"
+2026-08-05 20:10:52 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:10:53 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/statistics/tefas/getFplFonList "HTTP/1.1 200 OK"
+2026-08-05 20:10:55 | INFO     | httpx | HTTP Request: POST https://www.kap.org.tr/tr/api/search/combined "HTTP/1.1 200 OK"
+2026-08-05 20:10:56 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/bildirim-sorgu-sonuc?srcbar=Y&cmp=N&cat=2&m=4028328c7902c29d01791dbac6bb5309 "HTTP/1.1 200 OK"
+2026-08-05 20:10:57 | INFO     | httpx | HTTP Request: GET https://www.kap.org.tr/tr/Bildirim/1643654 "HTTP/1.1 200 OK"
+2026-08-05 20:10:58 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/api/file/download/4028328c9f52dc40019fd1ace42c1cb9 "HTTP/1.1 200 OK"
+2026-08-05 20:11:04 | INFO     | httpx | HTTP Request: POST https://www.kap.org.tr/tr/api/search/combined "HTTP/1.1 200 OK"
+2026-08-05 20:11:06 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/bildirim-sorgu-sonuc?srcbar=Y&cmp=N&cat=2&m=4028328c7812c9c301781bc5fe843290 "HTTP/1.1 200 OK"
+2026-08-05 20:11:07 | INFO     | httpx | HTTP Request: GET https://www.kap.org.tr/tr/Bildirim/1642306 "HTTP/1.1 200 OK"
+2026-08-05 20:11:08 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/api/file/download/4028328c9f52dc3f019fc82f8f2d7200 "HTTP/1.1 200 OK"
+2026-08-05 20:11:13 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonFiyatBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:11:13 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ALKLC&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:11:15 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ANELE&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:11:26 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=BIGEN&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:11:28 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=DAPGM&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:11:29 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=DSTKF&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:11:40 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=EFOR&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:11:41 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=EUPWR&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:11:42 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=EUREN&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:11:43 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=GESAN&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:11:44 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=HEDEF&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:11:48 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=KARCL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:11:49 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=MANAS&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:11:50 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=METEN&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:11:52 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=OZATD&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:11:53 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=PEKGY&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:11:54 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=SARAE&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:11:55 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=SELEC&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:11:56 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=SVGYO&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:11:57 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TEHOL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:11:58 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TERA&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:12:09 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TMPOL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:12:10 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TRHOL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:12:12 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=YKBNK&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:12:13 | INFO     | httpx | HTTP Request: POST https://www.kap.org.tr/tr/api/search/combined "HTTP/1.1 200 OK"
+2026-08-05 20:12:14 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/bildirim-sorgu-sonuc?srcbar=Y&cmp=N&cat=2&m=4028328c812b72a30181903f43933a9b "HTTP/1.1 200 OK"
+2026-08-05 20:12:15 | INFO     | httpx | HTTP Request: GET https://www.kap.org.tr/tr/Bildirim/1642305 "HTTP/1.1 200 OK"
+2026-08-05 20:12:15 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/api/file/download/4028328c9f52dc3f019fc82f8e7971f6 "HTTP/1.1 200 OK"
+2026-08-05 20:12:17 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonFiyatBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:12:18 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=AKSEN&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:12:19 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ALKLC&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:12:20 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ANELE&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:12:21 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=CWENE&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:12:22 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=DSTKF&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:12:23 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=EUPWR&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:12:24 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=GESAN&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:12:25 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=HEDEF&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:12:26 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=KORDS&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:12:27 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=MANAS&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:12:39 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=OZATD&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:12:41 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=PEKGY&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:12:52 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=SELEC&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:12:53 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=SVGYO&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:12:54 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TEHOL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:12:55 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TERA&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:12:56 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TRHOL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:12:57 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TURSG&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:12:58 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=YKBNK&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:12:59 | INFO     | httpx | HTTP Request: POST https://www.kap.org.tr/tr/api/search/combined "HTTP/1.1 200 OK"
+2026-08-05 20:13:00 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/bildirim-sorgu-sonuc?srcbar=Y&cmp=N&cat=2&m=4028328c8e21cef8018e2de1258c2053 "HTTP/1.1 200 OK"
+2026-08-05 20:13:01 | INFO     | httpx | HTTP Request: GET https://www.kap.org.tr/tr/Bildirim/1643421 "HTTP/1.1 200 OK"
+2026-08-05 20:13:02 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/api/file/download/4028328d9f52dddc019fd11ad3fa0d9d "HTTP/1.1 200 OK"
+2026-08-05 20:13:04 | INFO     | httpx | HTTP Request: GET https://www.kap.org.tr/tr/Bildirim/1629843 "HTTP/1.1 200 OK"
+2026-08-05 20:13:04 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/api/file/download/4028328c9f0a0859019f41bffe846a4c "HTTP/1.1 200 OK"
+2026-08-05 20:13:05 | WARNING  | src.fetchers.kap_fund_portfolio | KAP portföy dağılım PDF'inde ayrıştırılan toplam ağırlık %100'ü aşıyor (103.68) -- bölümler ayrı ayrı tutarlı olduğu için TÜM ağırlıklar orantısal olarak 100'e yeniden ölçeklendi (veri atılmadı).
+2026-08-05 20:13:06 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonFiyatBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:13:07 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonFiyatBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:13:08 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonFiyatBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:13:09 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonFiyatBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:13:10 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonFiyatBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:13:11 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=AKBNK&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:13:13 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=AKSEN&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:13:15 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ALKLC&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:13:16 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ALVES&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:13:17 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ANELE&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:13:29 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=BALSU&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:13:30 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=BETAE&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:13:31 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=BIMAS&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:13:32 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=BRSAN&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:13:34 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=DAPGM&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:13:35 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=DSTKF&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:13:36 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ENKAI&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:13:37 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=EREGL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:13:38 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=GARAN&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:13:39 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=GUBRF&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:13:50 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=GUNDG&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:13:51 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=HEDEF&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:13:53 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ISCTR&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:13:54 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=IZENR&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:13:55 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=IZFAS&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:13:56 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=KCHOL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:14:07 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=KTLEV&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:14:08 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=MGROS&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:14:20 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=MOPAS&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:14:22 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ODINE&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:14:23 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=PASEU&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:14:24 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=PEKGY&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:14:25 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=PGSUS&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:14:26 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=SAHOL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:14:27 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TATEN&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:14:28 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TAVHL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:14:30 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TCELL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:14:31 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TERA&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:14:32 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=THYAO&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:14:38 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TMPOL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:14:39 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TRALT&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:14:40 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TRHOL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:14:51 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TRMET&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:14:52 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TTKOM&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:14:53 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TURSG&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:14:54 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=YKBNK&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:14:56 | INFO     | httpx | HTTP Request: POST https://www.kap.org.tr/tr/api/search/combined "HTTP/1.1 200 OK"
+2026-08-05 20:14:58 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/bildirim-sorgu-sonuc?srcbar=Y&cmp=N&cat=2&m=4028328c8e21cef7018e2ddaeff33aab "HTTP/1.1 200 OK"
+2026-08-05 20:14:59 | INFO     | httpx | HTTP Request: GET https://www.kap.org.tr/tr/Bildirim/1643420 "HTTP/1.1 200 OK"
+2026-08-05 20:14:59 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/api/file/download/4028328d9f52dddc019fd11f17470e28 "HTTP/1.1 200 OK"
+2026-08-05 20:15:00 | WARNING  | src.fetchers.kap_fund_portfolio | KAP portföy dağılım PDF'inin 'fon' bölümü grup toplamı beklenenden (%100) sapıyor (95.81) -- ayrıştırma bu bölüm için GÜVENİLİR DEĞİL, boş liste dönüyor (Kural 3).
+2026-08-05 20:15:01 | INFO     | httpx | HTTP Request: GET https://www.kap.org.tr/tr/Bildirim/1629842 "HTTP/1.1 200 OK"
+2026-08-05 20:15:03 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/api/file/download/4028328c9f0a0859019f41bffe2f6a42 "HTTP/1.1 200 OK"
+2026-08-05 20:15:04 | WARNING  | src.fetchers.kap_fund_portfolio | KAP portföy dağılım PDF'inin 'fon' bölümü grup toplamı beklenenden (%100) sapıyor (95.68) -- ayrıştırma bu bölüm için GÜVENİLİR DEĞİL, boş liste dönüyor (Kural 3).
+2026-08-05 20:15:05 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonFiyatBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:15:06 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=AKBNK&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:07 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=AKSEN&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:08 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ANELE&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:09 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ANSGR&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:10 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=BALSU&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:11 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=BETAE&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:12 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=BRSAN&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:13 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=DAPGM&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:23 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=DCTTR&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:24 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=DSTKF&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:25 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=EREGL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:26 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=GUNDG&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:27 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=HEDEF&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:28 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=IZFAS&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:30 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=KTLEV&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:31 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=MGROS&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:33 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=MOPAS&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:34 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=MPARK&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:35 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ODINE&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:36 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=PASEU&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:37 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=PEKGY&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:38 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=PGSUS&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:42 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=SARAE&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:43 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=SKBNK&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:44 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TATEN&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:46 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TCELL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:47 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TERA&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:48 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=THYAO&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:50 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TMPOL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:51 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TRALT&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:52 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TTKOM&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:53 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=YKBNK&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:15:54 | INFO     | httpx | HTTP Request: POST https://www.kap.org.tr/tr/api/search/combined "HTTP/1.1 200 OK"
+2026-08-05 20:15:55 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/bildirim-sorgu-sonuc?srcbar=Y&cmp=N&cat=2&m=4028328c819d4b9e0181a3f0a2410236 "HTTP/1.1 200 OK"
+2026-08-05 20:15:56 | INFO     | httpx | HTTP Request: GET https://www.kap.org.tr/tr/Bildirim/1627681 "HTTP/1.1 200 OK"
+2026-08-05 20:15:56 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/api/file/download/4028328d9f0a0a59019f36dbfbae1343 "HTTP/1.1 200 OK"
+2026-08-05 20:16:55 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonFiyatBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:17:06 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=IEYHO&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:17:13 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ISKPL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:17:25 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=LIDER&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:17:26 | INFO     | httpx | HTTP Request: POST https://www.kap.org.tr/tr/api/search/combined "HTTP/1.1 200 OK"
+2026-08-05 20:17:27 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/bildirim-sorgu-sonuc?srcbar=Y&cmp=N&cat=2&m=4028328d9d7b24c8019d9bd785e80ab8 "HTTP/1.1 200 OK"
+2026-08-05 20:17:28 | INFO     | httpx | HTTP Request: GET https://www.kap.org.tr/tr/Bildirim/1643429 "HTTP/1.1 200 OK"
+2026-08-05 20:17:29 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/api/file/download/4028328d9f52dddc019fd102e21309f5 "HTTP/1.1 200 OK"
+2026-08-05 20:17:29 | WARNING  | src.fetchers.kap_fund_portfolio | KAP portföy dağılım PDF'inde ayrıştırılan toplam ağırlık %100'ü aşıyor (103.23) -- bölümler ayrı ayrı tutarlı olduğu için TÜM ağırlıklar orantısal olarak 100'e yeniden ölçeklendi (veri atılmadı).
+2026-08-05 20:17:30 | INFO     | httpx | HTTP Request: GET https://www.kap.org.tr/tr/Bildirim/1629840 "HTTP/1.1 200 OK"
+2026-08-05 20:17:31 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/api/file/download/4028328c9f0a0859019f41bffd7c6a2e "HTTP/1.1 200 OK"
+2026-08-05 20:17:33 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonFiyatBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:17:33 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonFiyatBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:17:45 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=AHSGY&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:17:46 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ALBRK&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:17:47 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ALVES&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:17:48 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ASELS&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:17:49 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=BETAE&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:17:51 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=BIMAS&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:17:52 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=CIMSA&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:17:55 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=CVKMD&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:18:06 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=DCTTR&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:18:08 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=EKGYO&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:18:18 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ENJSA&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:18:19 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=EREGL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:18:21 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=GUBRF&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:18:24 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=GUNDG&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:18:26 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=IZFAS&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:18:28 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=KRDMD&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:18:29 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=KTLEV&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:18:40 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=LMKDC&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:18:42 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=MAVI&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:18:53 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=MPARK&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:18:54 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=PASEU&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:18:56 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=SELEC&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:18:57 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TUPRS&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:18:58 | INFO     | httpx | HTTP Request: POST https://www.kap.org.tr/tr/api/search/combined "HTTP/1.1 200 OK"
+2026-08-05 20:19:00 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/bildirim-sorgu-sonuc?srcbar=Y&cmp=N&cat=2&m=4028328d930ceaeb01934f2a76a2532c "HTTP/1.1 200 OK"
+2026-08-05 20:19:01 | INFO     | httpx | HTTP Request: GET https://www.kap.org.tr/tr/Bildirim/1627665 "HTTP/1.1 200 OK"
+2026-08-05 20:19:02 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/api/file/download/4028328d9f0a0a59019f36e8142414a1 "HTTP/1.1 200 OK"
+2026-08-05 20:19:34 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonFiyatBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:19:37 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=DARDL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:19:40 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=EKSUN&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:19:51 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ELITE&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:19:52 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=GUBRF&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:19:53 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ISKPL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:20:02 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=KGYO&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:20:03 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=PETKM&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:20:15 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=YUNSA&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:20:16 | INFO     | httpx | HTTP Request: POST https://www.kap.org.tr/tr/api/search/combined "HTTP/1.1 200 OK"
+2026-08-05 20:20:18 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/bildirim-sorgu-sonuc?srcbar=Y&cmp=N&cat=2&m=4028328c95959ac40195b7437124477b "HTTP/1.1 200 OK"
+2026-08-05 20:20:19 | INFO     | httpx | HTTP Request: GET https://www.kap.org.tr/tr/Bildirim/1628496 "HTTP/1.1 200 OK"
+2026-08-05 20:20:19 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/api/file/download/4028328c9f0a085a019f281baf0765a7 "HTTP/1.1 200 OK"
+2026-08-05 20:20:36 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonFiyatBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:20:37 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=AKBNK&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:20:48 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=AKFYE&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:20:50 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=AKSEN&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:21:01 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ALGYO&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:21:02 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=FROTO&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:21:03 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=KCHOL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:21:04 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=SAHOL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:21:05 | INFO     | httpx | HTTP Request: POST https://www.kap.org.tr/tr/api/search/combined "HTTP/1.1 200 OK"
+2026-08-05 20:21:06 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/bildirim-sorgu-sonuc?srcbar=Y&cmp=N&cat=2&m=4028328c8b2fcee8018cd9ebc25a3fba "HTTP/1.1 200 OK"
+2026-08-05 20:21:08 | INFO     | httpx | HTTP Request: GET https://www.kap.org.tr/tr/Bildirim/1643052 "HTTP/1.1 200 OK"
+2026-08-05 20:21:08 | INFO     | httpx | HTTP Request: GET https://kap.org.tr/tr/api/file/download/4028328d9f52dddd019fcd08d0c32c77 "HTTP/1.1 200 OK"
+2026-08-05 20:21:09 | WARNING  | src.fetchers.kap_fund_portfolio | KAP portföy dağılım PDF'inin 'fon' bölümü grup toplamı beklenenden (%100) sapıyor (43.33) -- ayrıştırma bu bölüm için GÜVENİLİR DEĞİL, boş liste dönüyor (Kural 3).
+2026-08-05 20:21:10 | INFO     | httpx | HTTP Request: POST https://www.tefas.gov.tr/api/funds/fonFiyatBilgiGetir "HTTP/1.1 200 OK"
+2026-08-05 20:21:11 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=AEFES&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:21:12 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=AGHOL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:21:13 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=AKBNK&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:21:24 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ALARK&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:21:25 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ALKLC&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:21:26 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ANELE&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:21:37 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ARCLK&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:21:38 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ASELS&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:21:39 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=BIMAS&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:21:51 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=BIZIM&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:22:02 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=BRKO&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:22:03 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=CCOLA&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:22:04 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=CWENE&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:22:05 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=DSTKF&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:22:06 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=EREGL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:22:07 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=EUPWR&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:22:08 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=FROTO&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:22:09 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=GARAN&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:22:10 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=GESAN&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:22:22 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=GLRYH&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:22:34 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=HALKB&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:22:35 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=HEDEF&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:22:36 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ISCTR&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:22:47 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ISMEN&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:22:49 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ISVEA&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:22:50 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=KARCL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:22:51 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=KCHOL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:22:52 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=KOCMT&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:22:54 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=KORDS&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:22:55 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=MANAS&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:22:56 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=MAVI&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:22:57 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=MGROS&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:22:58 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=OZATD&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:22:59 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=PEKGY&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:23:00 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=PETKM&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:23:01 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=PGSUS&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:23:02 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=PSGYO&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:23:04 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=SAHOL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:23:06 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=SELEC&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:23:07 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=SISE&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:23:08 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TAVHL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:23:09 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TCELL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:23:11 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TEHOL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:23:12 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TERA&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:23:13 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=THYAO&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:23:14 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TOASO&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:23:15 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=TRHOL&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+2026-08-05 20:23:16 | INFO     | httpx | HTTP Request: GET https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil?hisse=ULKER&startdate=17-05-2026&enddate=05-08-2026 "HTTP/1.1 200 OK"
+=== Faz 18 doğrulama: uygulanabilir fon taraması ===
+  TLY: OK (Serbest Fon, hisse ağırlığı %81.83, 24 kalem)
+  TMV: OK (Serbest Fon, hisse ağırlığı %56.72, 20 kalem)
+  PHE: OK (Hisse Senedi Fonu, hisse ağırlığı %77.05, 26 kalem)
+  PBR: OK (Değişken Fon, hisse ağırlığı %80.71, 17 kalem)
+  DFI: OK (Serbest Fon, hisse ağırlığı %70.05, 4 kalem)
+  DKR: kategori uygun (Serbest Fon) ama KAP portföyü ayrıştırılamadı, atlanıyor.
+  LTL: kategori uygun (Hisse Senedi Fonu) ama KAP portföyü ayrıştırılamadı, atlanıyor.
+  RIH: kategori uygun (Serbest Fon) ama KAP portföyü ayrıştırılamadı, atlanıyor.
+  PUK: OK (Hisse Senedi Fonu, hisse ağırlığı %90.21602247408699021602247408, 23 kalem)
+  SNY: OK (Serbest Fon, hisse ağırlığı %90.06, 9 kalem)
+  BMU: kategori uygun (Serbest Fon) ama KAP portföyü ayrıştırılamadı, atlanıyor.
+  RSK: OK (Serbest Fon, hisse ağırlığı %55.74, 8 kalem)
+  KHA: OK (Hisse Senedi Fonu, hisse ağırlığı %87.26, 49 kalem)
+  YIT: kategori uygun (Değişken Fon) ama KAP portföyü ayrıştırılamadı, atlanıyor.
+  IJC: kategori uygun (Değişken Fon) ama KAP portföyü ayrıştırılamadı, atlanıyor.
+
+9 / 15 aday uygulanabilir bulundu.
+
+=== TLY ===
+  1 portföy raporu bulundu: ['2026-08-03']
+  2 gün test edildi.
+
+=== TMV ===
+  1 portföy raporu bulundu: ['2026-08-03']
+  2 gün test edildi.
+
+=== PHE ===
+  2 portföy raporu bulundu: ['2026-08-05', '2026-07-08']
+  19 gün test edildi.
+
+=== PBR ===
+  2 portföy raporu bulundu: ['2026-08-05', '2026-07-08']
+  19 gün test edildi.
+
+=== DFI ===
+  1 portföy raporu bulundu: ['2026-07-08']
+  19 gün test edildi.
+
+=== PUK ===
+  2 portföy raporu bulundu: ['2026-08-05', '2026-07-08']
+  19 gün test edildi.
+
+=== SNY ===
+  1 portföy raporu bulundu: ['2026-07-08']
+  19 gün test edildi.
+
+=== RSK ===
+  1 portföy raporu bulundu: ['2026-07-08']
+  19 gün test edildi.
+
+=== KHA ===
+  1 portföy raporu bulundu: ['2026-08-04']
+  1 gün test edildi.
+
+======================================================================
+GERİYE DÖNÜK DOĞRULAMA RAPORU
+======================================================================
+
+Toplam test noktası: 119 (9 fon)
+Ortalama Mutlak Hata (MAE): 1.2076 puan
+Medyan Hata: 0.9126 puan
+En kötü hata: 5.6245 puan
+En iyi hata: 0.0294 puan
+
+Hata dağılımı:
+  <0.15       :   12 ( 10.1%)
+  0.15-0.30   :    6 (  5.0%)
+  0.30-0.50   :   18 ( 15.1%)
+  0.50-1.00   :   30 ( 25.2%)
+  >1.00       :   53 ( 44.5%)
+
+Hata / portföy tazeliği ilişkisi:
+  0-7 gün   : MAE=0.9510 puan (n=5)
+  8-15 gün  : MAE=0.9960 puan (n=24)
+  16-30 gün : MAE=1.2872 puan (n=66)
+  30+ gün   : MAE=1.2537 puan (n=24)
+
+Hata / bildirilen güven seviyesi ilişkisi (güven kalibrasyonu):
+  yüksek  : MAE=1.2375 puan (n=13)
+  orta    : MAE=1.2601 puan (n=70)
+  düşük   : MAE=1.0948 puan (n=36)
+
+Fon bazında MAE:
+  SNY   : MAE=2.6514 puan (n=19)
+  RSK   : MAE=1.4802 puan (n=19)
+  KHA   : MAE=1.4391 puan (n=1)
+  PUK   : MAE=1.1342 puan (n=19)
+  TMV   : MAE=0.9805 puan (n=2)
+  DFI   : MAE=0.7491 puan (n=19)
+  TLY   : MAE=0.6774 puan (n=2)
+  PHE   : MAE=0.6522 puan (n=19)
+  PBR   : MAE=0.6459 puan (n=19)
+
+----------------------------------------------------------------------
+🚨 SONUÇ: MAE (1.2076) kabul edilemez eşiği (0.50) AŞIYOR.
+ÖNERİ: Bu özellik ŞU HALİYLE YAYINLANMAMALI. Hata payı kaynakları
+(kapsam/tazelik/varlık sınıfı) yukarıdaki kırılımlardan araştırılmalı.

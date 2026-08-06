@@ -981,7 +981,7 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       `08_DEGISIKLIK_GUNLUGU.md` "yirminci"/"yirmi birinci tur". 929
       test, hepsi yeşil.
 - [x] **Faz 19.1** — (2026-08-06, kullanıcı raporu) TLY fon tahmini
-      Fintables'ın "AI Tahmini"nden (%0,17) ~18 kat büyük (%3,14)
+      fvt.com.tr'nin "AI Tahmini"nden (%0,17) ~18 kat büyük (%3,14)
       çıkıyordu. Kök neden: `yahoo_quote.fetch_daily_return()`'ün "close"
       dizisindeki None'ları FİLTRELEYİP son iki GEÇERLİ değeri kullanan
       eski davranışı — CANLI teşhis: 2026-08-06'da Yahoo'nun TÜM `.IS`
@@ -994,13 +994,34 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       tekrar). Düzeltme: artık SADECE dizinin son iki POZİSYONU (bugün +
       dün) kullanılıyor, biri None ise 2 gün öncesine ATLANMADAN None
       dönülüyor (Kural 3). CANLI doğrulandı: aynı TLY sorgusu düzeltme
-      sonrası %0,097 çıktı (Fintables %0,166 ile aynı mertebede, HEDEF/
-      PEKGY gibi kalemlerin günlük getirisi Fintables ile BİREBİR eşleşti).
-      Ayrıca fon içeriğinin (hisse/ağırlık listesi) Fintables ile
+      sonrası %0,097 çıktı (fvt.com.tr %0,166 ile aynı mertebede, HEDEF/
+      PEKGY gibi kalemlerin günlük getirisi fvt.com.tr ile BİREBİR eşleşti).
+      Ayrıca fon içeriğinin (hisse/ağırlık listesi) fvt.com.tr ile
       karşılaştırması istendi — ağırlıklar KAP'ın aylık raporuyla tutarlı
       (küçük farklar rapor tazeliğinden, bkz. §B27), bir eşleme hatası
       BULUNMADI. Detay: `PROJE_HAFIZASI/06_BILINEN_SORUNLAR.md` §B30,
       `08_DEGISIKLIK_GUNLUGU.md`. 957 test, hepsi yeşil.
+- [x] **Faz 19.2** — (2026-08-06, aynı gün, kullanıcı fvt.com.tr'yi
+      tarayıcı eklentisiyle 15 hedef fonun TAMAMI için tek tek inceletip
+      iki ek eksik buldurdu): (1) **`src/fetchers/tradingview_quote.py`**
+      (YENİ) — `yahoo_quote` az işlem gören hisselerde (OZATD gibi)
+      dakikalarca bayat kalıyordu (CANLI gözlemlendi: 20 dakika hiç
+      değişmedi); `scanner.tradingview.com/turkey/scan` TEK istekte TÜM
+      portföyün 15-dakika-gecikmeli CANLI değişimini veriyor
+      (`update_mode: "delayed_streaming_900"`, fvt.com.tr'nin belirttiği
+      gecikmeyle BİREBİR) — artık birincil kaynak, `yahoo_quote` sadece
+      yedek. CANLI doğrulandı: TLY tahmini fvt.com.tr'nin "KAP Dağılımına
+      Göre" rakamıyla 0,04 puana kadar yakınlaştı (TMV/PHE/PBR/PUK/DFI
+      için de 0,02-0,4 puan farkla YAKIN). (2) **KAP "DİĞER" bölümünde
+      tiresiz fon kodu ayrıştırma** (Kullanıcı Kararı #9) — TLY'nin HMV/
+      T3B'si (Sabit Getiriler altında fon-içi-fon, fvt.com.tr'nin "AI
+      Tahmin Ağı" görselinde fiyatlandığı görüldü) PHE'nin tireli
+      formatından ("PCS-PUSULA...") FARKLI, tiresiz ("HMV") yazıldığı için
+      `_FUND_TICKER_RE` eşleşmiyordu — düzeltildi, TLY'nin kapsanan
+      ağırlığı %81,83'ten %87,46'ya çıktı. Detay:
+      `PROJE_HAFIZASI/02_VERI_KAYNAKLARI.md` §10-11,
+      `06_BILINEN_SORUNLAR.md` §B30 (yirmi üçüncü tur). 968 test, hepsi
+      yeşil.
 
 ## Dizin Yapisi
 

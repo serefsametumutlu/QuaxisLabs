@@ -1022,6 +1022,49 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       `PROJE_HAFIZASI/02_VERI_KAYNAKLARI.md` §10-11,
       `06_BILINEN_SORUNLAR.md` §B30 (yirmi üçüncü tur). 968 test, hepsi
       yeşil.
+- [x] **Faz 15.1** — (2026-08-06, kullanıcı iki referans görsel paylaşıp
+      `/teknik` kartının MACD/RSI/Hacim'i GÖRSEL grafik olarak göstermesini
+      ve bilançodaki gibi bir "değerlendirme metni" içermesini istedi;
+      karışık/aşırı dolu OLMAMASI özellikle vurgulandı):
+      **`src/analysis/technical.py`**: `rsi_series()`/`macd_series()`
+      (YENİ) — mevcut `rsi_wilder()`/`macd()` ile AYNI formül ama TEK
+      değer yerine TAM seri döner; `TechnicalSnapshot`'a `chart_rsi`/
+      `chart_macd_line`/`chart_macd_signal`/`chart_macd_histogram`/
+      `chart_volumes` alanları eklendi (fiyat/SMA50/200 serisiyle AYNI
+      6 aylık pencereye hizalı). **`src/render/technical_card.py`**: 3
+      YENİ kompakt (~90px, ana fiyat grafiğinin ~1/3'ü) grafik builder'ı
+      — MACD (çizgi+sinyal+histogram, sıfır çizgisi HER ZAMAN görünür
+      aralığa dahil edilir), RSI (SABİT 0-100 ölçek + Wilder'in 70/30
+      eşiği, K2: sinyal değil sadece referans), Hacim geçmişi (bar +
+      20 günlük ortalama çizgisi, mevcut tek-oran şeridinin YANINA).
+      **`src/ai/commentary.py`**: `generate_commentary_technical()` +
+      `_fallback_commentary_technical()` (YENİ) — bilançodaki
+      `Commentary` şeması/altyapısı AYNEN yeniden kullanılır (yeni
+      dataclass YOK), AYRI bir sistem istemi (`_SYSTEM_INSTRUCTION_TECHNICAL`)
+      ile K2 (Al/Sat/Tut sinyali ÜRETİLMEZ) kuralı burada da BİREBİR
+      korunur — LLM sadece ÖNCEDEN hesaplanmış gösterge/bölge etiketlerini
+      (`technical_card.build_commentary_inputs()`) sözel olarak
+      sentezler. 🚨 CANLI HATA + DÜZELTME (aynı gün, `scripts/
+      demo_teknik.py THYAO` ile gerçek bir Gemini yanıtında bulundu):
+      proje çapında paylaşılan "ASCII'ye indirgenmiş Türkçe" tespit
+      regex'i (`_ASCII_DEGRADED_TR_RE`) SADECE bilanço kelime köklerini
+      kapsıyordu — teknik kelime dağarcığı ("üzerinde"→"uzerinde",
+      "nötr"→"notr", "gösterge"→"gosterge") HİÇ YAKALANMIYORDU, gerçek
+      bir yanıt bu şekilde sızdı. Kök sete teknik köklar eklendi (bkz.
+      modül üst notu) — bu düzeltme fundamental yorum akışını da
+      GÜÇLENDİRİYOR (aynı paylaşılan regex). **`src/db/models.py`+
+      `repository.py`**: `TechnicalCommentaryCache` (YENİ tablo) —
+      `CommentaryCache` ile AYNI amaç (Gemini günlük kota sınırı) ama
+      tazelik anahtarı ÇEYREK değil işlem günü (`as_of_date`).
+      **`telegram_bot.py`**: `_gonder_teknik()` artık yorumu (önbellek→
+      Gemini→yedek) üretip karta ekliyor, hata olursa (Kural 9) yorum
+      bölümü SESSİZCE gizlenir, kart YİNE DE gönderilir. CANLI doğrulandı
+      (`demo_teknik.py THYAO`, gerçek Gemini yanıtıyla, ekran görüntüsü
+      incelendi): kart CWENE referansına yakın yoğunlukta, "AL/SAT" dili
+      YOK. Yeni regresyon: `test_render_technical_card_en_kotu_durumda_
+      telegram_boyut_sinirini_asmaz` (260 günlük tam veri + 4/4 maddelik
+      en uzun yorumla bile 2400x4632, Telegram sınırının (10000) belirgin
+      altında). 1009 test, hepsi yeşil.
 
 ## Dizin Yapisi
 

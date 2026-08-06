@@ -18,6 +18,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR))
 
 import config  # noqa: E402
+from src.ai import commentary  # noqa: E402
 from src.analysis import technical  # noqa: E402
 from src.fetchers import price_history  # noqa: E402
 from src.render import card, technical_card  # noqa: E402
@@ -61,7 +62,21 @@ def main() -> int:
     else:
         print("\nSnapshot üretilemedi (yeterli fiyat verisi yok).")
 
-    context = technical_card.build_technical_context(snapshot, ticker, args.market, company_name=args.company_name)
+    yorum = None
+    if snapshot:
+        print("\nTeknik değerlendirme üretiliyor (Gemini varsa, yoksa şablon yedeği)...")
+        commentary_inputs = technical_card.build_commentary_inputs(snapshot, ticker, args.market)
+        yorum = commentary.generate_commentary_technical(commentary_inputs)
+        print(f"[{yorum.source}] {yorum.headline}")
+        print(yorum.summary)
+        for p in yorum.positives:
+            print(f"  + {p}")
+        for n in yorum.negatives:
+            print(f"  - {n}")
+
+    context = technical_card.build_technical_context(
+        snapshot, ticker, args.market, company_name=args.company_name, commentary=yorum
+    )
 
     out_path = config.DATA_DIR / "cards" / f"{ticker}_teknik.png"
     result_path = card.render_card(

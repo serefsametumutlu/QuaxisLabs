@@ -24,6 +24,7 @@ from telegram.request import HTTPXRequest
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
 import config
+from src.ai import commentary
 from src.analysis import calculator, technical, trends
 from src.bot import fund_pipeline, menu, pipeline
 from src.db import models, repository
@@ -462,6 +463,48 @@ async def _gonder_fon_grup_ic(chat_id: int, context: ContextTypes.DEFAULT_TYPE, 
 # --- Teknik Görünüm (Faz 15) -----------------------------------------------------
 
 
+def _get_or_generate_technical_commentary(ticker: str, market: str, as_of_date, commentary_inputs: dict) -> commentary.Commentary | None:
+    """`pipeline._get_or_generate_commentary()` (fundamental) ile AYNI ilke:
+    önce DB önbelleği (aynı gün için TEKRAR Gemini çağırma, Gemini günlük
+    kota sınırı), yoksa üret+kaydet. Kural 9: bu İKİNCİL bir zenginleştirmedir
+    -- herhangi bir hata `None` ile sonuçlanır, teknik kart YİNE DE (yorum
+    bölümü gizli) gönderilir, ASLA çökmez/bloklamaz."""
+    try:
+        with repository.get_session() as session:
+            cached = repository.get_technical_commentary(session, ticker, market, as_of_date)
+            if cached is not None:
+                return commentary.Commentary(
+                    headline=cached.headline,
+                    hook=cached.hook,
+                    summary=cached.summary,
+                    positives=cached.positives,
+                    negatives=cached.negatives,
+                    kap_note=None,
+                    disclaimer_context=None,
+                    source=cached.source,
+                )
+
+        result = commentary.generate_commentary_technical(commentary_inputs)
+
+        with repository.get_session() as session:
+            repository.save_technical_commentary(
+                session,
+                ticker,
+                market,
+                as_of_date,
+                headline=result.headline,
+                hook=result.hook,
+                summary=result.summary,
+                positives=result.positives,
+                negatives=result.negatives,
+                source=result.source,
+            )
+        return result
+    except Exception:  # noqa: BLE001 -- Kural 9: teknik yorum ikincildir, ana akışı ASLA çökertmemeli
+        logger.exception("%s için teknik yorum üretilemedi/önbelleklenemedi", ticker)
+        return None
+
+
 async def _gonder_teknik(chat_id: int, context: ContextTypes.DEFAULT_TYPE, ticker: str, market: str) -> None:
     """'📈 Teknik Görünüm' butonuna basılınca AYNI ticker/market için Faz 15
     teknik analiz kartını üretir ve gönderir. Bu kart temel analiz kartından
@@ -482,6 +525,18 @@ async def _gonder_teknik(chat_id: int, context: ContextTypes.DEFAULT_TYPE, ticke
             f"⚠️ {ticker} için yeterli fiyat geçmişi bulamadım, teknik görünüm üretilemedi.",
         )
         return
+
+    # Faz 15.1: "Teknik Değerlendirme" metni (Gemini/yedek) -- İKİNCİL
+    # zenginleştirme (Kural 9), ayrı bir thread'de üretilir ki Gemini
+    # gecikmesi event loop'u BLOKLAMASIN (price_history.fetch_ohlcv ile
+    # AYNI ilke). Başarısız olursa `yorum=None`, kart yorum bölümü
+    # GİZLENMİŞ olarak yine üretilir (build_technical_context zaten
+    # commentary=None durumunu ele alıyor).
+    commentary_inputs = technical_card.build_commentary_inputs(snapshot, ticker, market)
+    yorum = await asyncio.to_thread(
+        _get_or_generate_technical_commentary, ticker, market, snapshot.as_of_date, commentary_inputs
+    )
+    teknik_context = technical_card.build_technical_context(snapshot, ticker, market, commentary=yorum)
 
     out_path = config.DATA_DIR / "cards" / f"{ticker}_teknik.png"
     try:

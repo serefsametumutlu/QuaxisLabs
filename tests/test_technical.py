@@ -34,7 +34,9 @@ from src.analysis.technical import (
     ema,
     ema_series,
     macd,
+    macd_series,
     price_distance_from_sma_pct,
+    rsi_series,
     rsi_wilder,
     sma,
     sma_cross_state,
@@ -149,6 +151,37 @@ def test_rsi_wilder_yetersiz_veride_none_doner():
     assert rsi_wilder(closes, period=14) is None
 
 
+def test_rsi_series_son_eleman_rsi_wilder_ile_esit():
+    """rsi_series()'in EN SON elemanı rsi_wilder()'ın döndürdüğü tek
+    değerle BİREBİR eşleşmeli -- ikisi AYNI Wilder formülünü (bkz.
+    _rsi_from_averages()) paylaşıyor, tek fark serinin TAMAMININ mı yoksa
+    sadece son noktanın mı döndüğü."""
+    closes = [_d(100), _d(101), _d(100), _d(101), _d(100), _d(101), _d(100), _d(101), _d(100), _d(101), _d(100), _d(101), _d(100), _d(101), _d(100), _d(102)]
+
+    series = rsi_series(closes, period=14)
+
+    assert len(series) == len(closes)
+    assert series[-1] == rsi_wilder(closes, period=14)
+    assert abs(series[-1] - _d("56.6667")) < Decimal("0.001")
+
+
+def test_rsi_series_ilk_period_eleman_none_doner():
+    closes = [_d(100), _d(101), _d(100), _d(101), _d(100), _d(101), _d(100), _d(101), _d(100), _d(101), _d(100), _d(101), _d(100), _d(101), _d(100), _d(102)]
+
+    series = rsi_series(closes, period=14)
+
+    assert series[:14] == [None] * 14
+    assert series[14] is not None
+
+
+def test_rsi_series_yetersiz_veride_tamami_none_doner():
+    closes = [_d(v) for v in range(100, 110)]
+
+    series = rsi_series(closes, period=14)
+
+    assert series == [None] * len(closes)
+
+
 # --- MACD -- bagimsiz naif referans implementasyonu ile capraz dogrulama ------
 
 
@@ -203,6 +236,30 @@ def test_macd_bagimsiz_float_referansiyla_esit():
 def test_macd_yetersiz_veride_none_doner():
     closes = [_d(v) for v in range(30)]  # slow+signal=35 gerekir
     assert macd(closes, 12, 26, 9) is None
+
+
+def test_macd_series_son_eleman_macd_ile_esit():
+    """macd_series()'in üç serisinin de EN SON elemanı macd()'nin tek
+    değerleriyle BİREBİR eşleşmeli (AYNI formül, bkz. modül üst notu)."""
+    closes = [_d(v) for v in _SYNTHETIC_CLOSES]
+
+    line_series, signal_series, hist_series = macd_series(closes, fast=12, slow=26, signal=9)
+    macd_line, signal_line, histogram = macd(closes, fast=12, slow=26, signal=9)
+
+    assert len(line_series) == len(signal_series) == len(hist_series) == len(closes)
+    assert line_series[-1] == macd_line
+    assert signal_series[-1] == signal_line
+    assert hist_series[-1] == histogram
+
+
+def test_macd_series_yetersiz_veride_tamami_none_doner():
+    closes = [_d(v) for v in range(30)]
+
+    line_series, signal_series, hist_series = macd_series(closes, 12, 26, 9)
+
+    assert line_series == [None] * len(closes)
+    assert signal_series == [None] * len(closes)
+    assert hist_series == [None] * len(closes)
 
 
 # --- Bollinger Bantlari ---------------------------------------------------------
@@ -481,6 +538,15 @@ def test_compute_snapshot_grafik_serisi_sadece_son_6_ayi_kapsar():
     assert snapshot.chart_dates[0] == bars[76].trade_date
     assert snapshot.chart_dates[-1] == bars[-1].trade_date
     assert snapshot.chart_closes[-1] == bars[-1].close
+    # Faz 15.1: RSI/MACD/hacim serileri de AYNI pencereyle (184 eleman) hizalı olmalı.
+    assert len(snapshot.chart_rsi) == 184
+    assert len(snapshot.chart_macd_line) == 184
+    assert len(snapshot.chart_macd_signal) == 184
+    assert len(snapshot.chart_macd_histogram) == 184
+    assert len(snapshot.chart_volumes) == 184
+    assert snapshot.chart_rsi[-1] == snapshot.rsi_14
+    assert snapshot.chart_macd_line[-1] == snapshot.macd_line
+    assert snapshot.chart_volumes[-1] == bars[-1].volume
 
 
 def test_compute_snapshot_yetersiz_veride_ilgili_alanlar_none_ama_snapshot_uretilir():

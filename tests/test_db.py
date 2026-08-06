@@ -494,3 +494,76 @@ def test_get_latest_fund_holdings_en_guncel_tarihi_doner(session) -> None:
 
 def test_get_latest_fund_holdings_hic_veri_yoksa_bos_liste_doner(session) -> None:
     assert repository.get_latest_fund_holdings(session, "YOKTUR") == []
+
+
+# --- Teknik Görünüm yorumu önbelleği (Faz 15.1) -----------------------------------
+
+
+def test_get_technical_commentary_hic_yoksa_none_doner(session) -> None:
+    assert repository.get_technical_commentary(session, "THYAO", "BIST", date(2026, 8, 6)) is None
+
+
+def test_save_technical_commentary_ilk_cagrida_ekler_ve_okunabilir(session) -> None:
+    repository.save_technical_commentary(
+        session, "THYAO", "BIST", date(2026, 8, 6),
+        headline="YUKARI EĞİLİMLİ", hook="Fiyat SMA200 üzerinde.", summary="Özet metni.",
+        positives=["Güçlü trend"], negatives=["Aşırı alım bölgesi"], source="llm",
+    )
+
+    cached = repository.get_technical_commentary(session, "THYAO", "BIST", date(2026, 8, 6))
+
+    assert cached is not None
+    assert cached.headline == "YUKARI EĞİLİMLİ"
+    assert cached.positives == ["Güçlü trend"]
+    assert cached.source == "llm"
+
+
+def test_save_technical_commentary_ayni_gun_tekrar_cagrilinca_gunceller_mukerrer_olusturmaz(session) -> None:
+    repository.save_technical_commentary(
+        session, "THYAO", "BIST", date(2026, 8, 6),
+        headline="ESKİ BAŞLIK", hook="Eski kanca.", summary="Eski özet.", positives=[], negatives=[], source="fallback",
+    )
+    repository.save_technical_commentary(
+        session, "THYAO", "BIST", date(2026, 8, 6),
+        headline="YENİ BAŞLIK", hook="Yeni kanca.", summary="Yeni özet.", positives=["X"], negatives=[], source="llm",
+    )
+
+    from sqlalchemy import select
+
+    from src.db.models import TechnicalCommentaryCache
+
+    rows = session.execute(select(TechnicalCommentaryCache).where(TechnicalCommentaryCache.ticker == "THYAO")).scalars().all()
+    assert len(rows) == 1
+    assert rows[0].headline == "YENİ BAŞLIK"
+    assert rows[0].source == "llm"
+
+
+def test_technical_commentary_farkli_gunler_ayri_kayit_olarak_tutulur(session) -> None:
+    repository.save_technical_commentary(
+        session, "THYAO", "BIST", date(2026, 8, 5),
+        headline="DÜN", hook="k.", summary="ö.", positives=[], negatives=[], source="llm",
+    )
+    repository.save_technical_commentary(
+        session, "THYAO", "BIST", date(2026, 8, 6),
+        headline="BUGÜN", hook="k.", summary="ö.", positives=[], negatives=[], source="llm",
+    )
+
+    assert repository.get_technical_commentary(session, "THYAO", "BIST", date(2026, 8, 5)).headline == "DÜN"
+    assert repository.get_technical_commentary(session, "THYAO", "BIST", date(2026, 8, 6)).headline == "BUGÜN"
+
+
+def test_technical_commentary_farkli_market_ayni_ticker_ayri_kayit(session) -> None:
+    """Teorik olarak BIST/NASDAQ'ta ayni ticker CAKISABILIR (bkz.
+    repository.TickerMarketConflictError üst notu) -- bu tablo market'i
+    de anahtarin bir parcasi yaptigi icin bu senaryoda bile GUVENLIDIR."""
+    repository.save_technical_commentary(
+        session, "AAPL", "BIST", date(2026, 8, 6),
+        headline="BIST", hook="k.", summary="ö.", positives=[], negatives=[], source="llm",
+    )
+    repository.save_technical_commentary(
+        session, "AAPL", "NASDAQ", date(2026, 8, 6),
+        headline="NASDAQ", hook="k.", summary="ö.", positives=[], negatives=[], source="llm",
+    )
+
+    assert repository.get_technical_commentary(session, "AAPL", "BIST", date(2026, 8, 6)).headline == "BIST"
+    assert repository.get_technical_commentary(session, "AAPL", "NASDAQ", date(2026, 8, 6)).headline == "NASDAQ"

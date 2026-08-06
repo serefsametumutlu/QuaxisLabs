@@ -96,6 +96,44 @@ def test_contains_suspicious_artifact_doğru_turkce_yanlis_pozitif_uretmez() -> 
     assert commentary._contains_suspicious_artifact(data) is False
 
 
+# --- ASCII'ye indirgenmiş Türkçe -- teknik görünüm kelime dağarcığı (Faz 15.1, CANLI hata) ------
+
+
+def test_contains_suspicious_artifact_teknik_ascii_indirgenmis_turkceyi_yakalar() -> None:
+    """CANLI hata (2026-08-06, `scripts/demo_teknik.py THYAO`): gerçek bir
+    Gemini yanıtının `summary` alanı 'RSI 45,3 degeriyle notr bolgede yer
+    alirken MACD negatif alandadir...' gibi ASCII'ye indirgenmiş kelimeler
+    içeriyordu -- eski regex (sadece bilanço kökleri) bunu HİÇ
+    YAKALAMAMIŞTI. Bu, o canlı yanıtın regresyon testidir.
+
+    NOT: `headline` alanı şema gereği HER ZAMAN BÜYÜK HARF -- regex
+    KASITLI OLARAK case-sensitive/küçük-harf (bkz. modül üst notu, ı/i
+    case-folding hatası) olduğu için büyük harfli metin bu kontrolün
+    KAPSAMI DIŞINDADIR (fundamental `headline` alanı için de aynı sınır
+    zaten geçerliydi) -- bu yüzden test normal cümle (küçük harf)
+    bağlamındaki `summary` alanını kullanır, gerçek canlı hatayla BİREBİR."""
+    data = {"summary": "RSI 45,3 degeriyle notr bolgede yer alirken MACD negatif alandadir."}
+    assert commentary._contains_suspicious_artifact(data) is True
+
+
+@pytest.mark.parametrize(
+    "bozuk_kelime",
+    ["uzerinde", "altinda", "notr", "gosterge", "degeriyle", "surduruyor", "yuzde", "kesisimi", "onemli", "degisim", "degiskendir"],
+)
+def test_contains_suspicious_artifact_teknik_ascii_kok_kelimeleri_tek_tek_yakalar(bozuk_kelime) -> None:
+    data = {"summary": f"Bu cümlede {bozuk_kelime} kelimesi geçiyor."}
+    assert commentary._contains_suspicious_artifact(data) is True
+
+
+def test_contains_suspicious_artifact_teknik_dogru_turkce_yanlis_pozitif_uretmez() -> None:
+    data = {
+        "summary": "Fiyat SMA200 üzerinde ve RSI nötr bölgede, gösterge değerleri birbiriyle "
+        "uyumlu bir görünüm sürdürüyor; yüzde bazında önemli bir kesişim gözlenmedi, "
+        "değişim ve değişken oynaklık normal seyrediyor."
+    }
+    assert commentary._contains_suspicious_artifact(data) is False
+
+
 # --- _commentary_from_json -----------------------------------------------------
 
 
@@ -492,3 +530,130 @@ def test_generate_commentary_kalici_ag_hatasinda_yeniden_deneyip_sonunda_yedek_m
 
     assert yorum.source == "fallback"
     assert call_count["n"] == 3  # 1 ilk deneme + 2 yeniden deneme (spec geregi)
+
+
+# --- Teknik Görünüm yorumu (Faz 15.1, 2026-08-06) -----------------------------------
+
+
+@pytest.fixture
+def teknik_commentary_inputs() -> dict:
+    """`technical_card.build_commentary_inputs()` çıktısıyla AYNI şekil --
+    gerçek bir TechnicalSnapshot/Playwright gerektirmeden (Kural 11)."""
+    return {
+        "ticker": "THYAO",
+        "price_display": "314,00 ₺",
+        "indicator_groups": [
+            {
+                "title": "Trend",
+                "rows": [
+                    {"label": "SMA 200", "value_display": "270,00 ₺", "note_display": None, "note_class": None},
+                    {"label": "ADX (14) — Trend Gücü", "value_display": "30,0", "note_display": "Güçlü Trend", "note_class": "extreme"},
+                    {"label": "SMA50/200 Kesişimi", "value_display": "Altın Kesişim (Golden Cross)", "note_display": None, "note_class": "positive"},
+                ],
+            },
+            {
+                "title": "Momentum",
+                "rows": [
+                    {"label": "RSI (14)", "value_display": "75,0", "note_display": "Aşırı Alım Bölgesi", "note_class": "extreme"},
+                ],
+            },
+        ],
+        "week52_bar": {"has_data": True, "low_display": "230,00 ₺", "high_display": "340,00 ₺", "position_display": "%76,4"},
+        "volume_strip": {"has_data": True, "last_volume_display": "18.000.000.000", "avg_volume_display": "15.000.000.000", "ratio_display": "%120,0"},
+    }
+
+
+def test_build_user_prompt_technical_al_sat_kelimeleri_gecmez(teknik_commentary_inputs) -> None:
+    """İstem metninin KENDİSİ (LLM'e giden veri) yanlışlıkla 'al'/'sat'
+    gibi bir tavsiye kelimesi İÇERMEMELİ -- sadece hazır etiket/sayılar."""
+    prompt = commentary._build_user_prompt_technical(teknik_commentary_inputs)
+
+    assert "THYAO" in prompt
+    assert "Aşırı Alım Bölgesi" in prompt
+    assert "Güçlü Trend" in prompt
+    for yasakli in (" al ", " sat ", " tut ", "AL/SAT"):
+        assert yasakli.lower() not in prompt.lower()
+
+
+def test_sistem_instruction_technical_al_sat_yasagi_icerir() -> None:
+    """K2 (Al/Sat/Tut sinyali üretilmez) kuralının teknik sistem isteminde
+    de AÇIKÇA yer aldığını doğrular -- bu bir metin özelliği testi değil,
+    projenin en kritik uyum kuralının regresyona karşı KİLİDİDİR."""
+    assert "al" in commentary._SYSTEM_INSTRUCTION_TECHNICAL.lower()
+    assert "yatirim tavsiyesi" in commentary._SYSTEM_INSTRUCTION_TECHNICAL.lower().replace("ı", "i")
+    assert "hedef fiyat" in commentary._SYSTEM_INSTRUCTION_TECHNICAL.lower()
+
+
+def test_fallback_commentary_technical_notlu_satirlardan_cumle_kurar(teknik_commentary_inputs) -> None:
+    """'extreme' sınıfı (RSI/ADX bölge etiketi) YÖN BELİRTMEZ -- sadece
+    özet anlatımına girer. 'positive'/'negative' (Golden/Death Cross gibi
+    KESİN yönü olan olgular) ayrıca positives/negatives listelerine girer."""
+    yorum = commentary._fallback_commentary_technical(teknik_commentary_inputs)
+
+    assert yorum.source == "fallback"
+    assert yorum.headline
+    assert "Aşırı Alım Bölgesi" in yorum.summary
+    assert "Güçlü Trend" in yorum.summary
+    assert any("Altın Kesişim" in p for p in yorum.positives)
+    assert yorum.negatives == []  # bu fixture'da "negative" sınıflı satır yok
+
+
+def test_fallback_commentary_technical_notsuz_satirlarla_notr_ozet_doner() -> None:
+    inputs = {
+        "ticker": "THYAO",
+        "price_display": "314,00 ₺",
+        "indicator_groups": [
+            {"title": "Trend", "rows": [{"label": "SMA 200", "value_display": "270,00 ₺", "note_display": None, "note_class": None}]}
+        ],
+        "week52_bar": {"has_data": False},
+        "volume_strip": {"has_data": False},
+    }
+    yorum = commentary._fallback_commentary_technical(inputs)
+    assert yorum.summary == "Göstergeler nötr/olağan aralıklarda seyrediyor."
+    assert yorum.positives == []
+    assert yorum.negatives == []
+
+
+def test_generate_commentary_technical_api_anahtari_yoksa_yedek_moda_duser(monkeypatch, teknik_commentary_inputs) -> None:
+    monkeypatch.setattr(config, "GEMINI_API_KEY", "")
+
+    yorum = commentary.generate_commentary_technical(teknik_commentary_inputs)
+
+    assert yorum.source == "fallback"
+
+
+def test_generate_commentary_technical_basarili_llm_yaniti_ayri_sistem_istemiyle_cagirir(monkeypatch, teknik_commentary_inputs) -> None:
+    monkeypatch.setattr(config, "GEMINI_API_KEY", "test-key")
+
+    gecerli_json = (
+        '{"headline": "YUKARI EĞİLİMLİ", "hook": "Fiyat SMA200 üzerinde.", "summary": "Fiyat SMA200 üzerinde.", '
+        '"positives": ["Güçlü trend"], "negatives": ["Aşırı alım bölgesi"], "kap_note": null, "disclaimer_context": null}'
+    )
+    captured = {}
+
+    def fake_post(url, params=None, json=None, timeout=None):
+        captured["system_instruction"] = json["systemInstruction"]["parts"][0]["text"]
+        return _FakeResponse(200, _gemini_ok_payload(gecerli_json))
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    yorum = commentary.generate_commentary_technical(teknik_commentary_inputs)
+
+    assert yorum.source == "llm"
+    assert yorum.headline == "YUKARI EĞİLİMLİ"
+    # AYRI sistem istemi (fundamental promptu DEGIL) kullanildigini dogrula:
+    assert captured["system_instruction"] == commentary._SYSTEM_INSTRUCTION_TECHNICAL
+    assert captured["system_instruction"] != commentary._SYSTEM_INSTRUCTION
+
+
+def test_generate_commentary_technical_api_hatasinda_yedek_moda_duser(monkeypatch, teknik_commentary_inputs) -> None:
+    monkeypatch.setattr(config, "GEMINI_API_KEY", "gecersiz-anahtar")
+
+    def fake_post(url, params=None, json=None, timeout=None):
+        return _FakeResponse(401, text="yetkisiz")
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    yorum = commentary.generate_commentary_technical(teknik_commentary_inputs)
+
+    assert yorum.source == "fallback"

@@ -138,6 +138,63 @@ _JSON_FIX_INSTRUCTION = (
 )
 
 
+# --- Teknik Görünüm için AYRI sistem istemi (Faz 15.1, 2026-08-06) ------------------
+#
+# Kullanıcı isteği: "/teknik" kartına da bilançodaki gibi bir değerlendirme
+# metni eklensin, "grafiğe/değerlere göre net bir okuma" versin. Proje
+# kuralı (K2, technical_card.py üst notu) "Al/Sat/Tut sinyali ÜRETİLMEZ"
+# HÂLÂ GEÇERLİ -- bu yüzden AYNI kural #2'yi (yatırım tavsiyesi/AL-SAT
+# yasağı) TAŞIYAN ama fundamental yerine TEKNİK veri çerçevesine göre
+# yazılmış AYRI bir sistem istemi kullanılır (_call_gemini_raw artık
+# parametrik, bkz. üstteki değişiklik). JSON şeması (_RESPONSE_SCHEMA)
+# AYNEN yeniden kullanılır -- "positives"/"negatives" burada "Destekleyen
+# Sinyaller"/"Dikkat Noktaları" anlamına gelir, "kap_note" hep null'dur.
+_SYSTEM_INSTRUCTION_TECHNICAL = """Sen bir BIST/NASDAQ hisseleri icin calisan profesyonel bir teknik analiz \
+uzmanisin. Sana bir hissenin ONCEDEN HESAPLANMIS teknik gosterge degerleri (hareketli ortalamalar, \
+RSI, MACD, Bollinger Bantlari, ADX, hacim, 52 hafta araligi) ve bunlarin KENDI standart esiklerine \
+gore ONCEDEN belirlenmis bolge/durum etiketleri (orn. "Asiri Alim Bolgesi", "Guclu Trend", "Altin \
+Kesisim") verilecek.
+
+KESIN KURALLAR:
+1. SANA VERILEN SAYILARIN DISINDA HICBIR SAYI URETME, HESAPLAMA YAPMA. Yeni bir yuzde, \
+oran veya deger TURETME; sadece verilen sayilari OLDUGU GIBI aktar.
+2. Yatirim tavsiyesi VERME; "al", "sat", "tut", hedef fiyat, potansiyel getiri, "yukselecek"/ \
+"dusecek" gibi YON TAHMINI ifadeleri KESINLIKLE KULLANMA -- sadece VERILEN olgulari birbiriyle \
+iliskilendirerek NOTR, tanimlayici bir teknik resim ciz (orn. "fiyat SMA200 uzerinde ve RSI notr \
+bolgede, bu ikisi ayni yonde" gibi -- "bu yuzden yukselir" DEGIL).
+3. Abartili/sansasyonel dilden kacin; profesyonel bir teknik analist uslubu kullan. Emoji kullanma.
+4. Tum metin TURKCE olacak.
+5. Fiyatin hareketli ortalamalara GORE KONUMU ile trend/momentum gostergelerinin (ADX, MACD, RSI, \
+Bollinger) BIRBIRIYLE UYUMLU mu YOKSA CELISKILI mi oldugunu (orn. fiyat yukselis trendinde ama RSI \
+asiri alimda gibi bir uyumsuzluk) ONCELIKLENDIR -- bu en bilgilendirici teknik OLGUDUR.
+6. Yalniz asagidaki JSON semasina uyan gecerli JSON dondur; baska hicbir aciklama, markdown kod \
+blogu isareti veya ek metin EKLEME.
+7. Alan degerlerinin ICINE kendi kendine not, taslak duzeltmesi, Ingilizce meta-yorum veya \
+parantez ici ic ses YAZMA (orn. "(Wait, ...)", "(let me reconsider)" gibi ifadeler KESINLIKLE \
+YASAK). Her alan sadece nihai, temiz, yayina hazir Turkce metni icermeli.
+8. "YoY", "QoQ", "overbought", "oversold" gibi Ingilizce kisaltma/terimleri KULLANMA; bunlarin \
+yerine verilen Turkce etiketleri (orn. "asiri alim bolgesi") kullan.
+9. Turkce'ye ozgu harfleri (i, g, u, s, o, c ve buyukleri Ii, G, U, S, O, C) HER ZAMAN DOGRU \
+kullan -- ASCII'ye indirgenmis (Turkce harf ATLANMIS) kelimeler KESINLIKLE YASAK.
+
+JSON semasi:
+{
+  "headline": "en fazla 6 kelime, BUYUK HARF, teknik gorunumu NOTR ozetleyen tek cumlelik baslik \
+(orn. 'YUKARI EGILIMLI, MOMENTUM ZAYIFLIYOR' -- 'AL SINYALI' gibi bir baslik ASLA yazma)",
+  "hook": "en fazla 20 kelime, tek cumle, en carpici 1-2 teknik olguyu (orn. bolge/kesisim durumu) \
+ozetler, 'al/sat' ifadesi YOK, emoji YOK",
+  "summary": "3-5 cumlelik bir paragraf: fiyatin hareketli ortalamalara gore konumu, RSI/MACD/ADX \
+gostergelerinin BIRBIRIYLE uyumlu/celiskili oldugu, hacim ve 52 hafta konumu -- HEPSI sana verilen \
+sayı/etiketlerle, TANIMLAYICI bir dille (yon tahmini DEGIL)",
+  "positives": ["en fazla 4 madde -- fiyatin/trendin GUCUNU destekleyen OLGULAR (orn. 'Fiyat SMA200 \
+uzerinde', 'ADX guclu trend gosteriyor')"],
+  "negatives": ["en fazla 4 madde -- DIKKAT edilmesi gereken/riskli OLGULAR (orn. 'RSI asiri alim \
+bolgesinde', 'Hacim ortalamanin altinda')"],
+  "kap_note": null,
+  "disclaimer_context": null
+}"""
+
+
 # --- Istem metni insasi (SADECE onceden hesaplanmis, formatlanmis degerler) ------------
 
 
@@ -389,6 +446,42 @@ def _build_user_prompt(analysis: calculator.AnalysisResult, score: scorer.ScoreR
     return "\n".join(parts)
 
 
+def _build_user_prompt_technical(commentary_inputs: dict) -> str:
+    """Faz 15.1 -- `src.render.technical_card.build_commentary_inputs()`
+    çıktısından (ZATEN Türkçe biçimlendirilmiş, hazır etiketli) bir istem
+    metni kurar. Ham `TechnicalSnapshot`/Decimal SERİLERİ ASLA buraya
+    verilmez (Kural 1) -- sadece kartta ZATEN gösterilecek olan
+    hazır string'ler (`indicator_groups` satırları vb.) kullanılır."""
+    parts = [f"Hisse: {commentary_inputs['ticker']}  Güncel fiyat: {commentary_inputs['price_display']}"]
+
+    parts += ["", "## Gösterge Değerleri ve Bölge Etiketleri"]
+    for group in commentary_inputs["indicator_groups"]:
+        parts.append(f"[{group['title']}]")
+        for row in group["rows"]:
+            note = f" -- {row['note_display']}" if row.get("note_display") else ""
+            parts.append(f"{row['label']}: {row['value_display']}{note}")
+
+    week52 = commentary_inputs.get("week52_bar") or {}
+    if week52.get("has_data"):
+        parts += [
+            "",
+            "## 52 Hafta Aralığı",
+            f"Dip: {week52['low_display']}  Tepe: {week52['high_display']}  "
+            f"Fiyatın aralıktaki konumu: {week52['position_display']}",
+        ]
+
+    volume = commentary_inputs.get("volume_strip") or {}
+    if volume.get("has_data"):
+        parts += [
+            "",
+            "## Hacim",
+            f"Son gün: {volume['last_volume_display']}  20 günlük ortalama: {volume['avg_volume_display']}  "
+            f"Oran: ortalamanın {volume['ratio_display']}'i",
+        ]
+
+    return "\n".join(parts)
+
+
 # --- Gemini HTTP katmani -----------------------------------------------------
 
 
@@ -398,15 +491,20 @@ def _build_user_prompt(analysis: calculator.AnalysisResult, score: scorer.ScoreR
     wait=wait_fixed(config.HTTP_RATE_LIMIT_DELAY_SECONDS),
     retry=retry_if_exception_type(_RetryableLLMError),
 )
-def _call_gemini_raw(contents: list[dict]) -> str:
+def _call_gemini_raw(contents: list[dict], system_instruction: str = _SYSTEM_INSTRUCTION) -> str:
     """Tek bir Gemini generateContent cagrisi yapar, yanit metnini (JSON string
     olmasi beklenir) doner. Ag/zaman asimi/429/5xx hatalarinda _RetryableLLMError
     firlatir (tenacity bunu yakalayip yeniden dener); diger hatalarda
-    _NonRetryableLLMError firlatir (yeniden denenmez)."""
+    _NonRetryableLLMError firlatir (yeniden denenmez).
+
+    `system_instruction`: varsayılan bilanço/fundamental istemi (Faz 15.1'de
+    teknik görünüm yorumu -- `_SYSTEM_INSTRUCTION_TECHNICAL` -- için
+    parametrik hale getirildi, mevcut çağıranlar DEĞİŞMEDEN çalışmaya
+    devam eder)."""
     url = f"{_GEMINI_BASE_URL}/{config.GEMINI_MODEL}:generateContent"
     body = {
         "contents": contents,
-        "systemInstruction": {"parts": [{"text": _SYSTEM_INSTRUCTION}]},
+        "systemInstruction": {"parts": [{"text": system_instruction}]},
         "generationConfig": {
             "responseMimeType": "application/json",
             "responseSchema": _RESPONSE_SCHEMA,
@@ -479,7 +577,15 @@ def _parse_json_response(text: str) -> dict | None:
 # icinde kucuk harfle gecer.
 _ASCII_DEGRADED_TR_RE = re.compile(
     r"\b(yillik|ceyreklik|artis\w*|azalis\w*|dusus\w*|ozkaynak\w*|sirket\w*|donem\w*|"
-    r"guclu\b|duzey\w*|varlik\w*|borc\w*|gercek\w*|yukselis\w*|buyume\w*|olcek\w*)\b"
+    r"guclu\b|duzey\w*|varlik\w*|borc\w*|gercek\w*|yukselis\w*|buyume\w*|olcek\w*|"
+    # Faz 15.1 (2026-08-06, teknik görünüm yorumu, CANLI GÖZLEMLENDİ --
+    # scripts/demo_teknik.py THYAO ile GERÇEK bir Gemini yanıtında
+    # "uzerinde"/"notr"/"gosterirken"/"yuzde" gibi degrade kelimeler bu
+    # regex'in ESKİ (sadece bilanço/fundamental kökleri kapsayan) haliyle
+    # HİÇ YAKALANMAMIŞTI -- teknik analiz kelime dağarcığı tamamen farklı
+    # olduğu için ayrı bir kök seti eklendi):
+    r"uzerinde\w*|altinda\w*|notr\b|goster\w*|deger\w*|surdur\w*|yuzde\b|kesisim\w*|"
+    r"onem\w*|degisim\w*|degisken\w*)\b"
 )
 
 _SUSPICIOUS_ARTIFACT_RE = re.compile(r"-{3,}|—{2,}|\bwait\b|\bhmm\b|\blet'?s\b", re.IGNORECASE)
@@ -527,13 +633,13 @@ def _commentary_from_json(data: dict, source: str) -> Commentary:
     )
 
 
-def _call_llm_and_parse(user_prompt: str) -> Commentary:
+def _call_llm_and_parse(user_prompt: str, system_instruction: str = _SYSTEM_INSTRUCTION) -> Commentary:
     """Gemini'yi cagirir, JSON'u ayristirir; parse basarisiz olursa VEYA
     icerik supheli bir artefakt tasiyorsa (bkz. _contains_suspicious_artifact)
     BIR KEZ duzeltme istemi gonderir. Herhangi bir asamada kalici hata
     olursa exception firlatir (cagiran taraf yedek moda duser)."""
     contents = [{"role": "user", "parts": [{"text": user_prompt}]}]
-    raw_text = _call_gemini_raw(contents)
+    raw_text = _call_gemini_raw(contents, system_instruction)
 
     data = _parse_json_response(raw_text)
     if data is None or _contains_suspicious_artifact(data):
@@ -546,7 +652,7 @@ def _call_llm_and_parse(user_prompt: str) -> Commentary:
             {"role": "model", "parts": [{"text": raw_text}]},
             {"role": "user", "parts": [{"text": _JSON_FIX_INSTRUCTION}]},
         ]
-        raw_text = _call_gemini_raw(contents)
+        raw_text = _call_gemini_raw(contents, system_instruction)
         data = _parse_json_response(raw_text)
         if data is not None and _contains_suspicious_artifact(data):
             logger.warning("Düzeltme isteğinden sonra da şüpheli artefakt sürüyor, yanıta güvenilmeyecek.")
@@ -688,3 +794,65 @@ def generate_commentary_insurance(
     except Exception as exc:
         logger.warning("LLM yorum üretimi başarısız (%s), LLM'siz yedek moda geçiliyor.", exc)
         return _fallback_commentary(analysis, score, disclosures)
+
+
+# --- Teknik Görünüm yorumu (Faz 15.1, 2026-08-06) -----------------------------------
+
+
+def _fallback_commentary_technical(commentary_inputs: dict) -> Commentary:
+    """LLM'siz, tamamen şablon tabanlı mekanik özet -- `_fallback_commentary`
+    ile AYNI güvenlik ağı ilkesi (GEMINI_API_KEY yoksa/API hatasında bot
+    ASLA boş dönmez). `commentary_inputs`'taki (ZATEN Türkçe biçimlendirilmiş)
+    satırlardan basit cümleler kurar, hiçbir sayı hesaplamaz/uydurmaz."""
+    all_rows = [row for group in commentary_inputs["indicator_groups"] for row in group["rows"]]
+    # note_class "positive"/"negative"/"extreme" olan satırlar (K2: bölge/durum
+    # ETİKETİ, sinyal değil) en bilgilendirici OLGULARDIR. Açıklayıcı metin
+    # bazen note_display'de (örn. "Yakın Zamanda Oluştu"), bazen value_display'de
+    # (örn. "Altın Kesişim (Golden Cross)") olabilir -- ikisi de kontrol edilir.
+    informative_rows = [r for r in all_rows if r.get("note_class") in ("positive", "negative", "extreme")]
+
+    def _describe(row: dict) -> str:
+        return row.get("note_display") or row["value_display"]
+
+    sentences = [f"{r['label']}: {_describe(r)}." for r in informative_rows[:4]]
+    summary = " ".join(sentences) if sentences else "Göstergeler nötr/olağan aralıklarda seyrediyor."
+
+    # "extreme" (RSI/ADX/Bollinger bölge etiketleri) yön BELİRTMEZ (örn. güçlü
+    # trend yukarı da aşağı da olabilir) -- SADECE özet anlatımına girer,
+    # positives/negatives KESİN yönü olan "positive"/"negative" (Golden/Death
+    # Cross) sınıflarıyla SINIRLIDIR (Kural 3: belirsiz olguyu yöne ZORLAMA).
+    positives = [f"{r['label']}: {_describe(r)}" for r in informative_rows if r.get("note_class") == "positive"][:4]
+    negatives = [f"{r['label']}: {_describe(r)}" for r in informative_rows if r.get("note_class") == "negative"][:4]
+
+    headline = "TEKNİK GÖRÜNÜM ÖZETİ"
+    hook = sentences[0] if sentences else "Göstergeler nötr bölgede seyrediyor."
+
+    return Commentary(
+        headline=headline,
+        hook=hook,
+        summary=summary,
+        positives=positives,
+        negatives=negatives,
+        kap_note=None,
+        disclaimer_context=None,
+        source="fallback",
+    )
+
+
+def generate_commentary_technical(commentary_inputs: dict) -> Commentary:
+    """`src.render.technical_card.build_commentary_inputs()` çıktısından
+    Gemini ile teknik görünüm yorumu üretir -- `generate_commentary()` ile
+    AYNI sağlamlık garantisi (GEMINI_API_KEY yoksa veya API hatasında
+    HİÇBİR İSTİSNA FIRLATMADAN LLM'siz yedek moda düşer). AYRI bir sistem
+    istemi (`_SYSTEM_INSTRUCTION_TECHNICAL`) kullanır -- bkz. modül üst
+    notu (K2: Al/Sat/Tut sinyali ÜRETİLMEZ kuralı bu istemde de geçerli)."""
+    if not config.GEMINI_API_KEY:
+        logger.warning("GEMINI_API_KEY tanımlı değil, LLM'siz yedek moda geçildi (teknik görünüm).")
+        return _fallback_commentary_technical(commentary_inputs)
+
+    user_prompt = _build_user_prompt_technical(commentary_inputs)
+    try:
+        return _call_llm_and_parse(user_prompt, system_instruction=_SYSTEM_INSTRUCTION_TECHNICAL)
+    except Exception as exc:  # noqa: BLE001 -- Kural 9: ikincil zenginleştirme, ASLA çökmemeli
+        logger.warning("LLM teknik yorum üretimi başarısız (%s), LLM'siz yedek moda geçiliyor.", exc)
+        return _fallback_commentary_technical(commentary_inputs)

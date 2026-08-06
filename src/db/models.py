@@ -122,6 +122,31 @@ class CommentaryCache(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow_naive)
 
 
+class TechnicalCommentaryCache(Base):
+    """Faz 15.1: `/teknik` kartının Gemini teknik yorumu için `CommentaryCache`
+    ile AYNI amaçlı (Gemini günlük kota sınırı) ama AYRI bir önbellek --
+    tazelik anahtarı ÇEYREK (year/period) değil `as_of_date` (o günün
+    işlem kapanışı, bkz. TechnicalSnapshot.as_of_date): teknik görünüm her
+    işlem gününde değişebilir, fundamental veri gibi çeyreklik durağan
+    DEĞİLDİR. Aynı (ticker, market, as_of_date) için tekrar sorgulanınca
+    (örn. aynı gün birden fazla kullanıcı) Gemini TEKRAR ÇAĞRILMAZ."""
+
+    __tablename__ = "technical_commentary_cache"
+    __table_args__ = (UniqueConstraint("ticker", "market", "as_of_date", name="uq_technical_commentary_cache_key"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    ticker: Mapped[str] = mapped_column(String(20), index=True)
+    market: Mapped[str] = mapped_column(String(10))
+    as_of_date: Mapped[date] = mapped_column(Date)
+    headline: Mapped[str] = mapped_column(String(255))
+    hook: Mapped[str] = mapped_column(String(300))
+    summary: Mapped[str] = mapped_column(String(2000))
+    positives: Mapped[list] = mapped_column(JSON)
+    negatives: Mapped[list] = mapped_column(JSON)
+    source: Mapped[str] = mapped_column(String(20))  # "llm" | "fallback"
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow_naive)
+
+
 class EarningsCalendar(Base):
     """Faz 12: "Yaklaşan Bilanço Tarihleri" onbellek tablosu -- her (ticker,
     year, period) icin EN SON hesaplanan tahmini/kesin tarihi tutar (bkz.

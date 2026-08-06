@@ -61,6 +61,12 @@ _CHART_VIEWBOX_WIDTH = 1000
 _CHART_VIEWBOX_HEIGHT = 320
 _CHART_PADDING = 12  # ust/alt kucuk bosluk -- cizgiler viewBox kenarina yapismasin
 
+# Faz 15.1 (kullanıcı raporu -- referans görsellerdeki gibi MACD/RSI/Hacim
+# GÖRSEL birer grafik olsun istendi, ama "karışık" olmasın): bu 3 yeni panel
+# ana fiyat grafiğinden BELİRGİN KÜÇÜK/kompakt tutulur (~1/3 yükseklik).
+_MINI_CHART_VIEWBOX_HEIGHT = 110
+_MINI_CHART_PADDING = 10
+
 
 def _num(value: Decimal | None, decimals: int = 2) -> str:
     return format_number_tr(value, decimals) if value is not None else "N/A"
@@ -186,18 +192,160 @@ def _build_indicator_groups(snapshot: TechnicalSnapshot, market: str) -> list[di
     ]
 
 
-def _scale_series_to_points(series: tuple[Decimal | None, ...], min_v: Decimal, span: Decimal, n: int) -> str | None:
+def _scale_series_to_points(
+    series: tuple[Decimal | None, ...],
+    min_v: Decimal,
+    span: Decimal,
+    n: int,
+    viewbox_height: int = _CHART_VIEWBOX_HEIGHT,
+    padding: int = _CHART_PADDING,
+) -> str | None:
     if n <= 1 or not any(v is not None for v in series):
         return None
-    usable_height = Decimal(_CHART_VIEWBOX_HEIGHT - 2 * _CHART_PADDING)
+    usable_height = Decimal(viewbox_height - 2 * padding)
     points = []
     for i, value in enumerate(series):
         if value is None:
             continue
         x = Decimal(i) / Decimal(n - 1) * _CHART_VIEWBOX_WIDTH
-        y = _CHART_PADDING + (usable_height - (value - min_v) / span * usable_height)
+        y = padding + (usable_height - (value - min_v) / span * usable_height)
         points.append(f"{x:.1f},{y:.1f}")
     return " ".join(points) if points else None
+
+
+def _value_to_y(
+    value: Decimal, min_v: Decimal, span: Decimal, viewbox_height: int = _CHART_VIEWBOX_HEIGHT, padding: int = _CHART_PADDING
+) -> Decimal:
+    """`_scale_series_to_points()` ile AYNI ölçekleme formülü -- TEK bir
+    değeri (örn. MACD sıfır çizgisi, RSI 70/30 referansı) y koordinatına
+    çevirmek için. Yeni bir HESAPLAMA değil, aynı doğrusal dönüşümün
+    tekrar kullanılabilir hali (bkz. modül üst notu K1 istisnası)."""
+    usable_height = Decimal(viewbox_height - 2 * padding)
+    return padding + (usable_height - (value - min_v) / span * usable_height)
+
+
+def _mini_chart_bounds(*series_list: tuple[Decimal | None, ...], include_zero: bool = False) -> tuple[Decimal, Decimal] | None:
+    """Birden fazla seriyi BİRLİKTE (aynı ölçekte) çizebilmek için ortak
+    min/span hesaplar. `include_zero`: MACD gibi sıfır çizgisinin HER ZAMAN
+    görünür olması gereken grafiklerde 0'ı da aralığa dahil eder."""
+    values = [v for series in series_list for v in series if v is not None]
+    if not values:
+        return None
+    if include_zero:
+        values.append(Decimal(0))
+    max_v, min_v = max(values), min(values)
+    span = (max_v - min_v) or Decimal(1)
+    return min_v, span
+
+
+def _build_macd_chart(snapshot: TechnicalSnapshot) -> dict:
+    """MACD çizgisi + sinyal çizgisi + histogram -- referans görsellerdeki
+    "Momentum göstergesi" panelinin karşılığı. Sinyal DEĞİL (K2), sadece
+    zaten `technical.macd_series()` ile hesaplanmış OLGUNUN görselleştirmesi."""
+    line, signal, hist = snapshot.chart_macd_line, snapshot.chart_macd_signal, snapshot.chart_macd_histogram
+    n = len(line)
+    bounds = _mini_chart_bounds(line, signal, hist, include_zero=True) if n > 1 else None
+    if bounds is None:
+        return {"has_data": False}
+    min_v, span = bounds
+
+    zero_y = _value_to_y(Decimal(0), min_v, span, _MINI_CHART_VIEWBOX_HEIGHT, _MINI_CHART_PADDING)
+    bar_width = Decimal(_CHART_VIEWBOX_WIDTH) / Decimal(n) * Decimal("0.6")
+    bars = []
+    for i, value in enumerate(hist):
+        if value is None:
+            continue
+        x = Decimal(i) / Decimal(n - 1) * _CHART_VIEWBOX_WIDTH
+        y_value = _value_to_y(value, min_v, span, _MINI_CHART_VIEWBOX_HEIGHT, _MINI_CHART_PADDING)
+        top = min(y_value, zero_y)
+        bars.append(
+            {
+                "x": f"{(x - bar_width / 2):.1f}",
+                "y": f"{top:.1f}",
+                "width": f"{bar_width:.1f}",
+                "height": f"{abs(y_value - zero_y):.1f}",
+                "positive": value >= 0,
+            }
+        )
+
+    return {
+        "has_data": True,
+        "viewbox_width": _CHART_VIEWBOX_WIDTH,
+        "viewbox_height": _MINI_CHART_VIEWBOX_HEIGHT,
+        "line_points": _scale_series_to_points(line, min_v, span, n, _MINI_CHART_VIEWBOX_HEIGHT, _MINI_CHART_PADDING),
+        "signal_points": _scale_series_to_points(signal, min_v, span, n, _MINI_CHART_VIEWBOX_HEIGHT, _MINI_CHART_PADDING),
+        "histogram_bars": bars,
+        "zero_line_y": f"{zero_y:.1f}",
+        "macd_display": _num(snapshot.macd_line, 3),
+        "signal_display": _num(snapshot.macd_signal, 3),
+    }
+
+
+def _build_rsi_chart(snapshot: TechnicalSnapshot) -> dict:
+    """RSI çizgisi + Wilder'in KENDİ 70/30 eşiği (bkz. `_RSI_ASIRI_ALIM_ESIGI`/
+    `_RSI_ASIRI_SATIM_ESIGI`, zaten tablo bölge etiketinde de kullanılıyor)
+    -- sabit 0-100 ölçeği kullanır (RSI tanım gereği bu aralıkta kalır),
+    dinamik min/max HESAPLANMAZ (K2: bant bir sinyal değil, sadece Wilder'in
+    yayınladığı klasik referans çizgisi)."""
+    series = snapshot.chart_rsi
+    n = len(series)
+    if n < 2 or not any(v is not None for v in series):
+        return {"has_data": False}
+
+    min_v, max_v = Decimal(0), Decimal(100)
+    span = max_v - min_v
+    overbought_y = _value_to_y(_RSI_ASIRI_ALIM_ESIGI, min_v, span, _MINI_CHART_VIEWBOX_HEIGHT, _MINI_CHART_PADDING)
+    oversold_y = _value_to_y(_RSI_ASIRI_SATIM_ESIGI, min_v, span, _MINI_CHART_VIEWBOX_HEIGHT, _MINI_CHART_PADDING)
+
+    return {
+        "has_data": True,
+        "viewbox_width": _CHART_VIEWBOX_WIDTH,
+        "viewbox_height": _MINI_CHART_VIEWBOX_HEIGHT,
+        "rsi_points": _scale_series_to_points(series, min_v, span, n, _MINI_CHART_VIEWBOX_HEIGHT, _MINI_CHART_PADDING),
+        "overbought_y": f"{overbought_y:.1f}",
+        "oversold_y": f"{oversold_y:.1f}",
+        "current_display": _num(snapshot.rsi_14, 1),
+    }
+
+
+def _build_volume_history_chart(snapshot: TechnicalSnapshot) -> dict:
+    """Geçmiş hacim çubukları + 20 günlük ortalama referans çizgisi --
+    mevcut `_build_volume_strip()`'in (tek günlük oran çubuğu) YERİNE
+    DEĞİL, YANINA (görsel geçmiş bağlamı için)."""
+    volumes = snapshot.chart_volumes
+    n = len(volumes)
+    if n < 2:
+        return {"has_data": False}
+
+    max_v = max(volumes) or Decimal(1)
+    usable_height = Decimal(_MINI_CHART_VIEWBOX_HEIGHT - _MINI_CHART_PADDING)
+    bar_width = Decimal(_CHART_VIEWBOX_WIDTH) / Decimal(n) * Decimal("0.7")
+
+    bars = []
+    for i, value in enumerate(volumes):
+        x = Decimal(i) / Decimal(n - 1) * _CHART_VIEWBOX_WIDTH
+        height = (value / max_v) * usable_height
+        bars.append(
+            {
+                "x": f"{(x - bar_width / 2):.1f}",
+                "y": f"{(Decimal(_MINI_CHART_VIEWBOX_HEIGHT) - height):.1f}",
+                "width": f"{bar_width:.1f}",
+                "height": f"{height:.1f}",
+            }
+        )
+
+    avg_line_y = None
+    if snapshot.avg_volume_20:
+        avg_height = (snapshot.avg_volume_20 / max_v) * usable_height
+        avg_line_y = f"{(Decimal(_MINI_CHART_VIEWBOX_HEIGHT) - avg_height):.1f}"
+
+    return {
+        "has_data": True,
+        "viewbox_width": _CHART_VIEWBOX_WIDTH,
+        "viewbox_height": _MINI_CHART_VIEWBOX_HEIGHT,
+        "bars": bars,
+        "avg_line_y": avg_line_y,
+    }
 
 
 def _build_chart_gridlines(min_v: Decimal, span: Decimal, market: str) -> list[dict]:
@@ -273,17 +421,54 @@ def _build_volume_strip(snapshot: TechnicalSnapshot) -> dict:
     }
 
 
+def _build_commentary_context(commentary) -> dict | None:
+    """`src.ai.commentary.Commentary` (technical varyantı) -> şablonun
+    ihtiyaç duyduğu düz sözlük. `commentary` None ise (Gemini de fallback
+    de başarısız/hiç çağrılmadıysa) bölüm şablonda tamamen GİZLENİR (Kural 9:
+    ikincil bir zenginleştirme, ana kartı ASLA bloklamaz/çökertmez)."""
+    if commentary is None:
+        return None
+    return {
+        "headline": commentary.headline,
+        "summary": commentary.summary,
+        "positives": commentary.positives,
+        "negatives": commentary.negatives,
+        "source": commentary.source,
+    }
+
+
+def build_commentary_inputs(snapshot: TechnicalSnapshot, ticker: str, market: str) -> dict:
+    """`src.ai.commentary.generate_commentary_technical()`'a beslenecek,
+    ÖNCEDEN Türkçe biçimlendirilmiş metin parçalarını hazırlar (Kural 1:
+    LLM'e ham sayı/seri VERİLMEZ, sadece kartta ZATEN gösterilecek hazır
+    string'ler). `build_technical_context()` ile AYNI alt fonksiyonları
+    (`_build_indicator_groups` vb.) kullanır -- mantık KOPYALANMAZ, sadece
+    çağrı sırası farklıdır (yorum ÖNCE üretilip context'e SONRA verilir)."""
+    return {
+        "ticker": ticker,
+        "price_display": _price_display(snapshot.price, market),
+        "indicator_groups": _build_indicator_groups(snapshot, market),
+        "week52_bar": _build_week52_bar(snapshot, market),
+        "volume_strip": _build_volume_strip(snapshot),
+    }
+
+
 def build_technical_context(
     snapshot: TechnicalSnapshot | None,
     ticker: str,
     market: str,
     company_name: str | None = None,
     now: datetime | None = None,
+    commentary=None,
 ) -> dict:
     """`snapshot`: src.analysis.technical.compute_snapshot() çıktısı (yeterli
     fiyat geçmişi yoksa None). None ise kart yine üretilir ama
     `has_data=False` ile "yeterli veri yok" durumunu gösterir (Kural 3:
-    uydurma yapmak yerine dürüstçe eksikliği bildirir)."""
+    uydurma yapmak yerine dürüstçe eksikliği bildirir).
+
+    `commentary`: `src.ai.commentary.generate_commentary_technical()`
+    çıktısı (opsiyonel) -- verilmezse "Teknik Değerlendirme" bölümü
+    şablonda gizlenir (Kural 9, bkz. `_build_commentary_context`)."""
     now = now or datetime.now()
     market_label = _MARKET_LABELS.get(market, market)
     data_sources_note = _DATA_SOURCE_NOTES.get(market, market)
@@ -306,8 +491,12 @@ def build_technical_context(
         "has_data": True,
         "as_of_date_display": snapshot.as_of_date.strftime("%d.%m.%Y"),
         "price_display": _price_display(snapshot.price, market),
+        "commentary": _build_commentary_context(commentary),
         "indicator_groups": _build_indicator_groups(snapshot, market),
         "price_chart": _build_price_chart(snapshot, market),
+        "macd_chart": _build_macd_chart(snapshot),
+        "rsi_chart": _build_rsi_chart(snapshot),
+        "volume_history_chart": _build_volume_history_chart(snapshot),
         "week52_bar": _build_week52_bar(snapshot, market),
         "volume_strip": _build_volume_strip(snapshot),
     }

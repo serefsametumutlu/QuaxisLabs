@@ -80,6 +80,15 @@ class TechnicalSnapshot:
     chart_closes: tuple[Decimal, ...]
     chart_sma50: tuple[Decimal | None, ...]
     chart_sma200: tuple[Decimal | None, ...]
+    # Faz 15.1 (kullanıcı raporu): MACD/RSI/Hacim artık kartta GÖRSEL
+    # birer çizgi/çubuk grafiği -- bu yüzden (tablo için tutulan tek
+    # güncel değerin YANI SIRA) `chart_dates` ile AYNI pencereye/uzunluğa
+    # hizalı tam seriler de tutulur.
+    chart_rsi: tuple[Decimal | None, ...]
+    chart_macd_line: tuple[Decimal | None, ...]
+    chart_macd_signal: tuple[Decimal | None, ...]
+    chart_macd_histogram: tuple[Decimal | None, ...]
+    chart_volumes: tuple[Decimal, ...]
 
 
 # --- Hareketli ortalamalar ----------------------------------------------------
@@ -180,9 +189,37 @@ def rsi_wilder(closes: list[Decimal], period: int = 14) -> Decimal | None:
       - ort_kazanc == ort_kayip == 0 (fiyat TAMAMEN sabit) -> RS tanimsiz
         (0/0); kural geregi notr RSI = 50 doner.
     """
+    series = rsi_series(closes, period)
+    return series[-1] if series else None
+
+
+def _rsi_from_averages(avg_gain: Decimal, avg_loss: Decimal) -> Decimal:
+    """rsi_wilder()/rsi_series() ARASINDA paylaşılan kenar-durum mantığı --
+    tek bir yerde tutulur ki ikisi ASLA birbirinden SAPMASIN."""
+    if avg_gain == 0 and avg_loss == 0:
+        return Decimal(50)
+    if avg_loss == 0:
+        return Decimal(100)
+    rs = avg_gain / avg_loss
+    return Decimal(100) - (Decimal(100) / (Decimal(1) + rs))
+
+
+def rsi_series(closes: list[Decimal], period: int = 14) -> list[Decimal | None]:
+    """rsi_wilder() ile AYNI formül (Wilder 1978, bkz. o fonksiyonun
+    docstring'i) ama TEK bir güncel değer yerine `closes` ile AYNI
+    uzunlukta TAM SERİ döner -- kart üzerinde RSI'ı bir ÇİZGİ GRAFİĞİ
+    olarak göstermek için (Faz 15.1, kullanıcı raporu: teknik kartın
+    MACD/RSI'ı sadece tek sayı olarak değil, referans görsellerdeki gibi
+    görsel bir çizgi olarak da göstermesi istendi).
+
+    İlk `period` eleman (ilk RSI'ı hesaplamak için yeterli delta
+    birikmeden önce) None'dır -- `rsi_wilder()`'ın "yetersiz veri"
+    kuralıyla AYNI (K4: uydurma yapılmaz).
+    """
     n = len(closes)
+    result: list[Decimal | None] = [None] * n
     if n < period + 1:
-        return None
+        return result
 
     deltas = [closes[i] - closes[i - 1] for i in range(1, n)]
     gains = [max(d, Decimal(0)) for d in deltas]
@@ -190,18 +227,14 @@ def rsi_wilder(closes: list[Decimal], period: int = 14) -> Decimal | None:
 
     avg_gain = sum(gains[:period]) / period
     avg_loss = sum(losses[:period]) / period
+    result[period] = _rsi_from_averages(avg_gain, avg_loss)
 
     for i in range(period, len(deltas)):
         avg_gain = (avg_gain * (period - 1) + gains[i]) / period
         avg_loss = (avg_loss * (period - 1) + losses[i]) / period
+        result[i + 1] = _rsi_from_averages(avg_gain, avg_loss)
 
-    if avg_gain == 0 and avg_loss == 0:
-        return Decimal(50)
-    if avg_loss == 0:
-        return Decimal(100)
-
-    rs = avg_gain / avg_loss
-    return Decimal(100) - (Decimal(100) / (Decimal(1) + rs))
+    return result
 
 
 # --- MACD ------------------------------------------------------------------
@@ -225,23 +258,44 @@ def macd(
 
     Doner: (macd_cizgisi, sinyal_cizgisi, histogram) -- EN GUNCEL deger.
     """
-    n = len(closes)
-    if n < slow + signal:
+    line_series, signal_series, hist_series = macd_series(closes, fast, slow, signal)
+    if not line_series or signal_series[-1] is None:
         return None
+    return line_series[-1], signal_series[-1], hist_series[-1]
+
+
+def macd_series(
+    closes: list[Decimal], fast: int = 12, slow: int = 26, signal: int = 9
+) -> tuple[list[Decimal | None], list[Decimal | None], list[Decimal | None]]:
+    """macd() ile AYNI formül (bkz. o fonksiyonun docstring'i) ama TEK bir
+    güncel değer yerine `closes` ile AYNI uzunlukta ÜÇ TAM SERİ döner --
+    kart üzerinde MACD'yi çizgi+histogram grafiği olarak göstermek için
+    (bkz. rsi_series() üst notu, AYNI gerekçe).
+
+    Yeterli veri yoksa (n < slow + signal) üç serinin de TAMAMI None'dır.
+    Sinyal çizgisi, MACD serisinin kendisinin bir EMA'sı olduğu için MACD
+    serisinden DAHA GEÇ başlar -- bu noktaya kadar sinyal/histogram None,
+    MACD çizgisi ise (EMA slow dolar dolmaz) daha ERKEN başlar.
+    """
+    n = len(closes)
+    empty = [None] * n
+    if n < slow + signal:
+        return empty, list(empty), list(empty)
 
     ema_fast = ema_series(closes, fast)
     ema_slow = ema_series(closes, slow)
 
     start_idx = slow - 1  # ema_slow ilk defa bu indexte dolar (fast daha erken doldugu icin guvenli)
-    macd_line_series = [ema_fast[i] - ema_slow[i] for i in range(start_idx, n)]
+    macd_values = [ema_fast[i] - ema_slow[i] for i in range(start_idx, n)]
+    signal_values = ema_series(macd_values, signal)
+    hist_values = [
+        (m - s) if s is not None else None for m, s in zip(macd_values, signal_values)
+    ]
 
-    signal_series = ema_series(macd_line_series, signal)
-    if signal_series[-1] is None:
-        return None
-
-    macd_last = macd_line_series[-1]
-    signal_last = signal_series[-1]
-    return macd_last, signal_last, macd_last - signal_last
+    line_series: list[Decimal | None] = [None] * start_idx + macd_values
+    signal_series: list[Decimal | None] = [None] * start_idx + signal_values
+    hist_series: list[Decimal | None] = [None] * start_idx + hist_values
+    return line_series, signal_series, hist_series
 
 
 # --- Bollinger Bantlari --------------------------------------------------------
@@ -542,6 +596,8 @@ def compute_snapshot(bars: list[PriceBar]) -> TechnicalSnapshot | None:
 
     sma_50_series = sma_series(closes, 50)
     sma_200_series = sma_series(closes, 200)
+    rsi_full_series = rsi_series(closes, 14)
+    macd_line_series, macd_signal_series, macd_hist_series = macd_series(closes)
     cross = sma_cross_state(sma_50_series, sma_200_series)
     cutoff = bars[-1].trade_date - timedelta(days=_CHART_LOOKBACK_DAYS)
     chart_indices = [i for i, bar in enumerate(bars) if bar.trade_date >= cutoff]
@@ -576,4 +632,9 @@ def compute_snapshot(bars: list[PriceBar]) -> TechnicalSnapshot | None:
         chart_closes=tuple(closes[i] for i in chart_indices),
         chart_sma50=tuple(sma_50_series[i] for i in chart_indices),
         chart_sma200=tuple(sma_200_series[i] for i in chart_indices),
+        chart_rsi=tuple(rsi_full_series[i] for i in chart_indices),
+        chart_macd_line=tuple(macd_line_series[i] for i in chart_indices),
+        chart_macd_signal=tuple(macd_signal_series[i] for i in chart_indices),
+        chart_macd_histogram=tuple(macd_hist_series[i] for i in chart_indices),
+        chart_volumes=tuple(volumes[i] for i in chart_indices),
     )

@@ -33,6 +33,7 @@ from src.db.models import (
     Fund,
     FundHolding,
     GeneratedCard,
+    TechnicalCommentaryCache,
     DefaultSessionLocal,
     utcnow_naive,
     init_db,
@@ -323,6 +324,65 @@ def save_commentary(
             CommentaryCache(
                 ticker=ticker, year=year, period=period_no, headline=headline, hook=hook, summary=summary,
                 positives=positives, negatives=negatives, kap_note=kap_note, source=source,
+            )
+        )
+    session.commit()
+
+
+# --- Teknik Görünüm yorumu önbelleği (Faz 15.1) -----------------------------------
+
+
+def get_technical_commentary(session: Session, ticker: str, market: str, as_of_date: date) -> TechnicalCommentaryCache | None:
+    """(ticker, market, as_of_date) için önceden üretilmiş bir yorum var
+    mı kontrol eder -- `get_commentary()` (fundamental) ile AYNI amaç,
+    tazelik anahtarı ÇEYREK değil işlem günü (bkz. modül üst notu)."""
+    return session.execute(
+        select(TechnicalCommentaryCache).where(
+            TechnicalCommentaryCache.ticker == ticker,
+            TechnicalCommentaryCache.market == market,
+            TechnicalCommentaryCache.as_of_date == as_of_date,
+        )
+    ).scalar_one_or_none()
+
+
+def save_technical_commentary(
+    session: Session,
+    ticker: str,
+    market: str,
+    as_of_date: date,
+    headline: str,
+    hook: str,
+    summary: str,
+    positives: list[str],
+    negatives: list[str],
+    source: str,
+) -> None:
+    """(ticker, market, as_of_date) için yorumu upsert eder -- `save_commentary()`
+    ile AYNI ilke. `Company`'ye FK OLMADIĞI için (EarningsCalendar ile AYNI
+    gerekçe: `/teknik` komutu bir Bilanço Analizi ÖN KOŞULU GEREKTİRMEZ,
+    ticker Company tablosunda hiç KAYITLI olmayabilir) `_get_or_create_company`
+    ÇAĞRILMAZ."""
+    existing = session.execute(
+        select(TechnicalCommentaryCache).where(
+            TechnicalCommentaryCache.ticker == ticker,
+            TechnicalCommentaryCache.market == market,
+            TechnicalCommentaryCache.as_of_date == as_of_date,
+        )
+    ).scalar_one_or_none()
+
+    if existing is not None:
+        existing.headline = headline
+        existing.hook = hook
+        existing.summary = summary
+        existing.positives = positives
+        existing.negatives = negatives
+        existing.source = source
+        existing.created_at = utcnow_naive()
+    else:
+        session.add(
+            TechnicalCommentaryCache(
+                ticker=ticker, market=market, as_of_date=as_of_date, headline=headline, hook=hook,
+                summary=summary, positives=positives, negatives=negatives, source=source,
             )
         )
     session.commit()

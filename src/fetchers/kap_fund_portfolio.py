@@ -92,6 +92,23 @@ veya DİĞER bölümünün TÜREV başlığına taşıp yanlış satır karışt
 artık ayrıştırılmıyor bile olsa, portföyün TOPLAM %100'e tamamlanması
 etkilenmiyor: parçalanmamış TÜM fark (türev dahil) tek bir "nakit"
 residual satırına düşüyor (bkz. `_parse_portfolio_pdf`).
+
+🚨 KULLANICI KARARI #9 (2026-08-06, kullanıcı fvt.com.tr'nin "AI Tahmin
+Ağı" görselini paylaşıp HMV'yi de fiyatladıklarını fark etmesiyle
+bulundu): TLY'nin Temmuz 2026 raporunda "DİĞER" bölümü HMV (%5,62) ve T3B
+(%0,01) adlı iki fon-içinde-fon satırı içeriyordu ama `_FUND_TICKER_RE`
+SADECE PHE'deki "PCS-PUSULA..." gibi kurucu adı EKLENMİŞ (tire+isim)
+kodları eşleştiriyordu -- HMV/T3B TİRE OLMADAN, TEK BAŞINA yazılmıştı
+(CANLI PDF'te doğrulandı: `data/exploration/kap_portfoy_tly_2026_07_text.txt`).
+Sonuç: "DİĞER" bölümünün grup toplamı %0 çıkıp TAMAMEN reddediliyordu
+(Kural 3 -- yanlış rakamdan iyidir), bu iki fon TAMAMEN "nakit" residual'e
+düşüyordu (fiyatlandırılamıyor, %0 getiri VARSAYILIYORDU) -- oysa ikisi
+de GERÇEK, GÜNLÜK NAV'ı olan TEFAS fonları (`tefas.fetch_fund_returns()`
+ile CANLI doğrulandı: HMV d1=-%0,70, T3B d1=+%2,00 -- fvt.com.tr'nin
+ekran görüntüsündeki -%0,70/+%2,00 ile BİREBİR eşleşti). `_FUND_TICKER_RE`
+artık HEM tire+isim HEM tek başına (T3B gibi harf+rakam karışık) kodları
+kabul ediyor. CANLI doğrulandı: TLY'nin kapsanan ağırlığı (covered_weight)
+artık %81,83'ten ~%87,5'e çıkıyor.
 """
 
 from __future__ import annotations
@@ -129,7 +146,12 @@ _HEADERS = {
 # PDF satır ayrıştırma sabitleri -- PHE (Temmuz 2026) ve TLY (Temmuz 2026)
 # raporlarıyla CANLI kalibre edildi (bkz. modül üst notu).
 _STOCK_TICKER_RE = re.compile(r"^[A-ZÇĞİÖŞÜ]{2,6}\d?$")  # "AKSEN", "ALKLC" gibi
-_FUND_TICKER_RE = re.compile(r"^[A-Z]{2,6}-")  # "PCS-PUSULA..." gibi -- fon-icinde-fon satirlari
+# "PCS-PUSULA..." (PHE) gibi kurucu adı EKLENMİŞ kodları HEM "HMV"/"T3B"
+# (TLY, 2026-08-06 kullanıcı raporu -- bkz. modül üst notu Kullanıcı
+# Kararı #9) gibi TEK BAŞINA (tire/isim OLMADAN) yazılan kodları KAPSAR --
+# ikinci biçim ÖNCEDEN eşleşmiyordu, bu yüzden TLY'nin "DİĞER" bölümü
+# (HMV+T3B, %5,63 ağırlık) grup toplamı %0 çıkıp TAMAMEN reddediliyordu.
+_FUND_TICKER_RE = re.compile(r"^[A-Z0-9]{2,6}(-.*)?$")
 _ISIN_RE = re.compile(r"^TR[A-Z0-9]{10,11}$")
 _PURE_INT_RE = re.compile(r"^\d{5,10}$")  # borsa sözleşme no gibi virgülsüz tam sayı -- atlanır
 # TÜREV artık AYRIŞTIRILMIYOR (bkz. modül üst notu, Kullanıcı Kararı #3) ama

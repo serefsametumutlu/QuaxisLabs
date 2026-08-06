@@ -24,6 +24,7 @@ from src.fetchers import kap_fund_portfolio as kfp
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 PHE_PDF_BYTES = (FIXTURES_DIR / "kap_portfoy_dagilim_phe_2026_07.pdf").read_bytes()
+TLY_PDF_BYTES = (FIXTURES_DIR / "kap_portfoy_dagilim_tly_2026_07.pdf").read_bytes()
 
 
 _PHE_SEARCH_RESULT = {
@@ -251,6 +252,31 @@ def test_parse_portfolio_pdf_gercek_rapor_grup_toplamlariyla_esler():
 
     fon_tickers = {h.ticker for h in fon}
     assert fon_tickers == {"PCS", "PDG", "PKZ", "PRY"}
+
+
+def test_parse_portfolio_pdf_diger_bolumde_tiresiz_fon_kodu_da_ayristirilir():
+    """CANLI hata + düzeltme (2026-08-06, Kullanıcı Kararı #9): TLY
+    Temmuz 2026 raporunun 'DİĞER' bölümü HMV/T3B'yi PHE'deki
+    "PCS-PUSULA..." (tire+isim) BİÇİMİNDEN FARKLI olarak TİRE OLMADAN,
+    TEK BAŞINA (HMV, T3B) yazıyor -- eski `_FUND_TICKER_RE` bunları hiç
+    eşleştirmiyordu, bölümün grup toplamı %0 çıkıp TAMAMEN reddediliyordu
+    (her ikisi de 'nakit' residual'e düşüyordu). Bkz. `data/exploration/
+    kap_portfoy_tly_2026_07_text.txt` (ham PDF metni kanıtı)."""
+    holdings = kfp._parse_portfolio_pdf(TLY_PDF_BYTES)
+
+    hisse = [h for h in holdings if h.instrument_type == "hisse"]
+    fon = [h for h in holdings if h.instrument_type == "fon"]
+    nakit = [h for h in holdings if h.instrument_type == "nakit"]
+
+    assert len(hisse) == 23
+    assert sum(h.weight_pct for h in hisse) == Decimal("81.83")
+    assert len(nakit) == 1
+
+    by_ticker = {h.ticker: h for h in fon}
+    assert by_ticker["HMV"].weight_pct == Decimal("5.62")
+    assert by_ticker["T3B"].weight_pct == Decimal("0.01")
+
+    assert sum(h.weight_pct for h in holdings) == Decimal("100.00")
 
 
 def test_parse_portfolio_pdf_gecersiz_pdf_bos_liste_doner():

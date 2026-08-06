@@ -27,6 +27,22 @@ Yönetim ücreti (`fund_expense_ratio_annual_pct`) bu fazda HİÇBİR kaynaktan
 ÇEKİLMİYOR -- `fund_estimator.estimate_daily_return()`'a `None` geçilir
 (Decimal(0) varsayılır, sistematik iyimser bir sapma kaynağıdır, bkz. o
 modülün docstring'i).
+
+🚨 KULLANICI KARARI #8 (2026-08-06, CANLI hata + düzeltme, ikinci tur):
+`_hisse_daily_return()`'daki `yahoo_quote` yolu GÜNLÜK BAR dizisinden
+hesap yaptığı için az işlem gören BİST hisselerinde (örn. OZATD)
+DAKİKALARCA/SAATLERCE bayat kalabiliyordu (bkz. `yahoo_quote.py` üst
+notu #2) -- CANLI kıyaslamada (fvt.com.tr'nin "KAP Dağılımına Göre"
+rakamlarıyla) bu, TLY fon tahmininin hâlâ gerçekten sapmasına yol
+açıyordu. `src.fetchers.tradingview_quote` (proje içinde ZATEN güvenilir
+sayılan `scanner.tradingview.com` ailesinden, 15 dakika gecikmeli CANLI
+akış -- `update_mode: "delayed_streaming_900"`, fvt.com.tr'nin kendi
+belirttiği gecikmeyle BİREBİR örtüşüyor) artık BİRİNCİL kaynak: TEK bir
+istekle portföydeki TÜM hisse ticker'larının günlük getirisi çekilir
+(`_hisse_daily_returns_batch`). `yahoo_quote` SADECE TradingView'in
+bulamadığı/eksik bıraktığı ticker'lar için YEDEK olarak kalmaya devam
+ediyor (tamamen KALDIRILMADI -- iki kaynağın örtüşmediği nadir bir
+durumda hâlâ bir şans daha vermek için).
 """
 
 from __future__ import annotations
@@ -39,7 +55,7 @@ from decimal import Decimal
 
 from src.analysis import fund_estimator
 from src.db import repository
-from src.fetchers import kap_fund_portfolio as kfp, tefas, yahoo_quote
+from src.fetchers import kap_fund_portfolio as kfp, tefas, tradingview_quote, yahoo_quote
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +90,7 @@ class FundEstimateResult:
     portfolio: "kfp.FundPortfolio | None"
 
 
-def _hisse_daily_return(ticker: str) -> Decimal | None:
+def _hisse_daily_return_fallback(ticker: str) -> Decimal | None:
     """🚨 KULLANICI KARARI #7 (2026-08-05, CANLI hata): eskiden
     `isyatirim.fetch_price_history()` kullanılıyordu -- bu uç nokta
     BUGÜNÜN kapanışını YAYINLAMIYOR (bir tam gün gecikmeli, CANLI
@@ -82,8 +98,12 @@ def _hisse_daily_return(ticker: str) -> Decimal | None:
     gerçek bugünkü kapanış %8,41 idi). `yahoo_quote.fetch_daily_return()`
     (Yahoo'nun ".IS" uzantılı BİST sembolleri) CANLI test edildi ve
     kullanıcının bildirdiği rakamla BİREBİR eşleşti -- bkz. o modülün
-    üst notu. `isyatirim.py` diğer akışlarda (teknik analiz vb.)
-    DEĞİŞTİRİLMEDİ, sadece BURADA (bugünün getirisi kritik) değişti."""
+    üst notu.
+
+    🚨 KULLANICI KARARI #8 (2026-08-06): bu fonksiyon artık BİRİNCİL
+    kaynak DEĞİL -- `_hisse_daily_returns_batch()` (TradingView, toplu)
+    önce denenir, bu SADECE onun bulamadığı ticker'lar için TEK TEK
+    çağrılan bir YEDEK yoldur (bkz. modül üst notu, Kullanıcı Kararı #8)."""
     return yahoo_quote.fetch_daily_return(ticker, suffix=".IS")
 
 
@@ -96,9 +116,9 @@ def _fon_daily_return(ticker: str) -> Decimal | None:
     return returns.d1
 
 
-def _fetch_one_return(instrument_type: str, ticker: str) -> Decimal | None:
+def _fetch_one_fallback_return(instrument_type: str, ticker: str) -> Decimal | None:
     try:
-        return _hisse_daily_return(ticker) if instrument_type == "hisse" else _fon_daily_return(ticker)
+        return _hisse_daily_return_fallback(ticker) if instrument_type == "hisse" else _fon_daily_return(ticker)
     except Exception:  # noqa: BLE001 -- ikincil veri, TEK bir kalemdeki hata TÜM tahmini ÇÖKERTMEMELİ
         logger.warning("%s (%s) için günlük getiri çekilemedi", ticker, instrument_type, exc_info=True)
         return None
@@ -111,24 +131,37 @@ def _price_changes_for_portfolio(portfolio: "kfp.FundPortfolio") -> dict[str, De
     `fund_estimator`'da otomatik "fiyatlandırılamadı" sayılır -- burada
     hata FIRLATILMAZ, sadece o anahtar sözlükte YOK olur.
 
-    CANLI KULLANICI RAPORU (2026-08-05): 24 kalemli TLY için bu adım
-    (TEK TEK, aralarında nezaket gecikmesiyle) ~4 DAKİKA sürüyordu --
-    Telegram'da "hiç sonuç gelmiyor" izlenimi veriyordu. Artık
-    `_PRICE_FETCH_MAX_WORKERS` kadar İSTEK PARALEL atılıyor (ağ G/Ç
-    ağırlıklı iş, `isyatirim`/`tefas` kendi timeout/retry mantığını
-    KORUYOR, sadece ARALARINDAKİ sıralı bekleme kaldırıldı)."""
+    🚨 KULLANICI KARARI #8 (2026-08-06, ikinci tur): "hisse" ticker'ları
+    için ÖNCE `tradingview_quote.fetch_daily_returns()` TEK bir TOPLU
+    istekle denenir (bkz. modül üst notu -- az işlem gören hisselerde
+    Yahoo'nun bayat kalma sorununu çözer). Bu toplu istek BULAMADIĞI
+    ticker'lar (nadiren -- TradingView'de kayıtlı olmayan bir sembol vb.)
+    SADECE onlar için `yahoo_quote` YEDEĞİNE düşer. "fon" (fon-içinde-fon)
+    ticker'ları TradingView'de (BIST hissesi değiller) YER ALMAZ, hep
+    `_fon_daily_return` (TEFAS) ile çekilir.
+
+    CANLI KULLANICI RAPORU (2026-08-05): 24 kalemli TLY için TEK TEK,
+    aralarında nezaket gecikmesiyle çekmek ~4 DAKİKA sürüyordu --
+    Telegram'da "hiç sonuç gelmiyor" izlenimi veriyordu. TradingView'in
+    TOPLU sorgusu bu adımı fon başına TEK isteğe indiriyor; kalan YEDEK
+    yol (fon-içi-fon + TradingView'in kaçırdıkları) hâlâ
+    `_PRICE_FETCH_MAX_WORKERS` kadar PARALEL atılıyor."""
     unique_items = list({(h.instrument_type, h.ticker) for h in portfolio.holdings if h.ticker and h.instrument_type in ("hisse", "fon")})
     if not unique_items:
         return {}
 
-    price_changes: dict[str, Decimal] = {}
-    with ThreadPoolExecutor(max_workers=_PRICE_FETCH_MAX_WORKERS) as executor:
-        futures = {executor.submit(_fetch_one_return, itype, ticker): ticker for itype, ticker in unique_items}
-        for future in as_completed(futures):
-            ticker = futures[future]
-            ret = future.result()
-            if ret is not None:
-                price_changes[ticker] = ret
+    hisse_tickers = [ticker for itype, ticker in unique_items if itype == "hisse"]
+    price_changes: dict[str, Decimal] = dict(tradingview_quote.fetch_daily_returns(hisse_tickers))
+
+    remaining = [(itype, ticker) for itype, ticker in unique_items if ticker not in price_changes]
+    if remaining:
+        with ThreadPoolExecutor(max_workers=_PRICE_FETCH_MAX_WORKERS) as executor:
+            futures = {executor.submit(_fetch_one_fallback_return, itype, ticker): ticker for itype, ticker in remaining}
+            for future in as_completed(futures):
+                ticker = futures[future]
+                ret = future.result()
+                if ret is not None:
+                    price_changes[ticker] = ret
 
     return price_changes
 

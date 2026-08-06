@@ -21,6 +21,28 @@ geçmiş seri önemlidir ve isyatirim'in gecikmesi sonuç etkilemez.
 taşır (gerçek kapanış DEĞİL, gün bitene kadar değişebilir) -- bu modül
 "o ana kadarki en güncel fiyat" sağlar, gerçek zamanlı/15-dk-gecikmeli
 garantisi VERMEZ (Yahoo'nun kendi gecikme politikası bilinmiyor, Kural 8).
+
+🚨 CANLI HATA #2 (2026-08-06, kullanıcı raporu -- TLY fon tahmini
+Fintables'ın "AI Tahmini"nden [%0,17] KAT KAT büyük [%3,14] çıkıyordu):
+`fetch_daily_return()` ESKİDEN "close" dizisindeki None'ları FİLTRELEYİP
+son İKİ GEÇERLİ değeri kullanıyordu ("bir tatil gününü atla" senaryosu
+için tasarlanmıştı). CANLI teşhis: 2026-08-06'da Yahoo'nun TÜM `.IS`
+sembolleri (THYAO/GARAN dahil, sadece küçük/likit olmayan hisselere özgü
+DEĞİL) için 2026-08-05 kapanışı None geliyordu -- muhtemelen Yahoo'nun
+BIST veri beslemesinde GEÇİCİ bir boşluk/gecikme (AAPL/NASDAQ'ta AYNI anda
+HİÇBİR boşluk YOKTU, yani borsaya özgü bir sağlayıcı sorunu). Eski kod bu
+durumda 2 gün öncesine (04/08) atlayıp 04/08→06/08 arasındaki TÜM hareketi
+(gerçekte 05/08'de ZATEN gerçekleşmiş, "eski haber" olan bir fiyat sıçraması
+dahil) "BUGÜNKÜ getiri" gibi sunuyordu -- OZATD örneğinde tek başına +%7,4
+"bugünkü değişim" üretti, gerçek anlık değişim (Fintables) ise -%0,06 idi.
+Bu, projenin `isyatirim.py` ile yaşadığı "dünkü veri" hatasının (bkz.
+`PROJE_HAFIZASI/06_BILINEN_SORUNLAR.md` §B30, ilk CANLI hata) BİREBİR AYNI
+sınıfta, farklı bir kaynaktan (Yahoo) gelen tekrarıydı. **Düzeltme**: artık
+None'lar FİLTRELENMEZ -- SADECE dizinin son İKİ pozisyonu (bugün + dün
+OLMASI gereken bar) kullanılır; ikisinden biri None ise (veri sağlayıcı
+boşluğu VEYA piyasa bugün için henüz güncellenmedi) SESSİZCE `None` döner
+(Kural 3: 2 gün öncesine atlayıp yanlış/şişirilmiş bir "günlük" getiri
+üretmektense hiç üretmemek tercih edilir).
 """
 
 from __future__ import annotations
@@ -79,10 +101,16 @@ def fetch_daily_return(ticker: str, suffix: str = "") -> Decimal | None:
     """`ticker + suffix` (BİST için `suffix=".IS"`, örn. "OZATD.IS")
     sembolünün EN GÜNCEL iki günlük kapanışından yüzde getiriyi döner.
 
+    ⚠️ Dizinin SADECE son iki POZİSYONU (bugün + dün olması gereken bar)
+    kullanılır -- daha eskiye ATLANMAZ. Biri None ise (veri sağlayıcı
+    boşluğu VEYA piyasa henüz güncellenmedi) None döner; aksi halde 2 gün
+    öncesine sessizce atlamak, aradaki günün GERÇEK (ama "eski haber" olan)
+    fiyat hareketini "bugünkü" getiriye SIZDIRIR (CANLI hata, bkz. modül
+    üst notu #2).
+
     Bu YARDIMCI/İKİNCİL bir veridir (Kural 9) -- ağ/parse hatası VEYA
-    yetersiz veri (< 2 geçerli kapanış) SESSİZCE None ile sonuçlanır,
-    hata FIRLATILMAZ; çağıran taraf (fon tahmini) bunu "fiyatlandırılamadı"
-    sayar.
+    yetersiz/boşluklu veri SESSİZCE None ile sonuçlanır, hata FIRLATILMAZ;
+    çağıran taraf (fon tahmini) bunu "fiyatlandırılamadı" sayar.
     """
     symbol = f"{ticker.strip().upper()}{suffix}"
     try:
@@ -98,11 +126,13 @@ def fetch_daily_return(ticker: str, suffix: str = "") -> Decimal | None:
         logger.warning("%s için Yahoo chart yanıtı beklenmeyen biçimde: %s", symbol, exc)
         return None
 
-    valid_closes = [c for c in closes if c is not None]
-    if len(valid_closes) < 2:
+    if len(closes) < 2:
         return None
 
-    prev_price, last_price = valid_closes[-2], valid_closes[-1]
+    prev_price, last_price = closes[-2], closes[-1]
+    if prev_price is None or last_price is None:
+        logger.info("%s için ardışık son iki günlük kapanıştan biri eksik (None) -- güvenilir bir 'bugünkü getiri' hesaplanamıyor.", symbol)
+        return None
     if not prev_price:
         return None
     return (Decimal(str(last_price)) / Decimal(str(prev_price)) - Decimal(1)) * Decimal(100)

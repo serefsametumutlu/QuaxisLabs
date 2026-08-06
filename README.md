@@ -980,6 +980,27 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       Detay: `PROJE_HAFIZASI/06_BILINEN_SORUNLAR.md` §B28/§B29/§B30,
       `08_DEGISIKLIK_GUNLUGU.md` "yirminci"/"yirmi birinci tur". 929
       test, hepsi yeşil.
+- [x] **Faz 19.1** — (2026-08-06, kullanıcı raporu) TLY fon tahmini
+      Fintables'ın "AI Tahmini"nden (%0,17) ~18 kat büyük (%3,14)
+      çıkıyordu. Kök neden: `yahoo_quote.fetch_daily_return()`'ün "close"
+      dizisindeki None'ları FİLTRELEYİP son iki GEÇERLİ değeri kullanan
+      eski davranışı — CANLI teşhis: 2026-08-06'da Yahoo'nun TÜM `.IS`
+      sembolleri (THYAO/GARAN dahil, borsa geneli bir veri boşluğu) için
+      bir önceki günün kapanışı None geliyordu, eski kod bu durumda 2 gün
+      öncesine atlayıp aradaki günün ZATEN gerçekleşmiş fiyat hareketini
+      "bugünkü" getiriye sızdırıyordu (OZATD tek başına +%7,4 "bugünkü
+      değişim" gösteriyordu, gerçek anlık değişim -%0,06 idi — B30'da
+      çözülen isyatirim hatasıyla AYNI sınıfta, farklı kaynaktan gelen
+      tekrar). Düzeltme: artık SADECE dizinin son iki POZİSYONU (bugün +
+      dün) kullanılıyor, biri None ise 2 gün öncesine ATLANMADAN None
+      dönülüyor (Kural 3). CANLI doğrulandı: aynı TLY sorgusu düzeltme
+      sonrası %0,097 çıktı (Fintables %0,166 ile aynı mertebede, HEDEF/
+      PEKGY gibi kalemlerin günlük getirisi Fintables ile BİREBİR eşleşti).
+      Ayrıca fon içeriğinin (hisse/ağırlık listesi) Fintables ile
+      karşılaştırması istendi — ağırlıklar KAP'ın aylık raporuyla tutarlı
+      (küçük farklar rapor tazeliğinden, bkz. §B27), bir eşleme hatası
+      BULUNMADI. Detay: `PROJE_HAFIZASI/06_BILINEN_SORUNLAR.md` §B30,
+      `08_DEGISIKLIK_GUNLUGU.md`. 957 test, hepsi yeşil.
 
 ## Dizin Yapisi
 

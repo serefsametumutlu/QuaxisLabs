@@ -980,6 +980,181 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       Detay: `PROJE_HAFIZASI/06_BILINEN_SORUNLAR.md` §B28/§B29/§B30,
       `08_DEGISIKLIK_GUNLUGU.md` "yirminci"/"yirmi birinci tur". 929
       test, hepsi yeşil.
+- [x] **Faz 20** — (2026-08-06, iki tur) SPK onaylı, henüz işlem
+      görmeyen YENİ halka arz izahnamelerinin incelemesi. **1. tur
+      (veri katmanı):** `src/fetchers/kap_ipo.py` (YENİ) — izahnameyi
+      halka arza ARACILIK EDEN kurumun (aday şirketin DEĞİL, henüz KAP
+      profili/borsa kaydı OLMAYABİLİR) KAP profilinden "İzahname (SPK
+      Tarafından Onaylanan)" kategorisiyle bulur (`UNDERWRITER_MEMBERS`,
+      ~22 aracı kurum, CANLI doğrulandı); `IzahnameDisclosure`/`IpoFacts`
+      dataclass'ları; "Sulanma Etkisi Analizi" tablosunu (Halka Arz
+      Fiyatı/Büyüklüğü/Net Geliri, Özkaynak/Sermaye/Defter Değeri
+      öncesi-sonrası, sulanma %) + tahsisat yüzdelerini + AYRI bir
+      bildirim olan "Fon Kullanım Yeri Raporu"nu (Ek-5) ayrıştırır --
+      HER alan kendi grup toplamıyla (~%100) öz-doğrulanır, tutmazsa
+      None (Kural 3). CANLI KARCL (Kardemir Çelik) izahnamesiyle rakam
+      rakam doğrulandı. **2. tur (analiz+render+bot, aynı gün, önceki
+      turun tamamlanmamış hali):** `src/analysis/ipo_assessment.py`
+      (YENİ) — SAF matematik, `IpoFacts`'ten sermaye artırımı/ortak
+      satışı oranı, tahsisat gruplaması (bireysel/iç kurumsal/dış
+      kurumsal/diğer), fon kullanım yeri sıralaması, Fiyat/Defter Değeri
+      çarpanı, özkaynak büyümesi türetir (yargı/skor ÜRETMEZ, sadece
+      izahnamenin KENDİ rakamlarından deterministik oran). `src/render/
+      ipo_card.py` + `templates/ipo_card.html` (YENİ) — dark
+      glassmorphism ailesinden (fund_card.html ile AYNI temel yapı),
+      KENDİ aksan rengi (cyan); anahtar rakamlar şeridi, sermaye
+      artırımı/ortak satışı barı, sulanma tablosu, tahsisat/fon kullanım
+      yeri çubukları. `src/bot/ipo_pipeline.py` (YENİ) —
+      `list_available_ipos()`/`compute_ipo_card_data()`; kalıcı DB
+      önbelleği BİLİNÇLİ olarak eklenmedi (izahnameler fon portföyünün
+      aksine kısa ömürlü/haftalık, bkz. modül üst notu, B26'daki
+      "organik büyüme" kararıyla AYNI pragmatik tercih). Bot: kök menüde
+      "🆕 Halka Arz İnceleme" + `/halkaarz` komutu → liste (buton başına
+      bir izahname) → detay kart + kopyala-yapıştır metni. Kullanıcı
+      listeden bir butona tıkladığında AYNI 22-aracı-kurum taramasının
+      TEKRARLANMAMASI için `context.user_data["halkaarz_cache"]` ile
+      disclosure ticker'a göre önbelleklenir (`ipo_pipeline.
+      compute_ipo_card_data_from_disclosure()`). 🚨 CANLI HATA + DÜZELTME
+      (`scripts/demo_halka_arz.py` ile bulundu): aracı kurum unvanına
+      Python `.title()` uygulanınca "İ" harfi bozuluyordu (`06_BILINEN_
+      SORUNLAR.md` #16 ile AYNI sınıf hata) -- kaldırıldı, unvan olduğu
+      gibi gösterilir. CANLI doğrulandı: `scripts/demo_halka_arz.py
+      KARCL` uçtan uca (KAP taraması → PDF indirme → PNG + paylaşım
+      metni) ~2 dakikada tamamlandı, Fon Kullanım Yeri kırılımı test
+      fixture'ıyla BİREBİR eşleşti. 1053 test, hepsi yeşil. Detay:
+      `PROJE_HAFIZASI/02_VERI_KAYNAKLARI.md` §13,
+      `05_BOT_VE_VERITABANI.md` "Faz 20" alt bölümü, `08_DEGISIKLIK_GUNLUGU.md`.
+- [x] **Faz 20 devamı** — (2026-08-07, kullanıcı raporu: Çitlekçi hiç
+      bulunamıyordu, Bewen/VEYAS tamamen boş kart veriyordu) 3 CANLI hata
+      düzeltildi: (1) **Keşif artık `UNDERWRITER_MEMBERS` (~22 hardcoded
+      kurum) TARAMIYOR** -- YENİ `kap.fetch_all_disclosures()` (üye
+      kısıtlaması OLMADAN TÜM KAP'ı TEK istekte tarar, `kap.Disclosure.
+      filer_name` YENİ alanı) kullanılıyor; Tera Yatırım gibi listede
+      hiç olmayan kurumlar artık bulunuyor. Varsayılan pencere 7 gün
+      (kullanıcı isteği + KAP'ın 2000-satır kesme sınırı). (2) `_EK_RE`
+      SADECE "Ek-1" (tiresiz-bitişik) formatını tanıyordu -- Tera
+      Yatırım'ın "Ek 1-"/"Ek -2"/"Ek 5-1" gibi boşluklu varyasyonları
+      hiç eşleşmiyordu, Çitlekçi'nin 19 EKİ (ilgisiz finansal/gayrimenkul
+      raporları) yanlışlıkla "ana parça" sayılıp TÜMÜ indiriliyordu (20
+      PDF → artık 1). (3) Aynı başlığın kısa aralıklarla 6-13 kez
+      resubmission edilmesi (Türker Vangölü Enerji) artık
+      `_TITLE_REPEAT_RESUBMISSION_THRESHOLD` ile SADECE en yenisine
+      indiriliyor. Ayrıca "Sulanma Etkisi Analizi" alan regex'lerine
+      CANLI doğrulanmış Çitlekçi varyantları eklendi + `offering_size`
+      artık "Halka Arz Büyüklüğü" etiketi hiç YOKSA tahsisat bloğunun
+      toplam nominal tutarından türetiliyor (Çitlekçi: 36,5mn x 73,70 =
+      2,69mr TL, kullanıcının referans görseliyle BİREBİR eşleşti).
+      ⚠️ AÇIK KALAN: VEYAS'ın PDF'i muhtemelen taranmış/OCR'siz (bkz.
+      `06_BILINEN_SORUNLAR.md` §B31); kullanıcının referans görselindeki
+      Talep Toplama Tarihi/Yüksek Başvuru Şartı/Tahmini Dağıtım/T+1-T+2/
+      Konsorsiyum Lideri alanları AYRI bir belge ("Tasarruf Sahiplerine
+      Satış Duyurusu") gerektiriyor, BAŞLANMADI (bkz. §B32). 1069 test,
+      hepsi yeşil.
+- [x] **Faz 20.2** — (2026-08-07, kullanıcı isteği: Çitlekçi referans
+      görseli + "sulanma ne demek anlamadım" geri bildirimi) §B32'nin
+      DEVAMI. Araştırma: KAP'ın "Tasarruf Sahiplerine Satış Duyurusu"
+      belgesi CANLI test edilen 3/3 örnekte (VEYAS/CITAS/BEWEN) taranmış
+      görüntüden oluşuyor (pdfplumber: 0 karakter) -- OCR eklenmedi
+      (yeni sistem bağımlılığı, kullanıcıya AÇIKÇA soruldu). Kullanıcı
+      KARARI: bu alanlar için halkarz.com'u (İKİNCİL/gayriresmi kaynak)
+      dene. YENİ `src/fetchers/ipo_broker_page.py` -- `article.index-list`
+      (arama sonucu, ticker eşlemesi) + `table.sp-table`/`article.sp-arz-extra`
+      (yapılandırılmış "Özet Bilgiler" widget'ı, CANLI Çitlekçi/VEYAS/BEWEN
+      ile doğrulandı) -- talep toplama tarihi/günü, Katılım Endeksi
+      uygunluğu, satış yöntemi, fiyat istikrarı notu okur; HERHANGİ bir
+      hatada (Kural 9) sessizce None döner, ana kartı ETKİLEMEZ. `src/analysis/
+      ipo_assessment.py`'ye SAF matematikle (Kural 1) toplam lot sayısı
+      (`offering_size ÷ offering_price`) + her tahsisat grubunun lot sayısı +
+      "Tahmini Dağıtım" senaryo tablosu (N kişi başvurursa kişi başına kaç
+      lot -- ROUND_FLOOR, Çitlekçi referans görseliyle BİREBİR: 500.000
+      kişi → 29 lot/2.137 TL) eklendi; "Yüksek Talepte Bulunacak Yatırımcı
+      Grubu" artık "diğer"den AYRI kendi grubunda. Kart yeniden tasarlandı:
+      talep toplama/katılım endeksi/satış yöntemi/fiyat istikrarı bilgi
+      şeridi (İKİNCİL kaynak bulunamazsa TAMAMEN GİZLENİR, placeholder/N/A
+      GÖSTERİLMEZ -- kullanıcı isteği), "Dağıtım Yapısı" artık % + lot
+      sayısı tablosu, "Tahmini Dağıtım" YENİ tablo. "Sulanma Etkisi
+      Analizi" başlığı "Halka Arz Öncesi/Sonrası Karşılaştırma"na
+      yeniden adlandırıldı + "bu TÜM halka arzlarda SPK'nın zorunlu
+      kıldığı standart bir tablodur, şirkete özgü değildir" açıklaması
+      eklendi (kullanıcı bunu şirkete özgü bir şey sanmıştı); alanları
+      TAMAMEN boş çıkan izahnamelerde (Çitlekçi -- "Sulanma Etkisi
+      Analizi" başlığı hiç geçmiyor) bölüm TAMAMEN gizleniyor. YENİ
+      `ipo_card.build_ipo_analysis_text()` -- kullanıcının paylaştığı
+      örnek gibi paragraf biçiminde bir "inceleme" metni, ama BİLİNÇLİ
+      OLARAK birinci şahıs kişisel bir yatırım kanaati (öznel "ben
+      inandırıcı bulmadım" tarzı) ÜRETMEZ, sadece hesaplanmış rakamların
+      nötr anlatısını verir (regresyon testiyle korunuyor). Ayrıca CANLI
+      bulunan 2 küçük hata düzeltildi: `ipo_pipeline.list_available_ipos()`/
+      `compute_ipo_card_data()`'nın eski varsayılan `days` değerleri (60/180)
+      `kap.fetch_all_disclosures()`'ın YENİ güvenli sınırını (10) aşıp
+      ValueError fırlatıyordu (demo scripti çökertiyordu); `_derive_company_name()`
+      "Halka Arz" kelimesi hiç geçmeyen "... SPK Onaylı İzahname" başlıklarını
+      (VEYAS) tanımıyordu. CANLI doğrulandı: `scripts/demo_halka_arz.py CITAS`
+      (Çitlekçi referans görseliyle rakam rakam eşleşti) + `VEYAS` (OCR'siz
+      PDF'te bile İKİNCİL kaynak sayesinde bazı alanlar doluyor, kalanı
+      zarifçe "-" gösteriyor). 1086 test, hepsi yeşil.
+- [x] **Faz 20.3** — (2026-08-07, aynı gün, kullanıcı raporu: "VEYAS için
+      X'te herkes paylaşıyor ama bizim kartımızda neredeyse hiçbir bilgi
+      çıkmadı" + "KPEKS'te de aynı sorun var") Faz 20.2'nin bıraktığı
+      boşluk: VEYAS'ın izahnamesi (TÜM 8 resubmission'ı CANLI tek tek
+      denendi) İSTİSNASIZ taranmış/OCR'siz çıktı -- fiyat/büyüklük/lot/
+      tahsisat/tahmini dağıtım hiçbiri yoktu, kart neredeyse boştu.
+      halkarz.com'un AYNI "Özet Bilgiler" widget'ının fiyat/lot/tahsisat/
+      tahmini-dağıtım rakamlarını da içerdiği bulundu (Çitlekçi'de bizim
+      SAF matematiğimizle BİREBİR eşleşerek zaten doğrulanmıştı) --
+      `ipo_broker_page.SupplementaryIpoInfo`'ya `offering_price_text`/
+      `total_lot_text`/`offering_size_text`/`allocation_lines`/`estimated_
+      distribution_lines` eklendi (DÜZ METİN, Decimal'e ÇEVRİLMEZ -- Kural
+      1/2'ye uygun, bizim hesabımız değil siteden alıntı). `ipo_card.py`:
+      izahnameden gelen karşılığı (`facts.offering_price`/`assessment.
+      total_lot_count`/`facts.offering_size`/`allocation_rows`/`estimated_
+      distribution_rows`) `None`/boş ise BU fallback devreye girer, ASLA
+      gerçek bir KAP rakamının ÜZERİNE YAZMAZ, kartta her fallback alanı
+      "kaynak: halkarz.com" ile AÇIKÇA işaretlenir (küçük etiket/ayrı
+      blok). CANLI 2 küçük hata daha düzeltildi: `total_lot_text`'in
+      halkarz.com'dan "65.000.000 Lot" olarak (birim DAHİL) gelmesi
+      `build_ipo_analysis_text()`'in kendi "Lot" ekiyle birleşip
+      "65.000.000 Lot Lot" çift birimine yol açıyordu (`_strip_lot_suffix()`
+      eklendi); `_derive_company_name()` "A.Ş.'nin SPK Onaylı İzahnamesi"
+      gibi başlıklarda Türkçe iyelik ekini ("'nin") şirket adının parçası
+      gibi bırakıyordu (Bewen/Kapeks'te CANLI görüldü). CANLI doğrulandı:
+      `scripts/demo_halka_arz.py VEYAS` (artık fiyat 136,00 TL/toplam
+      65.000.000 lot/tahsisat/tahmini dağıtım HEPSİ "halkarz.com" etiketiyle
+      görünüyor) + `KPEKS` (kullanıcının bildirdiği AYNI sınıf sorun,
+      aynı fallback ile çözüldü). 1090 test, hepsi yeşil.
+- [x] **Faz 20.4** — (2026-08-07, aynı gün dördüncü tur) Kullanıcı 3 istek
+      daha bildirdi: (1) Tahmini Dağıtım'daki katılımcı senaryoları (150
+      Bin/2,2 Milyon gibi) "saçma kaçıyor", 300 Bin-1 Milyon arası yuvarlak
+      adımlar istendi; (2) VEYAS'ta hâlâ eksik noktalar var (Sermaye
+      Artırımı/Ortak Satışı bölümü boştu); (3) kart tasarımı 2 sütunlu bir
+      referans görsele göre yenilensin. `ipo_assessment.
+      _DISTRIBUTION_SCENARIO_PARTICIPANTS` 300 Bin-1 Milyon arası (100
+      Binlik adımlarla) yapıldı, `estimate_retail_distribution()`/
+      `estimate_capital_vs_partner_pct()` (YENİ, public) dışa açıldı.
+      `ipo_broker_page.py`: "Tahmini Dağıtım" artık halkarz.com'un KENDİ
+      (yuvarlak olmayan) senaryo tablosunu ALINTILAMIYOR -- bireysel grup
+      lot sayısını + fiyatı Decimal'e çevirip AYNI standart senaryo
+      listesiyle YENİDEN HESAPLIYOR (izahname okunsun/okunmasın TUTARLI
+      tablo); "Halka Arz Şekli" bloğundan (Sermaye Artırımı/Ortak Satışı
+      LOT'ları) sermaye artırımı yüzdesi de fallback olarak türetiliyor
+      (VEYAS'ta CANLI: %57,7/%42,3). Kart 2 sütunlu ızgaraya çevrildi (sol:
+      Dağıtım Yapısı + Tahmini Dağıtım, sağ: Sermaye Artırımı vs Ortak
+      Satışı + Halka Arz Öncesi/Sonrası) -- kullanıcının paylaştığı
+      referans görselle aynı yapı, "Şirket Faaliyet Alanı" paneli DAHİL
+      EDİLMEDİ (güvenilir bir veri kaynağı bulunamadı, Kural 3). AYRICA:
+      X/Twitter'da paylaşılan görsellerin bulanık çıkması şikayeti
+      araştırıldı -- kök neden X'in KENDİ istemci tarafı sıkıştırması
+      (kullanıcının "sağ üstten 4K seçince düzeliyor" gözlemi bunu
+      doğruluyor), bizim render çözünürlüğümüz (device_scale_factor=2,
+      zaten "retina") DEĞİL; çözünürlüğü daha da artırmak Derin Kart gibi
+      halihazırda Telegram'ın foto boyut sınırına (10000px) yakın diğer
+      kart tiplerini kırma riski taşıdığından YAPILMADI -- bunun yerine
+      `send_document` altyazısına HER gönderimde "X'te paylaşırken kalite
+      simgesinden HD seç" hatırlatması eklendi (proje geneli, tüm kart
+      tipleri). CANLI doğrulandı: `scripts/demo_halka_arz.py VEYAS` (artık
+      Sermaye Artırımı/Ortak Satışı + tutarlı 300 Bin-1 Milyon senaryo
+      tablosu dolu) + `CITAS` (2 sütunlu tasarım birincil/KAP yoluyla da
+      sorunsuz). 1090 test, hepsi yeşil.
 - [x] **Faz 19.1** — (2026-08-06, kullanıcı raporu) TLY fon tahmini
       fvt.com.tr'nin "AI Tahmini"nden (%0,17) ~18 kat büyük (%3,14)
       çıkıyordu. Kök neden: `yahoo_quote.fetch_daily_return()`'ün "close"

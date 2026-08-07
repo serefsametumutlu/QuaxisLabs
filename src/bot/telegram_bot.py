@@ -26,11 +26,11 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fi
 import config
 from src.ai import commentary
 from src.analysis import calculator, technical, trends
-from src.bot import fund_pipeline, menu, pipeline
+from src.bot import fund_pipeline, ipo_pipeline, menu, pipeline
 from src.db import models, repository
-from src.fetchers import price_history
+from src.fetchers import kap_ipo, price_history
 from src.formatting import format_number_tr
-from src.render import calendar_card, card, deep_card, fund_card, fundamental_screens_card, technical_card
+from src.render import calendar_card, card, deep_card, fund_card, fundamental_screens_card, ipo_card, technical_card
 
 logger = logging.getLogger(__name__)
 
@@ -238,6 +238,13 @@ async def cmd_fon(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(menu.FONANALIZ_TEKLI_PROMPT, reply_markup=menu.build_fonanaliz_bekleniyor_menu())
 
 
+async def cmd_halkaarz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/halkaarz -- Faz 20 devamı, kök menü "🆕 Halka Arz İnceleme" butonuyla
+    AYNI hedef (menu:halkaarz akışına doğrudan bir kısayol)."""
+    await update.message.reply_text(menu.HALKAARZ_YUKLENIYOR_TEXT)
+    await _gonder_halkaarz_liste(update.effective_chat.id, context)
+
+
 @retry(
     reraise=True,
     stop=stop_after_attempt(config.TELEGRAM_SEND_MAX_RETRIES),
@@ -260,7 +267,18 @@ async def _send_document_with_retry(context, chat_id: int, png_path: str) -> Non
         await context.bot.send_document(
             chat_id=chat_id,
             document=document_file,
-            caption="🖼️ Orijinal kalite (X/Twitter'da paylaşmadan önce bunu kaydet)",
+            # CANLI kullanıcı raporu (2026-08-07): orijinal/sıkıştırmasız dosyayı
+            # bile X'e atarken X kendi varsayılan sıkıştırmasını uyguluyor --
+            # görselin sağ üstündeki kalite simgesinden "En Yüksek Kalite/HD"
+            # seçilmezse net görünmüyor, çoğu kullanıcı bu adımı ATLIYOR. Bu
+            # X'in kendi istemci davranışı (bizim tarafımızdan zorlanamaz) --
+            # tek elimizdeki lever bu hatırlatmayı HER gönderimde göstermek.
+            caption=(
+                "🖼️ Orijinal kalite -- X/Twitter'a atmadan önce BU dosyayı kaydet.\n"
+                "⚠️ X'te paylaşırken görselin sağ üstündeki kalite simgesinden "
+                "\"En Yüksek Kalite/HD\" seçeneğini işaretle, aksi halde X görseli "
+                "kendi sıkıştırmasıyla bulanıklaştırır."
+            ),
         )
 
 
@@ -460,6 +478,93 @@ async def _gonder_fon_grup_ic(chat_id: int, context: ContextTypes.DEFAULT_TYPE, 
     await _send_card_photo(context, chat_id, png_path, caption)
 
 
+# --- Halka Arz İnceleme (Faz 20 devamı) -----------------------------------------------------
+
+# 🚨 CANLI HATA + DÜZELTME (2026-08-07, kullanıcı raporu): eskiden 60/180
+# gündü -- `kap.fetch_all_disclosures()`'a geçildikten sonra (bkz.
+# kap_ipo.py modül üst notu) bu artık GÜVENLİ SINIRI (10 gün, KAP'ın
+# 2000-satır kesme sınırı) AŞIYOR ve `ValueError` ile ÇÖKÜYORDU (CANLI
+# görüldü: `/halkaarz` komutu). `kap_ipo._DEFAULT_DISCOVERY_DAYS` (7) ile
+# AYNI değere sabitlendi.
+_HALKAARZ_LISTE_GUN_PENCERESI = kap_ipo._DEFAULT_DISCOVERY_DAYS
+_HALKAARZ_DETAY_GUN_PENCERESI = kap_ipo._DEFAULT_DISCOVERY_DAYS
+
+
+async def _gonder_halkaarz_liste(chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """'🆕 Halka Arz İnceleme' kök ekranı -- son `_HALKAARZ_LISTE_GUN_PENCERESI`
+    günde SPK onaylı, işleme başlamamış TÜM izahnameleri (bkz.
+    `ipo_pipeline.list_available_ipos()`) buton listesi olarak gösterir.
+    Kural 9: KAP taraması BEKLENMEDİK bir hatayla patlarsa (network vb.)
+    kullanıcıya sessizce hiçbir şey OLMAZ değil, açık bir uyarı gider."""
+    try:
+        disclosures = await asyncio.to_thread(ipo_pipeline.list_available_ipos, _HALKAARZ_LISTE_GUN_PENCERESI)
+    except Exception:
+        logger.exception("Halka arz izahname listesi taranırken beklenmeyen bir hata oluştu")
+        await context.bot.send_message(chat_id, "⚠️ İzahname listesi hazırlanırken beklenmedik bir hata oluştu, birkaç dakika sonra tekrar dener misin?")
+        return
+
+    if not disclosures:
+        await context.bot.send_message(chat_id, menu.HALKAARZ_BOS_TEXT, reply_markup=menu.build_alt_ekran_menu())
+        return
+
+    # Az sonra kullanıcı butona tıkladığında (_gonder_halkaarz_detay_ic) AYNI
+    # ~45-60 saniyelik 22-aracı-kurum taramasını TEKRAR yapmamak için
+    # disclosure'lar ticker'a göre önbelleğe alınır (bkz. ipo_pipeline.
+    # compute_ipo_card_data_from_disclosure() üst notu).
+    context.user_data["halkaarz_cache"] = {d.target_tickers[0]: d for d in disclosures if d.target_tickers}
+
+    button_rows = [
+        (d.target_tickers[0], f"{ipo_card._derive_company_name(d.summary)} · #{d.target_tickers[0]}")
+        for d in disclosures
+    ]
+    await context.bot.send_message(chat_id, menu.HALKAARZ_MENU_TEXT, reply_markup=menu.build_halkaarz_menu(button_rows))
+
+
+async def _gonder_halkaarz_detay(chat_id: int, context: ContextTypes.DEFAULT_TYPE, ticker: str) -> None:
+    """Tek bir ticker için izahname kartını üretip gönderir -- `_gonder_fon_tekli`
+    ile AYNI sebepten (bkz. o fonksiyonun üst notu) TÜM akış tek bir
+    try/except içinde, beklenmedik bir hata ASLA sessiz kalmaz."""
+    try:
+        await _gonder_halkaarz_detay_ic(chat_id, context, ticker)
+    except Exception:
+        logger.exception("%s halka arz kartı beklenmeyen bir hatayla başarısız oldu", ticker)
+        await context.bot.send_message(chat_id, f"⚠️ {ticker} için izahname incelemesi hazırlanırken beklenmedik bir hata oluştu, birkaç dakika sonra tekrar dener misin?")
+
+
+async def _gonder_halkaarz_detay_ic(chat_id: int, context: ContextTypes.DEFAULT_TYPE, ticker: str) -> None:
+    cached_disclosure = context.user_data.get("halkaarz_cache", {}).get(ticker)
+    if cached_disclosure is not None:
+        result = await asyncio.to_thread(ipo_pipeline.compute_ipo_card_data_from_disclosure, cached_disclosure)
+    else:
+        result = await asyncio.to_thread(ipo_pipeline.compute_ipo_card_data, ticker, _HALKAARZ_DETAY_GUN_PENCERESI)
+
+    if result.assessment is None or result.disclosure is None or result.facts is None:
+        await context.bot.send_message(chat_id, f"⚠️ {ticker} için izahname incelemesi üretilemedi: {result.reason}")
+        return
+
+    ipo_context = ipo_card.build_ipo_card_context(
+        result.disclosure, result.facts, result.assessment, supplementary=result.supplementary
+    )
+    out_path = config.DATA_DIR / "cards" / f"halkaarz_{ticker}.png"
+    try:
+        png_path = await asyncio.to_thread(card.render_card, ipo_context, str(out_path), "ipo_card.html", "#ipo-card")
+    except card.CardRenderError:
+        logger.exception("%s halka arz kartı render edilemedi", ticker)
+        await context.bot.send_message(chat_id, "⚠️ İzahname görseli üretilemedi, birkaç dakika sonra tekrar dene.")
+        return
+
+    caption = f"🆕 Quaxis Halka Arz İnceleme · {ipo_context['company_name']} #{ticker}"
+    try:
+        await _send_card_photo(context, chat_id, png_path, caption)
+    except Exception:
+        logger.exception("%s halka arz görseli gönderilemedi (metin yine de denenecek)", ticker)
+
+    try:
+        await context.bot.send_message(chat_id=chat_id, text=ipo_card.build_ipo_analysis_text(ipo_context))
+    except Exception:
+        logger.exception("%s halka arz metni gönderilemedi", ticker)
+
+
 # --- Teknik Görünüm (Faz 15) -----------------------------------------------------
 
 
@@ -574,6 +679,21 @@ async def handle_teknik_callback(update: Update, context: ContextTypes.DEFAULT_T
     chat_id = query.message.chat_id
     await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
     await _gonder_teknik(chat_id, context, ticker, market)
+
+
+async def handle_halkaarz_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """callback_data: 'halkaarz:goster:{ticker}' (bkz. menu.build_halkaarz_menu)."""
+    query = update.callback_query
+    await query.answer()
+
+    parts = (query.data or "").split(":")
+    if len(parts) < 3:
+        return
+    ticker = parts[2]
+
+    chat_id = query.message.chat_id
+    await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
+    await _gonder_halkaarz_detay(chat_id, context, ticker)
 
 
 # --- Değerleme (Faz 21: Graham + Greenblatt + Carlisle + Piotroski) -----------------------------------------------------
@@ -1047,15 +1167,6 @@ async def _execute_and_send(
         # notu) send_message'a HIC ULASILMIYORDU. Artik HER gonderi KENDI
         # try/except'i icinde -- biri basarisiz olsa bile digerleri yine de
         # denenir (bkz. _gonder_thread_gonderileri, Faz 16.4).
-        # Faz 14: teaser (16:9) DETAY karttan ÖNCE gönderilir -- kullanıcı
-        # X'e atacağı görseli en üstte/ilk bulsun. İkincil bir görsel
-        # olduğu için (Kural 9) kendi try/except'i içinde -- başarısız
-        # olursa SADECE loglanır, detay kart/thread akışı ETKİLENMEZ.
-        try:
-            await _gonder_teaser(chat_id, context, sonuc, market)
-        except Exception:
-            logger.exception("istek user=%s ticker=%s: teaser kartı gönderilemedi (detay kart yine de denenecek)", user_id, ticker)
-
         try:
             await _send_card_photo(context, chat_id, sonuc.png_path, _thread_post_1_kanca(sonuc))
         except Exception:
@@ -1267,6 +1378,11 @@ async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             await query.edit_message_text(menu.FONANALIZ_MENU_TEXT, reply_markup=menu.build_fonanaliz_menu())
         return
 
+    if screen == "halkaarz":
+        await query.edit_message_text(menu.HALKAARZ_YUKLENIYOR_TEXT)
+        await _gonder_halkaarz_liste(query.message.chat_id, context)
+        return
+
     if screen == "degerleme":
         menu.set_bekleyen_islem(context.user_data, tip="degerleme", market="BIST")
         await query.edit_message_text(menu.DEGERLEME_PROMPT, reply_markup=menu.build_degerleme_bekleniyor_menu())
@@ -1350,12 +1466,14 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("temel", cmd_temel))
     application.add_handler(CommandHandler("degerleme", cmd_degerleme))
     application.add_handler(CommandHandler("fon", cmd_fon))
+    application.add_handler(CommandHandler("halkaarz", cmd_halkaarz))
     application.add_handler(CommandHandler("son", cmd_son))
     application.add_handler(CommandHandler("takvim", cmd_takvim))
     application.add_handler(CommandHandler("hakkinda", cmd_hakkinda))
     application.add_handler(CallbackQueryHandler(handle_period_callback, pattern=r"^oncekidonem:"))
     application.add_handler(CallbackQueryHandler(handle_teknik_callback, pattern=r"^teknik:"))
     application.add_handler(CallbackQueryHandler(handle_derin_analiz_callback, pattern=r"^derin:"))
+    application.add_handler(CallbackQueryHandler(handle_halkaarz_callback, pattern=r"^halkaarz:"))
     application.add_handler(CallbackQueryHandler(handle_menu_callback, pattern=r"^menu:"))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_ticker_message))
     application.add_error_handler(_on_error)

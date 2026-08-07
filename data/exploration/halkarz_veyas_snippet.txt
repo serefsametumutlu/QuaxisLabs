@@ -1,0 +1,37 @@
+_item"><article class="single-page"><table class="sp-table"><tr class="font-16"><td><em>Halka Arz Tarihi : </em></td><td>
+<time datetime="12-13-14 Ağustos 2026" title="12-13-14 Ağustos 2026">12-13-14 Ağustos 2026</time>
+<small class="c-a9a9a9"><i class="fa-regular fa-clock"></i> 09:00-17:00</small></td></tr><tr class="font-16 margin-bottom-20"><td><em>Halka Arz Fiyatı/Aralığı : </em></td><td><strong class="f700">136,00 TL</strong></td></tr><tr><td><em>Dağıtım Yöntemi : </em></td><td><strong>Eşit Dağıtım **</strong></td></tr><tr><td><em>Pay : </em></td><td><strong>65.000.000 Lot</strong></td></tr><tr><td><em>Ek Pay : </em></td><td><strong>12.500.000 Lot</strong></td></tr><tr class="margin-bottom-20"><td>
+<em>Aracı Kurum : </em>
+<i class="konsorsym-i">(Konsorsiyum)</i></td><td><strong>Halk Yatırım Menkul Değerler A.Ş.</strong><div class="konsorsym"><ul><li>Ziraat Yatırım Menkul Değerler A.Ş.</li><li>Vakıf Yatırım Menkul Değerler A.Ş.</li></ul></div></td></tr><tr><td><em>Bist Kodu : </em></td><td><strong>VEYAS</strong></td></tr><tr><td><em>Pazar : </em></td><td><strong>Yıldız Pazar</strong></td></tr></table></article><article><div class="last-modified">
+Son Güncelleme:
+<time datetime="2026-08-07T07:22:23+03:00">
+07.08.2026 07:22                             </time></div><article class="sp-arz-extra " ><ul class="aex-in"><!--[if]>baskasinin gomlegi ile kiz tavlanir mi cocugum /<![endif]--><div class="aexi-title">Özet Bilgiler</div><li><h5>Halka Arz Şekli</h5><p>
+- Sermaye Artırımı : 37.500.000 Lot<br>
+- Ortak Satışı : 27.500.000 Lot (Türkerler İnşaat Turizm Madencilik Enerji Üretim Tic. ve San. A.Ş.)<br>
+- Ek Ortak Satışı : 12.500.000 Lot (Türkerler İnşaat Turizm Madencilik Enerji Üretim Tic. ve San. A.Ş.)<br>
+<small>* SPK Bülteni, 2026/49.</small></p></li><li><h5>Fonun Kullanım Yeri</h5><p>
+- %60-70 VEDAŞ'ın yatırım harcamaları. <br>
+- %30-40 İşletme sermayesi. <br>
+<small>* İzahname, Sayfa 393.</small></p></li><li><h5>Halka Arz Satış Yöntemi</h5><p>
+- Sabit Fiyatla Talep Toplama. <br>
+- En İyi Gayret Aracılığı. <br></p></li><li><h5>Tahsisat Grupları</h5><p>
+- 29.250.000 Lot (%45) Yurt İçi Bireysel Yatırımcı <br>
+- 3.250.000 Lot (%5) Yüksek Başvurulu Yatırımcı <br>
+- 29.250.000 Lot (%45) Yurt İçi Kurumsal Yatırımcı <br>
+- 3.250.000 Lot (%5) Yurt Dışı Kurumsal Yatırımcı <br>
+- Ek satış için herhangi bir sınırlama yoktur. <br>
+<small>* İzahname, Sayfa 372.</small></p></li><li><h5>Dağıtılacak Pay Miktarı (Olası) *</h5><p>
+- 150 Bin katılım ~ 195 Lot (26520 TL). <br>
+- 250 Bin katılım ~ 117 Lot (15912 TL). <br>
+- 350 Bin katılım ~ 85 Lot (11560 TL). <br>
+- 500 Bin katılım ~ 58 Lot (7888 TL). <br>
+- 700 Bin katılım ~ 42 Lot (5712 TL). <br>
+- 1.1 Milyon katılım ~ 27 Lot (3672 TL). <br>
+- 1.6 Milyon katılım ~ 18 Lot (2448 TL). <br>
+- 2.2 Milyon katılım ~ 13 Lot (1768 TL). <br>
+<small>* Bireysel Yatırımcı Grubu.</small></p></li><li><p><table class="fs-extra rwd-table"><tr><th><h5>Finansal Tablo</h5></th><th>2026/3</th><th>2025</th><th>2024</th></tr><tr><td>- Hasılat</td><td data-th="2026/3">5,7 Milyar TL</td><td data-th="2025">26,6 Milyar TL</td><td data-th="2024">24,6 Milyar TL</td></tr><tr><td>- Brüt Kâr</td><td data-th="2026/3">2,4 Milyar TL</td><td data-th="2025">9,5 Milyar TL</td><td data-th="2024">9,9 Milyar TL</td></tr></table>
+<small>* İzahname, Sayfa 200.</small></p></li><li><h5>Fiyat İstikrarı</h5><p>
+- 10 gün. * Brüt halka arz gelirinin %20'si. <br>
+(Halk Yatırım Menkul Değerler A.Ş.) <br>
+<small>* İzahname, Sayfa 388.</small></p></li><li><h5>Satmama Taahhüdü</h5><p>
+- 1 Yıl, İhraççı. <

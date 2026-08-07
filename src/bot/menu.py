@@ -90,6 +90,7 @@ def build_root_menu() -> InlineKeyboardMarkup:
             [InlineKeyboardButton("🔬 Detaylı Analiz (Derin Kart)", callback_data="menu:derinanaliz")],
             [InlineKeyboardButton("🧮 Değerleme", callback_data="menu:degerleme")],
             [InlineKeyboardButton("💰 Fon Analiz", callback_data="menu:fonanaliz")],
+            [InlineKeyboardButton("🆕 Halka Arz İnceleme", callback_data="menu:halkaarz")],
             [InlineKeyboardButton("📅 Yaklaşan Bilanço Tarihleri", callback_data="menu:takvim")],
             [InlineKeyboardButton("🕘 Son Kartlar", callback_data="menu:son")],
             [InlineKeyboardButton("ℹ️ Hakkında", callback_data="menu:hakkinda")],
@@ -153,6 +154,20 @@ def build_fonanaliz_menu() -> InlineKeyboardMarkup:
 def build_fonanaliz_bekleniyor_menu() -> InlineKeyboardMarkup:
     """Tekli fon icin 'fon kodunu yaz' ekrani -- Geri, menu:fonanaliz'e doner."""
     return _geri_menu("menu:fonanaliz")
+
+
+def build_halkaarz_menu(disclosures: list[tuple[str, str]]) -> InlineKeyboardMarkup:
+    """'🆕 Halka Arz İnceleme' -- Faz 20 devamı. `disclosures`: ÖNCEDEN
+    çekilmiş (ticker, buton_etiketi) çiftleri (bkz.
+    `src.bot.ipo_pipeline.list_available_ipos()`) -- bu fonksiyon SAF UI,
+    hiçbir I/O yapmaz (diğer tüm menu.py builder'larıyla AYNI ilke).
+    Fon Analiz'in "tekli"/"tümliste" ikiliğinin AKSİNE tek bir mod var:
+    liste ZATEN kısa (haftada birkaç yeni izahname), kod YAZMAYA gerek yok,
+    doğrudan butona dokunulur (Kural: keşif odaklı bir özellik, kullanıcı
+    ticker'ı önceden BİLMEYEBİLİR)."""
+    rows = [[InlineKeyboardButton(f"🏢 {label}", callback_data=f"halkaarz:goster:{ticker}")] for ticker, label in disclosures]
+    rows.append([InlineKeyboardButton("⬅️ Geri", callback_data="menu:root")])
+    return InlineKeyboardMarkup(rows)
 
 
 def build_degerleme_bekleniyor_menu() -> InlineKeyboardMarkup:
@@ -267,6 +282,9 @@ DERIN_MENU_TEXT = "🔬 Detaylı Analiz (Derin Kart) — hangi piyasa?"
 TAKVIM_MENU_TEXT = "📅 Yaklaşan Bilanço Tarihleri — hangi piyasa?"
 FONANALIZ_MENU_TEXT = "💰 Fon Analiz — ne görmek istersin?"
 FONANALIZ_TEKLI_PROMPT = "Fon kodunu yaz (örn: PHE, TLY)"
+HALKAARZ_MENU_TEXT = "🆕 Halka Arz İnceleme — SPK onaylı, henüz işlem görmeyen izahnameler:"
+HALKAARZ_BOS_TEXT = "🆕 Şu an son 60 günde SPK onaylı, işleme başlamamış bir izahname bulunamadı."
+HALKAARZ_YUKLENIYOR_TEXT = "🆕 İzahnameler taranıyor... (~45-60 saniye, ~22 aracı kurumun KAP profili kontrol ediliyor)"
 DEGERLEME_PROMPT = "🧮 Değerleme — hisse kodunu yaz (örn: THYAO). Sadece BİST sanayi/ticaret şirketleri desteklenir."
 
 ANALIZ_BIST_PROMPT = "Hisse kodunu yaz (örn: THYAO)"

@@ -1,0 +1,351 @@
+<!--
+  Bilanco Radar HALKA ARZ INCELEME karti sablonu (Faz 20 devami, 2026-08-06).
+
+  card.html/fund_card.html ile AYNI ilke: HICBIR sayi HESAPLANMAZ, butun
+  degerler src.render.ipo_card.build_ipo_card_context() tarafindan ONCEDEN
+  Turkce bicimlendirilmis olarak gelir.
+
+  Yapisal olarak kullanicinin paylastigi ucuncu taraf bir halka arz
+  infografiginden ESINLENIR (bilgi karti + tahsisat tablosu duzeni) ama
+  BIREBIR AYNI DEGILDIR -- QuaxisLabs marka dili (logo/masthead/disclaimer,
+  projenin GENELINDEKI dark glassmorphism/monospace tema, fund_card.html ile
+  AYNI temel yapi) + KENDI aksan rengi (cyan -- teal/fund, amber/derin kart,
+  mor/teknik ile KARISMASIN diye) kullanilir.
+-->
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Quaxis Halka Arz İnceleme · {{ primary_ticker }}</title>
+<style>
+  :root {
+    --bg: #0a0e12;
+    --panel: rgba(255, 255, 255, 0.02);
+    --panel-strong: rgba(255, 255, 255, 0.04);
+    --border: rgba(226, 232, 240, 0.09);
+    --border-soft: rgba(226, 232, 240, 0.06);
+    --heading: #e2e8f0;
+    --secondary: #64748b;
+    --positive: #22c55e;
+    --negative: #ef4444;
+    --neutral: #94a3b8;
+    --accent: #22d3ee;
+    --accent-soft: rgba(34, 211, 238, 0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body { background: var(--bg); }
+
+  .ipo-card {
+    position: relative;
+    width: 1150px;
+    background: radial-gradient(circle at 10% -10%, var(--accent-soft), transparent 40%),
+      radial-gradient(circle at 100% 0%, rgba(99, 102, 241, 0.04), transparent 35%),
+      var(--bg);
+    color: var(--heading);
+    font-family: "Cascadia Code", "Cascadia Mono", Consolas, "JetBrains Mono", "IBM Plex Mono",
+      "SFMono-Regular", Menlo, Monaco, ui-monospace, monospace;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    overflow: hidden;
+    padding: 28px 32px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .scanlines {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.018) 0px, rgba(255,255,255,0.018) 1px, transparent 1px, transparent 3px);
+    mix-blend-mode: overlay;
+  }
+
+  .top-band {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 22px 26px;
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--accent);
+    border-radius: 12px;
+    background: linear-gradient(180deg, var(--accent-soft), transparent 55%), var(--panel);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  }
+
+  .masthead { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .masthead-logo { height: 44px; width: 44px; border-radius: 50%; display: block; }
+  .masthead-text { font-size: 17px; font-weight: 800; letter-spacing: 0.5px; }
+  .masthead-brand { color: var(--heading); }
+  .masthead-accent { color: var(--accent); }
+  .masthead-product { color: var(--secondary); font-weight: 600; letter-spacing: 0.3px; }
+
+  .title-line { font-size: 26px; font-weight: 800; letter-spacing: 0.3px; color: var(--heading); }
+  .ticker-badge { font-size: 15px; font-weight: 700; color: var(--accent); margin-left: 8px; }
+  .ipo-subtitle { margin-top: 6px; font-size: 13px; color: var(--secondary); }
+
+  .date-badge { text-align: right; font-size: 13px; color: var(--secondary); letter-spacing: 0.3px; white-space: nowrap; }
+  .date-badge-value { font-size: 15px; font-weight: 700; color: var(--heading); }
+
+  /* --- Anahtar rakamlar seridi --- */
+  .facts-strip { display: flex; gap: 12px; }
+  .fact-tile {
+    flex: 1;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border-soft);
+    background: var(--panel);
+    text-align: center;
+  }
+  .fact-label { font-size: 11px; color: var(--secondary); letter-spacing: 0.3px; text-transform: uppercase; margin-bottom: 6px; }
+  .fact-value { font-size: 20px; font-weight: 800; color: var(--heading); }
+  .fallback-tag { margin-top: 4px; font-size: 9.5px; color: var(--secondary); opacity: 0.7; }
+  .fallback-tag.inline { display: inline-block; margin: 0 0 0 8px; font-weight: 600; text-transform: none; letter-spacing: 0; vertical-align: middle; }
+  .fallback-block { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-soft); }
+  .fallback-block-label { font-size: 10.5px; color: var(--secondary); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 6px; }
+  .fallback-line { font-size: 12.5px; color: var(--heading); padding: 3px 0; }
+
+  /* --- İki sütunlu ızgara (Dağıtım/Tahmini solda, Sermaye/Sulanma sağda) --- */
+  .two-col { display: flex; gap: 16px; align-items: flex-start; }
+  .two-col .col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+
+  /* --- Hızlı bilgi şeridi (talep toplama / katılım endeksi / satış yöntemi) --- */
+  .quick-strip { display: flex; gap: 12px; flex-wrap: wrap; }
+  .quick-tile {
+    flex: 1;
+    min-width: 200px;
+    padding: 11px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border-soft);
+    background: var(--panel-strong);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .quick-icon { font-size: 18px; line-height: 1; }
+  .quick-label { font-size: 10.5px; color: var(--secondary); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 2px; }
+  .quick-value { font-size: 13.5px; font-weight: 700; color: var(--heading); }
+  .quick-value.positive { color: var(--positive); }
+  .quick-value.negative { color: var(--negative); }
+  .source-tag { font-size: 9.5px; color: var(--secondary); opacity: 0.7; margin-left: 4px; }
+
+  /* --- Dağıtım / Tahmini Dağıtım tabloları --- */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .data-table th { text-align: right; font-size: 11px; color: var(--secondary); text-transform: uppercase; letter-spacing: 0.3px; padding: 4px 8px; font-weight: 600; }
+  .data-table th:first-child { text-align: left; }
+  .data-table td { padding: 7px 8px; border-top: 1px solid var(--border-soft); text-align: right; }
+  .data-table td:first-child { text-align: left; color: var(--heading); font-weight: 600; }
+  .data-table td.value { font-weight: 700; color: var(--heading); }
+  .data-table td.pct { color: var(--accent); font-weight: 700; }
+  .section-subtitle { font-size: 11.5px; color: var(--secondary); margin: -4px 0 10px; line-height: 1.4; }
+
+  /* --- Sermaye artırımı / ortak satışı bar --- */
+  .section { padding: 16px 18px; border-radius: 12px; border: 1px solid var(--border-soft); background: var(--panel); }
+  .section-heading { font-size: 13px; font-weight: 800; letter-spacing: 0.3px; color: var(--heading); margin-bottom: 10px; }
+
+  .split-bar { display: flex; height: 26px; border-radius: 7px; overflow: hidden; border: 1px solid var(--border-soft); margin-bottom: 8px; }
+  .split-segment-capital { background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #04202a; }
+  .split-segment-partner { background: var(--neutral); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #1a1a1a; }
+  .split-legend { display: flex; gap: 18px; font-size: 12px; color: var(--secondary); }
+  .split-legend-dot { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
+
+  .pure-badge { display: inline-block; margin-top: 8px; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; background: rgba(34, 197, 94, 0.12); color: var(--positive); border: 1px solid rgba(34, 197, 94, 0.3); }
+
+  /* --- Sulanma tablosu --- */
+  .dilution-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .dilution-table th { text-align: right; font-size: 11px; color: var(--secondary); text-transform: uppercase; letter-spacing: 0.3px; padding: 4px 8px; font-weight: 600; }
+  .dilution-table th:first-child { text-align: left; }
+  .dilution-table td { padding: 7px 8px; border-top: 1px solid var(--border-soft); text-align: right; }
+  .dilution-table td:first-child { text-align: left; color: var(--secondary); }
+  .dilution-table td.value { font-weight: 700; color: var(--heading); }
+
+  .mini-stats { display: flex; gap: 12px; margin-top: 12px; }
+  .mini-stat { flex: 1; padding: 10px 12px; border-radius: 10px; background: var(--panel-strong); border: 1px solid var(--border-soft); text-align: center; }
+  .mini-stat-label { font-size: 10.5px; color: var(--secondary); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 4px; }
+  .mini-stat-value { font-size: 16px; font-weight: 800; color: var(--heading); }
+
+  /* --- Tahsisat / Fon kullanım yeri barları --- */
+  .columns { display: flex; gap: 16px; }
+  .column { flex: 1; min-width: 0; }
+  .bar-row { margin-bottom: 10px; }
+  .bar-row-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--secondary); margin-bottom: 4px; }
+  .bar-row-label .value { color: var(--heading); font-weight: 700; }
+  .bar-track { height: 8px; border-radius: 4px; background: var(--panel-strong); overflow: hidden; border: 1px solid var(--border-soft); }
+  .bar-fill { height: 100%; border-radius: 4px; background: var(--accent); }
+  .bar-fill.secondary { background: #a78bfa; }
+  .column-empty { font-size: 12px; color: var(--secondary); padding: 8px 0; }
+
+  .bottom-band { padding-top: 10px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: baseline; }
+  .disclaimer { font-size: 11px; color: var(--secondary); letter-spacing: 0.2px; max-width: 720px; }
+  .footer-meta { font-size: 11px; color: var(--secondary); opacity: 0.75; white-space: nowrap; }
+  .footer-handle { color: var(--heading); font-weight: 700; opacity: 0.9; }
+  .dot-sep { margin: 0 8px; color: var(--secondary); }
+</style>
+</head>
+<body>
+<div id="ipo-card" class="ipo-card">
+  <div class="scanlines"></div>
+
+  <header class="top-band">
+    <div>
+      <div class="masthead">
+        <img class="masthead-logo" src="{{ logo_data_uri }}" alt="QuaxisLabs">
+        <span class="masthead-text"><span class="masthead-brand">QUAXIS<span class="masthead-accent">LABS</span></span><span class="masthead-product"> · HALKA ARZ İNCELEME</span></span>
+      </div>
+      <div class="title-line">{{ company_name }}<span class="ticker-badge">#{{ primary_ticker }}</span></div>
+      <div class="ipo-subtitle">
+        Aracı Kurum: {{ underwriter_name }}
+        {% if other_tickers_display %}<span class="dot-sep">·</span>İlgili Kodlar: {{ other_tickers_display }}{% endif %}
+      </div>
+    </div>
+    <div class="date-badge">
+      <div>İzahname Tarihi</div>
+      <div class="date-badge-value">{{ publish_date_label }}</div>
+    </div>
+  </header>
+
+  <div class="facts-strip">
+    <div class="fact-tile"><div class="fact-label">Halka Arz Fiyatı</div><div class="fact-value">{{ offering_price_display }}</div>{% if offering_price_is_fallback %}<div class="fallback-tag">halkarz.com</div>{% endif %}</div>
+    <div class="fact-tile"><div class="fact-label">Halka Arz Büyüklüğü</div><div class="fact-value">{{ offering_size_display }}</div>{% if offering_size_is_fallback %}<div class="fallback-tag">halkarz.com</div>{% endif %}</div>
+    {% if total_lot_display %}
+    <div class="fact-tile"><div class="fact-label">Toplam Lot</div><div class="fact-value">{{ total_lot_display }}</div>{% if total_lot_is_fallback %}<div class="fallback-tag">halkarz.com</div>{% endif %}</div>
+    {% endif %}
+    <div class="fact-tile"><div class="fact-label">Net Halka Arz Geliri</div><div class="fact-value">{{ net_proceeds_display }}</div></div>
+    <div class="fact-tile"><div class="fact-label">Tahmini Arz Maliyeti</div><div class="fact-value">{{ offering_cost_display }}</div></div>
+  </div>
+
+  {% if has_quick_info %}
+  <div class="quick-strip">
+    {% if demand_period_display %}
+    <div class="quick-tile">
+      <div class="quick-icon">🗓️</div>
+      <div><div class="quick-label">Talep Toplama</div><div class="quick-value">{{ demand_period_display }}{% if demand_period_hours %} · {{ demand_period_hours }}{% endif %}</div></div>
+    </div>
+    {% endif %}
+    {% if participation_compliant is not none %}
+    <div class="quick-tile">
+      <div class="quick-icon">🕌</div>
+      <div><div class="quick-label">Katılım Endeksi</div><div class="quick-value {{ 'positive' if participation_compliant else 'negative' }}">{{ 'Uygun' if participation_compliant else 'Uygun Değil' }}{% if participation_index_name %} ({{ participation_index_name }}){% endif %}</div></div>
+    </div>
+    {% endif %}
+    {% if sales_method_note %}
+    <div class="quick-tile">
+      <div class="quick-icon">🛒</div>
+      <div><div class="quick-label">Satış Yöntemi</div><div class="quick-value">{{ sales_method_note }}</div></div>
+    </div>
+    {% endif %}
+    {% if price_stabilization_note %}
+    <div class="quick-tile">
+      <div class="quick-icon">⚖️</div>
+      <div><div class="quick-label">Fiyat İstikrarı</div><div class="quick-value">{{ price_stabilization_note }}</div></div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="two-col">
+    <div class="col">
+      {% if not is_allocation_empty or allocation_fallback_lines %}
+      <section class="section">
+        <div class="section-heading">📊 DAĞITIM YAPISI</div>
+        {% if not is_allocation_empty %}
+        <table class="data-table">
+          <thead><tr><th>Yatırımcı Grubu</th><th>Yüzde</th><th>Lot</th></tr></thead>
+          <tbody>
+            {% for row in allocation_rows %}
+            <tr><td>{{ row.label }}</td><td class="pct">{{ row.pct_display }}</td><td class="value">{{ row.lot_display or '-' }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% elif allocation_fallback_lines %}
+        <div class="fallback-block">
+          <div class="fallback-block-label">İzahnameden ayrıştırılamadı — kaynak: halkarz.com</div>
+          {% for line in allocation_fallback_lines %}
+          <div class="fallback-line">{{ line }}</div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </section>
+      {% endif %}
+
+      {% if not is_estimated_distribution_empty %}
+      <section class="section">
+        <div class="section-heading">🎲 TAHMİNİ DAĞITIM (YURT İÇİ BİREYSEL){% if estimated_distribution_is_fallback %}<span class="fallback-tag inline">halkarz.com</span>{% endif %}</div>
+        <div class="section-subtitle">Varsayımsal senaryo -- gerçek bir tahmin değildir; sadece "bu kadar kişi başvurursa kişi başına kaç lot düşer" sorusuna eşit dağıtım varsayımıyla cevap verir.</div>
+        <table class="data-table">
+          <thead><tr><th>Katılımcı Sayısı</th><th>Kişi Başı Lot</th><th>Kişi Başı Tutar</th></tr></thead>
+          <tbody>
+            {% for row in estimated_distribution_rows %}
+            <tr><td>{{ row.participants_display }} kişi</td><td class="value">{{ row.lot_display }} Lot</td><td class="value">{{ row.tl_display }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+      {% endif %}
+    </div>
+
+    <div class="col">
+      {% if has_capital_split %}
+      <section class="section">
+        <div class="section-heading">🏗️ SERMAYE ARTIRIMI vs ORTAK SATIŞI{% if capital_split_is_fallback %}<span class="fallback-tag inline">halkarz.com</span>{% endif %}</div>
+        <div class="split-bar">
+          <div class="split-segment-capital" style="width: {{ capital_increase_pct_raw }}%;">{% if capital_increase_pct_raw >= 18 %}{{ capital_increase_pct_display }}{% endif %}</div>
+          {% if capital_increase_pct_raw < 100 %}
+          <div class="split-segment-partner" style="width: {{ 100 - capital_increase_pct_raw }}%;">{% if 100 - capital_increase_pct_raw >= 18 %}{{ partner_sale_pct_display }}{% endif %}</div>
+          {% endif %}
+        </div>
+        <div class="split-legend">
+          <span><span class="split-legend-dot" style="background: var(--accent);"></span>Sermaye Artırımı {{ capital_increase_pct_display }}</span>
+          <span><span class="split-legend-dot" style="background: var(--neutral);"></span>Ortak Satışı {{ partner_sale_pct_display }}</span>
+        </div>
+        {% if is_pure_capital_increase %}<div class="pure-badge">✓ Arzın tamamı sermaye artırımı — gelirin tamamı şirket kasasına giriyor</div>{% endif %}
+      </section>
+      {% endif %}
+
+      {% if not is_dilution_section_empty %}
+      <section class="section">
+        <div class="section-heading">📐 HALKA ARZ ÖNCESİ / SONRASI</div>
+        <div class="section-subtitle">Yeni pay çıkarılınca mevcut ortakların pay başına düşen defter değeri ve sermaye içindeki payı değişir ("sulanma etkisi") -- bu TÜM halka arzlarda SPK'nın zorunlu kıldığı standart bir karşılaştırmadır, sadece bu şirkete özgü değildir.</div>
+        {% if dilution_rows %}
+        <table class="dilution-table">
+          <thead><tr><th>Kalem</th><th>Öncesi</th><th>Sonrası</th></tr></thead>
+          <tbody>
+            {% for row in dilution_rows %}
+            <tr><td>{{ row.label }}</td><td class="value">{{ row.before_display }}</td><td class="value">{{ row.after_display }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
+        {% if dilution_mini_stats %}
+        <div class="mini-stats">
+          {% for stat in dilution_mini_stats %}
+          <div class="mini-stat"><div class="mini-stat-label">{{ stat.label }}</div><div class="mini-stat-value">{{ stat.value }}</div></div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </section>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if not is_use_of_proceeds_empty %}
+  <section class="section">
+    <div class="section-heading">🎯 FON KULLANIM YERİ (ÖNE ÇIKANLAR)</div>
+    {% for row in use_of_proceeds_rows %}
+    <div class="bar-row">
+      <div class="bar-row-label"><span>{{ row.label }}</span><span class="value">{{ row.pct_display }}</span></div>
+      <div class="bar-track"><div class="bar-fill secondary" style="width: {{ row.pct_raw }}%;"></div></div>
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  <footer class="bottom-band">
+    <div class="disclaimer">{{ disclaimer }}</div>
+    <div class="footer-meta">Üretim: {{ report_timestamp }}<span class="dot-sep">·</span>Kaynak: KAP Onaylı İzahname{% if has_supplementary_source %} + halkarz.com{% endif %}<span class="dot-sep">·</span><span class="footer-handle">@QuaxisLabs</span></div>
+  </footer>
+</div>
+</body>
+</html>

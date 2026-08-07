@@ -184,7 +184,23 @@ class Disclosure:
     importance: str  # IMPORTANCE_HIGH | IMPORTANCE_LOW
     is_late: bool
     disclosure_index: int
-    stock_codes: str
+    stock_codes: str  # bildirimi YAYINLAYAN uyenin kendi kodu (orn. "A1CAP, ACP")
+    # Faz 20 (halka arz izahnamesi kesfi): bildirimin KONUSU olan sirket(ler) --
+    # bir ARACI KURUM kendi profilinden bir BASKA sirketin (henuz kendi KAP
+    # profili/borsa kaydi olmayabilecek bir halka arz adayinin) izahnamesini
+    # yayinladiginda `stock_codes` ARACININ kodunu tasir, hedef sirketin kodu
+    # SADECE bu alanda (API "relatedStocks") gelir -- CANLI dogrulandi
+    # (A1CAP'in KARCL icin yayinladigi izahname: stock_codes="A1CAP, ACP",
+    # related_stocks="KARCL, VKY, ZRY"). Varsayilan bos string -- bu alan
+    # EKLENMEDEN once olusturulmus cagrilar/testler BOZULMAZ.
+    related_stocks: str = ""
+    # Faz 20 devamı (2026-08-07): bildirimi YAYINLAYAN KAP üyesinin RESMİ
+    # unvanı (API "kapTitle" alanı, örn. "TERA YATIRIM MENKUL DEĞERLER A.Ş.").
+    # `fetch_all_disclosures()` (üye kısıtlaması OLMADAN, TÜM üyeleri tarayan
+    # tek istek) ile bulunan izahnamelerde "Aracı Kurum" adını göstermek için
+    # gerekli -- eski `UNDERWRITER_MEMBERS` sabit listesinden GELMİYOR artık
+    # (bkz. kap_ipo.py modül üst notu, o liste ASLA eksiksiz olamıyordu).
+    filer_name: str = ""
 
 
 # --- HTTP katmani -----------------------------------------------------
@@ -212,6 +228,96 @@ def _post_json(url: str, body: dict) -> object:
         raise KapNetworkError(
             "KAP yaniti JSON olarak ayristirilamadi (endpoint sema degistirmis olabilir)."
         ) from exc
+
+
+@retry(
+    reraise=True,
+    stop=stop_after_attempt(config.HTTP_MAX_RETRIES),
+    wait=wait_fixed(config.HTTP_RATE_LIMIT_DELAY_SECONDS),
+    retry=retry_if_exception_type(httpx.RequestError),
+)
+def _get(url: str, params: dict | None = None) -> httpx.Response:
+    """`_post_json()` ile AYNI ilke ama GET için -- Faz 20'de bildirim detay
+    sayfası/dosya indirme gibi GET-tabanlı uç noktalar için eklendi
+    (`kap_fund_portfolio.py`'nin kendi `_get()`'iyle AYNI davranış, tek
+    kaynağa taşındı)."""
+    try:
+        response = httpx.get(url, params=params, headers=_HEADERS, timeout=config.HTTP_TIMEOUT_SECONDS)
+    except httpx.RequestError as exc:
+        logger.warning("KAP GET isteği başarısız, yeniden denenecek: %s", exc)
+        raise
+    if response.status_code != 200:
+        raise KapNetworkError(f"KAP beklenmeyen HTTP durum kodu döndürdü: {response.status_code}")
+    return response
+
+
+def _unescape_next_js_string(html_text: str) -> str:
+    """`kap_fund_portfolio.py`'den TAŞINDI (Faz 20) -- KAP'ın Next.js RSC
+    payload'ı JSON'u bir JS string literali İÇİNDE taşıyor, iç JSON'un
+    tırnak işaretleri `\\"` olarak escape'lenmiş geliyor."""
+    return html_text.replace('\\"', '"').replace("\\\\", "\\")
+
+
+_ATTACHMENT_RE = re.compile(r'"attachments":\[\{"objId":"([^"]+)","fileName":"([^"]+)"')
+_FILE_DOWNLOAD_TEMPLATE = f"{KAP_BASE}/api/file/download/{{obj_id}}"
+
+
+def fetch_disclosure_attachment_pdf(disclosure_index: int) -> bytes | None:
+    """Bir bildirimin detay sayfasından İLK ekli PDF'i indirir -- Faz 17'de
+    `kap_fund_portfolio.py` içinde AYNI mantıkla yazılmıştı, Faz 20'de
+    (halka arz izahnamesi de AYNI mekanizmayı kullandığı için) buraya da
+    eklendi.
+
+    ⚠️ BİLİNÇLİ KÜÇÜK KOD TEKRARI: `kap_fund_portfolio._fetch_attachment_pdf()`
+    kasıtlı olarak BURAYA yönlendirilip SİLİNMEDİ -- o modülün testleri
+    `kfp._get`'i (bu modülün `kap._get`'İNDEN AYRI bir isim) monkeypatch
+    ediyor; tam bir "tek kaynağa taşıma" refactoru o testlerin çoğunu
+    (özellikle `test_fetch_latest_portfolio_uctan_uca` gibi tek bir sahte
+    `_get` ile 3 farklı URL'i birden yöneten entegrasyon testlerini)
+    riske atardı. Fonksiyonun kendisi ~15 satır ve DAVRANIŞ olarak
+    BİREBİR aynı -- ikisi de AYNI canlı doğrulanmış mekanizmayı (bildirim
+    detay sayfası -> attachments -> file/download) izliyor, formül/mantık
+    olarak SAPMA riski yok. Ekli dosya yoksa/PDF değilse None döner
+    (Kural 9 -- ikincil bir zenginleştirme, hata FIRLATMAZ)."""
+    response = _get(DISCLOSURE_DETAIL_URL_TEMPLATE.format(disclosure_index=disclosure_index))
+    text = _unescape_next_js_string(response.text)
+
+    match = _ATTACHMENT_RE.search(text)
+    if not match:
+        logger.info("Bildirim %s için ekli dosya bulunamadı.", disclosure_index)
+        return None
+    obj_id, file_name = match.groups()
+    if not file_name.lower().endswith(".pdf"):
+        logger.info("Bildirim %s ekindeki dosya PDF değil (%s), atlanıyor.", disclosure_index, file_name)
+        return None
+
+    pdf_response = _get(_FILE_DOWNLOAD_TEMPLATE.format(obj_id=obj_id))
+    return pdf_response.content
+
+
+def search_company_by_name(query: str) -> list[CompanyMatch]:
+    """`search_company()`'nin serbest-metin (tam ticker eşleşmesi GEREKMEYEN)
+    varyantı -- Faz 20: halka arza aracılık eden kurumların KAP oid'ini
+    kendi TİCKER kodlarını EZBERE bilmeden (Kural 3: uydurma yapılmaz),
+    kurum ADIYLA çözmek için. AYNI `SEARCH_ENDPOINT`i kullanır, SADECE
+    `searchType=='C'` (şirket) sonuçlarını döner -- `search_company()` ile
+    AYNI filtre, sadece "TEK bir tam eşleşme ZORUNLU" kısıtı KALDIRILDI
+    (birden fazla veya sıfır sonuç dönebilir, çağıran taraf seçer/doğrular).
+    """
+    payload = _post_json(SEARCH_ENDPOINT, {"keyword": query.strip()})
+    if not isinstance(payload, list):
+        raise KapNetworkError("KAP arama yanıtı beklenmeyen biçimde (liste değil).")
+
+    companies = next((c.get("results", []) for c in payload if c.get("category") == "companyOrFunds"), [])
+    return [
+        CompanyMatch(
+            member_oid=row["memberOrFundOid"],
+            name=row.get("searchValue", ""),
+            ticker_codes=tuple((row.get("cmpOrFundCode") or "").split(",")),
+        )
+        for row in companies
+        if row.get("searchType") == "C"
+    ]
 
 
 def _parse_sector_map(html_text: str) -> dict[str, str]:
@@ -358,6 +464,8 @@ def _row_to_disclosure(row: dict) -> Disclosure:
         is_late=bool(row.get("isLate", False)),
         disclosure_index=disclosure_index,
         stock_codes=row.get("stockCodes") or "",
+        related_stocks=row.get("relatedStocks") or "",
+        filer_name=row.get("kapTitle") or "",
     )
 
 
@@ -385,6 +493,70 @@ def fetch_disclosures_by_oid(member_oid: str, days: int = 90) -> list[Disclosure
         raise KapNetworkError(f"KAP bildirim sorgusu basarisiz: {error_message}")
     if not isinstance(payload, list):
         raise KapNetworkError("KAP bildirim yaniti beklenmeyen bicimde (liste degil).")
+
+    disclosures = [_row_to_disclosure(row) for row in payload]
+    disclosures.sort(key=lambda d: d.date, reverse=True)
+    return disclosures
+
+
+# CANLI KEŞFEDİLDİ (Faz 20, kullanıcı raporu üzerine, 2026-08-07):
+# `mkkMemberOidList` alanı BOŞ liste/hiç verilmezse endpoint TÜM KAP
+# üyelerinin bildirimlerini döner (üye kısıtlaması YOK) -- bu, `kap_ipo.py`'nin
+# ÖNCEKİ turdaki sabit `UNDERWRITER_MEMBERS` (~22 kurum) listesini TARAYAN
+# yaklaşımının YERİNİ alır: o liste kaçınılmaz olarak eksikti (kullanıcı
+# raporu: Tera Yatırım -- Çitlekçi'nin izahnamesini yayınlayan kurum --
+# listede YOKTU; TSKB gibi tipik bir "aracı kurum" bile sayılmayan bir üye
+# de -- Bewen'in izahnamesini yayınlamış -- ASLA akla gelmezdi). Tek istekte
+# TÜM piyasa taranır (~1-2 saniye, 22 kurumun ~45-60 saniyelik sıralı
+# taramasından KAT KAT hızlı).
+# ⚠️ SINIR (CANLI ölçüldü): yanıt tam olarak **2000 satırda KESİLİYOR**
+# (14 ve 30 günlük pencereler İKİSİ DE tam 2000 döndü, 7 gün 1878 ile
+# sınırın ALTINDA kaldı) -- bu yüzden `_MAX_SAFE_ALL_DISCLOSURES_DAYS`
+# ile pencere sınırlanır, sınıra ulaşılırsa (Kural 3: sessizce yanlış
+# sonuç ÜRETİLMEZ) bir uyarı loglanır.
+_MAX_SAFE_ALL_DISCLOSURES_DAYS = 10
+_ALL_DISCLOSURES_TRUNCATION_ROW_COUNT = 2000
+
+
+def fetch_all_disclosures(days: int = 7) -> list[Disclosure]:
+    """TÜM KAP üyelerinin son `days` gündeki bildirimlerini TEK istekte
+    döner (üye/oid GEREKMEZ). `days` `_MAX_SAFE_ALL_DISCLOSURES_DAYS`'i
+    aşarsa (CANLI ölçülen 2000 satır kesme sınırına çarpma riski) ValueError
+    fırlatır -- çağıran taraf bilerek daha uzun bir pencere istiyorsa
+    `fetch_disclosures_by_oid()`/üye-bazlı tarama kullanmalı.
+
+    Hatalar:
+        ValueError: `days` güvenli sınırı aşıyor.
+        KapNetworkError: Ağ hatası veya beklenmeyen yanıt.
+    """
+    if days > _MAX_SAFE_ALL_DISCLOSURES_DAYS:
+        raise ValueError(
+            f"fetch_all_disclosures: days={days} güvenli sınırı ({_MAX_SAFE_ALL_DISCLOSURES_DAYS}) aşıyor "
+            "-- KAP yanıtı 2000 satırda kesiliyor, daha uzun pencere için üye-bazlı tarama kullan."
+        )
+
+    to_date = date.today()
+    from_date = to_date - timedelta(days=days)
+    body = {
+        "fromDate": from_date.isoformat(),
+        "toDate": to_date.isoformat(),
+        "mkkMemberOidList": [],
+    }
+    payload = _post_json(DISCLOSURES_ENDPOINT, body)
+
+    if isinstance(payload, dict):
+        error_message = payload.get("errorMessage", "bilinmeyen hata")
+        raise KapNetworkError(f"KAP bildirim sorgusu basarisiz: {error_message}")
+    if not isinstance(payload, list):
+        raise KapNetworkError("KAP bildirim yaniti beklenmeyen bicimde (liste degil).")
+
+    if len(payload) >= _ALL_DISCLOSURES_TRUNCATION_ROW_COUNT:
+        logger.warning(
+            "fetch_all_disclosures: yanıt tam %s satır döndü -- KAP'ın kesme sınırına ULAŞILMIŞ olabilir, "
+            "bazı bildirimler eksik kalmış olabilir (days=%s).",
+            len(payload),
+            days,
+        )
 
     disclosures = [_row_to_disclosure(row) for row in payload]
     disclosures.sort(key=lambda d: d.date, reverse=True)

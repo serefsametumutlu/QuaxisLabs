@@ -20,7 +20,9 @@ def _callback_data_grid(markup) -> list[list[str]]:
     return [[button.callback_data for button in row] for row in markup.inline_keyboard]
 
 
-def test_build_root_menu_sekiz_dal_icerir() -> None:
+def test_build_root_menu_dokuz_dal_icerir() -> None:
+    """Faz 20 devamı: '🆕 Halka Arz İnceleme' (menu:halkaarz) eklendi --
+    eskiden sekiz dal vardı (bkz. git geçmişi)."""
     grid = _callback_data_grid(menu.build_root_menu())
     assert grid == [
         ["menu:analiz"],
@@ -28,10 +30,21 @@ def test_build_root_menu_sekiz_dal_icerir() -> None:
         ["menu:derinanaliz"],
         ["menu:degerleme"],
         ["menu:fonanaliz"],
+        ["menu:halkaarz"],
         ["menu:takvim"],
         ["menu:son"],
         ["menu:hakkinda"],
     ]
+
+
+def test_build_halkaarz_menu_disclosure_listesi_ve_geri_icerir() -> None:
+    grid = _callback_data_grid(menu.build_halkaarz_menu([("KARCL", "Kardemir Çelik Sanayi AŞ · #KARCL"), ("QUICK", "Quick Sigorta A.Ş. · #QUICK")]))
+    assert grid == [["halkaarz:goster:KARCL"], ["halkaarz:goster:QUICK"], ["menu:root"]]
+
+
+def test_build_halkaarz_menu_bos_listede_sadece_geri_icerir() -> None:
+    grid = _callback_data_grid(menu.build_halkaarz_menu([]))
+    assert grid == [["menu:root"]]
 
 
 def test_build_analiz_menu_bist_nasdaq_ve_geri_icerir() -> None:

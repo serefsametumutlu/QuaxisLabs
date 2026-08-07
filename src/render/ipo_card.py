@@ -163,48 +163,74 @@ def _use_of_proceeds_range_lines(use_of_proceeds_range: dict[str, str] | None) -
     return [f"{label}: {pct_range}" for label, pct_range in use_of_proceeds_range.items()]
 
 
-def _operational_financial_rows(price_report: PriceReportFinancials | None, assessment: IpoAssessment) -> list[dict]:
+def _operational_financial_rows(
+    price_report: PriceReportFinancials | None,
+    assessment: IpoAssessment,
+    supplementary: SupplementaryIpoInfo | None = None,
+) -> list[dict]:
     """"Operasyonel ve Finansal Veriler" bölümü -- Faz 20.5 (2026-08-07
     devamı). BİLİNÇLİ OLARAK SADECE Fiyat Tespit Raporu'ndan gelen
     STANDART finansal büyüklükler (Hasılat/Brüt Kâr/Toplam Varlıklar/
     Özkaynaklar) -- nüfus/aktif tüketici sayısı gibi SEKTÖRE ÖZGÜ
     "operasyonel" kalemler burada YOK (Kural 3, bkz. ipo_price_report.py
-    modül üst notu). Her satır kendi verisi yoksa ATLANIR."""
-    if price_report is None:
-        return []
+    modül üst notu). Her satır kendi verisi yoksa ATLANIR.
 
+    2026-08-07 (otuz birinci tur): izahname/Fiyat Tespit Raporu'ndan TEK BİR
+    satır bile üretilemezse (`price_report` `None` OLABİLİR YA DA -- CANLI
+    KPEKS'te bulunan hata -- ayrıştırma denenip HİÇBİR alanı dolduramamış
+    bir `PriceReportFinancials` nesnesi de OLABİLİR, `is None` kontrolü
+    İKİNCİYİ YAKALAMIYORDU) halkarz.com'un "Finansal Tablo" widget'ından
+    (Hasılat/Brüt Kâr, SADECE en son TAM YIL, YoY YOK -- bu widget'ta
+    karşılaştırma dönemi bulunmuyor) DÜZ METİN yedeğine düşülür --
+    `is_fallback=True` ile şablonda "kaynak: halkarz.com" işaretlenir
+    (Kural 1/2: bu bizim hesabımız değil, siteden OLDUĞU GİBİ alıntı)."""
     rows: list[dict] = []
-    if price_report.revenue_full_year is not None:
-        label = f"Hasılat ({price_report.full_year_label})" if price_report.full_year_label else "Hasılat"
-        rows.append({"label": label, "value_display": format_currency_short(price_report.revenue_full_year * 1000), "yoy_display": None, "yoy_class": "neutral"})
-    if price_report.revenue_latest_interim is not None:
-        label = f"Ciro ({price_report.period_label})" if price_report.period_label else "Ciro"
-        yoy = assessment.revenue_yoy_growth_pct
-        rows.append(
-            {
-                "label": label,
-                "value_display": format_currency_short(price_report.revenue_latest_interim * 1000),
-                "yoy_display": format_percent_tr(yoy, decimals=1) if yoy is not None else None,
-                "yoy_class": "positive" if (yoy is not None and yoy >= 0) else ("negative" if yoy is not None else "neutral"),
-            }
-        )
-    if price_report.gross_profit_latest_interim is not None:
-        label = f"Brüt Kâr ({price_report.period_label})" if price_report.period_label else "Brüt Kâr"
-        yoy = assessment.gross_profit_yoy_growth_pct
-        rows.append(
-            {
-                "label": label,
-                "value_display": format_currency_short(price_report.gross_profit_latest_interim * 1000),
-                "yoy_display": format_percent_tr(yoy, decimals=1) if yoy is not None else None,
-                "yoy_class": "positive" if (yoy is not None and yoy >= 0) else ("negative" if yoy is not None else "neutral"),
-            }
-        )
-    if price_report.total_assets is not None:
-        label = f"Toplam Varlıklar ({price_report.period_label})" if price_report.period_label else "Toplam Varlıklar"
-        rows.append({"label": label, "value_display": format_currency_short(price_report.total_assets * 1000), "yoy_display": None, "yoy_class": "neutral"})
-    if price_report.total_equity is not None:
-        label = f"Özkaynaklar ({price_report.period_label})" if price_report.period_label else "Özkaynaklar"
-        rows.append({"label": label, "value_display": format_currency_short(price_report.total_equity * 1000), "yoy_display": None, "yoy_class": "neutral"})
+    if price_report is not None:
+        if price_report.revenue_full_year is not None:
+            label = f"Hasılat ({price_report.full_year_label})" if price_report.full_year_label else "Hasılat"
+            rows.append({"label": label, "value_display": format_currency_short(price_report.revenue_full_year * 1000), "yoy_display": None, "yoy_class": "neutral"})
+        if price_report.revenue_latest_interim is not None:
+            label = f"Ciro ({price_report.period_label})" if price_report.period_label else "Ciro"
+            yoy = assessment.revenue_yoy_growth_pct
+            rows.append(
+                {
+                    "label": label,
+                    "value_display": format_currency_short(price_report.revenue_latest_interim * 1000),
+                    "yoy_display": format_percent_tr(yoy, decimals=1) if yoy is not None else None,
+                    "yoy_class": "positive" if (yoy is not None and yoy >= 0) else ("negative" if yoy is not None else "neutral"),
+                }
+            )
+        if price_report.gross_profit_latest_interim is not None:
+            label = f"Brüt Kâr ({price_report.period_label})" if price_report.period_label else "Brüt Kâr"
+            yoy = assessment.gross_profit_yoy_growth_pct
+            rows.append(
+                {
+                    "label": label,
+                    "value_display": format_currency_short(price_report.gross_profit_latest_interim * 1000),
+                    "yoy_display": format_percent_tr(yoy, decimals=1) if yoy is not None else None,
+                    "yoy_class": "positive" if (yoy is not None and yoy >= 0) else ("negative" if yoy is not None else "neutral"),
+                }
+            )
+        if price_report.total_assets is not None:
+            label = f"Toplam Varlıklar ({price_report.period_label})" if price_report.period_label else "Toplam Varlıklar"
+            rows.append({"label": label, "value_display": format_currency_short(price_report.total_assets * 1000), "yoy_display": None, "yoy_class": "neutral"})
+        if price_report.total_equity is not None:
+            label = f"Özkaynaklar ({price_report.period_label})" if price_report.period_label else "Özkaynaklar"
+            rows.append({"label": label, "value_display": format_currency_short(price_report.total_equity * 1000), "yoy_display": None, "yoy_class": "neutral"})
+
+    if rows or supplementary is None:
+        return rows
+
+    # Fiyat Tespit Raporu HİÇ bulunamadı VEYA bulundu ama TEK BİR alanı bile
+    # ayrıştırılamadı (KPEKS gibi, taranmış PDF) -- halkarz.com'un
+    # "Finansal Tablo" widget'ına düş.
+    period = supplementary.financial_table_period_label
+    if supplementary.financial_table_revenue_full_year_text:
+        label = f"Hasılat ({period})" if period else "Hasılat"
+        rows.append({"label": label, "value_display": supplementary.financial_table_revenue_full_year_text, "yoy_display": None, "yoy_class": "neutral", "is_fallback": True})
+    if supplementary.financial_table_gross_profit_full_year_text:
+        label = f"Brüt Kâr ({period})" if period else "Brüt Kâr"
+        rows.append({"label": label, "value_display": supplementary.financial_table_gross_profit_full_year_text, "yoy_display": None, "yoy_class": "neutral", "is_fallback": True})
     return rows
 
 
@@ -304,12 +330,21 @@ def build_ipo_card_context(
     participation_index_name = supplementary.participation_index_name if supplementary else None
     price_stabilization_note = supplementary.price_stabilization_note if supplementary else None
     sales_method_note = supplementary.sales_method_note if supplementary else None
+    # --- 2026-08-07 (otuz birinci tur, kullanıcı referans görseli: VEYAS
+    # infografiği) -- halkarz.com'da ZATEN duran ama önceki turlarda hiç
+    # çekilmeyen alanlar: İskonto/Halka Açıklık/Pazar/Ek Pay. ---
+    discount_pct_text = supplementary.discount_pct_text if supplementary else None
+    free_float_pct_text = supplementary.free_float_pct_text if supplementary else None
+    market_tier = supplementary.market_tier if supplementary else None
+    additional_lot_text = supplementary.additional_lot_text if supplementary else None
     has_quick_info = any(
         [
             demand_period_display,
             participation_compliant is not None,
             price_stabilization_note,
             sales_method_note,
+            discount_pct_text,
+            free_float_pct_text,
         ]
     )
 
@@ -406,8 +441,15 @@ def build_ipo_card_context(
     )
 
     use_of_proceeds_range_lines = _use_of_proceeds_range_lines(facts.use_of_proceeds_range) if not use_of_proceeds_rows else None
+    # 3. kademe yedek: Ek-5/Ek-7 (kesin %) YOK, ana izahnamenin 28.2 ARALIK
+    # bölümü de OKUNAMADIYSA (izahname taranmış -- VEYAS gibi) halkarz.com'un
+    # "Fonun Kullanım Yeri" serbest metnine düşülür (2026-08-07, otuz
+    # birinci tur).
+    use_of_proceeds_note = (
+        supplementary.use_of_proceeds_note if (supplementary and not use_of_proceeds_rows and not use_of_proceeds_range_lines) else None
+    )
 
-    operational_financial_rows = _operational_financial_rows(price_report, assessment)
+    operational_financial_rows = _operational_financial_rows(price_report, assessment, supplementary)
 
     highlight_rows = _highlight_rows(
         offering_size_display=offering_size_display,
@@ -433,6 +475,7 @@ def build_ipo_card_context(
         # geliyor, zaten resmi/okunabilir -- BURADA hiç case dönüşümü
         # YAPILMAZ, olduğu gibi gösterilir.
         "underwriter_name": disclosure.underwriter_name,
+        "market_tier": market_tier,
         "publish_date_label": _turkish_date_label(disclosure.publish_date),
         "report_timestamp": now.strftime("%d.%m.%Y %H:%M"),
         # --- Anahtar rakamlar --- ("_is_fallback" True ise halkarz.com'dan
@@ -445,9 +488,15 @@ def build_ipo_card_context(
         "offering_cost_display": format_currency_short(facts.estimated_offering_cost),
         "total_lot_display": total_lot_display,
         "total_lot_is_fallback": total_lot_is_fallback,
-        # --- Talep toplama / Katılım Endeksi / satış yöntemi (İKİNCİL kaynak:
-        # halkarz.com -- bkz. ipo_broker_page.py). Her biri None olabilir,
-        # şablon bunları TEK TEK kontrol edip yoksa hiç göstermez. ---
+        # --- Ek Pay (greenshoe/ek satış, halkarz.com) -- izahnamedeki
+        # `total_lot_display` BİLİNÇLİ OLARAK bunu HARİÇ tutar (bkz.
+        # ipo_broker_page.py `_strip_lot_suffix` üst notu), burada AYRI ve
+        # AÇIKÇA etiketli bir ek bilgi olarak gösterilir. ---
+        "additional_lot_display": additional_lot_text,
+        # --- Talep toplama / Katılım Endeksi / satış yöntemi / İskonto /
+        # Halka Açıklık (İKİNCİL kaynak: halkarz.com -- bkz. ipo_broker_page.py).
+        # Her biri None olabilir, şablon bunları TEK TEK kontrol edip yoksa
+        # hiç göstermez. ---
         "has_quick_info": has_quick_info,
         "demand_period_display": demand_period_display,
         "demand_period_hours": demand_period_hours,
@@ -455,6 +504,8 @@ def build_ipo_card_context(
         "participation_index_name": participation_index_name,
         "price_stabilization_note": price_stabilization_note,
         "sales_method_note": sales_method_note,
+        "discount_pct_text": discount_pct_text,
+        "free_float_pct_text": free_float_pct_text,
         # --- Fiyat İstikrarı Detayı (izahname 26.5) + Taahhüt (27.3) --
         # PRİMER kaynak, halkarz.com'dan (yukarıdaki price_stabilization_note)
         # BAĞIMSIZ ayrı tile'lar (Faz 20.5). ---
@@ -485,6 +536,9 @@ def build_ipo_card_context(
         # 28.2 (ana izahname, ARALIK formatlı) fallback -- SADECE Ek-5/Ek-7
         # (yukarıdaki use_of_proceeds_rows) boşsa devreye girer (Faz 20.5).
         "use_of_proceeds_range_lines": use_of_proceeds_range_lines,
+        # 3. kademe yedek (halkarz.com serbest metin) -- SADECE ikisi de
+        # boşsa devreye girer (2026-08-07, otuz birinci tur).
+        "use_of_proceeds_note": use_of_proceeds_note,
         # --- Tahmini Dağıtım (yurt içi bireysel, eşit dağıtım senaryosu) ---
         "estimated_distribution_rows": estimated_distribution_rows,
         "estimated_distribution_is_fallback": estimated_distribution_is_fallback,
@@ -514,8 +568,15 @@ def build_ipo_share_text(context: dict) -> str:
         hours = f" ({context['demand_period_hours']})" if context["demand_period_hours"] else ""
         lines.append(f"🗓️ Talep Toplama: {context['demand_period_display']}{hours}")
     lines.append(f"💰 Halka Arz Fiyatı: {context['offering_price_display']}")
-    lines.append(f"📦 Halka Arz Büyüklüğü: {context['offering_size_display']} (Toplam {context['total_lot_display'] or '-'} Lot)")
+    ek_pay = f" (+{context['additional_lot_display']} Lot ek satış)" if context.get("additional_lot_display") else ""
+    lines.append(f"📦 Halka Arz Büyüklüğü: {context['offering_size_display']} (Toplam {context['total_lot_display'] or '-'} Lot{ek_pay})")
     lines.append(f"🏦 Net Halka Arz Geliri: {context['net_proceeds_display']}")
+    if context.get("discount_pct_text") or context.get("free_float_pct_text"):
+        parcalar = [p for p in (
+            f"İskonto {context['discount_pct_text']}" if context.get("discount_pct_text") else None,
+            f"Halka Açıklık {context['free_float_pct_text']}" if context.get("free_float_pct_text") else None,
+        ) if p]
+        lines.append(f"📐 {' · '.join(parcalar)}")
     if context["participation_compliant"] is not None:
         durum = "Uygun" if context["participation_compliant"] else "Uygun Değil"
         endeks = f" ({context['participation_index_name']})" if context["participation_index_name"] else ""
@@ -543,6 +604,13 @@ def build_ipo_share_text(context: dict) -> str:
         lines.append("")
         lines.append("🎯 Fon Kullanım Yeri (öne çıkanlar):")
         lines.extend(f"  • {row['label']}: {row['pct_display']}" for row in context["use_of_proceeds_rows"])
+    elif context.get("use_of_proceeds_range_lines"):
+        lines.append("")
+        lines.append("🎯 Halka Arz Gelirinin Kullanımı:")
+        lines.extend(f"  • {line}" for line in context["use_of_proceeds_range_lines"])
+    elif context.get("use_of_proceeds_note"):
+        lines.append("")
+        lines.append(f"🎯 Halka Arz Gelirinin Kullanımı: {context['use_of_proceeds_note']}")
     lines.append("")
     lines.append(f"📅 İzahname Onay/Yayın Tarihi: {context['publish_date_label']}")
     lines.append("")

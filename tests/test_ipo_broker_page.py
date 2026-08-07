@@ -209,3 +209,43 @@ def test_fetch_supplementary_ipo_info_bos_sayfa_none_doner(monkeypatch) -> None:
     responses = iter([_fake_response(_SEARCH_RESULT_HTML), _fake_response("<html><body>boş</body></html>")])
     monkeypatch.setattr(ibp, "_get", lambda url, params=None: next(responses))
     assert ibp.fetch_supplementary_ipo_info("CITAS") is None
+
+
+# --- _parse_financial_table (2026-08-07, otuz birinci tur, YENİ) --------------------------------
+
+
+def test_parse_financial_table_ondalik_virgulu_alan_ayraciyla_karismaz() -> None:
+    """🚨 CANLI HATA + DÜZELTME (KPEKS): `text.split(",")` (boşluksuz) Türkçe
+    ondalık virgülünü ("794,1 Milyon TL") DE bölüyordu -- KPEKS'in gerçek
+    verisiyle CANLI yakalandı, "1 Milyon TL" gibi anlamsız bir değer
+    üretiyordu."""
+    text = (
+        "Finansal Tablo, 2026/3, 2025, 2024, Hasılat, 794,1 Milyon TL, "
+        "3,8 Milyar TL, 4,1 Milyar TL, Brüt Kâr, 250,0 Milyon TL, "
+        "1,2 Milyar TL, 1,3 Milyar TL"
+    )
+
+    period, revenue, gross_profit = ibp._parse_financial_table(text)
+
+    assert period == "2025"
+    assert revenue == "3,8 Milyar TL"
+    assert gross_profit == "1,2 Milyar TL"
+
+
+def test_parse_financial_table_veyas_ile_birebir_dogru() -> None:
+    text = (
+        "Finansal Tablo, 2026/3, 2025, 2024, Hasılat, 5,7 Milyar TL, "
+        "26,6 Milyar TL, 24,6 Milyar TL, Brüt Kâr, 2,4 Milyar TL, "
+        "9,5 Milyar TL, 9,9 Milyar TL"
+    )
+
+    period, revenue, gross_profit = ibp._parse_financial_table(text)
+
+    assert period == "2025"
+    assert revenue == "26,6 Milyar TL"
+    assert gross_profit == "9,5 Milyar TL"
+
+
+def test_parse_financial_table_beklenmeyen_format_none_doner() -> None:
+    assert ibp._parse_financial_table("alakasız bir metin") == (None, None, None)
+    assert ibp._parse_financial_table(None) == (None, None, None)

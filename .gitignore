@@ -13,5 +13,6 @@ data/logos/*.svg
 data/exploration/*.json
 !data/exploration/*_readable.txt
 !data/exploration/*_ozet_*.txt
+data/tessdata/
 .venv/
 venv/

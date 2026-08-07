@@ -335,10 +335,12 @@ def _citas_disclosure() -> kap_ipo.IzahnameDisclosure:
     )
 
 
-def _citas_context(price_report=None) -> dict:
+def _citas_context(price_report=None, supplementary=None) -> dict:
     facts = kap_ipo.extract_ipo_facts(CITAS_IZAHNAME_TEXT)
     assessment = ipo_assessment.compute_ipo_assessment(facts, price_report=price_report)
-    return ipo_card.build_ipo_card_context(_citas_disclosure(), facts, assessment, now=_NOW, price_report=price_report)
+    return ipo_card.build_ipo_card_context(
+        _citas_disclosure(), facts, assessment, now=_NOW, supplementary=supplementary, price_report=price_report
+    )
 
 
 def test_build_ipo_card_context_highlight_rows_ozne_kanaat_icermez() -> None:
@@ -390,6 +392,35 @@ def test_build_ipo_card_context_operasyonel_finansal_price_report_ile_dolar() ->
     ciro_row = next(row for row in context["operational_financial_rows"] if row["label"] == "Ciro (31.03.2026)")
     assert ciro_row["yoy_display"] == "%13,6"
     assert ciro_row["yoy_class"] == "positive"
+
+
+def test_build_ipo_card_context_operasyonel_finansal_price_report_bos_donerse_halkarz_yedegine_duser() -> None:
+    """🚨 CANLI HATA + DÜZELTME (2026-08-07, otuz birinci tur, KPEKS ile
+    bulundu): `price_report` `None` DEĞİL ama TEK BİR alanı bile
+    doldurmamış bir `PriceReportFinancials` nesnesi olduğunda (taranmış PDF)
+    eski kod `is None` kontrolü yüzünden halkarz.com yedeğine HİÇ
+    DÜŞMÜYORDU -- bölüm SESSİZCE boş kalıyordu."""
+    bos_price_report = ipo_price_report.extract_price_report_financials("alakasız bir metin, hiçbir tablo yok")
+    supplementary = SupplementaryIpoInfo(
+        demand_period_display=None,
+        demand_period_hours=None,
+        participation_index_compliant=None,
+        participation_index_name=None,
+        price_stabilization_note=None,
+        sales_method_note=None,
+        source_url="https://halkarz.com/kapeks-kimya-sanayi-a-s/",
+        financial_table_revenue_full_year_text="3,8 Milyar TL",
+        financial_table_gross_profit_full_year_text="1,2 Milyar TL",
+        financial_table_period_label="2025",
+    )
+
+    context = _citas_context(price_report=bos_price_report, supplementary=supplementary)
+
+    assert context["is_operational_financial_empty"] is False
+    rows = {row["label"]: row for row in context["operational_financial_rows"]}
+    assert rows["Hasılat (2025)"]["value_display"] == "3,8 Milyar TL"
+    assert rows["Hasılat (2025)"]["is_fallback"] is True
+    assert rows["Brüt Kâr (2025)"]["value_display"] == "1,2 Milyar TL"
 
 
 def test_render_ipo_card_faz_20_5_bolumleriyle_cokmez(tmp_path) -> None:

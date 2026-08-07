@@ -10,6 +10,12 @@ beautifulsoup4>=4.12
 # KAP fon "Portfoy Dagilim Raporu" PDF ayristirma (bkz. src/fetchers/kap_fund_portfolio.py)
 pdfplumber>=0.11
 
+# Taranmis/goruntu-tabanli PDF'ler icin OCR yedegi (bkz. src/fetchers/pdf_ocr.py) --
+# Tesseract OCR motorunun kendisi (binary) ve Turkce dil paketi (tur.traineddata)
+# AYRICA kurulmalidir, pip bunlari saglamaz -- bkz. PROJE_HAFIZASI/07_BAKIM_KURALLARI.md
+PyMuPDF>=1.24
+pytesseract>=0.3.13
+
 # Veritabani
 SQLAlchemy>=2.0
 

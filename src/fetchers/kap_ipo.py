@@ -63,7 +63,7 @@ from io import BytesIO
 
 import pdfplumber
 
-from src.fetchers import kap
+from src.fetchers import kap, pdf_ocr
 
 logger = logging.getLogger(__name__)
 
@@ -669,8 +669,14 @@ def extract_ipo_facts(izahname_text: str, use_of_proceeds_text: str | None = Non
 
 
 def _pdf_bytes_to_text(pdf_bytes: bytes) -> str:
+    """`pdfplumber` metni boş/neredeyse boş dönerse (taranmış/görüntü-tabanlı
+    PDF belirtisi -- VEYAS gibi, bkz. modül üst notu) `pdf_ocr.py` OCR
+    yedeğini dener (2026-08-07, otuz birinci tur, YENİ). Tesseract kurulu
+    değilse (Kural 9) `pdf_ocr.is_available()` `False` döner, davranış
+    ESKİSİ GİBİ (pdfplumber sonucu, muhtemelen boş) kalır."""
     with pdfplumber.open(BytesIO(pdf_bytes)) as pdf:
-        return "\n".join(page.extract_text() or "" for page in pdf.pages)
+        text = "\n".join(page.extract_text() or "" for page in pdf.pages)
+    return pdf_ocr.extract_text_with_ocr_fallback(pdf_bytes, text)
 
 
 def fetch_and_parse_izahname(disclosure: IzahnameDisclosure) -> IpoFacts | None:

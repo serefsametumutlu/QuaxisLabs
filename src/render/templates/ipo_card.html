@@ -212,6 +212,7 @@
       <div class="title-line">{{ company_name }}<span class="ticker-badge">#{{ primary_ticker }}</span></div>
       <div class="ipo-subtitle">
         Aracı Kurum: {{ underwriter_name }}
+        {% if market_tier %}<span class="dot-sep">·</span>Pazar: {{ market_tier }}{% endif %}
         {% if other_tickers_display %}<span class="dot-sep">·</span>İlgili Kodlar: {{ other_tickers_display }}{% endif %}
       </div>
     </div>
@@ -225,7 +226,7 @@
     <div class="fact-tile"><div class="fact-label">Halka Arz Fiyatı</div><div class="fact-value">{{ offering_price_display }}</div>{% if offering_price_is_fallback %}<div class="fallback-tag">halkarz.com</div>{% endif %}</div>
     <div class="fact-tile"><div class="fact-label">Halka Arz Büyüklüğü</div><div class="fact-value">{{ offering_size_display }}</div>{% if offering_size_is_fallback %}<div class="fallback-tag">halkarz.com</div>{% endif %}</div>
     {% if total_lot_display %}
-    <div class="fact-tile"><div class="fact-label">Toplam Lot</div><div class="fact-value">{{ total_lot_display }}</div>{% if total_lot_is_fallback %}<div class="fallback-tag">halkarz.com</div>{% endif %}</div>
+    <div class="fact-tile"><div class="fact-label">Toplam Lot{% if additional_lot_display %} <span class="fallback-tag inline">+{{ additional_lot_display }} ek satış</span>{% endif %}</div><div class="fact-value">{{ total_lot_display }}</div>{% if total_lot_is_fallback %}<div class="fallback-tag">halkarz.com</div>{% endif %}</div>
     {% endif %}
     <div class="fact-tile"><div class="fact-label">Net Halka Arz Geliri</div><div class="fact-value">{{ net_proceeds_display }}</div></div>
     <div class="fact-tile"><div class="fact-label">Tahmini Arz Maliyeti</div><div class="fact-value">{{ offering_cost_display }}</div></div>
@@ -278,6 +279,18 @@
     <div class="quick-tile">
       <div class="quick-icon">🔒</div>
       <div><div class="quick-label">İhraççı Taahhüdü</div><div class="quick-value">{{ issuer_lockup_period_display }} boyunca yeni satış/halka arz yok</div></div>
+    </div>
+    {% endif %}
+    {% if discount_pct_text %}
+    <div class="quick-tile">
+      <div class="quick-icon">🏷️</div>
+      <div><div class="quick-label">Halka Arz İskontosu<span class="source-tag">halkarz.com</span></div><div class="quick-value">{{ discount_pct_text }}</div></div>
+    </div>
+    {% endif %}
+    {% if free_float_pct_text %}
+    <div class="quick-tile">
+      <div class="quick-icon">🌊</div>
+      <div><div class="quick-label">Halka Açıklık<span class="source-tag">halkarz.com</span></div><div class="quick-value">{{ free_float_pct_text }}</div></div>
     </div>
     {% endif %}
   </div>
@@ -388,12 +401,26 @@
       {% endfor %}
     </div>
   </section>
+  {% elif use_of_proceeds_note %}
+  <section class="section">
+    <div class="section-heading">🎯 HALKA ARZ GELİRİNİN KULLANIMI</div>
+    <div class="fallback-block">
+      <div class="fallback-block-label">İzahnameden ayrıştırılamadı — kaynak: halkarz.com</div>
+      <div class="fallback-line">{{ use_of_proceeds_note }}</div>
+    </div>
+  </section>
   {% endif %}
 
   {% if not is_operational_financial_empty %}
   <section class="section">
-    <div class="section-heading">📈 OPERASYONEL VE FİNANSAL VERİLER</div>
-    <div class="section-subtitle">Fiyat Tespit Raporu'ndaki bağımsız denetimden geçmiş finansal tablolardan -- YoY (yıllık) değişim, aynı ara dönemin bir önceki yılla karşılaştırmasıdır.</div>
+    <div class="section-heading">📈 OPERASYONEL VE FİNANSAL VERİLER{% if operational_financial_rows[0].is_fallback %}<span class="fallback-tag inline">halkarz.com</span>{% endif %}</div>
+    <div class="section-subtitle">
+      {% if operational_financial_rows[0].is_fallback %}
+      Fiyat Tespit Raporu okunamadığı için halkarz.com'un finansal tablo özetinden alınmıştır (YoY karşılaştırma verisi bu kaynakta yok).
+      {% else %}
+      Fiyat Tespit Raporu'ndaki bağımsız denetimden geçmiş finansal tablolardan -- YoY (yıllık) değişim, aynı ara dönemin bir önceki yılla karşılaştırmasıdır.
+      {% endif %}
+    </div>
     <table class="financial-table">
       <thead><tr><th>Kalem</th><th>Tutar</th><th>YoY</th></tr></thead>
       <tbody>

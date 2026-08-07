@@ -95,6 +95,17 @@ def _to_decimal(text: str) -> Decimal | None:
 
 
 def _pdf_bytes_to_text(pdf_bytes: bytes) -> str:
+    """⚠️ BİLİNÇLİ OLARAK `pdf_ocr.py` OCR yedeği KULLANILMAZ (2026-08-07,
+    otuz birinci tur) -- `kap_ipo.py`'nin AKSİNE, bu belgenin TEK değeri
+    yoğun, çok kolonlu Bilanço/Gelir Tablosu ızgaralarıdır (bkz. modül üst
+    notu). CANLI test edildi (KPEKS Fiyat Tespit Raporu, sayfa 11): OCR bu
+    tür tablolarda sütun hizasını bozup rakamları KAYDIRIYOR ("%5" ->
+    "965", "19,25" -> "1925" gibi). `extract_price_report_financials()`'ın
+    regex'leri BURADA öz-doğrulama YAPMIYOR (kap_ipo._parse_allocation()'ın
+    %100 toplam kontrolünün AKSİNE) -- OCR'dan gelen yanlış-ama-formatı-
+    doğru bir rakam SESSİZCE kabul edilebilirdi. Kural 1/2/3 gereği (yanlış
+    rakamdan iyidir) bu risk alınmadı; taranmış bir Fiyat Tespit Raporu
+    (KPEKS gibi) hâlâ None döner."""
     with pdfplumber.open(BytesIO(pdf_bytes)) as pdf:
         return "\n".join(page.extract_text() or "" for page in pdf.pages)
 

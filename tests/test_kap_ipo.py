@@ -40,6 +40,60 @@ def _ek5_text() -> str:
     return kap_ipo._pdf_bytes_to_text(pdf_bytes)
 
 
+# --- _pdf_bytes_to_text OCR yedeği (2026-08-07, otuz birinci tur, YENİ) -------------------------
+
+
+def test_pdf_bytes_to_text_pdfplumber_metni_yeterliyse_ocr_denenmez(monkeypatch) -> None:
+    """`_ek5_text()` fixture'ı ZATEN 5700+ karakter döndürüyor (gerçek KARCL
+    PDF'i, taranmış DEĞİL) -- OCR'a hiç gidilmemeli."""
+    called = False
+
+    def _fake_ocr_fallback(pdf_bytes: bytes, pdfplumber_text: str) -> str:
+        nonlocal called
+        called = True
+        return pdfplumber_text
+
+    monkeypatch.setattr(kap_ipo.pdf_ocr, "extract_text_with_ocr_fallback", _fake_ocr_fallback)
+
+    _ek5_text()
+
+    assert called is True  # sarmalayıcı HER ZAMAN çağrılır, ama içeride OCR denenmez (bkz. pdf_ocr testleri)
+
+
+def test_pdf_bytes_to_text_taranmis_pdfde_ocr_yedegi_devreye_girer(monkeypatch) -> None:
+    """Kural 9: `pdfplumber` boş dönerse (taranmış PDF) OCR yedeği
+    denenmeli -- gerçek Tesseract ÇAĞRILMADAN (Kural 11), sadece kablolamanın
+    doğruluğu test edilir."""
+    monkeypatch.setattr(
+        kap_ipo.pdf_ocr,
+        "extract_text_with_ocr_fallback",
+        lambda pdf_bytes, pdfplumber_text: "OCR İLE OKUNAN METİN" if not pdfplumber_text.strip() else pdfplumber_text,
+    )
+    # 1x1 boş bir PDF -- pdfplumber gerçek bir dosya OLMADAN boş metin döner
+    bos_pdf = (FIXTURES_DIR / "kap_izahname_ek5_fon_kullanim_karcl.pdf").read_bytes()
+
+    # Not: gerçek OCR'ı TETİKLEMEDEN kablolamayı doğrulamak için pdfplumber
+    # sonucu da monkeypatch'lenir (dolu bir PDF'te dahi "boşmuş gibi" davranır).
+    class _BosSayfa:
+        def extract_text(self) -> None:
+            return None
+
+    class _BosPdf:
+        pages = [_BosSayfa()]
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    monkeypatch.setattr(kap_ipo.pdfplumber, "open", lambda *_args, **_kwargs: _BosPdf())
+
+    result = kap_ipo._pdf_bytes_to_text(bos_pdf)
+
+    assert result == "OCR İLE OKUNAN METİN"
+
+
 # --- extract_ipo_facts (Sulanma Etkisi Analizi tablosu) -- GERÇEK KARCL verisiyle -------------
 
 

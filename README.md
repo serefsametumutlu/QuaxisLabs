@@ -1212,6 +1212,31 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       `06_BILINEN_SORUNLAR.md` §B32 devamı). Regresyon: 3 yeni/yeniden
       yazılan test (`test_ipo_price_report.py`, `test_ipo_broker_page.py`).
       1119 test yeşil.
+- [x] **Faz 20.7** — (2026-08-07, otuz birinci tur devamı) Kullanıcı GERÇEK
+      referans görseli (VEYAS infografiği) paylaşıp "hâlâ eksik, internette
+      mevcut demek ki araştır ve bul" dedi. halkarz.com'un TAM sayfası
+      incelenip 6 yeni alan eklendi: İskonto, Halka Açıklık, Pazar, Ek Pay
+      (greenshoe), Fonun Kullanım Yeri (Gelir Kullanımı'nın 3. kademe
+      yedeği), Finansal Tablo (Fiyat Tespit Raporu taranmışsa Hasılat/Brüt
+      Kâr yedeği). CANLI 2 hata bulunup düzeltildi: `_parse_financial_table()`
+      Türkçe ondalık virgülünü alan ayracıyla karıştırıyordu ("794,1 Milyon
+      TL" -> "1 Milyon TL"); `_operational_financial_rows()`'ta `is None`
+      kontrolü "bulundu ama hiçbir alanı dolduramadı" (KPEKS'in taranmış
+      raporu) durumunu yakalamıyordu, halkarz.com yedeğine hiç düşülmüyordu.
+      YENİ `src/fetchers/pdf_ocr.py` (kullanıcı onayıyla) -- Tesseract +
+      Türkçe dil paketi + PyMuPDF ile taranmış PDF'ler için OCR yedeği,
+      `kap_ipo.py`'ye bağlandı; `ipo_price_report.py`'ye BİLİNÇLİ OLARAK
+      bağlanmadı (CANLI test: OCR yoğun sayısal tablolarda rakam kaydırıyor,
+      Kural 1/2/3 riski). Sayfa tavanı CANLI ölçümle 25'ten 8'e düşürüldü
+      (25 sayfa hiçbir örnekte hedef bölüme ulaşamadı, sadece gecikme
+      ekledi). Referans görseldeki "%70 fiyat istikrarı" rakamı
+      halkarz.com'un kendisiyle (%20) çeliştiği için kullanılmadı; "Neden
+      Dikkat Çekiyor" bölümü + öznel "Öne Çıkan Noktalar" cümleleri
+      BİLİNÇLİ OLARAK kopyalanmadı (K2/Kural 10 ile çelişir, yatırım
+      tavsiyesi izlenimi hukuki risk taşır). Operasyonel veriler (nüfus/
+      tüketici sayısı) ve kesin Yüksek Başvuru eşiği hâlâ kapsam dışı
+      (bkz. `06_BILINEN_SORUNLAR.md` §B34, gelecek faz adayı). 1130 test
+      yeşil (13 yeni).
 - [x] **Faz 19.1** — (2026-08-06, kullanıcı raporu) TLY fon tahmini
       fvt.com.tr'nin "AI Tahmini"nden (%0,17) ~18 kat büyük (%3,14)
       çıkıyordu. Kök neden: `yahoo_quote.fetch_daily_return()`'ün "close"

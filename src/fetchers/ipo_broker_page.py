@@ -138,6 +138,22 @@ class SupplementaryIpoInfo:
     capital_increase_pct_fallback: Decimal | None = None
     partner_sale_pct_fallback: Decimal | None = None
     is_pure_capital_increase_fallback: bool = False
+    # --- 2026-08-07 (otuz birinci tur, kullanıcı referans görseli: VEYAS
+    # infografiği) -- halkarz.com'un "Özet Bilgiler" sayfasında ZATEN duran
+    # ama önceki turlarda hiç çekilmeyen alanlar. HEPSİ düz metin alıntı
+    # (Kural 1/2: bizim hesabımız değil). ---
+    discount_pct_text: str | None = None  # "Halka Arz İskontosu" -- örn. "%20"
+    free_float_pct_text: str | None = None  # "Halka Açıklık" -- örn. "%13,67. (Ek satış dahil.)"
+    market_tier: str | None = None  # "Pazar" -- örn. "Yıldız Pazar"
+    additional_lot_text: str | None = None  # "Ek Pay" (greenshoe/ek satış) -- örn. "12.500.000"
+    use_of_proceeds_note: str | None = None  # "Fonun Kullanım Yeri" -- serbest metin, izahnamenin 28.2/Ek-5'i okunamadığında YEDEK
+    # "Finansal Tablo" widget'ından SADECE en son TAM YIL (Hasılat/Brüt Kâr) --
+    # `ipo_price_report.py`nin Fiyat Tespit Raporu'nu bulamadığı/okuyamadığı
+    # (KPEKS gibi, taranmış PDF) durumlarda YEDEK. Bilinçli olarak SADECE bu
+    # iki kalem -- Toplam Varlık/Özkaynak bu widget'ta HİÇ YOK.
+    financial_table_revenue_full_year_text: str | None = None  # örn. "26,6 Milyar TL"
+    financial_table_gross_profit_full_year_text: str | None = None  # örn. "9,5 Milyar TL"
+    financial_table_period_label: str | None = None  # örn. "2025"
 
 
 @retry(
@@ -342,6 +358,56 @@ def _parse_participation_index(soup: BeautifulSoup) -> tuple[bool | None, str | 
     return compliant, match.group(2)
 
 
+# "Finansal Tablo" widget'ı örneği (CANLI, VEYAS): "Finansal Tablo, 2026/3,
+# 2025, 2024, Hasılat, 5,7 Milyar TL, 26,6 Milyar TL, 24,6 Milyar TL, Brüt
+# Kâr, 2,4 Milyar TL, 9,5 Milyar TL, 9,9 Milyar TL" -- başlık satırı ARA
+# DÖNEM (örn. "2026/3") + iki TAM YIL (örn. "2025"/"2024") taşır, ardından
+# "Hasılat"/"Brüt Kâr" satırları AYNI 3 döneme karşılık gelen 3'er değer
+# taşır. SADECE en son TAM YIL (ilk 4-haneli-yıl deseni, ara dönem DEĞİL)
+# sütunu kullanılır -- `ipo_price_report.py`nin "full_year" alanlarıyla
+# AYNI kavram, ayrı bir ikincil kaynak.
+_FULL_YEAR_TOKEN_RE = re.compile(r"^\d{4}$")
+_INTERIM_YEAR_TOKEN_RE = re.compile(r"^\d{4}/\d+[AÇ]?$", re.IGNORECASE)
+
+
+def _parse_financial_table(text: str | None) -> tuple[str | None, str | None, str | None]:
+    """Döner: (period_label, revenue_full_year_text, gross_profit_full_year_text).
+    Beklenen başlık/etiket deseni TAM eşleşmezse (Kural 3) üçü de None.
+
+    🚨 CANLI HATA + DÜZELTME (2026-08-07, otuz birinci tur, KPEKS ile
+    bulundu): `text.split(",")` (boşluksuz) Türkçe ondalık virgülü ("794,1
+    Milyon TL" gibi) DE bölüyordu -- "794,1" ayrı iki token'a ("794"/"1
+    Milyon TL") parçalanıp TÜM konumsal eşleme kayıyordu (CANLI: "794,1
+    Milyon TL" yerine "1 Milyon TL" gibi anlamsız bir değer üretiyordu).
+    Alan ayracı `_clean_extra_field_text()`'te HER ZAMAN ", " (virgül+
+    BOŞLUK) iken ondalık virgülünden SONRA boşluk YOK -- `", "` ile
+    bölünerek bu ayrım korunur."""
+    if not text:
+        return None, None, None
+    tokens = [t.strip() for t in text.split(", ") if t.strip()]
+    # İlk token widget'ın kendi başlığı ("Finansal Tablo") -- atlanır.
+    period_tokens = [t for t in tokens[1:4] if _FULL_YEAR_TOKEN_RE.match(t) or _INTERIM_YEAR_TOKEN_RE.match(t)]
+    full_year_periods = [t for t in period_tokens if _FULL_YEAR_TOKEN_RE.match(t)]
+    if len(period_tokens) != 3 or not full_year_periods:
+        return None, None, None
+    period_label = full_year_periods[0]
+    period_index = period_tokens.index(period_label)
+
+    def _value_for_label(label: str) -> str | None:
+        try:
+            label_index = tokens.index(label)
+        except ValueError:
+            return None
+        value_index = label_index + 1 + period_index
+        return tokens[value_index] if value_index < len(tokens) else None
+
+    revenue = _value_for_label("Hasılat")
+    gross_profit = _value_for_label("Brüt Kâr") or _value_for_label("Brüt Kar")
+    if revenue is None and gross_profit is None:
+        return None, None, None
+    return period_label, revenue, gross_profit
+
+
 def fetch_supplementary_ipo_info(ticker: str) -> SupplementaryIpoInfo | None:
     """`ticker` için halkarz.com'dan best-effort tamamlayıcı bilgi çeker.
     HERHANGİ bir adımda başarısız olursa (Kural 9) None döner, hata
@@ -392,6 +458,15 @@ def fetch_supplementary_ipo_info(ticker: str) -> SupplementaryIpoInfo | None:
             capital_lot, partner_lot
         )
 
+        discount_pct_text = extra_fields.get("Halka Arz İskontosu")
+        free_float_pct_text = extra_fields.get("Halka Açıklık")
+        market_tier = sp_table_fields.get("Pazar")
+        additional_lot_text = _strip_lot_suffix(sp_table_fields.get("Ek Pay"))
+        use_of_proceeds_note = extra_fields.get("Fonun Kullanım Yeri")
+        financial_table_period, financial_table_revenue, financial_table_gross_profit = _parse_financial_table(
+            extra_fields.get("Finansal Tablo")
+        )
+
         if not any(
             [
                 demand_period,
@@ -404,6 +479,11 @@ def fetch_supplementary_ipo_info(ticker: str) -> SupplementaryIpoInfo | None:
                 allocation_lines,
                 estimated_retail_distribution,
                 capital_pct_fallback is not None,
+                discount_pct_text,
+                free_float_pct_text,
+                market_tier,
+                use_of_proceeds_note,
+                financial_table_revenue,
             ]
         ):
             return None
@@ -416,6 +496,14 @@ def fetch_supplementary_ipo_info(ticker: str) -> SupplementaryIpoInfo | None:
             price_stabilization_note=price_stabilization_note,
             sales_method_note=sales_method_note,
             source_url=page_url,
+            discount_pct_text=discount_pct_text,
+            free_float_pct_text=free_float_pct_text,
+            market_tier=market_tier,
+            additional_lot_text=additional_lot_text,
+            use_of_proceeds_note=use_of_proceeds_note,
+            financial_table_revenue_full_year_text=financial_table_revenue,
+            financial_table_gross_profit_full_year_text=financial_table_gross_profit,
+            financial_table_period_label=financial_table_period,
             offering_price_text=offering_price_text,
             total_lot_text=total_lot_text,
             offering_size_text=offering_size_text,

@@ -27,6 +27,12 @@ from src.fetchers import kap_ipo
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 KARCL_IZAHNAME_TEXT = (FIXTURES_DIR / "kap_izahname_karcl_2026_07.txt").read_text(encoding="utf-8")
+# Çitlekçi Mağazacılık (CITAS) -- 2026-08-07'de zaten data/exploration/'a
+# indirilmiş, Faz 20.2/20.3'te Sulanma Etkisi Analizi/tahsisat testlerinde
+# KULLANILMAMIŞ ama 26.5/27.3/28.2 bölümlerini (KARCL'ın izahnamesinde
+# incelenmemiş) İÇEREN gerçek bir izahname -- Faz 20.5 fiyat istikrarı/
+# taahhüt/28.2 fallback testleri için buraya kopyalandı.
+CITAS_IZAHNAME_TEXT = (FIXTURES_DIR / "kap_izahname_citas_2026_08.txt").read_text(encoding="utf-8")
 
 
 def _ek5_text() -> str:
@@ -80,6 +86,59 @@ def test_extract_ipo_facts_karcl_fon_kullanim_yeri_ek5_ile_birebir_dogru() -> No
 def test_extract_ipo_facts_use_of_proceeds_verilmezse_none() -> None:
     facts = kap_ipo.extract_ipo_facts(KARCL_IZAHNAME_TEXT)
     assert facts.use_of_proceeds is None
+
+
+# --- Fiyat İstikrarı (26.5) / Taahhütler (27.3) / 28.2 fallback -- GERÇEK CITAS verisiyle ------
+# (Faz 20.5, 2026-08-07 devamı) CANLI doğrulama: bu değerler izahnamenin
+# 229-232. sayfalarındaki 26.5/27.3/28.2 bölümleriyle birebir eşleşiyor.
+
+
+def test_extract_ipo_facts_citas_fiyat_istikrari_birebir_dogru() -> None:
+    facts = kap_ipo.extract_ipo_facts(CITAS_IZAHNAME_TEXT)
+
+    assert facts.price_stabilization_period_display == "30 gün"
+    assert facts.price_stabilization_source_pct == Decimal("15")
+
+
+def test_extract_ipo_facts_citas_taahhutler_birebir_dogru() -> None:
+    facts = kap_ipo.extract_ipo_facts(CITAS_IZAHNAME_TEXT)
+
+    assert facts.issuer_lockup_period_display == "1 yıl"
+    assert facts.shareholder_lockup_note is not None
+    assert "Tunçlar Yatırım Holding" in facts.shareholder_lockup_note
+
+
+def test_extract_ipo_facts_citas_28_2_fallback_dort_kategori_birebir_dogru() -> None:
+    """Ek-5/Ek-7 (use_of_proceeds_text) VERİLMEDİĞİNDE ana izahnamenin
+    kendi 28.2 bölümünden ARALIK formatlı fallback devreye girer."""
+    facts = kap_ipo.extract_ipo_facts(CITAS_IZAHNAME_TEXT)
+
+    assert facts.use_of_proceeds is None  # Ek-5 verilmedi
+    assert facts.use_of_proceeds_range == {
+        "İşletme Sermayesi Güçlendirilmesi": "%30-40",
+        "Yurt İçi Yeni Şube Yatırımları ile Diğer Alternatif Yatırım Fırsatlarının Değerlendirilmesi": "%30-40",
+        "Yurt İçi Yeni Depo Yatırımları": "%10-20",
+        "GES Yatırımı": "%10-20",
+    }
+
+
+def test_extract_ipo_facts_28_2_fallback_ek5_varsa_devre_disi_kalir() -> None:
+    """Ek-5/Ek-7 raporu ZATEN dolu bir kırılım verdiyse (KARCL örneği)
+    28.2 fallback'i devreye GİRMEMELİ -- ikisi aynı anda gösterilmez."""
+    facts = kap_ipo.extract_ipo_facts(KARCL_IZAHNAME_TEXT, use_of_proceeds_text=_ek5_text())
+
+    assert facts.use_of_proceeds is not None
+    assert facts.use_of_proceeds_range is None
+
+
+def test_extract_ipo_facts_fiyat_istikrari_ve_taahhut_anchor_bulunamazsa_none() -> None:
+    facts = kap_ipo.extract_ipo_facts("bu metinde ilgili hiçbir bölüm yok, tamamen alakasız bir metin.")
+
+    assert facts.price_stabilization_period_display is None
+    assert facts.price_stabilization_source_pct is None
+    assert facts.issuer_lockup_period_display is None
+    assert facts.shareholder_lockup_note is None
+    assert facts.use_of_proceeds_range is None
 
 
 # --- Kural 3 güvenlik ağı: bulunamayan/belirsiz alanlar None döner ----------------------------

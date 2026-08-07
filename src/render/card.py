@@ -60,6 +60,7 @@ from decimal import ROUND_CEILING, Decimal
 from pathlib import Path
 
 import jinja2
+from PIL import Image
 
 import config
 from src.ai import commentary as commentary_module
@@ -1155,6 +1156,38 @@ def _debug_html_path(template_name: str) -> Path:
     return config.DATA_DIR / f"last_{Path(template_name).stem}.html"
 
 
+def _force_transparent_corner_pixel(png_path: Path) -> None:
+    """X/Twitter yuklenen bir PNG'de HICBIR seffaf (alpha) piksel yoksa
+    onu JPEG'e cevirip agresif sikistiriyor -- kullanici raporu (2026-08-07,
+    IKINCI tur: ilk "HD sec" hatirlatmasi yetersiz kaldi, X'te artik boyle
+    bir secenek bulunamiyor). Kartlar X'te bulanik cikiyor. Iki BAGIMSIZ,
+    birbirini tamamlayan onlem alinir:
+    1) PNG'nin sag ust kosesindeki TEK bir pikseli tam seffaf (alpha=0)
+       yaparak X'in "bu gorsel seffaflik iceriyor" tespitini tetikleriz --
+       boylece JPEG donusumu ATLANIR, PNG olarak kalir (cok daha az
+       kayipli). Goze gorunmez (1 piksel, kose).
+    2) Kartlarimiz CANLI olcumde 4000x4176 gibi X'in "ideal" (1600x900)
+       onerisinden COK buyuk cikiyor (bkz. PROJE_HAFIZASI/04_KART_VE_GORSEL.md
+       §6) -- boyutu KUCULTMEDEN (kalite kaybi riski, ayri/gelecek bir is),
+       `optimize=True` ile PNG'yi kayipsiz MAKSIMUM sikistirir; AYNI piksel
+       verisi icin daha kucuk dosya X'in "bu gorseli ne kadar agresif
+       yeniden sikistirayim" kararini yumusatabilir (birden fazla kaynak
+       bunu dogruluyor, bkz. modul disi arastirma notlari).
+    Bu, X'in KENDI (belgelenmemis, bizim kontrolumuzde OLMAYAN) sunucu-
+    taraflı algoritmasina karsi EN IYI belgelenmis, riski OLMAYAN onlemdir --
+    KESIN garanti degildir (bkz. telegram_bot.py caption'indaki temkinli
+    ifade). Playwright'in kendi screenshot dosyasi zaten diskte oldugu icin
+    bu adim basarisiz olursa (Kural 9) orijinal, sikistirilmamis PNG oldugu
+    gibi kalir -- kartin temel islevini BLOKLAMAZ."""
+    try:
+        with Image.open(png_path) as img:
+            rgba = img.convert("RGBA")
+            rgba.putpixel((rgba.width - 1, 0), (0, 0, 0, 0))
+            rgba.save(png_path, format="PNG", optimize=True, compress_level=9)
+    except Exception:
+        logger.warning("Seffaf kose pikseli eklenemedi (X/Twitter kalite duzeltmesi atlandi): %s", png_path, exc_info=True)
+
+
 def render_card(
     context: dict,
     out_path: str,
@@ -1188,7 +1221,16 @@ def render_card(
 
     browser = _get_browser()
     try:
-        page = browser.new_page(viewport={"width": 1000, "height": 1200}, device_scale_factor=2)
+        # CANLI kullanıcı raporu (2026-08-07, ÜÇÜNCÜ tur): şeffaf köşe pikseli
+        # + kayıpsız PNG optimize'ı TEK BAŞINA yeterli olmadı (kullanıcı doğru
+        # dosyayı -- send_document, önizleme DEĞİL -- kullandığını doğruladı,
+        # yine bulanık geldi). `device_scale_factor=2` kartları 4000x4176 gibi
+        # X'in "ideal" (1600x900, bkz. PROJE_HAFIZASI/04_KART_VE_GORSEL.md §6)
+        # önerisinin ÇOK üzerinde piksel sayısına çıkarıyordu -- 1'e düşürülerek
+        # boyut YARIYA iniyor (CSS/tasarım DEĞİŞMEDİ, sadece render yoğunluğu).
+        # Kesin garanti değil (X'in algoritması bizim kontrolümüzde değil) ama
+        # kontrol edebildiğimiz, ölçülebilir tek değişken bu.
+        page = browser.new_page(viewport={"width": 1000, "height": 1200}, device_scale_factor=1)
         try:
             page.set_content(html, wait_until="load")
             page.locator(screenshot_selector).screenshot(path=str(out_path_obj))
@@ -1196,6 +1238,8 @@ def render_card(
             page.close()
     except Exception as exc:  # playwright kendi hata siniflarini firlatir (Error, TimeoutError vb.)
         raise CardRenderError(f"Kart PNG'ye render edilemedi: {exc}") from exc
+
+    _force_transparent_corner_pixel(out_path_obj)
 
     logger.info("Kart render edildi: %s", out_path_obj)
     return str(out_path_obj)

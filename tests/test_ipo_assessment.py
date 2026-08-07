@@ -151,3 +151,60 @@ def test_compute_ipo_assessment_eksik_veri_none_doner() -> None:
     assert assessment.allocation_retail_pct is None
     assert assessment.price_to_book_before is None
     assert assessment.equity_growth_pct is None
+
+
+# --- YoY büyüme (Faz 20.5, 2026-08-07 devamı) -- GERÇEK VEYAS Fiyat Tespit Raporu verisiyle ------
+
+
+def _bos_facts() -> kap_ipo.IpoFacts:
+    return kap_ipo.IpoFacts(
+        offering_price=None, capital_increase_amount=None, offering_size=None,
+        estimated_offering_cost=None, net_offering_proceeds=None,
+        equity_before=None, equity_after=None,
+        paid_capital_before=None, paid_capital_after=None,
+        book_value_per_share_before=None, book_value_per_share_after=None,
+        dilution_existing_pct=None, dilution_new_pct=None,
+        allocation_breakdown=None, use_of_proceeds=None,
+    )
+
+
+def test_compute_ipo_assessment_yoy_buyume_veyas_referans_gorselle_eslesir() -> None:
+    """Referans görsel: Ciro artışı %13,6, Brüt kâr artışı %113,5 (bkz.
+    tests/test_ipo_price_report.py, aynı Fiyat Tespit Raporu verisi)."""
+    from src.fetchers import ipo_price_report
+
+    price_report = ipo_price_report.PriceReportFinancials(
+        period_label="31.03.2026", full_year_label="2025",
+        revenue_latest_interim=Decimal("5775822"), revenue_prior_year_interim=Decimal("5084478"),
+        revenue_full_year=Decimal("26652218"),
+        gross_profit_latest_interim=Decimal("2469357"), gross_profit_prior_year_interim=Decimal("1156369"),
+        total_assets=Decimal("30121124"), total_equity=Decimal("15590464"),
+    )
+
+    assessment = ipo_assessment.compute_ipo_assessment(_bos_facts(), price_report=price_report)
+
+    assert _q4(assessment.revenue_yoy_growth_pct).quantize(Decimal("0.1")) == Decimal("13.6")
+    assert _q4(assessment.gross_profit_yoy_growth_pct).quantize(Decimal("0.1")) == Decimal("113.5")
+
+
+def test_compute_ipo_assessment_price_report_verilmezse_yoy_buyume_none() -> None:
+    assessment = ipo_assessment.compute_ipo_assessment(_bos_facts())
+
+    assert assessment.revenue_yoy_growth_pct is None
+    assert assessment.gross_profit_yoy_growth_pct is None
+
+
+def test_compute_ipo_assessment_price_report_kismi_veriyle_ilgili_alan_none() -> None:
+    from src.fetchers import ipo_price_report
+
+    price_report = ipo_price_report.PriceReportFinancials(
+        period_label=None, full_year_label=None,
+        revenue_latest_interim=None, revenue_prior_year_interim=None, revenue_full_year=None,
+        gross_profit_latest_interim=Decimal("2469357"), gross_profit_prior_year_interim=Decimal("1156369"),
+        total_assets=None, total_equity=None,
+    )
+
+    assessment = ipo_assessment.compute_ipo_assessment(_bos_facts(), price_report=price_report)
+
+    assert assessment.revenue_yoy_growth_pct is None
+    assert assessment.gross_profit_yoy_growth_pct is not None

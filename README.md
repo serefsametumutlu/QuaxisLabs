@@ -1155,6 +1155,33 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       Sermaye Artırımı/Ortak Satışı + tutarlı 300 Bin-1 Milyon senaryo
       tablosu dolu) + `CITAS` (2 sütunlu tasarım birincil/KAP yoluyla da
       sorunsuz). 1090 test, hepsi yeşil.
+- [x] **Faz 20.5** — (2026-08-07, otuzuncu tur) Kullanıcı bir VEYAS referans
+      görseli paylaşıp Halka Arz kartına 4 yeni bölüm istedi: Öne Çıkan
+      Noktalar, Halka Arz Gelirinin Kullanımı, Fiyat İstikrarı ve
+      Taahhütler, Operasyonel ve Finansal Veriler (mevcut Tahmini Dağıtım
+      korunarak). `kap_ipo.py`'ye SPK'nın standart 26.5 (Fiyat İstikrarı)/
+      27.3 (Taahhütler)/28.2 (Gelir Kullanımı, Ek-5/Ek-7 yoksa ARALIK
+      fallback) madde ayrıştırması eklendi -- ZATEN indirilen izahname
+      metninden, ek indirme YOK, CITAŞ ile CANLI doğrulandı. YENİ
+      `src/fetchers/ipo_price_report.py` -- "Fiyat Tespit Raporu" (şimdiye
+      kadar hiç keşfedilmemiş bir belge) DAR kapsamlı ayrıştırma: SADECE
+      Hasılat/Brüt Kâr/Toplam Varlıklar/Özkaynaklar, `scripts/
+      explore_ipo_price_report.py` ile VEYAS verisi kullanıcının referans
+      görselindeki GERÇEK rakamlarla (Hasılat 26.652.218 bin TL, Ciro artışı
+      %13,6 vb.) BİREBİR doğrulandı (Kural 3). `ipo_assessment.py`'ye YoY
+      büyüme oranları (SAF matematik). `ipo_card.py`/`ipo_card.html`'e 4
+      yeni bölüm -- "Öne Çıkan Noktalar" SADECE zaten hesaplanmış
+      rakamlardan NÖTR cümleler üretir, referans görseldeki öznel/yatırım-
+      tavsiyesi niteliğindeki ifadeler ("dikkat çekicidir" gibi) BİLİNÇLİ
+      OLARAK ALINMADI (K2/`build_ipo_analysis_text` ilkesiyle çelişirdi).
+      **"Operasyonel Veriler" (nüfus/tüketici sayısı gibi) BİLİNÇLİ OLARAK
+      kapsam dışı** -- sektöre özgü, standart olmayan serbest metin,
+      genelleştirilmiş güvenilir bir eşleme yok (Kural 3). AYRICA aynı
+      turda: X/Twitter bulanıklığı için 3 katmanlı render düzeltmesi
+      (şeffaf köşe pikseli + kayıpsız PNG optimizasyonu + `device_scale_
+      factor` 2→1, kartlar ~yarı boyuta indi) -- kullanıcı CANLI test etti,
+      **KESİN olarak çözüldüğü doğrulanamadı** (bkz. `06_BILINEN_
+      SORUNLAR.md` §B33, açık risk). 1117 test yeşil (27 yeni).
 - [x] **Faz 19.1** — (2026-08-06, kullanıcı raporu) TLY fon tahmini
       fvt.com.tr'nin "AI Tahmini"nden (%0,17) ~18 kat büyük (%3,14)
       çıkıyordu. Kök neden: `yahoo_quote.fetch_daily_return()`'ün "close"

@@ -352,6 +352,131 @@ _GROUP_TOTAL_TOLERANCE = Decimal("2.0")
 _USE_OF_PROCEEDS_HEADING_RE = re.compile(r"^\(?(\d+)\)?\s+([A-ZÇĞİÖŞÜ][^\n]{4,90})$", re.MULTILINE)
 _INLINE_PCT_RE = re.compile(r"%(\d{1,3}(?:,\d+)?)")
 
+# CANLI DOĞRULANDI (2026-08-07, CITAŞ izahnamesi, satır 11861-12071): "26.5
+# Fiyat istikrarı", "27.3 Taahhütler" ve "28.2 Halka arz gelirlerinin kullanım
+# yerleri" SPK Pay Tebliği'nin ZORUNLU KILDIĞI, TÜM izahnamelerde AYNI madde
+# numarasıyla geçen standart başlıklar (Sulanma Etkisi Analizi tablosuyla
+# AYNI güvenilirlik sınıfı) -- ek indirme GEREKMEZ, izahname metni ZATEN
+# `fetch_and_parse_izahname()`'de indiriliyor.
+_PRICE_STABILIZATION_PERIOD_ANCHOR_RE = re.compile(r"26\.5\.2\.[^\n]*\n")
+_PRICE_STABILIZATION_PERIOD_END_RE = re.compile(r"26\.5\.3\.")
+_PRICE_STABILIZATION_PERIOD_VALUE_RE = re.compile(r"(\d{1,3})\s*(?:\([^)]{0,20}\))?\s*gün")
+
+_PRICE_STABILIZATION_SOURCE_ANCHOR_RE = re.compile(r"26\.5\.6\.[^\n]*\n")
+_PRICE_STABILIZATION_SOURCE_END_RE = re.compile(r"26\.5\.7\.")
+_PRICE_STABILIZATION_SOURCE_VALUE_RE = re.compile(r"%\s*(" + _TR_NUM + r")")
+
+_ISSUER_LOCKUP_ANCHOR_RE = re.compile(r"27\.3\.[^\n]*\n")
+_ISSUER_LOCKUP_END_RE = re.compile(r"b\)\s*Ortaklar tarafından")
+_ISSUER_LOCKUP_PERIOD_VALUE_RE = re.compile(r"(\d{1,3})\s*(?:\([^)]{0,20}\))?\s*(yıl|ay)\b")
+
+_SHAREHOLDER_LOCKUP_ANCHOR_RE = re.compile(r"b\)\s*Ortaklar tarafından verilen taahhütler:\s*\n?")
+_SHAREHOLDER_LOCKUP_END_RE = re.compile(r"c\)\s*Sermaye piyasası mevzuatı")
+
+_USE_OF_PROCEEDS_RANGE_ANCHOR_RE = re.compile(r"28\.2\.[^\n]*\n")
+_USE_OF_PROCEEDS_RANGE_END_RE = re.compile(r"\n29\.\s")
+# CANLI DOĞRULANDI (CITAŞ): 28.2'nin KENDİ tablosu pdfplumber düz metninde
+# etiket/rakam sırası KARIŞIYOR (bir kategori adı iki satıra bölünüp aradaki
+# satıra "30 – 40" rakamı düşebiliyor) -- güvenilir DEĞİL. AMA tablonun HEMEN
+# ALTINDAKİ "a) Etiket: açıklama metni... %30 – %40 tutarındaki kısmını..."
+# şeklindeki DÜZYAZI harfli alt maddeler (a, b, c...) hem etiketi hem aralığı
+# TEK, bölünmemiş bir cümlede taşıyor -- bu yüzden kaynak olarak tablo DEĞİL,
+# bu harfli maddeler kullanılır.
+_LETTERED_USE_ITEM_RE = re.compile(r"^([a-e])\)\s*(.{3,120}?):", re.MULTILINE | re.DOTALL)
+_RANGE_PCT_RE = re.compile(r"%\s*(" + _TR_NUM + r")\s*[–\-]\s*%?\s*(" + _TR_NUM + r")")
+
+
+def _section_window(text: str, anchor_re: re.Pattern, end_re: re.Pattern, max_chars: int = 1500) -> str | None:
+    """`anchor_re` ile başlayan, `end_re` ile biten (veya `max_chars` ile
+    sınırlanan) bir metin penceresi döner -- `_dilution_table_window()` ile
+    AYNI anchor+pencere ilkesi, farklı bölümler için genelleştirilmiş hali."""
+    anchor_match = anchor_re.search(text)
+    if not anchor_match:
+        return None
+    start = anchor_match.end()
+    window = text[start : start + max_chars]
+    end_match = end_re.search(window)
+    return window[: end_match.start()] if end_match else window
+
+
+def _parse_price_stabilization(text: str) -> tuple[str | None, Decimal | None]:
+    """26.5.2 (süre) + 26.5.6 (kaynak yüzdesi) -- her ikisi de bulunamazsa
+    (Kural 3) None kalır, izahnamede "Fiyat istikrarı işlemleri
+    planlanmamaktadır" durumunda zaten bu maddeler boş/Yoktur olur."""
+    period_display: str | None = None
+    period_window = _section_window(text, _PRICE_STABILIZATION_PERIOD_ANCHOR_RE, _PRICE_STABILIZATION_PERIOD_END_RE)
+    if period_window:
+        match = _PRICE_STABILIZATION_PERIOD_VALUE_RE.search(period_window)
+        if match:
+            period_display = f"{match.group(1)} gün"
+
+    source_pct: Decimal | None = None
+    source_window = _section_window(text, _PRICE_STABILIZATION_SOURCE_ANCHOR_RE, _PRICE_STABILIZATION_SOURCE_END_RE)
+    if source_window:
+        match = _PRICE_STABILIZATION_SOURCE_VALUE_RE.search(source_window)
+        if match:
+            source_pct = _to_decimal(match.group(1))
+
+    return period_display, source_pct
+
+
+def _parse_lockup_commitments(text: str) -> tuple[str | None, str | None]:
+    """27.3(a) İhraççı taahhüdü (süre, "1 yıl" gibi) + 27.3(b) Ortak
+    taahhüdü (serbest metin özeti -- ortak isimleri/ifade kalıpları
+    aracıya göre çok değiştiği için, Kural 3 gereği YAPILANDIRILMIŞ bir
+    süre ÇIKARILMAYA ÇALIŞILMAZ, sadece bölümün var olduğu ham metinle
+    gösterilir)."""
+    issuer_period: str | None = None
+    issuer_window = _section_window(text, _ISSUER_LOCKUP_ANCHOR_RE, _ISSUER_LOCKUP_END_RE, max_chars=2000)
+    if issuer_window:
+        match = _ISSUER_LOCKUP_PERIOD_VALUE_RE.search(issuer_window)
+        if match:
+            issuer_period = f"{match.group(1)} {match.group(2)}"
+
+    shareholder_note: str | None = None
+    shareholder_window = _section_window(text, _SHAREHOLDER_LOCKUP_ANCHOR_RE, _SHAREHOLDER_LOCKUP_END_RE, max_chars=600)
+    if shareholder_window:
+        cleaned = " ".join(shareholder_window.split())
+        if cleaned:
+            shareholder_note = cleaned[:300].rstrip(",.") + ("…" if len(cleaned) > 300 else "")
+
+    return issuer_period, shareholder_note
+
+
+def _parse_use_of_proceeds_range(text: str) -> dict[str, str] | None:
+    """Ek-5/Ek-7 (Fon Kullanım Yeri Raporu, AYRI bildirim) bulunamadığında
+    FALLBACK: ana izahnamenin kendi "28.2 Halka arzın gerekçesi ve halka arz
+    gelirlerinin kullanım yerleri" bölümündeki harfli (a,b,c...) alt
+    maddelerden kategori + ARALIK (örn. "%30 – %40") çeker. Tek nokta
+    değeri DEĞİL bir aralık olduğu için Decimal'e ÇEVRİLMEZ (Kural 1/2'ye
+    aykırı değil -- bu bir hesaplama değil, belgeden DÜZ METİN alıntısı),
+    ham "%30-40" formatında string olarak saklanır. Hiçbir harfli madde
+    net bir aralık içermiyorsa None döner."""
+    window = _section_window(text, _USE_OF_PROCEEDS_RANGE_ANCHOR_RE, _USE_OF_PROCEEDS_RANGE_END_RE, max_chars=4000)
+    if not window:
+        return None
+
+    headings = list(_LETTERED_USE_ITEM_RE.finditer(window))
+    if not headings:
+        return None
+
+    rows: dict[str, str] = {}
+    for i, heading in enumerate(headings):
+        label = " ".join(heading.group(2).split()).strip()
+        span_start = heading.end()
+        span_end = headings[i + 1].start() if i + 1 < len(headings) else min(len(window), span_start + 400)
+        section_text = window[span_start:span_end]
+        pct_match = _RANGE_PCT_RE.search(section_text)
+        if not pct_match or not label:
+            continue
+        low = _to_decimal(pct_match.group(1))
+        high = _to_decimal(pct_match.group(2))
+        if low is None or high is None:
+            continue
+        rows[label] = f"%{low:g}-{high:g}"
+
+    return rows or None
+
 
 # CANLI HATA + DÜZELTME (KARCL ile bulundu): "Ödenmiş Sermaye"/"Özkaynaklar"
 # gibi etiketler izahnamenin BAŞINDAKİ geçmiş finansal tablo özetinde de
@@ -480,6 +605,16 @@ class IpoFacts:
     dilution_new_pct: Decimal | None
     allocation_breakdown: dict[str, Decimal] | None
     use_of_proceeds: dict[str, Decimal] | None
+    # YENİ (2026-08-07 devamı, Faz 20.5) -- 26.5/27.3/28.2, bkz. modülün
+    # ilgili parser fonksiyonlarının üst notu. Varsayılan None: mevcut
+    # testlerin/çağıranların TÜMÜ (bu 5 alan eklenmeden önce) IpoFacts'i
+    # bu alanlar olmadan konstrükte ediyordu -- SupplementaryIpoInfo'daki
+    # gecikmiş-alan deseniyle AYNI ilke (bkz. ipo_broker_page.py).
+    price_stabilization_period_display: str | None = None
+    price_stabilization_source_pct: Decimal | None = None
+    issuer_lockup_period_display: str | None = None
+    shareholder_lockup_note: str | None = None
+    use_of_proceeds_range: dict[str, str] | None = None
 
 
 def extract_ipo_facts(izahname_text: str, use_of_proceeds_text: str | None = None) -> IpoFacts:
@@ -489,6 +624,13 @@ def extract_ipo_facts(izahname_text: str, use_of_proceeds_text: str | None = Non
     values = _extract_single_values(izahname_text)
     allocation = _parse_allocation(izahname_text)
     use_of_proceeds = _parse_use_of_proceeds(use_of_proceeds_text) if use_of_proceeds_text else None
+    price_stabilization_period_display, price_stabilization_source_pct = _parse_price_stabilization(izahname_text)
+    issuer_lockup_period_display, shareholder_lockup_note = _parse_lockup_commitments(izahname_text)
+    # Ek-5/Ek-7 raporu ZATEN dolu bir kırılım verdiyse (use_of_proceeds is
+    # not None) ana izahnamenin ARALIK formatlı 28.2 fallback'ine hiç GEREK
+    # yok -- ikisi aynı anda gösterilirse (biri kesin %, biri aralık) kafa
+    # karıştırıcı olur, bkz. ipo_card.py'deki gösterim önceliği.
+    use_of_proceeds_range = _parse_use_of_proceeds_range(izahname_text) if use_of_proceeds is None else None
 
     offering_size = values.get("offering_size")
     offering_price = values.get("offering_price")
@@ -518,6 +660,11 @@ def extract_ipo_facts(izahname_text: str, use_of_proceeds_text: str | None = Non
         dilution_new_pct=values.get("dilution_new_pct"),
         allocation_breakdown=allocation,
         use_of_proceeds=use_of_proceeds,
+        price_stabilization_period_display=price_stabilization_period_display,
+        price_stabilization_source_pct=price_stabilization_source_pct,
+        issuer_lockup_period_display=issuer_lockup_period_display,
+        shareholder_lockup_note=shareholder_lockup_note,
+        use_of_proceeds_range=use_of_proceeds_range,
     )
 
 

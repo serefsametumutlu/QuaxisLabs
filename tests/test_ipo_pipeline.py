@@ -11,7 +11,7 @@ from decimal import Decimal
 import pytest
 
 from src.bot import ipo_pipeline
-from src.fetchers import kap_ipo
+from src.fetchers import ipo_broker_page, kap_ipo
 
 
 def _disclosure(ticker: str = "KARCL") -> kap_ipo.IzahnameDisclosure:
@@ -112,3 +112,48 @@ def test_list_available_ipos_kap_ipo_ya_delege_eder(monkeypatch) -> None:
     monkeypatch.setattr(kap_ipo, "find_recent_izahnameler", lambda days=60: expected)
 
     assert ipo_pipeline.list_available_ipos(days=30) == expected
+
+
+# --- Fiyat Tespit Raporu wiring (Faz 20.5, 2026-08-07 devamı) -----------------------------------
+
+
+def _price_report():
+    from decimal import Decimal
+
+    from src.fetchers import ipo_price_report
+
+    return ipo_price_report.PriceReportFinancials(
+        period_label="31.03.2026", full_year_label="2025",
+        revenue_latest_interim=Decimal("5775822"), revenue_prior_year_interim=Decimal("5084478"),
+        revenue_full_year=Decimal("26652218"),
+        gross_profit_latest_interim=Decimal("2469357"), gross_profit_prior_year_interim=Decimal("1156369"),
+        total_assets=Decimal("30121124"), total_equity=Decimal("15590464"),
+    )
+
+
+def test_compute_ipo_card_data_from_disclosure_price_report_assessmente_gecirilir(monkeypatch) -> None:
+    from src.fetchers import ipo_price_report
+
+    monkeypatch.setattr(kap_ipo, "fetch_and_parse_izahname", lambda disclosure: _facts())
+    monkeypatch.setattr(ipo_price_report, "fetch_and_parse_price_report", lambda disclosure: _price_report())
+    monkeypatch.setattr(ipo_broker_page, "fetch_supplementary_ipo_info", lambda ticker: None)
+
+    result = ipo_pipeline.compute_ipo_card_data_from_disclosure(_disclosure("KARCL"))
+
+    assert result.price_report is not None
+    assert result.price_report.revenue_full_year == Decimal("26652218")
+    assert result.assessment.revenue_yoy_growth_pct is not None
+
+
+def test_compute_ipo_card_data_from_disclosure_price_report_bulunamazsa_none(monkeypatch) -> None:
+    from src.fetchers import ipo_price_report
+
+    monkeypatch.setattr(kap_ipo, "fetch_and_parse_izahname", lambda disclosure: _facts())
+    monkeypatch.setattr(ipo_price_report, "fetch_and_parse_price_report", lambda disclosure: None)
+    monkeypatch.setattr(ipo_broker_page, "fetch_supplementary_ipo_info", lambda ticker: None)
+
+    result = ipo_pipeline.compute_ipo_card_data_from_disclosure(_disclosure("KARCL"))
+
+    assert result.price_report is None
+    assert result.assessment is not None  # Kural 9: ana akış ETKİLENMEZ
+    assert result.assessment.revenue_yoy_growth_pct is None

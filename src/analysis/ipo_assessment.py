@@ -14,6 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import ROUND_FLOOR, ROUND_HALF_UP, Decimal
 
+from src.fetchers.ipo_price_report import PriceReportFinancials
 from src.fetchers.kap_ipo import IpoFacts
 
 _HUNDRED = Decimal(100)
@@ -85,6 +86,14 @@ class IpoAssessment:
     # (katılımcı_sayısı, kişi_başı_lot, kişi_başı_TL) -- SADECE yurt içi bireysel
     # (eşit dağıtım) grubu için anlamlıdır, oransal dağıtılan gruplar için HESAPLANMAZ.
     estimated_retail_distribution: tuple[tuple[int, Decimal, Decimal], ...] | None
+
+    # --- YENİ (Faz 20.5, 2026-08-07 devamı) -- "Operasyonel ve Finansal
+    # Veriler" bölümü için Fiyat Tespit Raporu'ndan (İKİNCİL kaynak, bkz.
+    # ipo_price_report.py) gelen YoY büyüme oranları. Varsayılan None:
+    # `price_report=None` ile çağrılan (bu alan hiç eklenmeden önceki)
+    # TÜM çağıranlar bozulmaz.
+    revenue_yoy_growth_pct: Decimal | None = None
+    gross_profit_yoy_growth_pct: Decimal | None = None
 
 
 def _pct(numerator: Decimal, denominator: Decimal) -> Decimal | None:
@@ -246,7 +255,17 @@ def _equity_growth(facts: IpoFacts) -> Decimal | None:
     return _pct(facts.equity_after - facts.equity_before, facts.equity_before)
 
 
-def compute_ipo_assessment(facts: IpoFacts) -> IpoAssessment:
+def _yoy_growth(latest: Decimal | None, prior: Decimal | None) -> Decimal | None:
+    """(güncel-önceki)/önceki*100 -- `calculator.py`'nin YoY büyüme
+    hesaplarıyla AYNI ilke (`safe_div`), burada YEREL tutulur çünkü
+    `ipo_assessment.py` zaten I/O yapmayan saf bir matematik modülü (mantık
+    KOPYALANMADI, sadece aynı basit oran formülü ayrı bir bağlamda)."""
+    if latest is None or prior is None or prior == 0:
+        return None
+    return _pct(latest - prior, prior)
+
+
+def compute_ipo_assessment(facts: IpoFacts, price_report: PriceReportFinancials | None = None) -> IpoAssessment:
     capital_increase_pct, partner_sale_pct, is_pure = _capital_increase_share(facts)
     retail_pct, domestic_inst_pct, foreign_inst_pct, high_demand_pct, other_pct = _classify_allocation(
         facts.allocation_breakdown
@@ -254,6 +273,14 @@ def compute_ipo_assessment(facts: IpoFacts) -> IpoAssessment:
 
     total_lot_count = _total_lot_count(facts)
     retail_lot_count = _lot_count_for_pct(retail_pct, total_lot_count)
+
+    revenue_yoy_growth_pct = None
+    gross_profit_yoy_growth_pct = None
+    if price_report is not None:
+        revenue_yoy_growth_pct = _yoy_growth(price_report.revenue_latest_interim, price_report.revenue_prior_year_interim)
+        gross_profit_yoy_growth_pct = _yoy_growth(
+            price_report.gross_profit_latest_interim, price_report.gross_profit_prior_year_interim
+        )
 
     return IpoAssessment(
         capital_increase_share_pct=capital_increase_pct,
@@ -274,4 +301,6 @@ def compute_ipo_assessment(facts: IpoFacts) -> IpoAssessment:
         allocation_high_demand_lot_count=_lot_count_for_pct(high_demand_pct, total_lot_count),
         allocation_other_lot_count=_lot_count_for_pct(other_pct, total_lot_count),
         estimated_retail_distribution=_estimated_retail_distribution(retail_lot_count, facts.offering_price),
+        revenue_yoy_growth_pct=revenue_yoy_growth_pct,
+        gross_profit_yoy_growth_pct=gross_profit_yoy_growth_pct,
     )

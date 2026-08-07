@@ -22,6 +22,7 @@ from datetime import date, datetime
 
 from src.analysis.ipo_assessment import IpoAssessment
 from src.fetchers.ipo_broker_page import SupplementaryIpoInfo
+from src.fetchers.ipo_price_report import PriceReportFinancials
 from src.fetchers.kap_ipo import IpoFacts, IzahnameDisclosure
 from src.formatting import format_currency_short, format_number_tr, format_percent_tr
 
@@ -152,12 +153,118 @@ def _dilution_row(label: str, before, after, decimals: int) -> dict | None:
     }
 
 
+def _use_of_proceeds_range_lines(use_of_proceeds_range: dict[str, str] | None) -> list[str] | None:
+    """Ek-5/Ek-7 (kesin %) bulunamadığında ana izahnamenin 28.2 bölümünden
+    gelen ARALIK formatlı fallback -- bar-fill grafiği YOK (aralık tek
+    noktaya indirgenemez), `allocation_fallback_lines` ile AYNI düz metin
+    satır deseni kullanılır (Faz 20.5)."""
+    if not use_of_proceeds_range:
+        return None
+    return [f"{label}: {pct_range}" for label, pct_range in use_of_proceeds_range.items()]
+
+
+def _operational_financial_rows(price_report: PriceReportFinancials | None, assessment: IpoAssessment) -> list[dict]:
+    """"Operasyonel ve Finansal Veriler" bölümü -- Faz 20.5 (2026-08-07
+    devamı). BİLİNÇLİ OLARAK SADECE Fiyat Tespit Raporu'ndan gelen
+    STANDART finansal büyüklükler (Hasılat/Brüt Kâr/Toplam Varlıklar/
+    Özkaynaklar) -- nüfus/aktif tüketici sayısı gibi SEKTÖRE ÖZGÜ
+    "operasyonel" kalemler burada YOK (Kural 3, bkz. ipo_price_report.py
+    modül üst notu). Her satır kendi verisi yoksa ATLANIR."""
+    if price_report is None:
+        return []
+
+    rows: list[dict] = []
+    if price_report.revenue_full_year is not None:
+        label = f"Hasılat ({price_report.full_year_label})" if price_report.full_year_label else "Hasılat"
+        rows.append({"label": label, "value_display": format_currency_short(price_report.revenue_full_year * 1000), "yoy_display": None, "yoy_class": "neutral"})
+    if price_report.revenue_latest_interim is not None:
+        label = f"Ciro ({price_report.period_label})" if price_report.period_label else "Ciro"
+        yoy = assessment.revenue_yoy_growth_pct
+        rows.append(
+            {
+                "label": label,
+                "value_display": format_currency_short(price_report.revenue_latest_interim * 1000),
+                "yoy_display": format_percent_tr(yoy, decimals=1) if yoy is not None else None,
+                "yoy_class": "positive" if (yoy is not None and yoy >= 0) else ("negative" if yoy is not None else "neutral"),
+            }
+        )
+    if price_report.gross_profit_latest_interim is not None:
+        label = f"Brüt Kâr ({price_report.period_label})" if price_report.period_label else "Brüt Kâr"
+        yoy = assessment.gross_profit_yoy_growth_pct
+        rows.append(
+            {
+                "label": label,
+                "value_display": format_currency_short(price_report.gross_profit_latest_interim * 1000),
+                "yoy_display": format_percent_tr(yoy, decimals=1) if yoy is not None else None,
+                "yoy_class": "positive" if (yoy is not None and yoy >= 0) else ("negative" if yoy is not None else "neutral"),
+            }
+        )
+    if price_report.total_assets is not None:
+        label = f"Toplam Varlıklar ({price_report.period_label})" if price_report.period_label else "Toplam Varlıklar"
+        rows.append({"label": label, "value_display": format_currency_short(price_report.total_assets * 1000), "yoy_display": None, "yoy_class": "neutral"})
+    if price_report.total_equity is not None:
+        label = f"Özkaynaklar ({price_report.period_label})" if price_report.period_label else "Özkaynaklar"
+        rows.append({"label": label, "value_display": format_currency_short(price_report.total_equity * 1000), "yoy_display": None, "yoy_class": "neutral"})
+    return rows
+
+
+def _highlight_rows(
+    offering_size_display: str,
+    total_lot_display: str | None,
+    has_capital_split: bool,
+    is_pure_capital_increase: bool,
+    capital_increase_pct_display: str,
+    partner_sale_pct_display: str,
+    allocation_rows: list[dict],
+    price_stabilization_period_display: str | None,
+    price_stabilization_source_pct_display: str | None,
+    price_report: PriceReportFinancials | None,
+) -> list[str]:
+    """"Öne Çıkan Noktalar" -- kullanıcının paylaştığı referans görselden
+    YAPISAL olarak esinlenen bölüm, ama İÇERİK olarak referanstan TAMAMEN
+    FARKLI bir ilkeyle üretilir: referans görseldeki "dikkat çekicidir",
+    "önce kote olması gereken görünümünde" gibi cümleler BİRİNCİ ŞAHIS/
+    ÖZNEL bir yatırım kanaati taşıyor -- bu, `build_ipo_analysis_text()`'in
+    "birinci şahıs kanaat üretmez" ilkesiyle (K2: Al/Sat/Tut sinyali yok)
+    DOĞRUDAN ÇELİŞİR. Burada üretilen HER cümle SADECE zaten kartta
+    başka yerde gösterilen, zaten hesaplanmış rakamların NÖTR bir
+    özetidir -- yeni bir sayı/yargı ÜRETİLMEZ (Kural 1)."""
+    rows: list[str] = []
+
+    if offering_size_display != "-":
+        lot_part = f", toplam {total_lot_display} Lot" if total_lot_display else ""
+        rows.append(f"Halka arz büyüklüğü {offering_size_display}{lot_part} olarak planlanıyor.")
+
+    if has_capital_split:
+        if is_pure_capital_increase:
+            rows.append("Arzın tamamı sermaye artırımı — halka arz gelirinin tamamı doğrudan şirketin kasasına giriyor.")
+        else:
+            rows.append(
+                f"Halka arz gelirinin {capital_increase_pct_display}'i sermaye artırımından (şirkete yeni kaynak), "
+                f"{partner_sale_pct_display}'i ortak satışından oluşuyor."
+            )
+
+    retail_row = next((r for r in allocation_rows if r["class"] == "retail"), None)
+    if retail_row is not None:
+        rows.append(f"Bireysel yatırımcı tahsisatı {retail_row['pct_display']}.")
+
+    if price_stabilization_period_display or price_stabilization_source_pct_display:
+        parts = [p for p in (price_stabilization_period_display, price_stabilization_source_pct_display) if p]
+        rows.append(f"Fiyat istikrarı: {', '.join(parts)}.")
+
+    if price_report is not None and price_report.revenue_full_year is not None and price_report.full_year_label:
+        rows.append(f"{price_report.full_year_label} yılı hasılatı {format_currency_short(price_report.revenue_full_year * 1000)}.")
+
+    return rows
+
+
 def build_ipo_card_context(
     disclosure: IzahnameDisclosure,
     facts: IpoFacts,
     assessment: IpoAssessment,
     now: datetime | None = None,
     supplementary: SupplementaryIpoInfo | None = None,
+    price_report: PriceReportFinancials | None = None,
 ) -> dict:
     now = now or datetime.now()
     company_name = _derive_company_name(disclosure.summary)
@@ -282,6 +389,39 @@ def build_ipo_card_context(
         if stat is not None
     ]
 
+    # --- Fiyat İstikrarı (izahname 26.5, YAPISAL/PRİMER kaynak) -- Faz 20.5.
+    # `price_stabilization_note` (halkarz.com, İKİNCİL, YUKARIDA zaten
+    # tanımlı) İLE ÇAKIŞMAZ -- ikisi de bağımsız birer quick-tile olarak
+    # gösterilir, biri diğerinin YERİNE geçmez (izahname okunabiliyorsa
+    # genelde SADECE bu yapısal alan dolu olur, halkarz.com scanned/OCR'siz
+    # izahnamelerde -- VEYAS gibi -- devreye girer, ikisinin AYNI ANDA dolu
+    # olması NADİRDİR).
+    price_stabilization_source_pct_display = (
+        f"kaynağın %{format_percent_tr(facts.price_stabilization_source_pct, decimals=0).lstrip('%')}'i"
+        if facts.price_stabilization_source_pct is not None
+        else None
+    )
+    has_quick_info = has_quick_info or bool(
+        facts.price_stabilization_period_display or price_stabilization_source_pct_display or facts.issuer_lockup_period_display
+    )
+
+    use_of_proceeds_range_lines = _use_of_proceeds_range_lines(facts.use_of_proceeds_range) if not use_of_proceeds_rows else None
+
+    operational_financial_rows = _operational_financial_rows(price_report, assessment)
+
+    highlight_rows = _highlight_rows(
+        offering_size_display=offering_size_display,
+        total_lot_display=total_lot_display,
+        has_capital_split=has_capital_split,
+        is_pure_capital_increase=is_pure_capital_increase,
+        capital_increase_pct_display=format_percent_tr(capital_pct, decimals=1),
+        partner_sale_pct_display=format_percent_tr(partner_pct, decimals=1),
+        allocation_rows=allocation_rows,
+        price_stabilization_period_display=facts.price_stabilization_period_display,
+        price_stabilization_source_pct_display=price_stabilization_source_pct_display,
+        price_report=price_report,
+    )
+
     return {
         "company_name": company_name,
         "primary_ticker": primary_ticker,
@@ -315,6 +455,12 @@ def build_ipo_card_context(
         "participation_index_name": participation_index_name,
         "price_stabilization_note": price_stabilization_note,
         "sales_method_note": sales_method_note,
+        # --- Fiyat İstikrarı Detayı (izahname 26.5) + Taahhüt (27.3) --
+        # PRİMER kaynak, halkarz.com'dan (yukarıdaki price_stabilization_note)
+        # BAĞIMSIZ ayrı tile'lar (Faz 20.5). ---
+        "price_stabilization_period_display": facts.price_stabilization_period_display,
+        "price_stabilization_source_pct_display": price_stabilization_source_pct_display,
+        "issuer_lockup_period_display": facts.issuer_lockup_period_display,
         # --- Sermaye artırımı vs ortak satışı ---
         "has_capital_split": has_capital_split,
         "capital_increase_pct_display": format_percent_tr(capital_pct, decimals=1),
@@ -336,10 +482,19 @@ def build_ipo_card_context(
         "allocation_fallback_lines": allocation_fallback_lines,
         "use_of_proceeds_rows": use_of_proceeds_rows,
         "is_use_of_proceeds_empty": not use_of_proceeds_rows,
+        # 28.2 (ana izahname, ARALIK formatlı) fallback -- SADECE Ek-5/Ek-7
+        # (yukarıdaki use_of_proceeds_rows) boşsa devreye girer (Faz 20.5).
+        "use_of_proceeds_range_lines": use_of_proceeds_range_lines,
         # --- Tahmini Dağıtım (yurt içi bireysel, eşit dağıtım senaryosu) ---
         "estimated_distribution_rows": estimated_distribution_rows,
         "estimated_distribution_is_fallback": estimated_distribution_is_fallback,
         "is_estimated_distribution_empty": not estimated_distribution_rows,
+        # --- Öne Çıkan Noktalar (Faz 20.5) -- SADECE zaten kartta gösterilen
+        # rakamların nötr cümle özeti, yeni bir sayı/yargı ÜRETİLMEZ. ---
+        "highlight_rows": highlight_rows,
+        # --- Operasyonel ve Finansal Veriler (Faz 20.5, Fiyat Tespit Raporu) ---
+        "operational_financial_rows": operational_financial_rows,
+        "is_operational_financial_empty": not operational_financial_rows,
         "data_notes": _DATA_NOTES,
         "has_supplementary_source": supplementary is not None,
         "disclaimer": _DISCLAIMER,

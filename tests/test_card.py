@@ -784,3 +784,24 @@ def test_render_card_gercek_png_uretir(tmp_path) -> None:
     assert out_path.exists()
     assert out_path.stat().st_size > 1000  # bos/kirik bir dosya degil
     assert out_path.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"  # gecerli PNG imzasi
+
+
+def test_render_card_x_twitter_icin_seffaf_kose_pikseli_icerir(tmp_path) -> None:
+    """X/Twitter kullanici raporu (2026-08-07): seffaflik icermeyen PNG'ler
+    X tarafindan JPEG'e cevrilip agresif sikistiriliyor. render_card() artik
+    HER PNG'nin sag ust kosesine 1 tam seffaf piksel ekliyor (bkz.
+    card._force_transparent_corner_pixel) -- bu test o pikselin gercekten
+    var oldugunu dogrular."""
+    from PIL import Image
+
+    analiz = calculator.analyze("TESTAS", _saglikli_finansallar())
+    skor = scorer.score_industrial(analiz, valuation=scorer.ValuationInput(pe_ratio=Decimal("14.2"), pb_ratio=Decimal("1.9")))
+    context = card.build_card_context(analiz, skor, _ornek_commentary(), _ornek_disclosures(), price=Decimal("142.5"))
+
+    out_path = tmp_path / "test_card_seffaf.png"
+    card.render_card(context, str(out_path))
+
+    with Image.open(out_path) as img:
+        assert img.mode == "RGBA"
+        corner_pixel = img.getpixel((img.width - 1, 0))
+        assert corner_pixel[3] == 0  # alpha kanali tam seffaf

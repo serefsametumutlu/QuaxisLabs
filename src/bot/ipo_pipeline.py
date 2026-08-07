@@ -23,7 +23,7 @@ import logging
 from dataclasses import dataclass
 
 from src.analysis import ipo_assessment
-from src.fetchers import ipo_broker_page, kap_ipo
+from src.fetchers import ipo_broker_page, ipo_price_report, kap_ipo
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +47,11 @@ class IpoCardResult:
     assessment: ipo_assessment.IpoAssessment | None
     reason: str | None
     supplementary: ipo_broker_page.SupplementaryIpoInfo | None = None
+    # (Faz 20.5, 2026-08-07 devamı) Fiyat Tespit Raporu'ndan (İKİNCİL/YARDIMCI
+    # kaynak, bkz. ipo_price_report.py) Hasılat/Brüt Kâr/Toplam Varlık/
+    # Özkaynak -- `assessment` dolu olsa BİLE bu None olabilir (Kural 9,
+    # `supplementary` ile AYNI ilke).
+    price_report: ipo_price_report.PriceReportFinancials | None = None
 
 
 def list_available_ipos(days: int = kap_ipo._DEFAULT_DISCOVERY_DAYS) -> list[kap_ipo.IzahnameDisclosure]:
@@ -115,10 +120,16 @@ def compute_ipo_card_data_from_disclosure(disclosure: kap_ipo.IzahnameDisclosure
             "İzahname bulundu ama PDF'i indirilip ayrıştırılamadı -- birkaç dakika sonra tekrar dene.",
         )
 
-    assessment = ipo_assessment.compute_ipo_assessment(facts)
+    # İkincil zenginleştirme (Kural 9): Fiyat Tespit Raporu'ndan Hasılat/Brüt
+    # Kâr/Toplam Varlık/Özkaynak best-effort okunur -- `fetch_and_parse_price_report`
+    # HERHANGİ bir hatada zaten sessizce None döner (bkz. ipo_price_report.py),
+    # bu yüzden ekstra try/except GEREKMEZ. `assessment`'a geçirilir ki YoY
+    # büyüme oranları da hesaplansın.
+    price_report = ipo_price_report.fetch_and_parse_price_report(disclosure)
+    assessment = ipo_assessment.compute_ipo_assessment(facts, price_report=price_report)
     # İkincil zenginleştirme (Kural 9): halkarz.com'dan talep toplama tarihi/
     # Katılım Endeksi gibi KAP izahnamesinde bulunmayan alanlar best-effort
     # okunur -- `fetch_supplementary_ipo_info` HERHANGİ bir hatada zaten
     # sessizce None döner, bu yüzden ekstra try/except GEREKMEZ.
     supplementary = ipo_broker_page.fetch_supplementary_ipo_info(ticker)
-    return IpoCardResult(ticker, disclosure, facts, assessment, None, supplementary)
+    return IpoCardResult(ticker, disclosure, facts, assessment, None, supplementary, price_report)

@@ -177,6 +177,22 @@
   .bar-fill.secondary { background: #a78bfa; }
   .column-empty { font-size: 12px; color: var(--secondary); padding: 8px 0; }
 
+  /* --- Öne Çıkan Noktalar (Faz 20.5) --- */
+  .highlight-list { list-style: none; display: flex; flex-direction: column; gap: 7px; }
+  .highlight-list li { font-size: 13px; color: var(--heading); line-height: 1.5; padding-left: 18px; position: relative; }
+  .highlight-list li::before { content: "▸"; position: absolute; left: 0; color: var(--accent); font-weight: 800; }
+
+  /* --- Operasyonel ve Finansal Veriler (Faz 20.5) --- */
+  .financial-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .financial-table th { text-align: right; font-size: 11px; color: var(--secondary); text-transform: uppercase; letter-spacing: 0.3px; padding: 4px 8px; font-weight: 600; }
+  .financial-table th:first-child { text-align: left; }
+  .financial-table td { padding: 7px 8px; border-top: 1px solid var(--border-soft); text-align: right; }
+  .financial-table td:first-child { text-align: left; color: var(--secondary); }
+  .financial-table td.value { font-weight: 700; color: var(--heading); }
+  .financial-table td.yoy.positive { color: var(--positive); font-weight: 700; }
+  .financial-table td.yoy.negative { color: var(--negative); font-weight: 700; }
+  .financial-table td.yoy.neutral { color: var(--secondary); }
+
   .bottom-band { padding-top: 10px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: baseline; }
   .disclaimer { font-size: 11px; color: var(--secondary); letter-spacing: 0.2px; max-width: 720px; }
   .footer-meta { font-size: 11px; color: var(--secondary); opacity: 0.75; white-space: nowrap; }
@@ -216,6 +232,17 @@
     <div class="fact-tile"><div class="fact-label">Tahmini Arz Maliyeti</div><div class="fact-value">{{ offering_cost_display }}</div></div>
   </div>
 
+  {% if highlight_rows %}
+  <section class="section">
+    <div class="section-heading">⭐ ÖNE ÇIKAN NOKTALAR</div>
+    <ul class="highlight-list">
+      {% for line in highlight_rows %}
+      <li>{{ line }}</li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
   {% if has_quick_info %}
   <div class="quick-strip">
     {% if demand_period_display %}
@@ -240,6 +267,18 @@
     <div class="quick-tile">
       <div class="quick-icon">⚖️</div>
       <div><div class="quick-label">Fiyat İstikrarı</div><div class="quick-value">{{ price_stabilization_note }}</div></div>
+    </div>
+    {% endif %}
+    {% if price_stabilization_period_display or price_stabilization_source_pct_display %}
+    <div class="quick-tile">
+      <div class="quick-icon">⏱️</div>
+      <div><div class="quick-label">Fiyat İstikrarı Detayı</div><div class="quick-value">{{ [price_stabilization_period_display, price_stabilization_source_pct_display] | select | join(' · ') }}</div></div>
+    </div>
+    {% endif %}
+    {% if issuer_lockup_period_display %}
+    <div class="quick-tile">
+      <div class="quick-icon">🔒</div>
+      <div><div class="quick-label">İhraççı Taahhüdü</div><div class="quick-value">{{ issuer_lockup_period_display }} boyunca yeni satış/halka arz yok</div></div>
     </div>
     {% endif %}
   </div>
@@ -339,6 +378,31 @@
       <div class="bar-track"><div class="bar-fill secondary" style="width: {{ row.pct_raw }}%;"></div></div>
     </div>
     {% endfor %}
+  </section>
+  {% elif use_of_proceeds_range_lines %}
+  <section class="section">
+    <div class="section-heading">🎯 HALKA ARZ GELİRİNİN KULLANIMI</div>
+    <div class="section-subtitle">İzahnamenin kendi bölümünden -- Fon Kullanım Yeri Raporu (Ek-5/Ek-7) yayınlanmadığı için kesin yüzde yerine izahnamedeki ARALIK gösteriliyor.</div>
+    <div class="fallback-block">
+      {% for line in use_of_proceeds_range_lines %}
+      <div class="fallback-line">{{ line }}</div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if not is_operational_financial_empty %}
+  <section class="section">
+    <div class="section-heading">📈 OPERASYONEL VE FİNANSAL VERİLER</div>
+    <div class="section-subtitle">Fiyat Tespit Raporu'ndaki bağımsız denetimden geçmiş finansal tablolardan -- YoY (yıllık) değişim, aynı ara dönemin bir önceki yılla karşılaştırmasıdır.</div>
+    <table class="financial-table">
+      <thead><tr><th>Kalem</th><th>Tutar</th><th>YoY</th></tr></thead>
+      <tbody>
+        {% for row in operational_financial_rows %}
+        <tr><td>{{ row.label }}</td><td class="value">{{ row.value_display }}</td><td class="yoy {{ row.yoy_class }}">{{ row.yoy_display or '-' }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </section>
   {% endif %}
 

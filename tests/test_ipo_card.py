@@ -14,11 +14,14 @@ from pathlib import Path
 
 from src.analysis import ipo_assessment
 from src.fetchers import kap_ipo
+from src.fetchers import ipo_price_report
 from src.fetchers.ipo_broker_page import SupplementaryIpoInfo
 from src.render import card, ipo_card
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 KARCL_IZAHNAME_TEXT = (FIXTURES_DIR / "kap_izahname_karcl_2026_07.txt").read_text(encoding="utf-8")
+CITAS_IZAHNAME_TEXT = (FIXTURES_DIR / "kap_izahname_citas_2026_08.txt").read_text(encoding="utf-8")
+VEYAS_PRICE_REPORT_TEXT = (FIXTURES_DIR / "veyas_fiyat_tespit_raporu_2026_05.txt").read_text(encoding="utf-8")
 
 _NOW = datetime(2026, 8, 6, 12, 0)
 
@@ -136,13 +139,19 @@ def test_build_ipo_card_context_tahmini_dagitim_doldurulur() -> None:
     assert row_500k["lot_display"] == "88"
 
 
-def test_build_ipo_card_context_supplementary_verilmezse_quick_info_gizli() -> None:
+def test_build_ipo_card_context_supplementary_verilmezse_halkarz_alanlari_gizli() -> None:
     """Kullanıcı isteği (2026-08-07): halkarz.com bulunamazsa/verilmezse
-    bu alanlar N/A GÖSTERİLMEZ, tamamen gizlenir (has_quick_info=False)."""
+    o KAYNAĞA özgü alanlar N/A GÖSTERİLMEZ, tamamen gizlenir. ⚠️ Faz 20.5
+    (2026-08-07 devamı) ile `has_quick_info` ARTIK SADECE halkarz.com'a
+    bağlı DEĞİL -- KARCL'ın izahnamesi 27.3 bölümünde GERÇEK bir "İhraççı
+    Taahhüdü" (1 yıl) içeriyor, bu PRİMER kaynak (izahname) supplementary
+    OLMADAN da has_quick_info'yu True yapar (eski test varsayımı artık
+    GEÇERSİZ, bkz. issuer_lockup_period_display)."""
     context = _karcl_context()
-    assert context["has_quick_info"] is False
     assert context["demand_period_display"] is None
     assert context["participation_compliant"] is None
+    assert context["has_quick_info"] is True
+    assert context["issuer_lockup_period_display"] == "1 yıl"
 
 
 def test_build_ipo_card_context_supplementary_verilirse_quick_info_dolar() -> None:
@@ -307,6 +316,89 @@ def test_render_ipo_card_supplementary_ile_cokmez(tmp_path) -> None:
     )
     context = ipo_card.build_ipo_card_context(_karcl_disclosure(), facts, assessment, now=_NOW, supplementary=supplementary)
     out_path = tmp_path / "test_halka_arz_supplementary.png"
+    result = card.render_card(context, str(out_path), template_name="ipo_card.html", screenshot_selector="#ipo-card")
+    assert Path(result).exists()
+    assert Path(result).stat().st_size > 0
+
+
+# --- Faz 20.5 (2026-08-07 devamı): Öne Çıkan Noktalar / Gelir Kullanımı / --------------------
+# Fiyat İstikrarı-Taahhütler / Operasyonel-Finansal Veriler -- GERÇEK CITAS + VEYAS verisiyle
+
+
+def _citas_disclosure() -> kap_ipo.IzahnameDisclosure:
+    return kap_ipo.IzahnameDisclosure(
+        disclosure_indices=(1,),
+        publish_date=date(2026, 8, 7),
+        underwriter_name="TERA YATIRIM MENKUL DEĞERLER A.Ş.",
+        target_tickers=("CITAS",),
+        summary="Çitlekçi Mağazacılık Gıda A.Ş. Halka Arzına İlişkin Onaylı İzahname",
+    )
+
+
+def _citas_context(price_report=None) -> dict:
+    facts = kap_ipo.extract_ipo_facts(CITAS_IZAHNAME_TEXT)
+    assessment = ipo_assessment.compute_ipo_assessment(facts, price_report=price_report)
+    return ipo_card.build_ipo_card_context(_citas_disclosure(), facts, assessment, now=_NOW, price_report=price_report)
+
+
+def test_build_ipo_card_context_highlight_rows_ozne_kanaat_icermez() -> None:
+    """K2/build_ipo_analysis_text ile AYNI ilke: highlight_rows nötr
+    olgusal cümleler içerir, öznel/yatırım-tavsiyesi ifadesi ASLA içermez."""
+    context = _citas_context()
+    assert len(context["highlight_rows"]) >= 3
+    joined = " ".join(context["highlight_rows"]).lower()
+    for forbidden in ("dikkat çekici", "önce kote olması gereken", "bence", "tavsiye ederim", "yatırım yapmalı"):
+        assert forbidden not in joined
+
+
+def test_build_ipo_card_context_highlight_rows_gercek_rakamlari_yansitir() -> None:
+    context = _citas_context()
+    joined = " ".join(context["highlight_rows"])
+    assert "2,7 mr" in joined  # halka arz büyüklüğü
+    assert "%82,2" in joined  # sermaye artırımı payı
+    assert "30 gün" in joined  # fiyat istikrarı süresi
+
+
+def test_build_ipo_card_context_fiyat_istikrari_ve_taahhut_izahnameden_dolar() -> None:
+    context = _citas_context()
+    assert context["price_stabilization_period_display"] == "30 gün"
+    assert context["price_stabilization_source_pct_display"] == "kaynağın %15'i"
+    assert context["issuer_lockup_period_display"] == "1 yıl"
+    assert context["has_quick_info"] is True
+
+
+def test_build_ipo_card_context_28_2_fallback_ek5_yokken_dolar() -> None:
+    context = _citas_context()
+    assert context["is_use_of_proceeds_empty"] is True  # Ek-5 verilmedi
+    assert context["use_of_proceeds_range_lines"] is not None
+    assert "İşletme Sermayesi Güçlendirilmesi: %30-40" in context["use_of_proceeds_range_lines"]
+
+
+def test_build_ipo_card_context_operasyonel_finansal_price_report_yoksa_bos() -> None:
+    context = _citas_context()
+    assert context["is_operational_financial_empty"] is True
+    assert context["operational_financial_rows"] == []
+
+
+def test_build_ipo_card_context_operasyonel_finansal_price_report_ile_dolar() -> None:
+    price_report = ipo_price_report.extract_price_report_financials(VEYAS_PRICE_REPORT_TEXT)
+    context = _citas_context(price_report=price_report)
+
+    assert context["is_operational_financial_empty"] is False
+    labels = {row["label"] for row in context["operational_financial_rows"]}
+    assert "Hasılat (2025)" in labels
+    ciro_row = next(row for row in context["operational_financial_rows"] if row["label"] == "Ciro (31.03.2026)")
+    assert ciro_row["yoy_display"] == "%13,6"
+    assert ciro_row["yoy_class"] == "positive"
+
+
+def test_render_ipo_card_faz_20_5_bolumleriyle_cokmez(tmp_path) -> None:
+    """4 yeni bölümün (Öne Çıkan Noktalar/Fiyat İstikrarı-Taahhüt/28.2
+    fallback/Operasyonel-Finansal) HEPSİ dolu haliyle GERÇEK Playwright
+    render'ı çökmediğini doğrular."""
+    price_report = ipo_price_report.extract_price_report_financials(VEYAS_PRICE_REPORT_TEXT)
+    context = _citas_context(price_report=price_report)
+    out_path = tmp_path / "test_halka_arz_faz_20_5.png"
     result = card.render_card(context, str(out_path), template_name="ipo_card.html", screenshot_selector="#ipo-card")
     assert Path(result).exists()
     assert Path(result).stat().st_size > 0

@@ -16,6 +16,7 @@ SQLAlchemy>=2.0
 # Gorsel uretim
 Jinja2>=3.1
 playwright>=1.45
+Pillow>=10.0
 
 # Telegram bot
 python-telegram-bot>=21.0

@@ -267,17 +267,16 @@ async def _send_document_with_retry(context, chat_id: int, png_path: str) -> Non
         await context.bot.send_document(
             chat_id=chat_id,
             document=document_file,
-            # CANLI kullanıcı raporu (2026-08-07): orijinal/sıkıştırmasız dosyayı
-            # bile X'e atarken X kendi varsayılan sıkıştırmasını uyguluyor --
-            # görselin sağ üstündeki kalite simgesinden "En Yüksek Kalite/HD"
-            # seçilmezse net görünmüyor, çoğu kullanıcı bu adımı ATLIYOR. Bu
-            # X'in kendi istemci davranışı (bizim tarafımızdan zorlanamaz) --
-            # tek elimizdeki lever bu hatırlatmayı HER gönderimde göstermek.
+            # CANLI kullanıcı raporu (2026-08-07, ikinci tur): X'te artık "HD seç"
+            # seçeneği bulunamıyor, eski hatırlatma tek başına yetersizdi. Kök
+            # çözüm artık render katmanında: card.py::_force_transparent_corner_pixel()
+            # her PNG'ye 1 şeffaf köşe pikseli ekliyor -- X, şeffaflık içeren PNG'leri
+            # JPEG'e çevirmeden bırakıyor (bkz. PROJE_HAFIZASI/04_KART_VE_GORSEL.md).
+            # Bu caption artık ek bir GARANTİ değil, temkinli bir hatırlatma.
             caption=(
                 "🖼️ Orijinal kalite -- X/Twitter'a atmadan önce BU dosyayı kaydet.\n"
-                "⚠️ X'te paylaşırken görselin sağ üstündeki kalite simgesinden "
-                "\"En Yüksek Kalite/HD\" seçeneğini işaretle, aksi halde X görseli "
-                "kendi sıkıştırmasıyla bulanıklaştırır."
+                "ℹ️ Bu dosya X'in sıkıştırmasını azaltacak şekilde üretildi; yine de "
+                "en net sonuç için orijinal (bu) dosyayı kullan, önizleme görselini değil."
             ),
         )
 
@@ -543,7 +542,7 @@ async def _gonder_halkaarz_detay_ic(chat_id: int, context: ContextTypes.DEFAULT_
         return
 
     ipo_context = ipo_card.build_ipo_card_context(
-        result.disclosure, result.facts, result.assessment, supplementary=result.supplementary
+        result.disclosure, result.facts, result.assessment, supplementary=result.supplementary, price_report=result.price_report
     )
     out_path = config.DATA_DIR / "cards" / f"halkaarz_{ticker}.png"
     try:

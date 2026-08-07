@@ -88,14 +88,18 @@ def test_extract_price_report_financials_kolon_sayisi_eksikse_none_doner() -> No
 # --- find_price_report_disclosure_index -- ağ isteği monkeypatch'lenir --------------------------
 
 
-def test_find_price_report_disclosure_index_bulur(monkeypatch) -> None:
+def test_find_price_report_disclosure_index_kategoriyle_bulur(monkeypatch) -> None:
+    """CANLI 4/4 örnekte (KPEKS/VEYAS/BEWEN/CITAS, 2026-08-07) doğrulanan
+    gerçek KAP kategorisi -- başlıkta "Fiyat Tespit Raporu" hiç GEÇMESE bile
+    (örn. "VEYAS Fiyat Tespit Raporu \n \n" gibi başlık varyasyonları) SADECE
+    kategori eşleşmesiyle bulunabilmeli."""
     monkeypatch.setattr(kap, "search_company_by_name", lambda name: [kap.CompanyMatch(member_oid="123", name="HALK YATIRIM MENKUL DEĞERLER A.Ş.", ticker_codes=())])
     monkeypatch.setattr(
         kap,
         "fetch_disclosures_by_oid",
         lambda oid, days=60: [
             kap.Disclosure(
-                date=None, title="VEYAS Fiyat Tespit Raporu", category=ipr._IZAHNAME_CATEGORY, summary="", url="",
+                date=None, title="Türker Vangölü Enerji Yatırım A.Ş. Fiyat Tespit Raporu", category=ipr._PRICE_REPORT_CATEGORY, summary="", url="",
                 importance="dusuk", is_late=False, disclosure_index=42, stock_codes="HALKY", related_stocks="VEYAS",
             ),
         ],
@@ -106,14 +110,34 @@ def test_find_price_report_disclosure_index_bulur(monkeypatch) -> None:
     assert result == 42
 
 
-def test_find_price_report_disclosure_index_baslikta_gecmezse_none(monkeypatch) -> None:
+def test_find_price_report_disclosure_index_baslik_yedegiyle_bulur(monkeypatch) -> None:
+    """Kategori adı beklenenden farklıysa (ileride değişirse) başlık regex'i
+    YEDEK yol olarak devreye girmeli -- tek bir koşula aşırı güvenilmez."""
     monkeypatch.setattr(kap, "search_company_by_name", lambda name: [kap.CompanyMatch(member_oid="123", name="HALK YATIRIM MENKUL DEĞERLER A.Ş.", ticker_codes=())])
     monkeypatch.setattr(
         kap,
         "fetch_disclosures_by_oid",
         lambda oid, days=60: [
             kap.Disclosure(
-                date=None, title="VEYAS Onaylı İzahname", category=ipr._IZAHNAME_CATEGORY, summary="", url="",
+                date=None, title="VEYAS Fiyat Tespit Raporu", category="Diğer", summary="", url="",
+                importance="dusuk", is_late=False, disclosure_index=42, stock_codes="HALKY", related_stocks="VEYAS",
+            ),
+        ],
+    )
+
+    result = ipr.find_price_report_disclosure_index(_disclosure())
+
+    assert result == 42
+
+
+def test_find_price_report_disclosure_index_ne_kategori_ne_baslik_eslesirse_none(monkeypatch) -> None:
+    monkeypatch.setattr(kap, "search_company_by_name", lambda name: [kap.CompanyMatch(member_oid="123", name="HALK YATIRIM MENKUL DEĞERLER A.Ş.", ticker_codes=())])
+    monkeypatch.setattr(
+        kap,
+        "fetch_disclosures_by_oid",
+        lambda oid, days=60: [
+            kap.Disclosure(
+                date=None, title="VEYAS Onaylı İzahname", category="İzahname (SPK Tarafından Onaylanan)", summary="", url="",
                 importance="dusuk", is_late=False, disclosure_index=1, stock_codes="HALKY", related_stocks="VEYAS",
             ),
         ],

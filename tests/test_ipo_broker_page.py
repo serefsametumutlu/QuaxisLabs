@@ -132,6 +132,35 @@ def test_fetch_supplementary_ipo_info_tam_alanlarla_dolar(monkeypatch) -> None:
     assert 150_000 not in rows and 2_200_000 not in rows
 
 
+_DETAIL_PAGE_HTML_SADECE_SERMAYE_ARTIRIMI = """
+<table class="sp-table"><tr><td><em>Pay : </em></td><td><strong>25.100.000 Lot</strong></td></tr></table>
+<article class="sp-arz-extra"><ul class="aex-in">
+<li><h5>Halka Arz Şekli</h5><p>
+- Sermaye Artırımı : 25.100.000 Lot <br>
+<small>* SPK Bülteni, 2026/49.</small></p></li>
+<li class="b-esit"><p>**** Katılım Endeksine uygun. <a href="https://halkarz.com/bist-endeks/xktum/">(XKTUM)</a> <br></p></li>
+</ul></article>
+"""
+
+
+def test_fetch_supplementary_ipo_info_sadece_sermaye_artirimi_satiri_varsa_ortak_satisi_sifir_sayilir(monkeypatch) -> None:
+    """🚨 CANLI HATA + DÜZELTME (2026-08-07, KPEKS): "Halka Arz Şekli" bloğunda
+    SADECE "Sermaye Artırımı" satırı olup "Ortak Satışı" satırı HİÇ
+    geçmiyorsa (arzın TAMAMI yeni pay -- KPEKS'in izahnamesinin kendi giriş
+    cümlesiyle de doğrulandı) bu "veri eksik" değil "%100 sermaye artırımı,
+    %0 ortak satışı" anlamına gelir -- önceden İKİSİ de None olmadıkça hesap
+    yapılmadığı için bölümün TAMAMI sessizce gizleniyordu."""
+    responses = iter([_fake_response(_SEARCH_RESULT_HTML), _fake_response(_DETAIL_PAGE_HTML_SADECE_SERMAYE_ARTIRIMI)])
+    monkeypatch.setattr(ibp, "_get", lambda url, params=None: next(responses))
+
+    info = ibp.fetch_supplementary_ipo_info("CITAS")
+
+    assert info is not None
+    assert info.capital_increase_pct_fallback == Decimal("100")
+    assert info.partner_sale_pct_fallback == Decimal("0")
+    assert info.is_pure_capital_increase_fallback is True
+
+
 def test_fetch_supplementary_ipo_info_izahname_okunamazsa_fallback_alanlari_dolar(monkeypatch) -> None:
     """VEYAS ile CANLI bulundu (2026-08-07, kullanıcı raporu): izahname
     PDF'i taranmış/OCR'siz olduğunda `total_lot_text`'ten "Lot" birimi

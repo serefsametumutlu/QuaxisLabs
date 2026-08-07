@@ -295,7 +295,22 @@ def _parse_allocation_structured(text: str | None) -> list[tuple[str, Decimal, D
 def _parse_capital_structure(text: str | None) -> tuple[Decimal | None, Decimal | None]:
     """"Halka Arz Şekli" metninden Sermaye Artırımı/Ortak Satışı LOT
     sayılarını döner -- CANLI doğrulandı (VEYAS: 37.500.000/27.500.000,
-    toplamı `total_lot_text`teki "Pay" [65.000.000] ile BİREBİR eşleşti)."""
+    toplamı `total_lot_text`teki "Pay" [65.000.000] ile BİREBİR eşleşti).
+
+    🚨 CANLI HATA + DÜZELTME (2026-08-07, otuz birinci tur, KPEKS örneği):
+    bu alan SADECE İKİ satır (Sermaye Artırımı / Ortak Satışı) içerebilir --
+    biri EKSİKSE bu "veri eksik" DEĞİL, "o bileşen sıfır" anlamına gelir
+    (KPEKS'in "Halka Arz Şekli" metninde SADECE "Sermaye Artırımı : 25.100.000
+    Lot" var, "Ortak Satışı" satırı HİÇ YOK -- CANLI, izahnamenin KENDİ
+    giriş cümlesiyle de doğrulandı: "...25.100.000 TL nominal değerli
+    25.100.000 adet ... payın halka arzına ilişkin izahnamedir", yani arzın
+    TAMAMI yeni sermaye artırımı payı, ortak satışı YOK). Önceki davranış
+    (bulunamayan bileşen None kalır) `estimate_capital_vs_partner_pct()`'te
+    HER İKİSİ de None olmadıkça hesap yapılmadığı için TÜM "Sermaye Artırımı
+    vs Ortak Satışı" bölümünü sessizce gizliyordu -- oysa halkarz.com'un
+    KENDİSİ zaten net bir sinyal veriyordu (satırın YOKLUĞU = sıfır).
+    Sadece İKİ satırdan EN AZ BİRİ bulunduysa diğeri 0'a düşürülür; İKİSİ DE
+    yoksa (metin tamamen boş/alakasız) None/None olarak kalır (Kural 3)."""
     if not text:
         return None, None
     capital_lot: Decimal | None = None
@@ -310,6 +325,10 @@ def _parse_capital_structure(text: str | None) -> tuple[Decimal | None, Decimal 
             capital_lot = value
         else:
             partner_lot = value
+    if capital_lot is not None and partner_lot is None:
+        partner_lot = Decimal(0)
+    elif partner_lot is not None and capital_lot is None:
+        capital_lot = Decimal(0)
     return capital_lot, partner_lot
 
 

@@ -1182,6 +1182,36 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       factor` 2→1, kartlar ~yarı boyuta indi) -- kullanıcı CANLI test etti,
       **KESİN olarak çözüldüğü doğrulanamadı** (bkz. `06_BILINEN_
       SORUNLAR.md` §B33, açık risk). 1117 test yeşil (27 yeni).
+- [x] **Faz 20.6** — (2026-08-07, otuz birinci tur, kullanıcı raporu: "KPEKS
+      ve VEYAS'ta hâlâ eksik geliyor, örnek görselden çok uzak") Faz 20.5'in
+      vaat ettiği "📈 Operasyonel ve Finansal Veriler" bölümü İSTİSNASIZ HER
+      halka arzda boş çıkıyordu -- kök neden `ipo_price_report.py`'nin
+      Fiyat Tespit Raporu'nu YANLIŞ KAP kategorisinde (`"İzahname (SPK
+      Tarafından Onaylanan)"`) aramasıydı; KAP bu belgeyi KENDİ AYRI
+      kategorisinde (`"Fiyat Tespit Raporu"`) yayınlıyor -- CANLI 4/4
+      örnekte (KPEKS/VEYAS/BEWEN/CITAS) doğrulandı. Düzeltme sonrası VEYAS
+      artık kartta 5 satırlık tam finansal tabloyu (Hasılat/Ciro/Brüt Kâr/
+      Toplam Varlık/Özkaynak, YoY büyüme dahil) kullanıcının referans
+      görseliyle BİREBİR üretiyor; KPEKS'in raporu ise GERÇEKTEN
+      taranmış/OCR'siz çıktı (67 karakter) -- bu durumda bölüm doğru
+      şekilde gizli kalıyor (Kural 3, veri kaynağı sınırı, kod hatası
+      DEĞİL). AYRICA 2 küçük hata: (1) `scripts/demo_halka_arz.py`
+      (resmi teslim/doğrulama scripti) `price_report`'u fetch edip
+      context builder'a HİÇ geçirmiyordu (gerçek Telegram bot yolu
+      ETKİLENMEMİŞTİ, ama doğrulamayı güvenilmez kılıyordu) -- düzeltildi.
+      (2) "Sermaye Artırımı vs Ortak Satışı" bölümü, arzın TAMAMI sermaye
+      artırımıysa (ortak satışı hiç YOKSA -- KPEKS gibi) TAMAMEN
+      GİZLENİYORDU ("- / -") -- `ipo_broker_page._parse_capital_structure()`
+      artık "Ortak Satışı" satırının YOKLUĞUNU "%0" olarak yorumluyor.
+      CANLI doğrulandı: KPEKS artık "%100,0 / %0,0" + "✓ Arzın tamamı
+      sermaye artırımı" rozetini gösteriyor. Ayrıca KPEKS'in ana
+      izahnamesinin (önceki turda "VEYAS gibi taranmış" sanılmasının
+      AKSİNE) aslında TAM okunabilir olduğu bulundu -- "Sulanma Etkisi
+      Analizi" tablosunun FARKLI bir sütun düzeni kullanması nedeniyle
+      mevcut regex'ler eşleşmiyor (gelecek faz adayı, bkz.
+      `06_BILINEN_SORUNLAR.md` §B32 devamı). Regresyon: 3 yeni/yeniden
+      yazılan test (`test_ipo_price_report.py`, `test_ipo_broker_page.py`).
+      1119 test yeşil.
 - [x] **Faz 19.1** — (2026-08-06, kullanıcı raporu) TLY fon tahmini
       fvt.com.tr'nin "AI Tahmini"nden (%0,17) ~18 kat büyük (%3,14)
       çıkıyordu. Kök neden: `yahoo_quote.fetch_daily_return()`'ün "close"

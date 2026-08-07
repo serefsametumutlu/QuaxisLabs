@@ -56,7 +56,21 @@ from src.fetchers.kap_ipo import IzahnameDisclosure
 
 logger = logging.getLogger(__name__)
 
-_IZAHNAME_CATEGORY = "İzahname (SPK Tarafından Onaylanan)"
+# 🚨 CANLI HATA + DÜZELTME (2026-08-07, otuz birinci tur, kullanıcı raporu:
+# "KPEKS ve VEYAS'ta hâlâ eksik geliyor"): find_price_report_disclosure_index()
+# şimdiye kadar bildirimi SADECE _IZAHNAME_CATEGORY içinde arıyordu -- ama
+# KAP, Fiyat Tespit Raporu'nu KENDİ AYRI kategorisinde ("Fiyat Tespit Raporu")
+# yayınlıyor, izahname kategorisinin İÇİNDE DEĞİL. CANLI 4/4 örnekte doğrulandı
+# (KPEKS/VEYAS/BEWEN/CITAS -- hepsinin "Fiyat Tespit Raporu" başlıklı bildirimi
+# `d.category == "Fiyat Tespit Raporu"`, ASLA izahname kategorisinde değil).
+# Sonuç: bu fonksiyon KURULUŞUNDAN BERİ hiçbir zaman gerçek bir sonuç
+# DÖNDÜREMİYORDU -- daha önce VEYAS için yapılan "rakam rakam doğrulama"
+# (bkz. modül üst notu) SADECE `extract_price_report_financials()`'ın kendi
+# ayrıştırma mantığını, ELLE indirilmiş bir dosyayla test etmişti; bu keşif
+# (discovery) fonksiyonu CANLI uçtan uca hiç doğrulanmamıştı. "Operasyonel ve
+# Finansal Veriler" bölümünün kartlarda İSTİSNASIZ boş çıkmasının kök nedeni
+# BUYDU.
+_PRICE_REPORT_CATEGORY = "Fiyat Tespit Raporu"
 _PRICE_REPORT_KEYWORD_RE = re.compile(r"fiyat tespit raporu", re.IGNORECASE)
 _COURTESY_DELAY_SECONDS = 0.4
 _DISCOVERY_DAYS = 60  # kap_ipo._find_use_of_proceeds_disclosure_index ile AYNI pencere (tek üye taraması, fetch_all_disclosures'ın 2000-satır sınırına TABİ DEĞİL)
@@ -118,12 +132,15 @@ def find_price_report_disclosure_index(disclosure: IzahnameDisclosure) -> int | 
 
     primary_ticker = disclosure.target_tickers[0] if disclosure.target_tickers else ""
     for d in disclosures:
-        if d.category != _IZAHNAME_CATEGORY:
-            continue
         related = {t.strip() for t in d.related_stocks.split(",") if t.strip()}
         if primary_ticker not in related:
             continue
-        if _PRICE_REPORT_KEYWORD_RE.search(d.title):
+        # Birincil eşleşme: KAP'ın kendi kategori adı (4/4 canlı örnekte
+        # doğrulandı). Başlık regex'i İKİNCİL/yedek kontrol olarak kalır --
+        # kategori adı ileride değişirse/farklı bir aracı kurum farklı
+        # etiketlerse yine de yakalanabilsin diye (Kural 9 ruhu: tek bir
+        # koşula aşırı güvenme).
+        if d.category == _PRICE_REPORT_CATEGORY or _PRICE_REPORT_KEYWORD_RE.search(d.title):
             return d.disclosure_index
     return None
 

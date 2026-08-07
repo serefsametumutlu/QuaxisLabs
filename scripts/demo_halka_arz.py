@@ -50,7 +50,7 @@ def _detay_modu(ticker: str) -> int:
         return 1
 
     context = ipo_card.build_ipo_card_context(
-        result.disclosure, result.facts, result.assessment, supplementary=result.supplementary
+        result.disclosure, result.facts, result.assessment, supplementary=result.supplementary, price_report=result.price_report
     )
 
     print(f"\nŞirket             : {context['company_name']} (#{context['primary_ticker']})")
@@ -79,6 +79,12 @@ def _detay_modu(ticker: str) -> int:
         print(f"\nTahmini Dağıtım (Yurt İçi Bireysel, örnek satırlar){kaynak}:")
         for row in context["estimated_distribution_rows"][:3]:
             print(f"  - {row['participants_display']} kişi -> kişi başı {row['lot_display']} Lot ({row['tl_display']})")
+
+    if not context["is_operational_financial_empty"]:
+        print("\nOperasyonel ve Finansal Veriler (Fiyat Tespit Raporu):")
+        for row in context["operational_financial_rows"]:
+            yoy = f" (YoY {row['yoy_display']})" if row["yoy_display"] else ""
+            print(f"  - {row['label']}: {row['value_display']}{yoy}")
 
     out_path = config.DATA_DIR / "cards" / f"halkaarz_{ticker}.png"
     result_path = card.render_card(context, str(out_path), template_name="ipo_card.html", screenshot_selector="#ipo-card")

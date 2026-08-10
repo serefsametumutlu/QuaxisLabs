@@ -2,7 +2,8 @@
 
 ## Meta
 - **Kaynak:** `kitaplar/WARREN BUFFETT AND THE INTERPRETATION OF FINANCIAL STATEMENTS.pdf` (224 sayfa, taranmış/image-only PDF, metin katmanı yok — OCR ile çıkarıldı: PyMuPDF `get_textpage_ocr`, Tesseract, dpi=300, `language='eng'`).
-- **Bu dosyanın kapsamı:** SADECE "GELİR TABLOSU" ana kısmı — Bölüm 7-20 (PDF s.45-88). Bilanço (Böl.21-42), Özkaynaklar (Böl.43-49), Nakit Akış (Böl.50-52) ve Değerleme (Böl.53-57) bölümleri SONRAKİ turlarda bu dosyaya eklenecek.
+- **Bu dosyanın kapsamı:** "GELİR TABLOSU" (Böl.7-20, s.45-88) VE "BİLANÇO" (Böl.21-42, s.89-146) ana kısımları. Özkaynaklar (Böl.43-49), Nakit Akış (Böl.50-52) ve Değerleme (Böl.53-57) bölümleri SONRAKİ turlarda bu dosyaya eklenecek.
+- **ID numaralandırması dosya genelinde KESİNTİSİZDİR** (İLKE/FORMÜL/BAYRAK bölümler arası devam eder); Eşik tablosu ve Kontrol Listeleri her ana kısım için ayrı/yeni numaralanır (bunlar referans amaçlı, çapraz atıf gerektirmiyor).
 - **İşlenen bölümler:**
   - Böl.7 Gelir Tablosuna Giriş (s.45-47)
   - Böl.8 Hasılat (s.48-49)
@@ -131,3 +132,147 @@
    - Sektörel eşikler (Ar-Ge, SG&A, faiz oranları) ABD şirket örnekleriyle kalibre edilmiştir; BIST sanayi şirketlerine (TUPRS, EREGL, FROTO vb.) uygulanırken sektör-içi (yerel emsal) kıyas önceliklendirilmeli, mutlak ABD eşikleri referans/başlangıç noktası olarak kullanılmalı.
 5. OCR belirsizliği: Bu turda TEK bir sayısal değer net teyit edilemedi — Ford'un SG&A/Brüt Kâr aralığı (s.59, "$9% ila 780%" okundu). Moody's SG&A oranı için ilk okumada "245%" görülse de, aynı bölümün ilerisinde (s.64) net biçimde "%24" olarak teyit edildiği için ("Moody's... on average spends only 24% of its gross profit on SGA expenses") bu değer KESİNLEŞTİRİLDİ, tabloya %24 olarak yazıldı.
 6. Bölüm 7'nin didaktik örnek gelir tablosu (Revenue $10,000 / COGS $3,000 / Gross Profit $7,000 / SG&A $2,100 / R&D $1,000 / Depreciation $700 / Operating Profit $3,200 ...) OCR'da bazı rakamları bozmuş (örn. "700"→"FOO") VE alt toplamlar birbirini tam tutmuyor (Income Before Tax $1,400/1,500 iki farklı sayfada farklı basılmış, Net Earnings $975 hesapla $875 çıkıyor) — bu muhtemelen kitabın kendi baskı/yazım tutarsızlığı ya da OCR kaynaklı, ama zaten HAYALİ/didaktik bir örnek olduğu için hiçbir eşiğe/formüle KAYNAK YAPILMADI, sadece "gelir tablosu kalem sırası" referansı olarak kullanıldı.
+
+---
+---
+
+# BİLANÇO (Bölüm 21-42, PDF s.89-146)
+
+## İşlenen bölümler (bu ana kısım)
+- Böl.21 Bilanço Genel (s.89-90)
+- Böl.22 Varlıklar (s.92-94)
+- Böl.23 Dönen Varlık Döngüsü (s.95-96)
+- Böl.24 Nakit ve Nakit Benzerleri (s.97-100)
+- Böl.25 Envanter (s.101-102)
+- Böl.26 Net Alacaklar (s.103-104)
+- Böl.27 Peşin Ödenmiş Giderler/Diğer Dönen Varlıklar (s.105-106)
+- Böl.28 Toplam Dönen Varlıklar ve Cari Oran (s.107-109)
+- Böl.29 Maddi Duran Varlıklar (PP&E) (s.110-113)
+- Böl.30 Şerefiye (Goodwill) (s.114-115)
+- Böl.31 Maddi Olmayan Duran Varlıklar (s.116-118)
+- Böl.32 Uzun Vadeli Yatırımlar (s.119-121)
+- Böl.33 Diğer Uzun Vadeli Varlıklar (s.122-123)
+- Böl.34 Toplam Varlıklar ve Varlık Getirisi (ROA) (s.124-125)
+- Böl.35 Kısa Vadeli Yükümlülükler — genel (s.126)
+- Böl.36 Ticari Borçlar, Tahakkuklar ve Diğer Kısa Vadeli Yükümlülükler (s.127-128)
+- Böl.37 Kısa Vadeli Borç (s.129-132)
+- Böl.38 Vadesi Gelen Uzun Vadeli Borç (s.133-134)
+- Böl.39 Toplam Kısa Vadeli Yükümlülükler ve Cari Oran (s.135-137)
+- Böl.40 Uzun Vadeli Borç (s.138-140)
+- Böl.41 Ertelenmiş Vergi, Azınlık Payı ve Diğer Yükümlülükler (s.141-142)
+- Böl.42 Toplam Yükümlülükler ve Borç/Özkaynak Oranı (s.143-146)
+
+**OCR notu:** Gövde metni yüksek güvenilirlikte okundu; belirsiz kalan TEK rakam grubu Ford'un hazine-hissesi-düzeltmeli Borç/Özkaynak oranındaki mutlak borç tutarı ("$275 billion", s.146) — bu rakam Ford Motor Credit'in (finansman kolu) o döneme ait toplam borcuyla mantıksal olarak tutarlı büyüklükte olsa da PDF'den TEK kaynakla teyit edilebildi, ikinci bir çapraz referans yok; "(OCR belirsiz, s.146'da teyit edilmeli)" notuyla işaretlendi. Bölümlerdeki örnek bilanço tabloları (Ch21-42 boyunca tekrar eden aynı didaktik tablo) OCR'da bazı kalem adlarını/rakamlarını bozmuş (örn. "$1,380"/"$1,580" farklı sayfalarda farklı basılmış, toplamlar da ($43,959 vs $43,059 vs $45,269) sayfadan sayfaya tutarsız) — bu HAYALİ/didaktik örnek olduğundan hiçbir eşiğe KAYNAK YAPILMADI, sadece kalem sırası referansı olarak kullanıldı (Gelir Tablosu bölümündeki aynı yaklaşımla tutarlı).
+
+---
+
+## İlkeler (devam)
+
+- **İLKE-15:** Bilanço belirli bir TARİHE ait "anlık görüntüdür" (stok değer), gelir tablosu gibi bir DÖNEME ait değildir — Varlıklar − Yükümlülükler = Özkaynak (Net Değer) formülü bilançonun temelidir. (s.89-90)
+- **İLKE-16:** Yüksek nakit/nakit benzeri seviyesi tek başına yeterli sinyal değildir — kaynağı araştırılmalı: sürdürülebilir REKABET AVANTAJINDAN gelen faaliyet nakit fazlası mı (iyi işaret), yoksa tek seferlik bir tahvil/hisse ihracı ya da varlık/iş kolu satışı mı (nötr/belirsiz)? Son 7 yılın bilançoları karşılaştırılarak ayırt edilmeli. (s.98-100)
+- **İLKE-17:** "Nakit kraldır" — bol nakit + az/hiç borç kombinasyonu, zor zamanlarda şirketin ayakta kalmasını sağlar; az nakit + yüksek borç kombinasyonu "batmakta olan gemi" işaretidir. (s.99-100)
+- **İLKE-18:** Dayanıklı rekabet avantajına sahip üretici şirketlerde ürün değişmediği/eskimediği için envanter, net kârla BİRLİKTE ve ORANTILI şekilde artmalıdır — bu, kârlı ve sürdürülebilir satış büyümesinin işaretidir. (s.102)
+- **İLKE-19:** Net alacaklar tek başına anlamlı değildir; AYNI SEKTÖR İÇİNDEKİ rakiplere kıyasla Net Alacaklar/Brüt Satışlar oranının DÜŞÜK olması genelde bir rekabet avantajı işaretidir (rakip gibi cömert ödeme vadesi sunmaya ihtiyaç duymuyor demektir). (s.104)
+- **İLKE-20 (sezgiye TERS):** Cari Oran <1 olan pek çok dayanıklı-rekabet-avantajlı şirket vardır — bu, klasik "cari oran <1 = kötü" kuralını dayanıklı rekabet avantajı TESPİTİ için NEREDEYSE İŞLEVSİZ kılar; güçlü ve tutarlı kazanç gücü, düşük likidite yastığı ihtiyacını ortadan kaldırır. (s.108-109, s.135-136)
+- **İLKE-21:** Dayanıklı rekabet avantajlı şirketler ürünleri değişmediği için maddi duran varlıklarını (PP&E) sürekli yenilemek ZORUNDA değildir; bu yatırımları İÇSEL kaynaklarla (borçsuz) finanse edebilirler. Avantajı olmayan şirketler ise rekabeti yakalamak için sürekli tesis yenilemek zorunda kalır ve bunu genelde BORÇLA finanse eder. (s.110-113)
+- **İLKE-22:** Şerefiyedeki (goodwill) artış, şirketin başka şirketleri satın aldığının göstergesidir — bu SADECE satın alınan şirketler de dayanıklı rekabet avantajına sahipse OLUMLUDUR; aksi halde sermayenin verimsiz kullanımı (empire-building) riski taşır. (s.115)
+- **İLKE-23:** Dayanıklı rekabet avantajına sahip şirketler neredeyse HİÇBİR ZAMAN defter değerinin ALTINDA satılmaz; nadiren gerçekleşirse bu "ömür boyu fırsat" olabilir. (s.115)
+- **İLKE-24:** İçsel olarak geliştirilen marka değeri (örn. Coca-Cola'nın $100 milyar+ değerindeki markası) bilançoya YANSIMAZ — bu GİZLİ DEĞER, dayanıklı rekabet avantajlı şirketlerin gerçek değerinin bilanço analiziyle DEĞİL, 10 yıllık gelir tablosu karşılaştırmasıyla ortaya çıkarılabileceği anlamına gelir. (s.117-118)
+- **İLKE-25:** Uzun vadeli yatırımlar portföyünün BİLEŞİMİ, yönetimin sermaye tahsis kalitesini gösterir — yönetim dayanıklı rekabet avantajlı şirketlere mi, yoksa vasat/rekabetçi şirketlere mi yatırım yapıyor? (s.120-121)
+- **İLKE-26 (sezgiye TERS):** Çok YÜKSEK Varlık Getirisi (ROA) her zaman iyi değildir — düşük varlık tabanı = düşük sermaye giriş engeli (barrier to entry) demektir, bu da rekabet avantajının DAHA AZ dayanıklı olduğu anlamına gelebilir. "Bazen daha fazlası, uzun vadede daha az anlamına gelebilir." (s.125)
+- **İLKE-27:** Finansal kuruluşlarda (bankalar) kısa vadeli borçla uzun vadeli kredi verme ("borrow short, lend long") stratejisi, kısa vadeli faizler yükseldiğinde veya kreditörler yeniden borç vermeyi reddettiğinde (rollover riski) YIKICI olabilir — muhafazakâr bankalar (düşük kısa/uzun vadeli borç oranı) zor zamanlarda avantajlıdır. (s.129-132; Bear Stearns vaka analizi)
+- **İLKE-28:** Dayanıklı rekabet avantajlı şirketler tipik olarak AZ ya da HİÇ uzun vadeli borç taşımaz (iç kaynaklarla kendi kendini finanse edebilirler) — bu 10 YILLIK bir pencerede değerlendirilmelidir, tek yıl yeterli değildir. (s.138-139)
+- **İLKE-29:** Çok kârlı ve düşük borçlu şirketler kaldıraçlı satın alma (LBO) hedefi olabilir; LBO sonrası bilanço ağır borçla yüklenir — bu durumda görünürdeki "yüksek borç" aslında altta yatan işin zayıflığından değil, satın alma yapısından kaynaklanır; böyle durumlarda şirketin TAHVİLLERİ hisse senedinden daha iyi bir yatırım olabilir (kazanç gücü büyümeye değil borç ödemeye yönlendirilir). (s.139-140)
+- **İLKE-30:** Ham (Toplam Yükümlülük/Özkaynak) borç/özkaynak oranı, agresif hisse geri alım programları yüzünden YANILTICI olabilir — dayanıklı avantajlı şirketler özkaynaklarını geri alımla o kadar eritebilir ki (bazen NEGATİF özkaynağa kadar) oran vasat bir şirketinki gibi görünür. Bu yüzden HAZİNE HİSSESİ (treasury stock) geri eklenerek "düzeltilmiş" oran kullanılmalıdır. (s.144-145)
+- **İLKE-31:** Borç/Özkaynak değerlendirmesinde bankalar/finansal kuruluşlar İSTİSNADIR — iş modelleri gereği (borç alıp kredi verme) çok daha yüksek kaldıraç NORMALDİR; mutlak eşik yerine SEKTÖR İÇİ kıyas yapılmalı. (s.145-146)
+
+---
+
+## Formüller (devam)
+
+| # | Formül | QuaxisLabs karşılığı |
+|---|---|---|
+| **FORMÜL-09** Net Değer (Özkaynak) = Toplam Varlıklar − Toplam Yükümlülükler (s.90) | **MEVCUT (dolaylı).** `calculator.py`'de `equity` doğrudan İş Yatırım'dan çekiliyor (`isyatirim.py` `STANDARD_ITEM_MAP_XI_29["equity"]="2N"`) — ayrı bir "varlık − yükümlülük" hesabıyla YENİDEN türetilmiyor, zaten raporlanan özkaynak rakamı kullanılıyor. Kavramsal karşılığı `BalanceSheetSummary.equity`. |
+| **FORMÜL-10** Net Alacaklar = Brüt Alacaklar − Şüpheli/Kötü Alacak Karşılığı (s.104) | **KISMEN MEVCUT.** `trade_receivables` alanı çekiliyor (`isyatirim.py` `STANDARD_ITEM_MAP_XI_29["trade_receivables"]="1AC"`, `kap_financials.py`'de de `"trade_receivables": "ifrs-full_CurrentTradeReceivables"` karşılığı var) ve `calculator.BalanceSheetSummary.trade_receivables` QoQ karşılaştırmalı gösteriliyor — ama bu değerin "net" (kötü alacak düşülmüş) mü yoksa brüt mü olduğu ayrıca teyit edilmeli, kaynak dokümantasyonda belirtilmiyor. |
+| **FORMÜL-11** Net Alacaklar Oranı = Net Alacaklar / Brüt Satışlar, sektör-içi kıyas (s.104) | **VERİ EKSİK (oran).** Ham veri (`trade_receivables`, `revenue`) mevcut ama bu oran `calculator.py`'de HİÇ hesaplanmıyor/gösterilmiyor. |
+| **FORMÜL-12** Cari Oran = Dönen Varlıklar / Kısa Vadeli Yükümlülükler (s.107-108) | **MEVCUT.** `calculator.py` `Ratios.current_ratio = _safe_div(current.get("current_assets"), current.get("short_term_liabilities"))`. Çok dönemli trend: `trends.py` `PeriodTrendPoint.current_ratio`. |
+| **FORMÜL-13** Varlık Getirisi (ROA) = Net Kâr / Toplam Varlıklar (s.125) | **VERİ EKSİK (oran).** `total_assets` (`isyatirim.py` "1BL") VE `net_income` (`isyatirim.py` "3Z") ikisi de zaten çekiliyor ama `calculator.Ratios`'ta ROA hiç hesaplanmıyor — sadece ROE (`roe_annualized`) var. Ham veri TAM, tek satır `margin_pct(ttm_net_income, total_assets)` eklemek yeterli — en ucuz kazanımlardan biri. |
+| **FORMÜL-14** Uzun Vadeli Borç Geri Ödeme Süresi (yıl) = Uzun Vadeli Borç / Yıllık Net Kâr (s.139) | **VERİ EKSİK (oran).** `long_term_financial_debt` (`isyatirim.py` "2BA") ve `net_income` ikisi de mevcut ama bu oran hiç hesaplanmıyor. |
+| **FORMÜL-15** Kısa Vadeli Borç / Uzun Vadeli Borç Oranı — özellikle bankalar için (s.129-132) | **VERİ EKSİK (sanayi şirketlerinde oran hesaplanmıyor; bankalarda HAM VERİ de eksik).** Sanayi/ticaret şirketleri için `short_term_financial_debt` ("2AA") ve `long_term_financial_debt` ("2BA") mevcut ama oran hesaplanmıyor. Kitabın bu oranı en çok ÖNERDİĞİ bağlam olan BANKALAR için `STANDARD_ITEM_MAP_UFRS`'de kısa/uzun vadeli borç ayrımı hiç YOK (bankalar "loans"/"deposits" modeliyle takip ediliyor) — asıl ihtiyaç duyulan yerde veri hiç yok. |
+| **FORMÜL-16** Borç/Özkaynak Oranı = Toplam Yükümlülükler / Özkaynak (s.144) | **KISMEN MEVCUT — ÖNEMLİ TANIM FARKI.** `calculator.py`'nin mevcut `Ratios.debt_to_equity` alanı `financial_debt / equity` olarak hesaplanıyor; `financial_debt` SADECE faiz taşıyan borçtur (`short_term_financial_debt` + `long_term_financial_debt` toplamı — bkz. `isyatirim.py` `_TOTAL_DEBT_COMPONENT_FIELDS`), kitaptaki "Toplam Yükümlülükler" (ticari borçlar, tahakkuklar, ertelenmiş vergi vb. DAHİL TÜM yükümlülükler) DEĞİLDİR. Kitabın tanımını birebir hesaplamak için gereken `short_term_liabilities` ("2A") + `long_term_liabilities` ("2B") alanları isyatirim.py'de ZATEN çekiliyor — sadece calculator.py'ye bu toplamı `equity`'ye bölen AYRI bir "toplam_borç_özkaynak" alanı eklenmesi yeterli; mevcut `debt_to_equity` YANLIŞ değil ama kitaptaki kavramla BİREBİR AYNI DEĞİL. |
+| **FORMÜL-17** Hazine Hissesi Düzeltmeli Borç/Özkaynak Oranı = Toplam Yükümlülükler / (Özkaynak + Hazine Hissesi maliyet bedeli) (s.144-145) | **VERİ EKSİK.** Hazine hissesi (`treasury_stock`) standalone bir alan olarak ne `isyatirim.py`'de ne `kap_financials.py`'de mevcut. Kitabın ASIL ÖNERDİĞİ (ham orandan daha güvenilir kabul edilen) versiyon bu düzeltmeli formül olduğundan, bu eksiklik önemli bir sınırlamadır. |
+
+---
+
+## Eşikler — Bilanço (tablo)
+
+| Gösterge | Eşik / Aralık | Yorum | Örnek şirketler | Sayfa |
+|---|---|---|---|---|
+| Cari Oran | <1 (dayanıklı avantajlı şirketlerde SIK görülür) | Klasik "kötü" yorumu burada GEÇERSİZ; güçlü kazanç gücünün göstergesi olabilir | Moody's 0,64, Coca-Cola 0,95, P&G 0,82, Anheuser-Busch 0,88 | s.108, s.135-136 |
+| Net Alacaklar / Brüt Satışlar | Sektör ortalamasının ALTINDA | Rekabet avantajı işareti | — | s.104 |
+| Envanter & Net Kâr | BİRLİKTE ve ORANTILI artış | Sağlıklı, kârlı büyüme | — | s.102 |
+| Envanter | Hızlı artış → hızlı azalış (birkaç yıl içinde) | Patlama-çöküş (boom-bust) döngüsü, rekabet avantajı YOK | — | s.102 |
+| Varlık Getirisi (ROA) | Çok YÜKSEK (örn. %40+) düşük varlık tabanıyla | Dikkat: düşük sermaye giriş bariyeri = daha AZ dayanıklı avantaj olabilir | Moody's %43/$1,7mr varlık (düşük dayanıklılık riski) | s.125 |
+| Varlık Getirisi (ROA) | Orta düzey ama YÜKSEK varlık tabanıyla | Yüksek sermaye ihtiyacının kendisi rekabet engeli oluşturabilir | Coca-Cola %12/$43mr, P&G %7/$143mr, Altria %24/$52mr | s.125 |
+| Kısa Vadeli Borç / Uzun Vadeli Borç (bankalar) | Düşük (örn. <1) | Muhafazakâr, zor zamanlarda avantajlı | Wells Fargo 0,57 | s.131 |
+| Kısa Vadeli Borç / Uzun Vadeli Borç (bankalar) | Yüksek (>2) | Agresif, kırılgan | Bank of America N.A. 2,09 | s.131 |
+| Uzun Vadeli Borcu Net Kârla Kapatma Süresi | ≤3-4 yıl | Dayanıklı rekabet avantajı adayı | Coca-Cola & Moody's: 1 yıl; Wrigley & Washington Post: 2 yıl | s.139 |
+| Uzun Vadeli Borcu Net Kârla Kapatma Süresi | Son 10 yılın TÜM net kârı bile yetmez | Dayanıklı avantaj YOK | GM, Ford | s.139-140 |
+| Hazine Hissesi Düzeltmeli Borç/Özkaynak Oranı | <0,80 (finansal kuruluşlar HARİÇ) | Dayanıklı rekabet avantajı olasılığı yüksek | Coca-Cola 0,51, Moody's 0,63, Wrigley 0,68, P&G 0,71 | s.144-145 |
+| Hazine Hissesi Düzeltmeli Borç/Özkaynak Oranı | Yüksek (>4) | Dayanıklı avantaj YOK / aşırı kaldıraç | Goodyear 4,35, Ford 38,0 **(OCR belirsiz — mutlak borç tutarı "$275 milyar", s.146'da teyit edilmeli)** | s.145-146 |
+| Borç/Özkaynak (Bankalar, istisna sektör) | Ortalama ~10:1 | Bankacılık iş modeli gereği NORMAL, sanayi eşiğiyle KIYASLANMAMALI | ABD büyük bankaları ort. $10 yükümlülük/$1 özkaynak; M&T Bank 7,7 (sektöre göre muhafazakâr) | s.146 |
+| Uzun Vadeli Borç Geçmişi | 10 yıl boyunca az/hiç LT borç | Dayanıklı rekabet avantajı güçlü sinyali | — | s.139 |
+| Şerefiye (Goodwill) trendi | Yıllar içinde artış | Satın alma faaliyeti — SADECE hedefler de dayanıklı avantajlıysa olumlu | — | s.115 |
+| Piyasa Değeri / Defter Değeri | Defter değerinin ALTINDA (nadir) | Dayanıklı avantajlı şirket için "ömür boyu fırsat" olabilir | — | s.115 |
+| Vadesi Gelen Uzun Vadeli Borç | Tek bir yıla yoğunlaşma | Nakit akışı krizi / iflas riski (özellikle vasat şirketlerde) | — | s.133-134 |
+
+---
+
+## Kontrol Listesi — Bilanço (14 madde)
+
+1. Nakit/nakit benzeri seviyesi son 7 yıl bilançosunda nasıl seyrediyor — faaliyetlerden mi, tek seferlik ihraç/satıştan mı geldi?
+2. Bol nakit + az borç kombinasyonu var mı ("nakit kral" testi)?
+3. Envanter ve net kâr birlikte mi büyüyor, yoksa envanterde patlama-çöküş paterni mi var?
+4. Net Alacaklar/Brüt Satışlar oranı sektör emsallerinin ALTINDA mı?
+5. Cari Oran <1 çıkıyorsa, bu düşük likidite kaygısı mı yoksa güçlü/tutarlı kazanç gücünün doğal sonucu mu (kazanç istikrarına bak)?
+6. PP&E son yıllarda İSTİKRARLI mı (ürün değişmiyor) yoksa sürekli yenileniyor/borçla mı finanse ediliyor?
+7. Şerefiye artışı varsa, hangi şirketler satın alındı — onlar da dayanıklı avantajlı mı?
+8. Uzun vadeli yatırım portföyü dayanıklı-avantajlı şirketlere mi yoksa vasat şirketlere mi yönelmiş?
+9. ROA çok yüksekse (ör. %30+), bu düşük sermaye giriş bariyeri riskini taşıyor mu (rakiplerin kolayca girebileceği bir iş mi)?
+10. Son 10 yılda uzun vadeli borç az/hiç mi; varsa mevcut borç 3-4 yıllık net kârla kapatılabilir mi?
+11. Şirket son dönemde LBO (kaldıraçlı satın alma) geçirdi mi — mevcut borç yükü buradan mı geliyor?
+12. Hazine hissesi düzeltmeli Borç/Özkaynak oranı 0,80'in altında mı (finansal kuruluş değilse)?
+13. Şirket bir banka/finansal kuruluşsa, borç/özkaynak oranı SEKTÖR ORTALAMASIYLA (yaklaşık 10:1) mı kıyaslanıyor, yoksa yanlışlıkla sanayi eşikleriyle mi kıyaslanıyor?
+14. Uzun vadeli borcun önemli bir kısmı TEK bir yılda mı vadesi doluyor (yoğunlaşma riski)?
+
+---
+
+## Kırmızı Bayraklar (devam)
+
+- **BAYRAK-11:** Nakit stokunun kaynağı, faaliyetlerden DEĞİL tek seferlik tahvil/hisse ihracı veya varlık satışıysa — sürdürülebilirlik şüphesi. (s.98-100)
+- **BAYRAK-12:** Az nakit + yüksek borç kombinasyonu — "batmakta olan gemi" riski. (s.99-100)
+- **BAYRAK-13:** Envanterin birkaç yıl içinde hızlı artış sonra hızlı azalış göstermesi — patlama-çöküş döngüsüne sahip, rekabet avantajı olmayan sektör işareti. (s.102)
+- **BAYRAK-14:** "Uzun Vadeli Borç Vadesi Gelen" kalemin kısa vadeli borçla BİRLEŞTİRİLMİŞ gösterilmesi — şirketin gerçek kısa vadeli borç yükü olduğundan FAZLA görünmesine yol açan muhasebe/raporlama illüzyonu; ayrıştırılarak kontrol edilmeli. (s.133-134)
+- **BAYRAK-15:** Uzun vadeli borcun önemli bir kısmının TEK bir yıla yoğunlaşması — özellikle vasat/sorunlu şirketlerde nakit akışı krizi ve iflas riski. (s.133-134)
+- **BAYRAK-16:** Aksi halde dayanıklı rekabet avantajı sinyali veren bir şirketin bilançosunda ANİDEN ağır borç görülmesi — LBO (kaldıraçlı satın alma) sonrası yapay bir yüklenme olabilir; bu durumda hisse yerine TAHVİL değerlendirilmeli. (s.139-140)
+- **BAYRAK-17:** Bankacılık dışı bir şirkette kısa vadeli borcun uzun vadeli borçtan BELİRGİN ŞEKİLDE fazla olması ("borrow short, lend/invest long" yapısı) — faiz oranı riski VE rollover (yeniden borçlanamama) riski taşır (Bear Stearns örneği). (s.129-132)
+- **BAYRAK-18:** Hazine hissesi düzeltmeli Borç/Özkaynak oranının 0,80'in belirgin üzerinde olması (finansal kuruluş DEĞİLSE) — dayanıklı rekabet avantajı olasılığı düşük. (s.144-145)
+- **BAYRAK-19:** Şirket bir banka/finansal kuruluş DEĞİLKEN, borç/özkaynak oranının bankacılık-tipi (örn. 10:1) seviyelere yaklaşması — aşırı kaldıraç riski. (s.146)
+- **BAYRAK-20:** Çok yüksek ROA'nın (düşük varlık tabanı) düşük sermaye giriş bariyeri anlamına gelmesi — rakiplerin kolayca piyasaya girebileceği, rekabet avantajının UZUN VADEDE aşınabileceği riski. (s.125)
+
+---
+
+## Uygulama Notları — Bilanço
+
+1. Bu ana kısmın formüllerinin ÇOĞU (Net Alacaklar Oranı, ROA, Uzun Vadeli Borç Geri Ödeme Süresi, Kısa/Uzun VD Borç Oranı, Hazine Hissesi Düzeltmeli Borç/Özkaynak) QuaxisLabs'ın mevcut veri modelinde KARŞILIĞI YOK ya da sadece ORANI eksik (ham veri kısmen mevcut).
+2. Önerilen öncelik sırası (veri kolaylığına göre):
+   - **(a) ROA** — ham veri (`total_assets`, `net_income`) ZATEN mevcut, sadece `calculator.py`'ye bir `margin_pct()` çağrısı eklemek yeterli. EN UCUZ kazanım (tıpkı Gelir Tablosu turundaki Amortisman/Brüt Kâr gibi).
+   - **(b) Uzun Vadeli Borç Geri Ödeme Süresi** — ham veri (`long_term_financial_debt`, `net_income`) mevcut, tek satır oran eklemek yeterli.
+   - **(c) "Toplam Yükümlülükler/Özkaynak" (kitaptaki tanım)** — ham veri (`short_term_liabilities` + `long_term_liabilities`, `equity`) ZATEN çekiliyor; mevcut `debt_to_equity` alanının YANINA, KARIŞTIRILMAMASI için ayrı isimle (örn. `total_debt_to_equity`) eklenmeli — mevcut dar tanım (sadece finansal borç) da kendi başına değerli, ikisi FARKLI sinyaller verir.
+   - **(d) Net Alacaklar Oranı** — ham veri (`trade_receivables`, `revenue`) mevcut, oran eklenebilir; ama `trade_receivables`'ın net mi brüt mü olduğu önce netleştirilmeli.
+   - **(e) Hazine Hissesi (treasury_stock)** — hem ham veri hem oran EKSİK; İş Yatırım/KAP'ta karşılığı araştırılmalı (muhtemelen bilanço özkaynak alt kalemlerinden biri).
+   - **(f) Envanter, Şerefiye, Maddi Olmayan Duran Varlıklar, Uzun Vadeli Yatırımlar (ayrı LT kırılım)** — bu dört kalem STANDALONE alan olarak hiçbir yerde YOK; en düşük öncelikli, çünkü bu bölümdeki ilgili ilkeler (İLKE-18, 22, 24, 25) çoğunlukla NİTEL/çok-yıllı karşılaştırma gerektiriyor, tek-dönem bir oran değil.
+3. Cari Oran ZATEN mevcut ve trend'i de var — bu doğrudan skorlamaya/kartlara entegre edilebilir durumda; ANCAK skorlama mantığında "cari oran <1 = kötü" gibi NAİF bir kural varsa, İLKE-20'deki (Buffett'ın durable-advantage şirketlerde <1'in NORMAL olduğu bulgusu) ışığında GÖZDEN GEÇİRİLMELİDİR — mevcut `scorer.py`'nin bu göstergeyi nasıl puanladığı bu turda incelenmedi, ayrı bir görev olarak önerilir.
+4. `debt_to_equity` alanı ETRAFINDA net bir isimlendirme/dokümantasyon riski var: kod içi yorumlarda veya render katmanında bu alan "Borç/Özkaynak" olarak Türkçeye çevrilip kullanıcıya gösteriliyorsa, bunun kitaptaki (ve genel finans literatüründeki) "Toplam Yükümlülük/Özkaynak" ile AYNI ŞEY olmadığı açıkça belirtilmeli (bu SADECE finansal/faizli borcu kapsıyor) — karışıklık riski yüksek, bu nedenle §2(c)'deki ayrı alan önerisi önemlidir.
+5. Bankalar (UFRS şeması) için bu bölümün Ch37/Ch42 önerdiği "kısa/uzun vadeli borç" ve "borç/özkaynak" analizleri MEVCUT VERİ MODELİNDE YAPILAMAZ (STANDARD_ITEM_MAP_UFRS'de bu kalemler yok) — bankalar zaten ayrı bir `analyze_bank()`/`BankRatios` şeması kullanıyor (equity_to_assets_current gibi farklı bir kaldıraç yaklaşımı var, calculator.py ~satır 914-922), bu MEVCUT yaklaşım kitabın ruhuna (sektör-içi/İSTİSNAİ değerlendirme) zaten uygun — ek geliştirme gerekmiyor, sadece not düşüldü.
+6. OCR belirsizliği bu turda TEK noktada: Ford'un hazine-hissesi-düzeltmeli oranındaki mutlak borç tutarı ("$275 milyar", s.146) ikinci bir kaynakla teyit edilemedi; oranın kendisi (38,0) net okundu, sadece dolar tutarı belirsiz — eşik tablosunda işaretlendi.

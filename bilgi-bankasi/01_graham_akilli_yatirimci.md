@@ -405,3 +405,227 @@
 6. **NCAV/net-net formülü artık YÜKSEK öncelikli:** Kısım 1'de "ORTA öncelikli" olarak not düşülmüştü; bu turda Ch.7'nin merkezi bargain kriteri olduğu (İLKE-64, 66) VE Zweig'in kendi pratik tarama yönteminde (İLKE-75) doğrudan kullanıldığı TEYİT edildi — Kısım 4 (Ch.14-15) işlendiğinde bu formülün öncelik SIRASI yeniden değerlendirilmeli, muhtemelen YÜKSELECEK.
 7. **Tarihsel/dönem-özel sayılar** (1972 tahvil oranları, 2002-2003 fon getirileri, ABD Forbes 400/vergi eşikleri) yine DOĞRUDAN eşik olarak KULLANILMADI — sadece METODOLOJİ/büyüklük-mertebesi (order-of-magnitude) referansı olarak değerlendirildi.
 8. **OCR ile ilgili not:** Bu turda TEK bir kalıcı belirsizlik kaldı — Table 7-3 (Chrysler EPS/fiyat, 1952-1970) satır-bazlı rakamları (özellikle 1958 "L 44?" ve 1968 "24.92°"/"H 294°" değerleri) net OKUNAMADI; bu tablo hiçbir EŞİK/FORMÜL kaynağı olarak KULLANILMADI, sadece "döngüsel şirketlerde düşük F/K en kötü yılda değil en iyi yılda görülür" ilkesinin (İLKE-63) DESTEKLEYİCİ örneği olarak metinsel biçimde anıldı — rakamsal teyit GEREKMEDİĞİ için "(OCR belirsiz)" işareti bir EŞİK satırına YANSITILMADI.
+
+---
+---
+
+# Kısım 3: Bölüm 9-13 (Chapter 9-13 + Commentary, kitap s.226-346, PDF index 239-359)
+
+## İşlenen bölümler (bu ana kısım)
+- Ch.9 Investing in Investment Funds (s.226-241)
+- Commentary on Chapter 9 (s.242-256)
+- Ch.10 The Investor and His Advisers (s.257-271)
+- Commentary on Chapter 10 (s.272-279)
+- Ch.11 Security Analysis for the Lay Investor: General Approach (s.280-301)
+- Commentary on Chapter 11 (s.302-309)
+- Ch.12 Things to Consider About Per-Share Earnings (s.310-321)
+- Commentary on Chapter 12 (s.322-329)
+- Ch.13 A Comparison of Four Listed Companies (s.330-338)
+- Commentary on Chapter 13 (s.339-346)
+- **Kalan kısımlar:** Kısım 4 Ch.14-15 (savunmacı/girişimci seçim kriterleri — kitabın en yoğun sayısal eşik kaynağı), Kısım 5 Ch.16-18, Kısım 6 Ch.19-20+Postscript, Kısım 7 Appendix 1-7.
+- **ID numaralandırması Kısım 1-2'den KESİNTİSİZ devam eder:** İLKE-93'ten, FORMÜL-18'den, BAYRAK-24'ten başlar (Kısım 2'nin son numaraları: İLKE-92, FORMÜL-17, BAYRAK-23).
+- **OCR notu:** Düz metin yüksek güvenilirlikte okundu. Table 9-1 (10 büyük fon performansı), Table 9-2 (Manhattan Fund portföyü — kısmen), Table 11-3 (kimya/petrol şirketleri karşılaştırması), Table 13-1 (4 şirket karşılaştırma özeti) ÇOK SÜTUNLU/OKUNAMAZ oldu — bunlardan HİÇBİR ham sayı kaynak alınmadı. İstisna: Table 9-3/9-4/9-5 (kapalı-uçlu fon iskonto verisi), Table 11-1 (tahvil kapsama oranları), Table 11-2 (Value Line DJIA tahmini — GERÇEK şirket verisi), Table 12-1 (ALCOA/Sears/DJIA büyüme oranı), Table 13-2 (4 şirket detaylı rasyo karşılaştırması) TAM OKUNABİLDİ ve DOĞRUDAN kullanıldı — bunlar didaktik/hayali örnekler DEĞİL, koordinatörün belirttiği gibi GERÇEK şirket verileridir, eşik kaynağı olarak KABUL EDİLDİ.
+- **Bu kısımda 2 önemli GERÇEK vaka analizi bulundu ve doğrudan kullanıldı:** ALCOA'nın 1970 yıl-sonu kazanç raporu (Ch.12 — HBK'nın yönteme göre nasıl 2 katına kadar farklılaşabileceğinin canlı kanıtı) ve Graham'ın 4 şirket karşılaştırması + Zweig'in 1999 güncellemesi (Ch.13 — ELTRA/Emerson/Emery/Emhart 1970 ve EMC/Emerson/Expeditors/Exodus 1999, ikisi de gerçek NYSE/NASDAQ şirketleri).
+
+---
+
+## İlkeler
+
+**Chapter 9 — Investing in Investment Funds (Graham):**
+
+- **İLKE-93:** Yatırım fonu SEKTÖRÜ bir bütün olarak genel piyasayı kabaca TAKİP EDER (belirgin biçimde iyi ya da kötü değil) — çünkü fon yöneticileri KOLEKTİF olarak piyasadaki hisselerin öyle büyük bir kısmını yönetir ki, "piyasanın genelinde olan, fonların toplamına da (yaklaşık olarak) olmak ZORUNDADIR." Wiesenberger'in 10 büyük fonu 1961-1970'te S&P'yi YAKALADI, DJIA'yı GEÇTİ. (s.229-231)
+- **İLKE-94:** 1960'ların "performans fonu" kültü — spekülatif, yüksek çarpanlı, temettü ÖDEMEYEN hisselere yoğunlaşarak olağanüstü KISA vadeli getiri kovalamak — kaçınılmaz olarak GEÇİCİ muhteşem kazançların ardından FELAKET kayıplar getirmiştir; "küçük fon boyutu" sürdürülen üstün performansla İLİŞKİLİDİR ama NEDEN değildir — büyük boyutun kendisi yapısal bir SÜRTÜNME yaratır. (s.232-237)
+- **İLKE-95:** Kapalı-uçlu fonlar, AYNI yönetim becerisine sahip olsalar bile, SALT fiyatlama mekaniği yüzünden açık-uçlu (mutual) fonlardan YAPISAL olarak daha iyi bir alım fırsatı sunar — kapalı-uçlu paylar net aktif değerine göre İSKONTOLU (tarihsel ort. ~%9-14) işlem görürken açık-uçlu paylar PRİMLİ (~%9 satış yükü) satılır; AYNI kalitede bir kapalı-uçlu fonu iskontodan almak, yatırılan her dolar için ~1/5 DAHA FAZLA değer yakalar. (s.238-240)
+- **İLKE-96:** "Dengeli" (balanced) fonlar (tek araçta tahvil+hisse karışımı), tipik yatırımcı için tahvil ve hisse bileşenlerini AYRI AYRI doğrudan edinmekten daha VERİMSİZDİR — dengeli fonların tahvil kısmı sadece ~%3,6-3,9 getiri sağlarken doğrudan tahvil alımından DAHA İYİ DEĞİLDİR, üstüne bir kat daha ücret eklenir. (s.241)
+
+**Commentary on Chapter 9 (Zweig):**
+
+- **İLKE-97:** Fon performansı KALICI (persistent) DEĞİLDİR — "Fon Performansı Hunisi" (Lipper verisi, Aralık 2002 geriye bakış): basit bir S&P500 endeks fonunu geçen fon yüzdesi zaman ufku UZADIKÇA hızla KÜÇÜLÜR: 1yıl %48,9, 3yıl %59,5, 5yıl %51,4, 10yıl %31,2, 15yıl %28,1, 20yıl SADECE %14,9 — ve bu rakam GERÇEK farkı BİLE OLDUĞUNDAN AZ gösterir çünkü tamamen KAPANMIŞ fonları hariç tutar. (s.248)
+- **İLKE-98:** Bir fonun BAŞARISI, kendi GELECEKTEKİ başarısızlığının tohumlarını 5 yapısal mekanizmayla eker: (1) yıldız yöneticiler AVLANIR (rakip firmalarca kapılır), (2) "varlık filleşmesi" (asset elephantiasis) — giren para ya atıl nakit, ya mevcut pozisyonların AŞIRI büyütülmesi, ya da dikkatin ÇOK FAZLA yeni isme DAĞITILMASI zorunluluğu yaratır, (3) halka açılmadan önce "kuluçkalanan"/ücretsiz test edilen fonlar halka açıldığında EDGE'lerini kaybeder, (4) ölçekte YÜKSELEN işlem maliyetleri (tipik %1,5 işletme + %2 işlem gideriyle bir fonun maliyet SONRASI piyasayı YAKALAYABİLMESİ için maliyet ÖNCESİ piyasayı ~3,5 puan GEÇMESİ gerekir), (5) "sürü davranışı" — başarılı yöneticiler artık ŞİŞMAN ücret gelirini korumak için RİSK-KAÇAR/taklitçi hale gelir. (s.244-247)
+- **İLKE-99:** Endeks fonlarının NEREDEYSE AŞILAMAZ yapısal avantajı, ultra-düşük maliyetten gelir (ort. %0,2 işletme + %0,1 işlem giderine karşı aktif fonun %1,5+%2'si) — %7 brüt piyasa getirisi varsayımıyla 20 yıllık ufukta bu maliyet farkı TEK BAŞINA $10.000'ı endeks fonunda ~$36.000'a, ortalama aktif fonda ise sadece ~$20.000'a çıkarır (~%45 fark SADECE maliyetten). (s.249)
+- **İLKE-100:** Endeksi yenebilecek NADİR aktif fonları seçme kriterleri: yöneticiler fonun EN BÜYÜK hissedarları arasında olmalı; giderler DÜŞÜK olmalı; portföy referans endeksinden ANLAMLI ölçüde FARKLI görünmeli (gizli-endeksleme değil); fon daha önce yeni yatırımcılara KAPANMIŞ bir geçmişe sahip olmalı; fon AGRESİF reklam YAPMAMALI. Tarama SIRASI önemli — ÖNCE giderler (en ÖNGÖRÜLEBİLİR), SONRA risk (en kötü çeyrek kaybı toleransı + Morningstar notu), EN SON geçmiş performans (en AZ öngörücü). (s.250-252)
+- **İLKE-101:** Bir fonu 1-3 yıllık göreli zayıf performans yüzünden ATEŞLEMEK genellikle YANLIŞTIR — Sequoia Fund ilk 29 yılının 12'sinde (%41'inde) S&P500'ün ALTINDA kaldı, yine de kümülatif %12.500 kazandı (endeks: %4.900); bir yönetici, tam olarak İŞE ALINDIĞI şeyi (geçici olarak MODA DIŞI kalan tutarlı bir stil) yaptığı için KOVULMAMALIDIR. GERÇEK satış sinyalleri: ani AÇIKLANAMAYAN strateji sapması, ARTAN giderler, aşırı işlemden kaynaklanan vergi faturaları, ANİDEN düzensiz getiriler. (s.253-254)
+
+**Chapter 10 — The Investor and His Advisers (Graham):**
+
+- **İLKE-102:** "Yatırım tavsiyesi" fikrinin özünde YERLEŞİK bir saflık vardır — başkasına "nasıl para kazanılır" diye sormanın sıradan işte GERÇEK bir karşılığı yoktur; profesyonel tavsiye HATALARDAN kaçınmaya yardım eder ama HİÇTEN kâr ÜRETMEZ. Danışmanın uygun rolü müşteriyi hatalardan korumak ve NORMAL/standart sonuçları GÜVENCE altına almaktır, ortalamanın ÜSTÜNDE getiri VAAT etmek değil. (s.257)
+- **İLKE-103:** Bir müşteri temsilcisinin/simsarın komisyon-bazlı iş modeli, bireysel temsilcinin KİŞİSEL dürüstlüğünden BAĞIMSIZ olarak DAHA FAZLA aktivite/spekülasyonu TEŞVİK etmeye YAPISAL olarak eğilimlidir — yatırımcı, gerçek bir yatırımcı olarak (spekülatif "ipucu" istemediğini) AÇIKÇA ve TEKRAR TEKRAR belirtmelidir. (s.262-263)
+- **İLKE-104:** Bir güvenlik analistinden alınan değer BÜYÜK ÖLÇÜDE yatırımcının KENDİ tutumuna/sorularına bağlıdır — "bu hisse YAKINDA yükselecek mi" sorulan bir analist kısa-vadeli piyasa-zamanlama düşüncesine ÇEKİLİR; "değer-odaklı" (fiyat-odaklı DEĞİL) bir müşteri tarafından görevlendirilen analist ÇOK DAHA FAYDALI bir çalışma sunabilir. (s.264-265)
+
+**Commentary on Chapter 10 (Zweig):**
+
+- **İLKE-105:** Profesyonel yardıma GERÇEKTEN ihtiyaç duyulduğunun işaretleri: portföy kaybının piyasanın KENDİ düşüşünü AŞMASI (Zweig'in eşiği: 2000-2002 ayı piyasasında >%40 kayıp, piyasa daha AZ kaybetmişken); kronik olarak dengesiz bütçe; GERÇEKTE çeşitlendirilmemiş ama ÇEŞİTLENDİRİLMİŞ GÖRÜNEN "kaotik" bir portföy (çok sayıda fon/hisse ama HEPSİ BİRLİKTE hareket ediyor); büyük yaşam geçişleri (serbest meslek, yaşlanan ebeveynler, üniversite masrafları). (s.273)
+- **İLKE-106:** Danışman ücret tavanı: ücretler varlıkların yıllık %1'İNDEN FAZLASINI tüketiyorsa BAŞKA bir danışman ARANMALIDIR. (s.277)
+- **İLKE-107:** Gerçekçi getiri beklentisi kontrolü: yatırımlarınızda yıllık ortalama %8-10 ÜZERİNDE bir getiri PROJEKSİYONU yapan HERHANGİ bir danışman GERÇEKÇİ DEĞİLDİR — mülakat sürecinde bir KIRMIZI BAYRAK olarak ele alınmalı. (s.277)
+- **İLKE-108:** Herhangi bir danışmanı incelemek için somut durum tespiti (due diligence) listesi: danışmanın adı+firmasını "ceza/şikayet/dava/disiplin cezası/askıya alma" terimleriyle ÇEVRİMİÇİ ara; eyalet menkul kıymetler komisyoneri OFİSİNDEN disiplin kaydını sorgula; Form ADV'nin TAM kopyasını (bazı danışmanların ÇIKARDIĞI Disclosure Reporting Pages DAHİL) al; kimlik belgelerini (CFA/CFP/CPA) DOĞRUDAN sertifikasyon kurumundan ÇAPRAZ KONTROL et. (s.274-275)
+- **İLKE-109:** Güvenilir bir danışman, sadece bir hisse-seçici DEĞİL, müşterinin KENDİ en kötü dürtülerine karşı YAPISAL bir savunma hattı işlevi görür — en iyi danışmanlar yazılı KAPSAMLI bir finansal plan, bir yatırım politikası bildirgesi ve bir varlık-tahsis planını müşteriyle BİRLİKTE (tek taraflı DAYATMADAN) oluşturur, VE müşteriyi de en az müşterinin danışmanı sorguladığı kadar SIKI sorgular. (s.278-279)
+
+**Chapter 11 — Security Analysis for the Lay Investor: General Approach (Graham):**
+
+- **İLKE-110:** Tahvil/imtiyazlı hisse güvenliği ÖNCELİKLE bir "kazanç KAPSAMA" (earnings coverage) oranıyla ölçülür — toplam sabit giderlerin (faiz, veya faiz+imtiyazlı temettü) kazançla KAÇ KEZ karşılandığı; HEM 7-yıllık ORTALAMA testi HEM alternatif "en kötü TEK yıl" testi kullanılır, İKİSİNDEN BİRİNİ geçmek YETERLİDİR. Minimum kapsama sektöre göre değişir: kamu hizmeti 4x(ort.)/3x(en kötü yıl), demiryolu 5x/4x, sanayi 7x/5x, perakende 5x/4x (vergi ÖNCESİ). (s.283-284)
+- **İLKE-111:** Tarihsel kanıt bu kapsama-oranı testlerini GÜÇLÜ biçimde İLERİYE-DÖNÜK bir güvenlik göstergesi olarak DOĞRULAR — sonradan İFLAS eden HEMEN HEMEN HER demiryolu, iflastan YILLAR önce YETERSİZ kapsama göstermiştir (Penn Central'ın kapsaması 1970 çöküşünden 5 yıl ÖNCE, 1965'te ZATEN standardın ALTINDAYDI); standardı KARŞILAYAN HEMEN HEMEN HER demiryolu mali sıkıntıdan KAÇINMIŞTIR (tek kısmi istisna, New Haven Railroad, yeniden-yapılanma sonrası giderlerini sadece 1,1x karşıladı ve tekrar iflas etti). (s.286)
+- **İLKE-112:** Kurumsal faiz ödemelerinin toplam VERGİ ÖNCESİ kârı TÜKETME HIZI sistemik bir uyarı göstergesidir — Graham'ın 1971 verisi: finansal-olmayan firmaların faiz ödemeleri 1963'ten 1970'e $9,8 milyardan $26,1 milyara çıkarak toplam vergi öncesi kârın %16'sından %29'una YÜKSELDİ (Ch.2'de işaretlenen "borç kârdan hızlı büyüyor" kalıbının AYNISI). (s.287)
+- **İLKE-113:** Graham'ın basitleştirilmiş büyüme-hissesi değerleme formülü: **Değer = Güncel (Normal) Kazanç × (8,5 + 2 × Beklenen Yıllık Büyüme Oranı)**, büyüme oranı GELECEK 7-10 yıl için beklenen oran — daha karmaşık matematiksel modellerin bir YAKLAŞIKLAMASI olarak sunulur, ama BİLİNÇLİ bir uyarıyla: ÇOK YÜKSEK varsayılan büyüme oranlarında (≥%8/yıl) GÜVENİLİR DEĞİLDİR, formül matematiksel olarak KARARSIZ hale gelir (neredeyse SONSUZ değer İMA eder). (s.295-297)
+- **İLKE-114:** Bir şirketin tarihsel büyüme oranını hesaplama kuralı: son 3 yılın kazanç ORTALAMASINI, TAM 10 yıl önceki KARŞILIK GELEN 3 yılın ortalamasıyla KIYASLA, sonra yıllıklandır (bileşiklendir) — ölçümün HER İKİ UCUNDAKİ tek-yıllık gürültüyü düzeltir. (s.319, Tablo 12-1 örneği)
+- **İLKE-115:** Toplu/grup kazanç tahminleri (bir sektör veya endeks için) TEKİL şirket tahminlerinden DOĞASI GEREĞİ daha GÜVENİLİRDİR — Graham'ın kendi Value Line DJIA tahmin testi (1964 ortasında 1967-69 için yapılan, 1968 gerçek sonuçlarıyla kıyaslanan) TOPLAMDA makul doğrulukta çıktı, ÇOK SAYIDA tekil şirket tahmini "hedefi ıskalamış" olsa BİLE. (s.288-289)
+- **İLKE-116:** "İki-parçalı değerleme" süreci tek bir birleşik değerlemeden ÜSTÜNDÜR: ÖNCE mekanik bir "geçmiş-performans değeri" hesapla (SADECE tarihsel kârlılık/istikrar/büyüme/mali duruma dayalı, geçmiş EĞİLİMİN devam ettiği varsayımıyla), SONRA AYRI olarak kıdemli analistin GELECEĞİN geçmişten NASIL farklılaşacağına dair yargısını EKLE — iki adımı BİRLEŞTİRMEK yerine GÖRÜNÜR/AYRI tutmak analistin ileriye-dönük varsayımlarını AÇIK ve DENETLENEBİLİR kılar. (s.299-301)
+
+**Commentary on Chapter 11 (Zweig):**
+
+- **İLKE-117:** Şirketin KENDİ raporlamasında taranacak kırmızı bayraklar: "seri satın alıcı" statüsü (yılda ort. >2-3 satın alma); "Başkalarının Parası"na (OPM) bağımlılık (nakit akış tablosunun faaliyet VS finansman satırlarını kontrol et — faaliyetten nakit SÜREKLİ negatifken finansmandan nakit SÜREKLİ pozitifse şirket kendi işinin ÜRETEMEDİĞİ nakde bağımlıdır); müşteri YOĞUNLAŞMASI (gelirin BÜYÜK kısmı tek/az sayıda müşteriden). (s.303-304)
+- **İLKE-118:** Taranacak OLUMLU işaretler: dayanıklı bir rekabet "hendeği" (marka kimliği, pazar hakimiyeti, ölçek ekonomisi, benzersiz maddi-olmayan varlık, ikame direnci); 10 yıllık DÜZGÜN/istikrarlı gelir ve kazanç büyümesi (SON ZAMANLARDAKİ bir HIZLANMA değil) — sürdürülebilir uzun-vadeli büyüme oranı yaklaşık %10/yıl vergi ÖNCESİDİR (%6-7 vergi SONRASI); %15+ sürdürülen büyüme HEDEFİ koyan şirketler "SANRISAL"dır. (s.305)
+- **İLKE-119:** "Sahip kazancı" (owner earnings: net kâr + amortisman − normal capex − opsiyon maliyeti/olağandışı kalem/pensiyon "geliri" düzeltmeleri), raporlanan net kârdan DAHA İYİ bir nakit-üretim ÖLÇÜSÜDÜR — hisse başı sahip kazancı son 10 yılda istikrarlı ort. ≥%6-7/yıl büyüyen bir şirket İSTİKRARLI bir nakit üreticisidir. (s.308)
+- **İLKE-120:** Sermaye yapısı kuralı: uzun vadeli borç toplam sermayenin %50'sinin ALTINDA olmalı; "kazancın sabit giderleri karşılama oranı" tablosunu DOĞRUDAN kontrol et — kazancı faiz maliyetini KARŞILAMAYAN bir şirket ÖZÜNDE artık hissedarlarından ÇOK tahvil sahiplerine AİTTİR. (s.308-309)
+- **İLKE-121:** Tekrarlayan hisse bölünmeleri VE rekor-yüksek fiyatlarda yapılan geri alımlar, YÖNETİMİN iş EKONOMİSİNDEN çok hissedar PSİKOLOJİSİNE hitap ettiğinin işaretidir — bölünme hisse-başı değerde HİÇBİR şey DEĞİŞTİRMEZ (2×$50 = 1×$100), ve hisse PAHALIYKEN (ucuz değil) yapılan geri alımlar şirket nakdini İSRAF eder, genellikle YÖNETİCİLERİN kendi opsiyonlarının değerini artırmak için ZAMANLANIR. (s.309)
+
+**Chapter 12 — Things to Consider About Per-Share Earnings (Graham):**
+
+- **İLKE-122:** TEK bir yılın hisse başı kazanç rakamını ASLA yüzeysel olarak KABUL ETME — AYNI şirketin AYNI çeyreği için TEK bir raporlanan HBK rakamı, kullanılan (birden fazla MEŞRU GÖRÜNEN) yönteme göre İKİ KATTAN FAZLA farklılaşabilir. Graham'ın CANLI ALCOA 1970 örneği: raporlanan rakamlar $4,19 ile $5,20 arasında değişti (primer/tam-seyreltilmiş, özel kalem dahil/hariç), AYNI çeyrekten F/K ~10x ile ~22x arası İMA edilebiliyordu. (s.310-312)
+- **İLKE-123:** "Özel"/"tekrarlanmayan" kalemler DERİN şüpheyle karşılanmalı, ÖZELLİKLE tek bir "temizlik yapılan" kötü yılda KÜMELENDİKLERİNDE — bir şirket GELECEK beklenen kayıpları ÖNCEDEN, zaten yazılmış bir yıla yükleyebilir, böylece SONRAKİ yılları YAPAY olarak temiz tutar, hatta HENÜZ ÖDENMEMİŞ kayıplardan bir vergi KREDİSİ FAYDASI bile elde edebilir; ÇOK SAYIDA şirkette AYNI (durgunluk) yılında ANİ bir özel-kalem SALGINI görülmesine DİKKAT et. (s.312-315)
+- **İLKE-124:** Tek yıllık rakam yerine ÇOK-YILLI ORTALAMA kazanç (7-10 yıl) kullanılmalı — bu, özel kalemleri/kredileri şirketin GERÇEK operasyonel tarihine DOĞAL olarak DAHİL eder, tek bir yılın karşılaştırılabilirliğini BOZMAK yerine. (s.319)
+- **İLKE-125:** Amortisman yöntemi değişiklikleri (doğrusal vs hızlandırılmış), Ar-Ge muhasebeleştirme SEÇİMİ (gider vs kapitalize) ve envanter değerleme yöntemi (FIFO vs LIFO), ALTTAKİ işte GERÇEK bir DEĞİŞİKLİK OLMADAN raporlanan HBK büyümesini ÖNEMLİ ÖLÇÜDE ÇARPITABİLECEK EK muhasebe değişkenleridir — Graham'ın Trane Co. örneği: raporlanan ~%20'lik HBK "artışının" YARISI SADECE amortisman yöntemi değişikliğinden geldi, operasyonel iyileşmeden DEĞİL. (s.316)
+- **İLKE-126:** Hisse değerlemesi "SADECE İSTİSNAİ durumlarda GERÇEKTEN güvenilirdir" — bu, Graham'ın TÜM formal güvenlik değerleme girişimi hakkındaki KENDİ AÇIK, kendini-sınırlayan uyarısıdır; akıllı yatırımcının GERÇEKÇİ hedefi genellikle sadece ödediği fiyat karşılığında MAKUL bir DEĞER aldığını DOĞRULAMAKTIR, "gerçek" değeri TAM olarak BELİRLEMEK değil. (s.318)
+
+**Commentary on Chapter 12 (Zweig):**
+
+- **İLKE-127:** GERÇEK nakit maliyetlerini (opsiyon üzerindeki bordro vergisi, birleşme gideri, gerçek yatırım zararı) DIŞLAYAN "pro forma" kazanç rakamları akıllı yatırımcı tarafından basitçe GÖRMEZDEN GELİNMELİDİR — birden fazla GERÇEK 1999-2001 örneği (InfoSpace, BEA Systems, JDS Uniphase) şirketlerin yüzlerce milyon dolarlık GERÇEK maliyeti dışlayarak hayali-olarak-pembe bir "sanki" kazanç rakamı sunduğunu gösteriyor. (s.322-323)
+- **İLKE-128:** Agresif gelir-kayıt (revenue recognition) değişiklikleri (geliri nakit GERÇEKTEN alınmadan ÖNCE tanımak — Qwest'in 1999'daki rehber-geliri değişikliği net kâra $240M/~%20 EKLEDİ SADECE muhasebe değişikliğinden) genellikle ÇOK DAHA BÜYÜK alttaki sorunların GÖRÜNEN ucu ucudur — Qwest sonradan $2,2 milyar FAZLA-beyan edilmiş geliri YENİDEN düzenledi, hissesi ~%90 DÜŞTÜ. (s.323-324)
+- **İLKE-129:** Normal FAALİYET giderini SERMAYE harcaması olarak yeniden SINIFLANDIRMAK (Global Crossing'in 1999'da ağ inşaat maliyetleriyle yaptığı gibi), HARCANAN GERÇEK NAKİTTE HİÇBİR değişiklik OLMADAN raporlanan net kârı VE toplam varlıkları AYNI ANDA ŞİŞİRİR — hangi maliyetleri "kapitalize ettiğini" ANİDEN değiştiren bir şirket, NEDEN ve NE değiştiğinin YAKINDAN incelenmesini HAK EDER. (s.324-326)
+- **İLKE-130:** Çeyrekten çeyreğe TEKRARLANAN bir "özel kalem" (envanter değer düşüklüğü gibi) ARTIK GERÇEKTEN "tekrarlanmayan" DEĞİLDİR — Micron Technology ilk "olağandışı" kaydından SONRA 7 ARDIŞIK mali çeyrekte envanter değer düşüklüğü kaydetti; yatırımcılar KRONİK olarak tekrarlayan "özel" kalemleri İZLEMELİDİR. (s.326-327)
+- **İLKE-131:** Pensiyon-planı muhasebe VARSAYIMLARI raporlanan net kârı ÖNEMLİ ÖLÇÜDE ŞİŞİREBİLİR — şirketin "net pensiyon faydasının" net kârın ~%5'ini AŞMASI, veya plan varlıkları üzerinde VARSAYILAN uzun-vadeli getiri oranının ~%6,5'in (2003 bağlamı) ÜZERİNDE olması VEYA gerçek piyasa getirileri DÜŞERKEN YÜKSELTİLMESİ kırmızı bayraktır (SBC Communications 2001'de varsayımını %8,5'ten %9,5'e YÜKSELTTİ, oysa fonu O YIL GERÇEKTE %6,9 KAYBETTİ; aynı yıl Berkshire Hathaway kendi varsayımını %8,3'ten %6,5'e TEMKİNLİ biçimde DÜŞÜRDÜ). (s.327)
+- **İLKE-132:** Pratik kazanç-kalitesi okuma yöntemi: bir şirketin yıllık raporunu TERSTEN oku (önce dipnotlar/arka kısım) — şirketin bulmanızı İSTEMEDİĞİ sorunlar genellikle ORADA gömülüdür; HER ZAMAN "önemli muhasebe politikaları özeti" dipnotunu oku ve bunu YAKIN bir rakibin EŞDEĞER dipnotuyla KIYASLA (görece agresiflik ölçüsü olarak). (s.328-329)
+
+**Chapter 13 — A Comparison of Four Listed Companies (Graham):**
+
+- **İLKE-133:** Graham'ın savunmacı yatırımcının BİREYSEL hisse seçimi için 7 SOMUT istatistiksel gerekliliği (Ch.5-12 boyunca inşa edilenin AÇIK/BİRLEŞTİRİLMİŞ özeti): (1) yeterli BÜYÜKLÜK, (2) yeterince GÜÇLÜ mali durum, (3) en az 20 yıl KESİNTİSİZ temettü, (4) son 10 yılda HİÇ kazanç ZARARI YOK, (5) 10 yıllık hisse başı kazanç büyümesi en az 1/3, (6) fiyat net aktif (defter) değerinin en fazla 1,5 KATI, (7) fiyat son 3 yıl ortalama kazancın en fazla 15 KATI. (s.337-338)
+- **İLKE-134:** Aksi halde KARŞILAŞTIRILABİLİR şirketler arasında GÜNCEL F/K oranı, GERÇEK operasyonel performans veya mali durumdan ÇOK DAHA GENİŞ bir ARALIKTA değişebilir (Graham'ın kendi 4-şirket örneğinde: AYNI 1968-1970 ortalama-kazanç bazında 9,7x'ten 45x'e) — geniş bir F/K farkı, otomatik olarak yüksek-momentumlu ismi TERCİH etmek için değil, NEDENİNİ ARAŞTIRMAK için bir SİNYALDİR. (s.332-336)
+- **İLKE-135:** "Değer-tipi" (düşük çarpanlı) yatırımları "cazibe-tipi" (yüksek çarpanlı) yatırımlara TERCİH etmek, SALT aritmetik kadar YATIRIMCI MİZACI/felsefesi meselesidir — Graham AÇIKÇA ucuz çiftin PAHALI çifti herhangi bir KISA dönemde geçeceğini TAHMİN ETMEZ, çünkü piyasa momentumu ALTTAKİ değer farkından BAĞIMSIZ olarak yüksek-çarpanlı isimler için SÜREBİLİR. (s.338)
+
+**Commentary on Chapter 13 (Zweig):**
+
+- **İLKE-136:** GERÇEK bir 1999 dört-hisse karşılaştırması (Emerson Electric / EMC / Expeditors International / Exodus Communications) Graham'ın Ch.13 dersini GÜNCEL veriyle GÖSTERİR: Emerson (F/K 17,7x, 42 ARDIŞIK yıl artan kazanç, 43 ARDIŞIK yıl artan temettü) dördün EN UCUZ ve EN İSTİKRARLI olanıydı ama 1999'da "SIKICI" görünüyordu; Exodus (F/K ANLAMSIZ — şirket $242M gelire karşı $130M ZARAR ediyordu, $2,6 milyar BORÇLA) EN HEYECAN VERİCİ olanıydı, kısmen tekrarlanan hisse bölünmelerinin yarattığı "daha fazla hisse = daha fazla servet" YANILSAMASI sayesinde. 2002 sonu itibariyle: Emerson %4'ten AZ düştü, Expeditors ~%51 YÜKSELDİ, EMC %88 DÜŞTÜ, Exodus İFLAS ETTİ (hisse değeri sıfıra yakın). (s.339-346)
+- **İLKE-137:** Hisse bölünmeleri (stock split) HİÇBİR ekonomik değer YARATMAZ (2 hisse $50'den = 1 hisse $100'den) ama duyuru ÜZERİNE hisse fiyatını GÜVENİLİR biçimde YUKARI hareket ettirir — yatırımcı psikolojisinin (daha "fazla" hisseye sahip olmaktan zengin HİSSETMEK) aritmetiğin ÜZERİNE ÇIKMASININ saf bir kanıtı; Zweig, tekrarlayan ve yoğun biçimde REKLAMI yapılan hisse bölünmelerini, yönetimin iş temellerine ODAKLANMAK yerine sofistike-OLMAYAN hissedar PSİKOLOJİSİNE hitap ettiğinin (ve bunu SÖMÜRDÜĞÜNÜN) bir işareti olarak DEĞERLENDİRİR. (s.344)
+
+---
+
+## Formüller
+
+| # | Formül | QuaxisLabs karşılığı |
+|---|---|---|
+| **FORMÜL-18** Bono/İmtiyazlı Hisse Kazanç Kapsama Oranı (Table 11-1): sektöre göre minimum ort.-7-yıl / en-kötü-yıl eşikleri — Kamu hizmeti 4x/3x, Demiryolu 5x/4x, Sanayi 7x/5x, Perakende 5x/4x (vergi öncesi) (s.283-284) | **KAPSAM DIŞI (doğrudan) / DOLAYLI olarak ilişkili.** QuaxisLabs tahvil değil HİSSE analiz motorudur; ancak "faiz karşılama oranı" kavramı hisse tarafında borç-yükü göstergesi olarak faydalıdır. `financial_debt` (`calculator.py`) mevcut ama FAİZ GİDERİ (interest_expense) sanayi/ticaret şirketleri için EKSİK — Kısım 1'de tespit edilen (Buffett turu FORMÜL-05 ile AYNI) veri açığının 5. tekrarı. |
+| **FORMÜL-19** Graham Büyüme Hissesi Değerleme Formülü: **Değer = Güncel (Normal) Kazanç × (8,5 + 2 × Beklenen Yıllık Büyüme Oranı %)**, büyüme oranı gelecek 7-10 yıl için; ≥%8/yıl büyümede GÜVENİLMEZ (s.295-297) | **VERİ EKSİK / KISMEN TÜRETİLEBİLİR.** `graham_multiple`/`graham_fair_value_price` (`valuation.py`) FARKLI bir Graham formülüdür (F/K×PD/DD≤22,5 — kitabın Ch.20'sinde ortaya çıkacak DAHA GEÇ/basitleştirilmiş model). BU formül (8,5+2g) `valuation.py`'de HİÇ YOK. Güncel kazanç (`ttm_net_income`) mevcut; büyüme oranı (g) tahmini için çok-yıllı kazanç serisi GEREKİR (yine `trends.py` 12-çeyrek kısıtı). |
+| **FORMÜL-20** Büyüme Oranı Hesaplama Yöntemi: son 3 yılın ortalaması ÷ 10 yıl önceki karşılık gelen 3 yılın ortalaması, yıllıklandırılmış/bileşik (s.319, Tablo 12-1: ALCOA %9,0/yıl, Sears %8,7/yıl, DJIA %5,7/yıl) | **VERİ EKSİK.** Yine 10 yıllık kazanç serisi sorunu — kitap boyunca (2 kitap toplamında) 5. tekrar eden AYNI kök kısıt. |
+| **FORMÜL-21** Graham'ın 7 Savunmacı Yatırımcı Kriteri (Ch.13 özet listesi): (1) yeterli büyüklük, (2) yeterli mali güç, (3) ≥20 yıl kesintisiz temettü, (4) son 10 yılda zarar YOK, (5) 10 yıllık HBK büyümesi ≥1/3, (6) fiyat ≤1,5× net aktif değeri, (7) fiyat ≤15× son 3 yıl ort. kazanç (s.337-338) | **KISMEN MEVCUT/TÜRETİLEBİLİR.** (1) `market_cap` MEVCUT (mutlak eşik tanımlanmalı, bkz Kısım2 FORMÜL-11); (2) `current_ratio`/`debt_to_equity` MEVCUT; (3)-(5) TAMAMEN VERİ EKSİK (temettü + 10 yıllık HBK serisi — tekrarlayan açık); (6) `pb_ratio` MEVCUT ama BURADAKİ eşik (1,5×) Kısım2 FORMÜL-17'deki (Ch.8, 1,33×) ile FARKLI — Graham'ın KENDİSİ kitap içinde 2 FARKLI PD/DD eşiği kullanıyor, bu ayrım not düşülmeli; (7) `pe_ratio` (TTM, 3-yıl-ort. DEĞİL) KISMEN karşılık verir. |
+| **FORMÜL-22** Fon Gider Oranı Tavanları (Zweig, 2003): Tahvil %0,75, ABD büyük/orta hisse %1,0, Junk bond %1,0, ABD küçük hisse %1,25, Yabancı hisse %1,50 (s.251-252) | **KAPSAM DIŞI.** Fon SEÇİMİ, QuaxisLabs'ın tekil hisse/kripto analiz kapsamı DIŞINDA. |
+| **FORMÜL-23** Danışman Ücret Tavanı = Varlıkların yıllık %1'inden FAZLASI kabul edilemez (s.277) | **KAPSAM DIŞI.** Danışmanlık ücreti değerlendirmesi sistemin kapsamı DIŞINDA. |
+| **FORMÜL-24** Kapalı-Uçlu Fon İskonto Stratejisi = %9 primli açık-uçlu yerine %10-15 iskontolu kapalı-uçlu fon al → yatırılan her dolar için ~1/5 DAHA FAZLA değer (s.238-240) | **KAPSAM DIŞI.** Fon seçimi/portföy-seviyesi strateji — Kısım1 FORMÜL-06, Kısım2 FORMÜL-13 ile AYNI kapsam-dışı kategorisi. |
+
+---
+
+## Eşikler (tablo)
+
+| Gösterge | Eşik / Aralık | Yorum | Kaynak | Sayfa |
+|---|---|---|---|---|
+| Açık-uçlu (mutual) fon satış yükü | Tipik ~%9 prim (asset value üzerine) | Alım maliyeti | Graham, Ch.9 | s.238-239 |
+| Kapalı-uçlu fon iskontosu | Tipik %10-15 | Aynı kalite için DAHA AZ ödeme fırsatı | Graham, Ch.9 | s.238-239 |
+| Fon performans devamlılığı (Lipper, Aralık 2002) | Endeksi geçen fon oranı: 1yıl %48,9 → 20yıl %14,9 | Zaman ufku uzadıkça hızla düşer, gerçek fark BU rakamdan bile BÜYÜK | Zweig, Comm.9 | s.248 |
+| Aktif fon maliyet-öncesi başabaş eşiği | ~%1,5 işletme + ~%2 işlem maliyeti → piyasayı maliyet ÖNCESİ ~3,5 puan geçmek gerekir | Sadece maliyet SONRASI eşitlenmek için | Zweig, Comm.9 | s.246-247 |
+| Endeks vs aktif fon 20-yıllık getiri farkı (%7 piyasa getirisi varsayımı) | $10.000 → ~$36.000 (endeks) vs ~$20.000 (ort. aktif) | ~%45 fark SADECE maliyetten | Zweig, Comm.9 | s.249 |
+| Fon gider oranı tavanları (kategoriye göre) | Tahvil %0,75 / Büyük-orta hisse %1,0 / Junk bond %1,0 / Küçük hisse %1,25 / Yabancı hisse %1,50 | Bunun üzerinde başka fon aranmalı | Zweig, Comm.9 | s.251-252 |
+| Danışman ücret tavanı | Varlıkların yıllık %1'i | Aşan durumda başka danışman ara | Zweig, Comm.10 | s.277 |
+| Gerçekçi getiri beklentisi tavanı | Yıllık ort. %8-10 üzeri GERÇEKÇİ DEĞİL | Danışman mülakatı kırmızı bayrağı | Zweig, Comm.10 | s.277 |
+| "Ciddi kayıp" eşiği (danışman ihtiyacı sinyali) | 2000-2002 döneminde portföyün >%40 kaybı | Piyasanın kendisinden DAHA KÖTÜ performans | Zweig, Comm.10 | s.273 |
+| Tahvil/imtiyazlı hisse kapsama oranı (kamu hizmeti) | 4x (ort. 7 yıl) / 3x (en kötü yıl) | Vergi öncesi | Graham, Ch.11 | s.283-284 |
+| Tahvil/imtiyazlı hisse kapsama oranı (demiryolu) | 5x / 4x | Vergi öncesi | Graham, Ch.11 | s.283-284 |
+| Tahvil/imtiyazlı hisse kapsama oranı (sanayi) | 7x / 5x | Vergi öncesi, en YÜKSEK eşik | Graham, Ch.11 | s.283-284 |
+| Tahvil/imtiyazlı hisse kapsama oranı (perakende) | 5x / 4x | Vergi öncesi | Graham, Ch.11 | s.283-284 |
+| Kurumsal faiz yükü sistemik uyarı verisi (1963→1970) | Faiz ödemeleri toplam vergi öncesi kârın %16'sından %29'una çıktı | Sistemik kaldıraç uyarısı | Graham, Ch.11 | s.287 |
+| Graham büyüme formülü güvenilirlik sınırı | Beklenen büyüme ≥%8/yıl → formül matematiksel olarak KARARSIZ | Sonsuza yakınsayan değer riski | Graham, Ch.11 | s.295-296 |
+| Sürdürülebilir uzun-vadeli büyüme oranı (Zweig) | ~%10/yıl vergi öncesi (%6-7 vergi sonrası) MAKUL; ≥%15/yıl "sanrısal" | Ampirik araştırma bulgusu | Zweig, Comm.11 | s.305 |
+| Owner earnings büyüme eşiği | Hisse başı owner earnings'in 10 yılda istikrarlı ort. ≥%6-7/yıl büyümesi | İstikrarlı nakit üretici işareti | Zweig, Comm.11 | s.308 |
+| Sermaye yapısı eşiği | Uzun vadeli borç < toplam sermayenin %50'si | Aşırı kaldıraç uyarısı | Zweig, Comm.11 | s.308 |
+| Ar-Ge harcaması sektörel örnekler (2002) | P&G ~%4 net satış, 3M ~%6,5, J&J ~%10,9 | Sektöre göre kalibrasyon referansı | Zweig, Comm.11 | s.305 |
+| Pensiyon "net fayda" uyarı eşiği | Net kârın >%5'i pensiyon kazancından geliyorsa dikkat; varsayılan getiri >%6,5 (2003) mantıksız | Kazanç kalitesi kırmızı bayrağı | Zweig, Comm.12 | s.327 |
+| Serial-acquirer uyarı eşiği | Yılda ortalama >2-3 satın alma | Potansiyel sorun işareti | Zweig, Comm.11 | s.303 |
+| ALCOA vaka analizi (1970) | Aynı çeyrek HBK'sı yönteme göre $4,19-$5,20 arası (F/K 10x-22x arası) | Tek-yıl/tek-yöntem HBK'ya güvenmemenin canlı kanıtı | Graham, Ch.12 | s.310-312 |
+| Trane Co. vaka analizi (1970) | Raporlanan %20 HBK artışının YARISI sadece amortisman yöntemi değişikliğinden | Muhasebe-kaynaklı büyüme yanılsaması | Graham, Ch.12 | s.316 |
+| Emerson Electric (1999, GERÇEK şirket) | F/K 17,7x; 42 yıl kesintisiz kazanç artışı; 43 yıl kesintisiz temettü artışı | Dördün en ucuz/istikrarlısı, ama "sıkıcı" görünüyordu | Zweig, Comm.13 | s.341 |
+| EMC Corp (1999, GERÇEK şirket) | F/K 103x; raporlanan büyüme %24 ama satın alma-hariç GERÇEK büyüme sadece %3,6 | Görünür büyümenin M&A kaynaklı optik etkisi | Zweig, Comm.13 | s.341-342 |
+| Exodus Communications (1999, GERÇEK şirket) | $242M gelire karşı $130M zarar, $2,6 milyar borç | 2001'de iflas etti | Zweig, Comm.13 | s.344-345 |
+| Emery Air Freight (Graham'ın 1970 örneği, GERÇEK şirket) | F/K ~40-60x | 1972-1999 arası enflasyon-düzeltmeli %72,8 değer kaybı | Graham/Zweig, Ch.13/Comm.13 | s.336-337 |
+
+---
+
+## Kontrol Listeleri
+
+**KONTROL I — Yatırım Fonu Seçim Kontrolü (Ch.9 + Comm.9, 6 madde):**
+1. Fon giderleri kategori tavanlarının (tahvil %0,75, büyük hisse %1,0, küçük hisse %1,25, yabancı %1,50) ALTINDA mı?
+2. Fon yöneticileri fonun kendisinin BÜYÜK hissedarları mı?
+3. Fonun portföyü, karşılaştırıldığı endeksten belirgin biçimde FARKLI mı (gizli-endeksleme değil mi)?
+4. Fon daha önce yeni yatırımcılara KAPANMIŞ mı (büyüklük disiplini işareti)?
+5. Geçmiş performansı SON sırada mı değerlendiriyorum (gider → risk → geçmiş performans sırası)?
+6. Fonu sadece 1-3 yıllık zayıf performans yüzünden satmayı mı düşünüyorum (yanlış sinyal olabilir) — yoksa strateji sapması/gider artışı/anormal getiri gibi GERÇEK bir kırmızı bayrak mı var?
+
+**KONTROL J — Yatırım Danışmanı Değerlendirme Kontrolü (Ch.10 + Comm.10, 5 madde):**
+1. Danışmanın adını+firmasını "şikayet/dava/disiplin cezası" terimleriyle aradım mı?
+2. Eyalet menkul kıymetler komisyonundan disiplin kaydını sorguladım mı?
+3. Form ADV'nin TAM kopyasını (Disclosure Reporting Pages dahil) aldım mı?
+4. Ücret, varlıkların yıllık %1'ini AŞIYOR mu?
+5. Danışman yıllık %8-10 üzeri getiri VAAT ediyor mu (gerçekçi değil sinyali)?
+
+**KONTROL K — Bono/Kapsama Oranı Güvenlik Kontrolü (Ch.11, 4 madde):**
+1. Şirketin sektörüne uygun MİNİMUM kapsama oranını (ort. 7-yıl VEYA en-kötü-yıl testi) karşılıyor mu?
+2. Kurumsal faiz yükü, toplam vergi öncesi kâra oranla YILLAR içinde ARTIYOR mu (sistemik uyarı)?
+3. Şirket büyüklüğü, sektöre uygun minimum ölçek eşiğini karşılıyor mu?
+4. Adi hisse (junior stock) piyasa değeri, borcun toplamına göre yeterli bir "yastık" sağlıyor mu?
+
+**KONTROL L — Kazanç Kalitesi Muhasebe Kontrolü (Ch.12 + Comm.12, 7 madde):**
+1. Raporlanan HBK'nın hangi VARYANTINI (primer/seyreltilmiş, özel kalemler dahil/hariç) kullanıyorum, neden?
+2. Bu dönemde/sektörde "özel kalemler" salgını var mı (çoklu şirket AYNI kötü yılda temizlik yapıyor mu)?
+3. Tek yıl yerine 7-10 yıllık ORTALAMA kazancı mı kullanıyorum?
+4. Amortisman yöntemi, Ar-Ge muhasebesi veya envanter yöntemi (FIFO/LIFO) SON ZAMANLARDA değişti mi?
+5. "Pro forma" kazanç rakamı GERÇEK nakit maliyetleri (opsiyon vergisi, birleşme gideri) DIŞLIYOR mu?
+6. Gelir kayıt yöntemi (revenue recognition) yakın zamanda değişti mi, bu değişiklik kazancı NASIL etkiledi?
+7. Normal faaliyet gideri, SERMAYE harcaması olarak yeniden SINIFLANDIRILDI mı (Global Crossing tipi)?
+
+**KONTROL M — Graham'ın 7 Savunmacı Yatırımcı Kriteri (Ch.13, doğrudan liste, 7 madde):**
+1. Yeterli büyüklük var mı?
+2. Yeterince güçlü mali durum var mı?
+3. En az 20 yıl kesintisiz temettü ödemesi var mı?
+4. Son 10 yılda hiç zarar yılı YOK mu?
+5. Son 10 yılda hisse başı kazanç en az 1/3 oranında büyümüş mü?
+6. Fiyat, net aktif değerin 1,5 katını AŞMIYOR mu?
+7. Fiyat, son 3 yıl ortalama kazancın 15 katını AŞMIYOR mu?
+
+---
+
+## Kırmızı Bayraklar
+
+- **BAYRAK-24:** "Performans fonu" cazibesine kapılmak — kısa dönemde olağanüstü getiri sağlayan, spekülatif/temettü ÖDEMEYEN hisselere yoğunlaşan bir fon; büyük ölçekte SÜRDÜRÜLEMEZ risk düzeyi. (Ch.9, s.232-233)
+- **BAYRAK-25:** Açık-uçlu (mutual) fonu ~%9 PRİMLE satın alırken AYNI kalitede bir kapalı-uçlu fonun %10-15 İSKONTOYLA mevcut olması — mekanik olarak DAHA AZ değer için DAHA FAZLA ödemek. (Ch.9, s.238-239)
+- **BAYRAK-26:** SADECE geçmiş getirisine bakarak fon seçmek — endeksi geçen fon oranı zaman ufku UZADIKÇA hızla düşer (20 yılda sadece %14,9). (Comm.9, s.248)
+- **BAYRAK-27:** Bir fonu, geçmişi İYİ olduğu (yıldız yönetici) için seçmek — "varlık filleşmesi" ve "sürü davranışı" başarılı fonların GELECEK performansını sistematik olarak aşındırır. (Comm.9, s.245-247)
+- **BAYRAK-28:** Bir fonu SADECE 1-3 yıllık zayıf göreli performans yüzünden satmak — Sequoia Fund örneği bunun genellikle YANLIŞ bir tepki olduğunu gösterir. (Comm.9, s.253-254)
+- **BAYRAK-29:** "Bu fırsat kaçmaz", "garantili", "riski yok" gibi baskı dili kullanan bir danışman/satıcı ile çalışmak. (Comm.10, s.275)
+- **BAYRAK-30:** Bir danışmanın Form ADV'sinin Disclosure Reporting Pages'ini VERMEMESİ veya vermekte İSTEKSİZ olması. (Comm.10, s.274-275)
+- **BAYRAK-31:** Aynı raporlama döneminde ÇOK SAYIDA şirketin AYNI ANDA "özel kalem" temizliği yapması — sektör-çapında bir muhasebe manipülasyonu sinyali. (Ch.12, s.314-315)
+- **BAYRAK-32:** "Pro forma" kazanç raporlaması — GERÇEK, NAKİT maliyetleri (opsiyon vergisi, birleşme gideri, yatırım zararı) dışlayarak "olsaydı" bir kazanç rakamı sunmak. (Comm.12, s.322-323)
+- **BAYRAK-33:** Bir muhasebe kaleminin (stok değer düşüklüğü, "özel gider") "OLAĞANDIŞI/TEKRARLANMAYAN" etiketiyle ART ARDA birden fazla çeyrek/yıl TEKRARLANMASI. (Comm.12, s.326-327)
+- **BAYRAK-34:** Pensiyon fonu VARSAYILAN getiri oranının, gerçek piyasa getirileri DÜŞERKEN YÜKSELTİLMESİ (SBC örneği: varsayım artırılırken fon GERÇEKTE kaybetti). (Comm.12, s.327)
+- **BAYRAK-35:** Normal FAALİYET giderinin SERMAYE harcaması olarak yeniden sınıflandırılması yoluyla raporlanan net kârın/varlıkların şişirilmesi (Global Crossing örneği). (Comm.12, s.324-326)
+- **BAYRAK-36:** Şirketin TEK bir müşteriye (veya küçük bir gruba) gelirinin BÜYÜK KISMI için bağımlı olması — Sycamore Networks örneği: gelirin %100'ü tek müşteriden, o müşteri iflas etti. (Comm.11, s.304)
+- **BAYRAK-37:** Tekrarlayan hisse bölünmelerini BAŞARI göstergesi gibi kutlamak/pazarlamak — matematiksel olarak SIFIR değer yaratır, sadece psikolojik yanılsama. (Comm.13, s.344)
+- **BAYRAK-38:** Yıllık ortalama %15+ kazanç büyümesi HEDEFİ koyan/vaat eden bir şirket yönetimi — bu oran uzun vadede istatistiksel olarak "sanrısal" kabul edilir. (Comm.11, s.305)
+
+---
+
+## Uygulama Notları
+
+1. **Bu kısım, "GERÇEK şirket verisi vs hayali didaktik örnek" ayrımının Buffett turundan beri en NET test edildiği bölümdür** — koordinatörün talimatına uygun olarak Ch.12'nin ALCOA vaka analizi ve Ch.13'ün 4-şirket karşılaştırması (hem Graham'ın 1970 versiyonu hem Zweig'in 1999 güncellemesi) GERÇEK NYSE/NASDAQ şirketleri olduğundan doğrudan eşik/örnek KAYNAĞI olarak KULLANILDI — Bölüm 7'deki didaktik örnek gelir tablosu (Buffett kitabı) ile AYNI kategoriye SOKULMADI.
+2. **"10+ yıllık kazanç serisi" veri açığı 5. KEZ tekrarlandı** (FORMÜL-18/19/20/21 + Kısım1 FORMÜL-05 + Kısım2 FORMÜL-08/09/15) — bu artık QuaxisLabs'ın EN YÜKSEK öncelikli YAPISAL eksikliği kesinleşti; hem Buffett hem Graham kitabının SAYISIZ formülü AYNI `trends.py` 12-çeyrek sınırına takılıyor.
+3. **Graham'ın KENDİSİ kitap içinde İKİ FARKLI PD/DD (fiyat/defter değeri) eşiği kullanıyor** — Ch.8'de "≤1,33×" (İLKE-80/Kısım2 FORMÜL-17), Ch.13'te "≤1,5×" (İLKE-133/FORMÜL-21). Bu, kitabın KENDİ İÇİNDE bir tutarsızlık DEĞİL — Ch.8'in ölçütü GENEL bir "muhafazakar alım" kılavuzu, Ch.13/14'ün 1,5× ölçütü SAVUNMACI yatırımcının 7-KRİTERLİK RESMİ listesinin PARÇASI. İkisi ayrı ayrı `valuation.py`'ye eklenirken bu FARK açıkça belgelenmeli (hangi bağlamda hangi eşik kullanılıyor).
+4. **Ch.13'ün 7-kriterlik listesi (FORMÜL-21/KONTROL M), kitabın ŞİMDİYE KADAR en YOĞUN TEK formül kümesi** — Ch.5'in 4 kuralı (Kısım2) ile BÜYÜK ÖRTÜŞME var (büyüklük, mali güç, temettü, fiyat/kazanç) ama Ch.13 listesi 3 YENİ nicel kriter EKLİYOR: (4) 10 yılda sıfır zarar yılı, (5) 10 yıllık HBK büyümesi ≥1/3, (6) PD/DD≤1,5×. Kısım 4 (Ch.14-15) işlendiğinde bu liste muhtemelen NİHAİ/en OLGUN haliyle tekrar görülecek — o zaman TAM çapraz referans tablosu oluşturulmalı.
+5. **QuaxisLabs kapsam sınırı 3 KEZ daha doğrulandı bu turda:** fon seçimi (FORMÜL-22/24), danışmanlık ücreti (FORMÜL-23), tahvil kapsama oranı (FORMÜL-18, dolaylı ilişkili ama doğrudan uygulanamaz) — hepsi Kısım1/2'deki "portföy-seviyesi kapsam dışı" kategorisiyle TUTARLI.
+6. **Kazanç kalitesi/muhasebe manipülasyonu teması (Ch.12+Comm.12) bu kitapta İLK KEZ bu YOĞUNLUKTA ortaya çıktı** — pro forma kazanç, agresif gelir kaydı, sermaye-harcaması-olarak-yeniden-sınıflandırma, pensiyon varsayımı manipülasyonu gibi kalemler QuaxisLabs'ın MEVCUT veri modelinde (isyatirim.py/kap_financials.py standart alan haritaları) DOĞRUDAN taranamaz — bunlar NİTEL/dipnot-okuma gerektiren analiz türleridir, sayısal alan eklemekle ÇÖZÜLEMEZ; ileride bir "kazanç kalitesi kontrol listesi" (bu turdaki KONTROL L) QuaxisLabs raporlarına METİN/checklist formatında eklenebilir (kod değil, kullanıcı rehberliği olarak).
+7. **Faiz karşılama oranı (FORMÜL-18) sanayi/ticaret şirketleri için EN YÜKSEK eşiği (7x) taşıyor** — bu, Buffett turunda ZATEN en çok vurgulanan tekil veri açığı (faiz gideri, sanayi şirketleri için XI_29 şemasında YOK) olarak tespit edilen kalemin 3. kez farklı bir kitapta/bağlamda ortaya çıkışı — öncelik listesinde YUKARI taşınmalı.
+8. **OCR ile ilgili not:** Bu turda kalıcı bir sayısal belirsizlik YOK. Table 9-1, Table 9-2 (Manhattan Fund portföyü), Table 11-3 (kimya/petrol karşılaştırması), Table 13-1 (4 şirket özet) çok-sütunlu OKUNAMAZ tablolardı ama HİÇBİRİNDEN ham sayı kullanılmadı — sadece çevresindeki DÜZ METİNDE (Table 9-1 için "Manhattan Fund 1967 +%38,6 vs S&P +%11", Table 13-1/13-2 için Table 13-2'nin TAM okunabilen kısmı) AÇIKÇA tekrarlanan rakamlar alındı.

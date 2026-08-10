@@ -795,3 +795,219 @@
 
 **Veri eksikliği nedeniyle UYGULANAMAZ (bu Kısımda PEKİŞTİRİLEN, YENİ bulgu YOK):**
 - Bu Kısım, Kısım 1-2'de TESPİT edilen TÜM ana veri açıklarının (DPS, Capex, WACC/unlevered beta, marjinal vergi oranı/interest_expense) Part One'ın (DCF Valuation) SON iki bölümünde de AYNI ŞİDDETTE devam ettiğini DOĞRULADI — özellikle **WACC'ın HİÇ hesaplanmaması**, bu Kısımdaki FORMÜL-63/64/66-72 (7 formül) gibi FİRMA-seviyesi (FCFF-bazlı) modellerin TAMAMININ ortak, TEK engelidir. Bu, Part One (Ch.2-6) BOYUNCA tekrarlanan bulguya dayanarak: **QuaxisLabs'ın Damodaran değerleme modeli SADECE özkaynak (FCFE, tek-aşamalı) tarafını kapsıyor; firma-seviyesi (FCFF/WACC/APV/EVA) DEĞERLEME AİLESİNİN TAMAMI şu an ürün kapsamı DIŞINDA** — bu, Part One sonunda netleşen EN ÖNEMLİ YAPISAL gözlemdir.
+
+---
+
+# KISIM 4 — Chapter 7-8: Relative Valuation: First Principles + Equity Multiples
+
+**Kapsam:** Chapter 7: Relative Valuation: First Principles (PDF s.306-335), Chapter 8: Equity Multiples (PDF s.336-385). Bu Kısımla birlikte **Part Two: Relative Valuation**'ın İLK iki bölümü işlenmiş olur (Ch.9 Kısım 5'te devam edecek). ID numaralandırması Kısım 1-3'ün devamı (İLKE-145'ten, FORMÜL-73'ten, BAYRAK-19'dan, Kontrol Listesi Q'dan başlar; kesintisiz).
+
+## İlkeler (devam)
+
+**Chapter 7 — Relative Valuation: First Principles:**
+
+- **İLKE-145:** Göreli değerlemenin 3 temel adımı: (1) piyasada fiyatlanan KARŞILAŞTIRILABİLİR varlıkları bul, (2) piyasa fiyatlarını ORTAK bir değişkene (kazanç/defter değeri/gelir) bölerek STANDARTLAŞTIR, (3) kalan farklar için DÜZELT. DCF'te "içsel değer" arayışı vardır; göreli değerlemede sadece "piyasa benzer varlıkları nasıl fiyatlıyor" sorusu vardır. (s.306-307)
+- **İLKE-146 (DCF-göreli değerleme felsefi ayrımı):** DCF, piyasanın HATA yapabileceğini VE bu hataların SEKTÖR/PİYASA GENELİNDE bile olabileceğini varsayar; göreli değerleme, piyasanın BİREYSEL hisselerde hata yapsa da ORTALAMADA doğru fiyatladığını varsayar. Piyasa ortalamada doğruysa iki yöntem YAKINSAR; piyasa sistematik olarak bir sektörü/piyasayı yanlış fiyatlıyorsa AYRIŞIR. (s.307-308, 334)
+- **İLKE-147 (Göreli değerlemenin yaygınlığı):** 2001'de 550 sell-side araştırma raporu üzerine yapılan çalışmada göreli değerlemeler DCF'i ~10:1 oranında GEÇTİ; DCF, M&A/kurumsal finansta daha yaygın görünse de TERMİNAL DEĞER genelde bir ÇARPANLA hesaplandığından, birçok "DCF" aslında GİZLİ bir göreli değerlemedir. (s.308)
+- **İLKE-148 (Popülerlik nedenleri):** Göreli değerleme (1) daha AZ zaman/kaynak gerektirir, (2) SATIŞI daha kolaydır (kısa sunumlara uyar), (3) SAVUNMASI daha kolaydır (varsayımların sorumluluğu PİYASAYA yüklenir, DCF'in uzun açık varsayım listesi eleştiriye daha açıktır), (4) piyasanın GÜNCEL MODUNU yakalar (fon yöneticileri GÖRECELİ performansa göre değerlendirildiğinden, tüm sektör aşırı değerliyken bile sektör-içi "ucuz" hisse aramak RASYONELDİR onlar için). (s.309-310)
+- **İLKE-149:** Göreli değerlemenin güçlü yanları AYNI ZAMANDA zayıf yanlarıdır: kolaylık → risk/büyüme/nakit akışı farklarının İHMAL EDİLMESİYLE sonuçlanabilir; piyasa modunu yakalama → sektör GENELİ aşırı/düşük değerliyken bu HATAYI DEVRALIR; şeffaflık eksikliği → varsayımlar İFADE EDİLMEDEN kaldığından MANİPÜLASYONA çok daha açıktır (emsal grup seçimiyle HEMEN HEMEN HER değer haklı çıkarılabilir). (s.310)
+- **İLKE-150 (Standartlaştırma değişkenleri):** Değerler kazanca (P/E türevleri), defter/yenileme değerine (P/BV, Tobin's Q), gelire (P/S, FD/Satış) veya SEKTÖRE ÖZGÜ ölçülere (internet: site ziyareti başına; kablo: abone başına) göre standartlaştırılabilir. Sektöre özgü çarpanlar İKİ nedenle TEHLİKELİDİR: başka sektörlerle/piyasa geneliyle KIYASLANAMAZLAR (çapa yoktur, "yüksek/düşük/tipik" hissi oluşmaz) VE temel değişkenlerle (gelir/kâra dönüşüm) İLİŞKİLENDİRİLMELERİ ÇOK ZORDUR. (s.311-313)
+- **İLKE-151 (Çarpan kullanmanın 4 temel adımı):** (1) TANIM testleri — tutarlılık + uniformite; (2) TANIMLAYICI testler — çapraz kesit dağılımı (piyasa genelinde, SADECE sektörde değil); (3) ANALİTİK testler — belirleyici değişkenler + bunların çarpanla İLİŞKİSİ; (4) UYGULAMA testleri — doğru karşılaştırılabilir firma seçimi + kalan farklar için düzeltme. [→ KONTROL LİSTESİ Q] (s.313-314)
+- **İLKE-152 (Tutarlılık testi):** Bir çarpanın PAYI özkaynak değeriyse (fiyat/piyasa değeri özkaynak) PAYDASI da özkaynak ölçüsü (HBK/net kâr/defter özkaynağı) OLMALIDIR; pay firma değeriyse (FD) payda da firma ölçüsü (FVÖK/FAVÖK/yatırılan sermaye) OLMALIDIR. P/E ve FD/FAVÖK TUTARLIDIR; Fiyat/FAVÖK (pay özkaynak, payda firma-geneli) TUTARSIZDIR — "her firma için AYNI şekilde hesaplandığı için sorun yok" savunması YANLIŞTIR, borçlu firmalar bu çarpanda SAHTE OLARAK ucuz görünür. [→ BAYRAK-19] (s.314-315)
+- **İLKE-153 (Uniformite testi):** Karşılaştırılan TÜM firmalarda AYNI çarpan varyantı (current/trailing/forward P/E) kullanılmalıdır — farklı mali yıl sonu tarihleri bile TUTARSIZLIK yaratabilir (biri Temmuz-Haziran, diğeri Ocak-Aralık kazancıyla bölünürse); farklı muhasebe standardı/agresiflik seviyesi de (aynı standart altında bile) karşılaştırmayı BOZAR — agresif muhasebe kullanan firmalar earnings çarpanlarında SAHTE OLARAK ucuz görünür. (s.315-316)
+- **İLKE-154 (Ortalama vs medyan):** Çarpan dağılımları HER ZAMAN pozitif çarpıktır (alt sınır sıfır, üst sınır yok) — bu yüzden ORTALAMA HER ZAMAN medyandan yüksektir (Ocak 2005: medyan P/E 23, ortalama P/E 48) ve medyan TİPİK firmayı DAHA İYİ temsil eder. Normal dağılım varsayımından türeyen "ortalama±2 std sapma dışına nadiren düşülür" kuralı çarpanlarda GEÇERSİZDİR — binlerce firma bu aralığın DIŞINDA kalır. (s.317-319)
+- **İLKE-155 (Aykırı değer/veri kaynağı farkı):** Çarpanlar yukarı yönde SINIRSIZDIR (500x, 2000x mümkündür), bu da ORTALAMALARI temsili OLMAKTAN çıkarır; veri sağlayıcıları aykırı değerleri FARKLI şekillerde ele alır (bazıları atar, bazıları bir tavana SINIRLAR) — Kasım 2005'te S&P 500 ortalama P/E'si kaynağa göre 16,5 (Yahoo) ile 24,2 (Morningstar) arasında DEĞİŞTİ. (s.319)
+- **İLKE-156 (Negatif kazanç örneklem dışı bırakma yanlılığı):** Negatif HBK'lı firmalarda P/E HESAPLANAMADIĞINDAN örneklemden DÜŞER — bu, kalan (kârlı) firmaların ortalama P/E'sini YUKARI YANLAR. 3 çözüm: (1) yanlılığı BİLEREK ortalamayı aşağı düzelt, (2) AGREGATİF P/E kullan (ΣPiyasa Değeri/ΣNet Kâr, zarar edenler DAHİL), (3) HER firma için hesaplanabilen TERSİNİ (kazanç verimi, E/P) kullan. (s.319-321)
+- **İLKE-157 (Zamanla değişen çarpanlar):** Çarpanlar zamanla DEĞİŞİR — kısmen TEMEL değişkenlerden (faiz oranı, ekonomik büyüme), kısmen PİYASA RİSK ALGISI değişiminden (resesyonlarda risk iştahı düşer, çarpanlar daralır). Sonuç: çapraz-ZAMAN çarpan kıyasları TEHLİKELİDİR; göreli değerlemelerin "raf ömrü" KISADIR (bir hisse bugün ucuz görünüp birkaç ay içinde bu değerlendirme DEĞİŞEBİLİR) — İçsel (DCF) değerlemeler DAHA İSTİKRARLIDIR. (s.321-322)
+- **İLKE-158 (Analitik testler — belirleyiciler):** Her çarpan (kazanç/defter/gelir) TIPKI DCF gibi AYNI 3 değişkenin (nakit akışı üretme kapasitesi, büyüme, risk) FONKSİYONUDUR — bu, basit bir istikrarlı büyüme temettü iskonto modelinden HER çarpan TÜRETİLEREK gösterilebilir. [→ FORMÜL-80] (s.322-324)
+- **İLKE-159 (Doğrusallık varsayımı riski):** Birçok değerleme analizi çarpan-temel değişken ilişkisinin DOĞRUSAL olduğunu VARSAYAR (PEG oranı bunun en somut örneğidir — P/E'nin büyümeyle DOĞRUSAL arttığını varsayar) — ama DCF türetimi (her değişkeni sabit tutup diğerini değiştirerek) gösterir ki değerlemede DOĞRUSAL ilişkiler NADİRDİR. (s.324-325)
+- **İLKE-160 (Companion variable/eşlik değişkeni):** Her çarpanı en iyi açıklayan, DİĞERLERİNDEN baskın TEK bir değişken vardır (P/E için büyüme, P/BV için ROE, P/S için net marj) — bu değişken, benzer firmalar arasında FARKLARI en iyi açıklayan değişken olarak İSTATİSTİKSEL/SEZGİSEL olarak belirlenir; doğru çarpan kullanımı EN AZ bu değişkenin kontrol edilmesini gerektirir. (s.325-326)
+- **İLKE-161 (Karşılaştırılabilir firma tanımı):** Karşılaştırılabilir firma, RİSK/BÜYÜME/NAKİT AKIŞI PROFİLİ benzer olan firmadır — SEKTÖR AİDİYETİ DEĞİL (bir telekom firması, risk/büyüme/nakit akışı özdeşse bir yazılım firmasıyla KIYASLANABİLİR). Sektör bazlı seçim, "aynı sektördeki firmaların risk/büyüme/nakit akışı BENZER olduğu" örtük varsayımını taşır — dar sektör tanımı AZ örnek verir, geniş tanım ÇEŞİTLİLİĞİ artırır (trade-off). (s.325-327)
+- **İLKE-162 (Farkları kontrol etmenin 3 yolu):** (1) SÜBJEKTİF düzeltme — analistin yargısıyla farkı AÇIKLAMA (genelde önyargıyı DOĞRULAYAN tahmin haline gelir); (2) MODİFİYE çarpan (PEG gibi) — TEK companion değişken için basit bölme düzeltmesi (İKİ örtük varsayım taşır: diğer TÜM değişkenlerde EŞİTLİK VE ilişkinin DOĞRUSAL olması); (3) İSTATİSTİKSEL teknik (regresyon) — ÇOKLU değişkene ve doğrusal olmayan ilişkiye izin verir, ilişkinin GÜCÜNÜ (t-istatistik/R²) ölçer. [→ KONTROL LİSTESİ R] (s.327-329)
+- **İLKE-163 (Sektör regresyonu):** Regresyon değişken SEÇİMİ TEORİ bazlı olmalıdır — R²'yi artıran HER değişken değil, SADECE DCF'ten türeyen TEMEL değişkenler (büyüme/risk/payout) kullanılmalıdır; amaç TÜM fiyatlama farkını açıklamak değil, SADECE temellerle açıklanabilen kısmı ayıklamaktır. Sektör TANIMI dar tutulursa örneklem küçülür (regresyon güvenilirliği düşer), geniş tutulursa farklılık artar ama regresyon BU FARKI kontrol edebilir. (s.329-331)
+- **İLKE-164 (Piyasa geneli regresyonu):** Sektör tanımını GEVŞETİP TÜM piyasayı karşılaştırılabilir kabul etmenin 3 avantajı: (1) piyasa verisine dayalı, SAYISAL büyüme/risk etkisi ölçümü sağlar; (2) az sayıda firma barındıran dar sektörlerde bile ANLAMLI kıyas sağlar; (3) bir sektörün TAMAMININ aşırı/düşük değerli olup olmadığını tespit edebilir (sektör-içi kıyas bunu YAPAMAZ). (s.331-332)
+- **İLKE-165 (İstatistiksel tekniklerin sınırları):** (1) çarpanlar NORMAL DAĞILMADIĞINDAN standart regresyon varsayımları ihlal EDİLİR (küçük örneklemde aykırı değer etkisi BÜYÜR); (2) bağımsız değişkenler (büyüme/risk/payout) BİRBİRİYLE KORELELİDİR (yüksek büyüme→yüksek risk→düşük payout birlikte hareket eder) — bu ÇOKLU DOĞRUSAL BAĞLANTI yaratır, katsayı İŞARETİ bile TERS çıkabilir; (3) regresyon ZAMANLA ESKİR (bir yılın regresyonu ertesi yıl geçersiz olabilir); (4) R² NADİREN %70'i AŞAR, sıkça %30-35'e DÜŞER — düşük R², tahmin ARALIĞININ genişlediği anlamına gelir, YÖNTEMİN geçersizliği DEĞİL. (s.332-333)
+- **İLKE-166:** DCF ile göreli değerleme SIKÇA farklı sonuç verir, hatta biri "ucuz" derken diğeri "pahalı" diyebilir — bu, İKİ FARKLI piyasa etkinliği varsayımından kaynaklanır (İLKE-146); bir hisse DCF'te pahalı ama emsal grubu TAMAMEN aşırı fiyatlıysa göreli değerlemede ucuz çıkabilir (tersi de geçerli). (s.334)
+
+**Chapter 8 — Equity Multiples:**
+
+- **İLKE-167 (Özkaynak değeri ölçüm kararları):** Özkaynak çarpanlarında piyasa değeri özkaynağının ÖLÇÜMÜNDE 3 karar VARDIR: (1) pay başı mı TOPLAM (piyasa değeri) mi? (birden çok hisse SINIFI VEYA seyreltilebilir menkul kıymet [opsiyon/dönüştürülebilir/warrant] varsa İKİSİ AYRIŞIR); (2) NAKİT-DAHİL mi NAKİT-HARİÇ mi? (nakit AĞIRLIKLI firmalarda faaliyet varlıklarının GERÇEK piyasa değerini BOZAR); (3) OPSİYON-KATKILI mı? (yönetici/çalışan opsiyonu + warrant + dönüştürülebilir tahvil ikinci bir özkaynak İDDİASI yaratır, TOPLAM özkaynak değeri market cap + opsiyon DEĞERİ olmalıdır — çoğu analist bu düzeltmeyi YAPMAZ). (s.336-338)
+- **İLKE-168 (Ölçek değişkeni tutarlılığı — Tablo 8.1/8.2):** Seçilen özkaynak değeri ölçüsüne EŞLEŞEN kazanç/defter değeri ölçüsü kullanılmalıdır: pay fiyatı↔HBK; toplam piyasa değeri↔opsiyon-giderleştirme SONRASI net kâr; nakit-hariç özkaynak↔net kâr MİNÜS nakitten gelen vergi-sonrası faiz geliri; opsiyon-katkılı özkaynak↔opsiyon-giderleştirme ÖNCESİ net kâr. AYNI mantık defter değeri (Tablo 8.2) için de geçerlidir. (s.338-340)
+- **İLKE-169 (Birincil vs tam seyreltilmiş HBK ikilemi):** Birincil (primary) HBK, opsiyon YÜKÜNÜ TAMAMEN görmezden gelir (opsiyon-ağır firmaları YAPAY OLARAK ucuz gösterir); TAM seyreltilmiş HBK, opsiyon SAYISININ yeterli bir ölçü olduğunu VARSAYAR (derin kârdaki UZUN vadeli opsiyonla yakın-para KISA vadeli opsiyonu AYNI CEZAYLA cezalandırır — oysa öncekinin özkaynak değerine etkisi ÇOK DAHA BÜYÜKTÜR); opsiyon-katkılı özkaynak yaklaşımı opsiyonların SAYISI değil DEĞERİNİ kullandığından KAVRAMSAL OLARAK ÜSTÜNDÜR. (s.338-339)
+- **İLKE-170 (Şerefiye/goodwill sorunu — P/BV karşılaştırmalarında):** İÇTEN büyüyen (organik) firmalar büyüme varlıklarının değerini bilançoya YAZMAZ; SATIN ALMA yoluyla büyüyen firmalar ödediği piyasa değeri ile hedefin defter değeri ARASINDAKİ farkı ŞEREFİYE olarak YAZAR — bu, satın-alma-ağırlıklı firmaların P/BV oranının YAPAY OLARAK DÜŞÜK (daha "cazip") görünmesine yol açar. Şerefiye; büyüme varlığı primi + KONTROL değeri + SİNERJİ + FAZLA ÖDEME karışımı olduğundan KUSURLU bir vekildir. (s.339-340)
+- **İLKE-171 (P/S'nin tanımsal tutarsızlığı ve tarihsel "kaçış" nedeni):** Fiyat/Satış oranı TANIM OLARAK TUTARSIZDIR (pay özkaynak değeri, payda TÜM firmaya ait gelir) ama YAYGIN kullanılır; bu tutarsızlık teknoloji (düşük/sıfır borç, firma değeri≈özkaynak değeri) ve perakende (tarihsel olarak HOMOJEN operating-lease kaldıracı) sektörlerinde TARİHSEL OLARAK az zarar vermiştir — ama teknoloji firmaları BÜYÜK/DEĞİŞKEN nakit tutmaya, perakendeciler kiralama YERİNE mülk SATIN ALMAYA başladıkça bu VARSAYIM ÇÖKER; düşük-nakitli/yüksek-kaldıraçlı firmalar bu çarpanda YAPAY OLARAK ucuz görünmeye başlar. (s.340-341)
+- **İLKE-172 (Dağılım karakteristikleri, ABD Ocak 2006):** P/E, PEG, P/BV, P/S HEPSİ pozitif çarpıktır; negatif kazançlı/negatif defter değerli firmalar örneklemden DÜŞER — 7.123 firmalık evrende P/E için sadece 4.179 firma HESAPLANABİLİR (yaklaşık 3.000 firma negatif kazançla dışarıda), P/BV için 1.467 firma NEGATİF defter değeriyle dışarıda kalır. P/S, geliri NEREDEYSE HİÇ negatif olmayan firmalarda hesaplanabildiğinden EN AZ örneklem kaybı yaşayan çarpandır. (s.341-348)
+- **İLKE-173 (Sabit büyüme çarpan denklemleri):** İstikrarlı büyüme temettü iskonto modelinden P/E, P/BV, P/S ve Değer/FCFF çarpanları TÜRETİLEBİLİR — HEPSİNİN ortak belirleyicisi büyüme+risk(ke)+payout'tur; P/BV'ye EK olarak ROE, P/S'ye EK olarak net kâr marjı eklenir (Tablo 8.5/7.3). [→ FORMÜL-80] (s.348-349)
+- **İLKE-174 (Yüksek büyüme/iki aşamalı çarpanlar):** İki aşamalı (yüksek büyüme+istikrarlı) modelden türetilen çarpanlar AYNI belirleyicilere sahiptir, SADECE girdiler İKİ dönem için AYRI tahmin edilir; payout yerine FCFE/Net Kâr ("potansiyel payout") kullanılabilir — bu NEGATİF olabilir (net kârdan FAZLA yeniden yatırım), ki bu durum firmanın yüksek büyüme döneminde YENİ ÖZKAYNAK ihraç ETMEK zorunda kalacağını (dolayısıyla SEYRELME bekleneceğini) ima eder ve P/E'yi BUGÜNDEN AŞAĞI ÇEKER. [→ FORMÜL-81] (s.349-351)
+- **İLKE-175 (Büyüme etkisi ve PEG'in U-şekli):** PEG DIŞINDAKİ TÜM çarpanlar büyümeyle MONOTONİK olarak ARTAR. PEG ise BEKLENMEDİK biçimde U-ŞEKLİNDEDİR: önce büyümeyle DÜŞER, yaklaşık %24-26 büyümede DİPTE (~1,35) yapar, sonrasında TEKRAR YÜKSELİR. Bu, PEG'in doğrusallık varsayımının ÇÖKTÜĞÜNÜN kanıtıdır (doğrusallık olsaydı %0 büyümede PEG=0 olması gerekirdi, gerçekte OLMAZ) — düşük büyümeli firmalar PEG bazında SİSTEMATİK OLARAK "pahalı" görünür. (s.353-355) [→ BAYRAK-23]
+- **İLKE-176 (PEG'in yön tutarsızlığı):** %4 vs %15 büyüme kıyasında PEG düşük-büyüme firmasını CEZALANDIRIR (yüksek büyüme "ucuz" görünür); ama %30 vs %40 büyüme kıyasında (dip noktasının SAĞINDA) PEG TERSİNE yüksek-büyüme firmasını CEZALANDIRABİLİR — hangi yönde yanlılık oluşacağı KARŞILAŞTIRILAN büyüme SEVİYESİNE bağlıdır, tek bir kuralla ÖNCEDEN belirlenemez. (s.354-355)
+- **İLKE-177 (Faiz oranı-büyüme etkileşimi):** Büyümenin DEĞERİ gelecekte gerçekleşeceğinden, faiz oranları DÜŞÜKKEN büyüme beklentisindeki bir DEĞİŞİM çarpanlar (özellikle P/E) üzerinde ÇOK DAHA BÜYÜK etki yaratır; bu yüzden DÜŞÜK faiz ortamında kazanç sürprizlerine (pozitif VEYA negatif) fiyat tepkisinin de DAHA BÜYÜK olması BEKLENİR. (s.355-356)
+- **İLKE-178 (Büyüme süresi etkisi):** Büyüme HIZI sabit tutulup SÜRESİ (3 yıldan 8 yıla) uzatıldığında TÜM çarpanlar YÜKSELİR — rekabet avantajının BÜYÜKLÜĞÜ/SÜRDÜRÜLEBİLİRLİĞİ (Ch.4 bağlantısı) büyüme süresinin ana belirleyicisidir; güçlü/sürdürülebilir rekabet konumundaki firmalar AYNI büyüme oranında bile ZAYIF konumdaki firmalardan DAHA YÜKSEK çarpanlarla işlem görmelidir. (s.356-357)
+- **İLKE-179 (Risk etkisi):** Beta (dolayısıyla cost of equity) arttıkça TÜM çarpanlar AZALIR (örnek: cost of equity %9→%15 olduğunda P/E'nin 25,38'den 9,14'e DÜŞMESİ). Riski KONTROL ETMEDEN sektör-içi çarpan kıyası YAPISAL OLARAK riskli firmaları "ucuz", güvenli firmaları "pahalı" gösterir. Çok riskli/genç firmalarda RİSKİ AZALTMANIN özkaynak değerine katkısı genelde BÜYÜMEYİ ARTIRMAKTAN DAHA BÜYÜKTÜR. [→ BAYRAK-24] (s.357-358)
+- **İLKE-180 (Yatırım kalitesi/ROE etkisi):** AYNI büyüme oranı FARKLI ROE-tutma oranı KOMBİNASYONLARIYLA elde edilebilir (örnek: %18 büyüme için ROE %20↔tutma %90; ROE %30↔tutma %60; ROE %15↔tutma %120 [YENİ özkaynak ihracı GEREKİR]). ROE ARTTIKÇA TÜM çarpanlar YÜKSELİR; ROE cost of equity'NİN ALTINA düşerse BÜYÜME DEĞER YOK ETMEYE başlar (çarpanlar büyümeyle YÜKSELMEK yerine DÜŞMEYE döner) — "her büyüme eşit değildir" ilkesinin NİCEL kanıtıdır. [→ BAYRAK-25] (s.358-360)
+- **İLKE-181 (Net marj etkisi — P/S'nin companion variable'ı):** AYNI gelir büyümesini üreten DÜŞÜK marj/yüksek hacim (indirim perakendeciliği) İLE yüksek marj/düşük hacim stratejileri FARKLI P/S değerini HAK EDER; net marjı İHMAL EDEN bir P/S kıyası düşük-marjlı firmaları YAPAY OLARAK ucuz gösterir. (s.360-361)
+- **İLKE-182 (Sistematik yanlılık haritası, Tablo 8.11):** Sektör-içi kıyasta HANGİ değişken ihmal edilirse HANGİ firma tipinin "ucuz" göründüğü ÖNGÖRÜLEBİLİR bir haritadır: büyüme ihmali→düşük-büyüme "ucuz" (P/E,P/BV,P/S) FAKAT yüksek-büyüme "ucuz" (PEG); büyüme SÜRESİ ihmali→zayıf rekabet avantajlı "ucuz"; risk ihmali→riskli firma "ucuz"; ROE ihmali→düşük-ROE "ucuz" (P/BV); net marj ihmali→düşük-marj "ucuz" (P/S). Bu tablo, bir analistin HANGİ değişkeni ÖRTÜK olarak ihmal ettiğini TERS MÜHENDİSLİKLE tespit etmenin bir ARACIDIR. [→ KONTROL LİSTESİ T] (s.361-362)
+- **İLKE-183 (Sektör regresyonu uygulaması, İllüstrasyon 7.2/8.2-8.5):** Regresyon, sübjektif ortalama-kıyasından DAHA GÜÇLÜDÜR çünkü GÜVEN ARALIĞI verir ve aşırı/hafif sapmayı SAYISAL olarak sıralar — somut örnekler: yazılım sektöründe (n≈42 firma) büyüme katsayısı +1,77/1% büyüme; Adobe %1,93 hafif ucuz; RSA Security en UCUZ (%59,86 düşük değerli); Ceridian en PAHALI (%92,05 aşırı değerli). (s.363-366)
+- **İLKE-184 (Piyasa geneli regresyonu sonuçları, Ocak 2006):** P/E~büyüme+beta+payout (n=2.163): büyüme katsayısı +1,131/1%, beta katsayısı −0,92/1,0 birim, payout katsayısı +0,07/1%; R² DÜŞÜK (P/E "gürültülü"dür). P/BV~ROE+payout+beta+büyüme: R²=%55,6, ROE katsayısı +0,176/1%. P/S~büyüme+payout+beta+net marj: R²=%58,4, n=1.877; beta katsayısının İŞARETİ bazı yıllarda (2003-2004) TERS çıkmıştır (çoklu doğrusal bağlantı — yüksek büyüme+yüksek beta birlikte hareket ettiğinden beta, büyümenin de VEKİLİ haline gelir). (s.372-377)
+- **İLKE-185 (Çapraz zaman kıyası):** Çarpanı SADECE tarihsel ORTALAMASIYLA kıyaslamak yerine, O DÖNEMİN geçerli TEMELLERİNE (faiz oranı, risk primi, ROE, payout) göre TAHMİN EDİLEN çarpanla kıyaslamak gerekir — S&P 500 örneğinde (1960-2005) kazanç verimi (E/P) ile T-bond oranı arasında GÜÇLÜ pozitif korelasyon (0,69) vardır; ham "P/E tarihsel ortalamanın üstünde=pahalı" yargısı FAİZ ORANI düştüyse YANLIŞ olabilir. [→ BAYRAK-22] (s.377-379)
+- **İLKE-186 (Çapraz ülke kıyası):** Sadece P/E seviyesine bakarak ülkeler arası "ucuz/pahalı" yargısına varmak (örn. "Japonya %45 P/E ile pahalı, Rusya/Venezuela tek haneli P/E ile ucuz") YANILTICIDIR — faiz oranı, büyüme beklentisi, risk primi VE yatırım verimliliği (ROE) ülkeler arası SİSTEMATİK OLARAK farklıdır; bu değişkenler kontrol edildikten SONRA (regresyon ARTIĞI) ortaya çıkan sapma DAHA anlamlıdır. [→ BAYRAK-27] (s.380-383)
+
+---
+
+## Formüller (devam)
+
+- **FORMÜL-73 — Fiyat/Kazanç (P/E) Oranı, 3 Varyant**
+  - Formül: `P/E = Fiyat / HBK` — current (son mali yıl HBK), trailing (son 4 çeyrek TTM HBK), forward (gelecek yıl beklenen HBK).
+  - Değişkenler: pay her zaman GÜNCEL/ORTALAMA fiyat; payda varyanta göre değişir.
+  - QuaxisLabs karşılığı: `calculator.ValuationMetrics.pe_ratio` (`market_cap / r.ttm_net_income`) MEVCUT ve **trailing (TTM)** varyanta karşılık gelir; current (son mali yıl) ve forward (analist tahmini) varyantları YOK — forward P/E zaten VERİ EKSİK (konsensüs kazanç tahmini hiçbir fetcher'da yok).
+
+- **FORMÜL-74 — PEG Oranı**
+  - Formül: `PEG = P/E / (Beklenen HBK Büyüme Oranı × 100)`
+  - Değişkenler: P/E ile AYNI kazanç bazına dayalı büyüme kullanılmalı (current P/E↔current growth, trailing P/E↔trailing growth); forward P/E ASLA kullanılmamalı (çifte büyüme sayımı riski, örnek: HBK $1→$2'ye [x2] sıçrayıp sonra %4 büyürse 5 yıllık ima edilen büyüme %18,53 çıkar, forward P/E'yi BUNUNLA bölmek büyümeyi İKİ KEZ saymak olur).
+  - QuaxisLabs karşılığı: `valuation.py::peg_ratio` (`own_pe / growth_rate_pct`) MEVCUT — ANCAK `growth_rate_pct` girdisi olarak `calculator.Ratios.revenue_growth_yoy_pct` (HASILAT büyümesi) kullanılıyor; kitabın tutarlılık kuralına göre P/E'nin (net kâr bazlı) kazanç büyümesiyle EŞLEŞMESİ gerekir, revenue büyümesi TANIMSAL bir SAPMADIR (marj sabit değilse gelir büyümesi≠kâr büyümesi) — kök neden yine çok-yıllı HBK/net kâr büyüme serisi eksikliği (bkz. Uygulama Notları).
+
+- **FORMÜL-75 — Fiyat/Defter Değeri (P/BV) Oranı**
+  - Formül: `P/BV = Piyasa Değeri Özkaynak / Defter Değeri Özkaynak`
+  - QuaxisLabs karşılığı: `calculator.ValuationMetrics.pb_ratio` (`market_cap / equity_current`) MEVCUT ve TANIM OLARAK TUTARLI (özkaynak/özkaynak).
+
+- **FORMÜL-76 — Firma Değeri/Satış (VS), Tutarlı Gelir Çarpanı**
+  - Formül: `FD/Satış = Firma Değeri (net nakit) / Hasılat`
+  - QuaxisLabs karşılığı: `calculator.ValuationMetrics.ev_revenue` (`enterprise_value / r.ttm_revenue`) MEVCUT — kitabın "TUTARLI" (numerator/denominator ikisi de firma-geneli) gelir çarpanı tanımıyla BİREBİR ÖRTÜŞÜYOR (**pozitif bulgu**: QuaxisLabs zaten P/S DEĞİL, doğru VS versiyonunu kullanıyor).
+
+- **FORMÜL-77 — Fiyat/Satış (P/S) Oranı, Tanımsal Olarak Tutarsız ama Yaygın**
+  - Formül: `P/S = Piyasa Değeri Özkaynak / Hasılat`
+  - QuaxisLabs karşılığı: DOĞRUDAN alan YOK ama `market_cap` ve `r.ttm_revenue` ZATEN mevcut olduğundan tek satırla eklenebilir (DÜŞÜK maliyetli) — ancak kitabın kendi tutarlılık testine göre FORMÜL-76 (FD/Satış, zaten mevcut) DAHA DOĞRU versiyondur; P/S'in EKLENMESİ sadece "piyasada en çok kullanılan format" gerekçesiyle DÜŞÜNÜLEBİLİR, öncelik DÜŞÜK.
+
+- **FORMÜL-78 — Firma Değeri/FAVÖK (EV/EBITDA)**
+  - Formül: `FD/FAVÖK = Firma Değeri / FAVÖK`
+  - QuaxisLabs karşılığı: `calculator.ValuationMetrics.ev_ebitda` MEVCUT.
+
+- **FORMÜL-79 — Fiyat/FAVÖK (Price/EBITDA), Tanımsal Olarak Tutarsız**
+  - Formül: `Fiyat/FAVÖK = Piyasa Değeri Özkaynak / FAVÖK`
+  - QuaxisLabs karşılığı: bu ÖZEL tutarsız varyant `calculator.py`'de UYGULANMIYOR (iyi) — ANCAK `ValuationMetrics.price_to_operating_profit` (`market_cap / r.ttm_operating_profit`) AYNI TUTARSIZLIK TÜRÜNÜ (pay özkaynak, payda firma-geneli esas faaliyet kârı) TAŞIYOR — bkz. BAYRAK-19, bu Kısmın EN ÖNEMLİ kod-seviyesi bulgusu.
+
+- **FORMÜL-80 — Sabit Büyüme Çarpan Denklemleri (DDM Türetimi)**
+  - Formül: `P/E = payout×(1+g)/(ke-g)`; `P/BV = ROE×payout×(1+g)/(ke-g)`; `P/S = net_marj×payout×(1+g)/(ke-g)`; `Değer/FCFF = (1+g)/(kc-g)`
+  - Değişkenler: `payout`=temettü dağıtım oranı (veya FCFE/Net Kâr, "potansiyel payout"), `g`=istikrarlı büyüme, `ke`=özkaynak maliyeti, `ROE`=özkaynak getirisi, `net_marj`=net kâr/hasılat, `kc`=sermaye maliyeti (WACC).
+  - QuaxisLabs karşılığı: `net_margin_current` VE `roe_annualized` MEVCUT; `payout`/DPS **VERİ EKSİK** (kitaplar arası ARTIK 7. kez tekrarlanan en sık açık); `ke`, `valuation.py`'de β=1 basitleştirmesiyle MEVCUT; `kc`(WACC) **TAMAMEN EKSİK** (Kısım 1 FORMÜL-21).
+
+- **FORMÜL-81 — İki Aşamalı (Yüksek Büyüme) Çarpan Denklemleri**
+  - Formül: yüksek büyüme dönemi (n yıl, `payout_hg`,`g_hg`,`ke_hg`) + istikrarlı dönem (`payout_st`,`gn`,`ke_st`) parametreleriyle P/E, PEG, P/BV, P/S TÜRETİLİR (İllüstrasyon 8.1: örnek girdilerle P/E=25,38, PEG=1,41, P/S=2,54x).
+  - QuaxisLabs karşılığı: **VERİ EKSİK** — çok dönemli büyüme/payout PROJEKSİYONU YOK (Kısım 1-3'te TEKRAR tespit edilen AYNI yapısal eksiklik: DPS + çok-yıllı büyüme serisi).
+
+- **FORMÜL-82 — Sektör/Piyasa Regresyonu (Çarpan ~ Temel Değişkenler)**
+  - Formül: `Çarpan = a + b1×Büyüme + b2×Risk(β) + b3×Payout (+ companion değişken)`
+  - QuaxisLabs karşılığı: **YAPISAL OLARAK UYGULANAMAZ** — hem beta hem payout VERİ EKSİK, hem de QuaxisLabs TEKİL varlık analiz motorudur; bir SEKTÖR/PİYASA regresyonu ÇOKLU firma cross-sectional veri seti + istatistik (OLS regresyon) ALTYAPISI gerektirir, bu şu an HİÇBİR modülde YOK — bu, önceki kısımlardaki "VERİ EKSİK" bulgularından FARKLI bir eksiklik TÜRÜDÜR (tekil veri değil, ÇOK-FİRMA KARŞILAŞTIRMA ÖZELLİĞİ eksikliği).
+
+- **FORMÜL-83 — Regresyon Bazlı Aşırı/Düşük Değer Yüzdesi**
+  - Formül: `%Sapma = (Gerçek Çarpan - Tahmin Edilen Çarpan) / Tahmin Edilen Çarpan`
+  - QuaxisLabs karşılığı: FORMÜL-82'nin regresyon altyapısı eksikliğine BAĞLI, **UYGULANAMAZ**.
+
+- **FORMÜL-84 — Kazanç Verimi (Earnings Yield, E/P)**
+  - Formül: `E/P = HBK / Fiyat = 1 / (P/E)`
+  - QuaxisLabs karşılığı: `pe_ratio` MEVCUT olduğundan basit TERS ÇEVİRME ile hesaplanabilir (**DÜŞÜK maliyetli eklenti**) — Damodaran'ın negatif-kazanç örneklem-dışı-bırakma yanlılığına (İLKE-156) karşı önerdiği ÇÖZÜMLERDEN biri; negatif net kârlı şirketlerde bile ANLAMLI (negatif) bir değer üretir, oysa `pe_ratio` böyle şirketlerde `None` döner.
+
+- **FORMÜL-85 — Agregatif P/E (Evren Seviyesi, Zarar Edenler Dahil)**
+  - Formül: `Agregatif P/E = Σ Piyasa Değeri_i / Σ Net Kâr_i` (i = evrendeki TÜM firmalar, zarar edenler DAHİL)
+  - QuaxisLabs karşılığı: **UYGULANAMAZ (mimari eksiklik)** — sektör/evren AGREGASYON altyapısı YOK (tekil varlık motoru); FORMÜL-82 ile AYNI kök eksiklik türü.
+
+- **FORMÜL-86 — Nakit-Hariç (Net) Piyasa Özkaynağı ve Eşleşen Kazanç**
+  - Formül: `Net MV Özkaynak = Piyasa Değeri Özkaynak - Nakit ve Benzerleri`; eşleşen kazanç: `Net Kâr - (1-vergi oranı)×Nakit Faiz Geliri`
+  - QuaxisLabs karşılığı: **KISMEN UYGULANABİLİR** — `cash` VE `market_cap` MEVCUT (basit çıkarma, DÜŞÜK maliyetli); nakit faiz gelirinin AYRIŞTIRILMASI (gelir tablosunda standalone alan olarak) YOK, bu yüzden BASİT bir yaklaşık (kazancı OLDUĞU GİBİ bırakıp sadece payı nakitten arındırmak) uygulanabilir, TAM doğru değil.
+
+- **FORMÜL-87 — Opsiyon-Katkılı Özkaynak Değeri**
+  - Formül: `Opsiyon-Katkılı MV = Piyasa Değeri Özkaynak + Yönetici/Çalışan Opsiyonlarının Tahmini Değeri`
+  - QuaxisLabs karşılığı: **VERİ EKSİK** — çalışan/yönetici opsiyon programı verisi hiçbir fetcher'da YOK; bu konu Ch.11'de (Kısım 6, "Employee Equity Options") GENİŞLEYECEK, burada İLK kez işaretlendi.
+
+---
+
+## Eşikler (devam)
+
+| Metrik | Eşik / Değer | Yorum | Kaynak bölüm |
+|---|---|---|---|
+| Sell-side araştırma raporlarında göreli:DCF oranı (2001, 550 rapor) | **~10:1** | Göreli değerlemenin PRATİKTEKİ EZİCİ baskınlığının somut kanıtı | Ch.7, s.308 |
+| P/E dağılımı, ABD Ocak 2005 | Medyan **23** vs Ortalama **48** | Pozitif çarpıklığın somut örneği — medyan kıyası önerilir | Ch.7, s.317-318 |
+| "Normal dağılım" 2-std-sapma aralığı (Ocak 2005, ort. 48,12) | **40,74 – 55,5** | Binlerce firma bu aralığın DIŞINDA — normal dağılım varsayımı çarpanlarda GEÇERSİZ | Ch.7, s.318-319 |
+| S&P 500 ortalama P/E, veri kaynağına göre (Kasım 2005) | Yahoo **%16,5** vs Morningstar **%24,2** | Aykırı değer işleme farkının SOMUT kanıtı | Ch.7, s.319-320 |
+| P/E hesaplanabilen firma oranı (ABD evreni, Ocak 2006) | **4.179 / 7.123** (~%59) | Negatif kazanç örneklem-dışı-bırakma yanlılığının BÜYÜKLÜĞÜ | Ch.8, s.342-343 |
+| PEG oranı, tüm firmalar vs teknoloji (Ocak 2006) | Ortalama **2,64** vs **2,54**; Medyan **1,70** vs **1,66** | PEG'de de aynı ortalama>medyan çarpıklığı | Ch.8, Tablo 8.4 |
+| P/BV dağılımı, ABD Ocak 2006 | Ortalama **5,33** vs Medyan **2,32** | 1.467/7.123 firma NEGATİF defter değeriyle örneklem dışı | Ch.8, s.346-347 |
+| Yüksek büyüme firma örneği (İllüstrasyon 8.1) — girdiler | ROE **%20**, payout **%10** (tutma **%90**), g(5y) **%18**, β **1,0**, ke **%9** | Sonuç: P/E **25,38**, PEG **1,41**, P/S **2,54x** — çarpan türetiminin uçtan uca somut uygulaması | Ch.8, s.352-353 |
+| Büyüme oranı P/E'ye etkisi (aynı örnek, g:%18→%8) | P/E **25,38 → 16,38** | Büyüme etkisinin büyüklüğü — PEG DIŞINDA tüm çarpanlar büyümeyle monotonik artar | Ch.8, Tablo 8.6 |
+| PEG'in "dip" noktası | g **%24-26** iken PEG **~1,35** (minimum) | PEG'in doğrusallık varsayımının SOMUT olarak çöktüğü nokta | Ch.8, s.354-355 |
+| Riskin P/E'ye etkisi (aynı temel örnek, ke:%9→%15) | P/E **25,38 → 9,14** | Risk etkisinin büyüklüğü, büyüme etkisiyle KIYASLANABİLİR | Ch.8, Tablo 8.8, s.357-358 |
+| Yazılım sektörü P/E~büyüme regresyonu (Ocak 2006) | Katsayı **+1,77**/1% büyüme | Sektör regresyonunun somut uygulaması | Ch.8, İllüstrasyon 8.2 |
+| Yazılım sektöründe en ucuz/en pahalı (regresyon artığı) | RSA Security **-%59,86** (ucuz) / Ceridian **+%92,05** (pahalı) | Regresyon tabanlı göreli değer sıralamasının uç örnekleri | Ch.8, s.365-366 |
+| Yarı iletken PEG karşılaştırması (Ocak 2006) | TSMC ADR **0,32** (en ucuz) / Intersil **4,00** (en pahalı) / sektör ort. **1,64** | PEG'in doğrusal-olmayan (ln-büyüme regresyonlu) düzeltilmiş kullanım örneği | Ch.8, İllüstrasyon 8.3 |
+| Intel PEG değerlendirmesi (regresyon artığı) | PEG **1,22** vs tahmin → **~%33** düşük değerli | Ham PEG (sektör ort. altı) İLE regresyon-düzeltilmiş sonucun TUTARLILIK örneği | Ch.8, s.368 |
+| ABD bankaları P/BV~ROE regresyonu (Ocak 2006) | R² **%65,32** | ROE'nin P/BV'nin en güçlü companion variable'ı olduğunun kanıtı | Ch.8, İllüstrasyon 8.4 |
+| Banka örneğinde en ucuz/en pahalı (regresyon artığı) | Popular Inc. **~-%30** (ucuz) / State Street **+%33,41** (pahalı) | | Ch.8, s.369-370 |
+| Özel perakende (Coach) P/S~net marj örneği | Net marj **%21,41**, gerçekleşen P/S **7,19** (tahminin ÜSTÜNDE) | Net marj kontrol edilmeden P/S kıyasının nasıl yanlış sonuç vereceğinin somut örneği | Ch.8, İllüstrasyon 8.5 |
+| Piyasa geneli P/E regresyonu (Ocak 2006, n=2.163) | Büyüme **+1,131**/1%, Beta **-0,92**/1,0, Payout **+0,07**/1% | Piyasa-geneli regresyonun somut katsayıları | Ch.8, s.372-373 |
+| Piyasa geneli P/BV regresyonu | R² **%55,6**, ROE katsayısı **+0,176**/1% | P/BV regresyonlarının P/E'den DAHA GÜÇLÜ (yüksek R²) olduğunun kanıtı | Ch.8, s.375-376 |
+| Piyasa geneli P/S regresyonu | R² **%58,4**, n=1.877 | | Ch.8, s.376-377 |
+| S&P 500 E/P ~ T-bond korelasyonu (1960-2005) | **0,69** | Faiz oranı-çarpan ilişkisinin uzun dönemli somut kanıtı | Ch.8, İllüstrasyon 8.6 |
+| E/P regresyonu (1960-2005) | T-bond **+0,7437%** E/P /1%; getiri eğrisi eğimi **-0,3274%** E/P /1% | | Ch.8, s.379 |
+| S&P 500 P/E, erken 2006 | **18,27x** — regresyon tahminine göre "neredeyse doğru fiyatlı" | Zamanlar-arası fundamentale-göre-düzeltilmiş kıyas örneği | Ch.8, s.379 |
+| Çapraz ülke P/E (Ocak 2006, ham) | Japonya **45,01** (en yüksek) / Rusya, Venezuela tek haneli (en düşük) | Ham kıyasın (kontrolsüz) YANILTICI görünümü | Ch.8, İllüstrasyon 8.8 |
+| Çapraz ülke P/E regresyonu (uzun vadeli faiz+eğim+GOP dummy) | R² **%24,7**, uzun vadeli faiz katsayısı **+0,68**/1% | Brezilya en PAHALI, Venezuela en UCUZ (regresyon SONRASI) — ham sıralamadan FARKLI sonuç | Ch.8, s.382-383 |
+| Relative valuation regresyonlarında tipik R² aralığı | Nadiren **>%70**, sıkça **%30-35** | Düşük R²'nin YÖNTEM geçersizliği değil, GENİŞ tahmin aralığı anlamına geldiği uyarısı | Ch.7, s.333 |
+
+## Kontrol listeleri (devam)
+
+**Kontrol Listesi Q — Çarpan Kullanımının 4 Temel Adımı (Ch.7, s.313-334):**
+1. **Tanım Testi:** Pay/payda TUTARLI mı (özkaynak-özkaynak VEYA firma-firma)? TÜM karşılaştırılan firmalarda AYNI varyant (current/trailing/forward) ve AYNI muhasebe standardı kullanılıyor mu?
+2. **Tanımlayıcı Test:** Çarpanın PİYASA GENELİNDEKİ (sadece sektör değil) dağılımı (ortalama/medyan/persentil) biliniyor mu? Aykırı değer/veri kaynağı farkı hesaba KATILDI mı?
+3. **Analitik Test:** Çarpanı belirleyen temel değişkenler (büyüme/risk/payout + companion variable) VE bunların çarpanla İLİŞKİSİ (doğrusal mı değil mi) BİLİNİYOR mu?
+4. **Uygulama Testi:** Karşılaştırılabilir firmalar RİSK/BÜYÜME/NAKİT AKIŞI benzerliğiyle mi seçildi (sadece sektör aidiyeti DEĞİL)? Kalan farklar için düzeltme YAPILDI mı?
+
+**Kontrol Listesi R — Farkları Kontrol Etmenin 3 Yolu (Ch.7, s.327-333):**
+1. **Sübjektif düzeltme** — ortalamadan sapmayı analistin YARGISIYLA açıklama (YÜKSEK önyargı/tahmin hatası riski).
+2. **Modifiye çarpan** (PEG gibi) — TEK companion değişken için DOĞRUSAL varsayımlı bölme düzeltmesi (İKİ örtük varsayım: diğer TÜM değişkenlerde EŞİTLİK + doğrusallık).
+3. **İstatistiksel teknik** (sektör/piyasa regresyonu) — ÇOKLU değişken + ilişki GÜCÜ ölçümü + güven aralığı sağlar; çoklu doğrusal bağlantı/zamanla eskime risklerine DİKKAT.
+
+**Kontrol Listesi S — Özkaynak Değeri Ölçüm Kararları (Ch.8, s.336-338):**
+1. Pay başı mı TOPLAM (piyasa değeri) mi? (çoklu hisse sınıfı/seyreltme farkına DİKKAT)
+2. NAKİT-dahil mi NAKİT-hariç mi? (nakit-ağır firmalarda faaliyet varlığı değerini BOZAR)
+3. Opsiyon-katkılı mı? (yönetici opsiyonu/warrant/dönüştürülebilir tahvil genelde İHMAL EDİLİR)
+Her seçimin EŞLEŞEN bir kazanç/defter değeri ölçüsü VARDIR (Tablo 8.1/8.2) — TUTARSIZ eşleştirme YANLIŞ sonuç verir.
+
+**Kontrol Listesi T — Sektör-İçi Çarpan Kıyasında İhmal Edilmemesi Gereken Değişkenler (Tablo 8.11 sentezi, Ch.8, s.361-362):**
+- Büyüme (ihmal → düşük büyüme "ucuz" [P/E,P/BV,P/S] VEYA yüksek büyüme "ucuz" [PEG] görünür)
+- Büyüme SÜRESİ (ihmal → zayıf rekabet avantajlı firmalar "ucuz" görünür)
+- Risk/beta (ihmal → riskli firmalar "ucuz" görünür)
+- ROE (ihmal → düşük ROE'li firmalar P/BV'de "ucuz" görünür)
+- Net marj (ihmal → düşük marjlı firmalar P/S'de "ucuz" görünür)
+
+## Kırmızı bayraklar (devam)
+
+- **BAYRAK-19 — Tutarsız Tanımlı Çarpan Kullanımı (Price/EBITDA Tipi Hata):** Pay ÖZKAYNAK değeri, payda FİRMA-geneli kazanç ölçüsü olduğunda, YÜKSEK BORÇLU firmalar SİSTEMATİK OLARAK "ucuz" görünür (aslında pahalı/adil fiyatlı olabilir) — "her firma için aynı hesaplandığı için sorun yok" savunması YANLIŞTIR. Nasıl tespit edilir: pay/payda TANIM tutarlılığını (özkaynak-özkaynak mı, firma-firma mı) kontrol et. **QuaxisLabs bağlamında somut bulgu:** `calculator.ValuationMetrics.price_to_operating_profit` (`market_cap / ttm_operating_profit`) TAM OLARAK bu hatayı taşıyor — pay özkaynak (`market_cap`), payda firma-geneli (esas faaliyet kârı, faiz ÖNCESİ) — yüksek borçlu şirketler bu metrikte YAPAY OLARAK ucuz görünecektir; TUTARLI alternatif `enterprise_value / ttm_operating_profit` olurdu. Gereken veri: `enterprise_value` ZATEN mevcut, sadece formül DEĞİŞİKLİĞİ gerekir. (Ch.7, s.314-315)
+- **BAYRAK-20 — Ortalamaya Göre "Ucuz/Pahalı" Yargısı (Medyan Yerine):** Çarpan dağılımları HER ZAMAN pozitif çarpıktır — ortalama HER ZAMAN medyandan yüksektir; "sektör ortalamasının altında=ucuz" yargısı SİSTEMATİK OLARAK aşırı sayıda firmayı "ucuz" gösterir. Nasıl tespit edilir: karşılaştırma MEDYAN'a göre mi yoksa ORTALAMAYA göre mi yapılıyor kontrol et. Gereken veri: sektör/evren çapında çarpan DAĞILIMI (QuaxisLabs'ta evren-çapında persentil/medyan hesaplama ALTYAPISI YOK — bkz. Uygulama Notları). (Ch.7, s.317-318)
+- **BAYRAK-21 — Negatif Kazanç/Defter Değeri Örneklem-Dışı-Bırakma Yanlılığı:** P/E veya P/BV ortalaması hesaplanırken zarar eden/negatif özkaynaklı firmalar örneklemden DÜŞER, bu da KALAN örneklemin ortalamasını YUKARI yanlar. Nasıl tespit edilir: kullanılan ortalamanın KAÇ firma üzerinden hesaplandığı ile evrendeki TOPLAM firma sayısı KIYASLANMALI (büyük fark = yanlılık riski). Gereken veri: evren-çapında pozitif/negatif kazanç FİRMA SAYISI (mimari eksiklik). (Ch.7, s.319-321)
+- **BAYRAK-22 — Çapraz Zaman Kıyasında Temel Değişim İhmali:** Bir çarpanı SADECE geçmiş ortalamasıyla kıyaslayıp "tarihsel ortalamanın üstünde=pahalı" sonucuna varmak faiz oranı/risk primi/ROE/payout DEĞİŞİMİNİ göz ardı eder. Nasıl tespit edilir: kıyas TEMEL DEĞİŞKENLERE göre TAHMİN EDİLEN çarpanla mı yapılıyor, yoksa HAM tarihsel ortalamayla mı? Gereken veri: çok-yıllı faiz oranı/ROE/payout serisi (KISMEN mevcut, DPS eksik). (Ch.8, s.377-379)
+- **BAYRAK-23 — PEG Oranının Doğrusallık Varsayımı İhlali:** PEG, düşük büyüme (%0'a yakın) firmaları SİSTEMATİK OLARAK "pahalı" gösterir (gerçek ilişki U-şeklindedir, ~%24-26 büyümede diplenir). Nasıl tespit edilir: PEG'e dayalı sıralama yapılırken karşılaştırılan firmaların büyüme SEVİYESİ (dipin hangi tarafında) kontrol edilmeli; forward P/E'nin PEG'de KULLANILMAMASI (çifte sayım riski) ayrıca doğrulanmalı. Gereken veri: `growth_rate_pct` (QuaxisLabs'ta MEVCUT ama FORMÜL-74'te not edilen tanım sapmasıyla). (Ch.8, s.353-355)
+- **BAYRAK-24 — Riski Kontrol Etmeden Sektör-İçi Çarpan Kıyası:** Beta/kaldıraç farkını göz ardı eden bir P/E veya PEG kıyası, riskli firmaları SİSTEMATİK OLARAK "ucuz" gösterir. Nasıl tespit edilir: kıyaslanan firmaların beta/borç oranı FARKI kontrol edilmeli. Gereken veri: beta **VERİ EKSİK** (Kısım 1), borç oranı (`debt_to_equity`) MEVCUT — kısmi tespit MÜMKÜN. (Ch.8, s.357-358)
+- **BAYRAK-25 — ROE'yi Kontrol Etmeden P/BV Kıyası:** Düşük ROE'li (özellikle ROE<cost of equity) firmalar P/BV'de SİSTEMATİK OLARAK "ucuz" görünür, ama bu genelde DEĞER YARATMAMANIN doğal sonucudur, FIRSAT DEĞİLDİR. Nasıl tespit edilir: ROE-cost of equity FARKI (fazla getiri) HESAPLANMADAN P/BV yorumlanmamalı. Gereken veri: `roe_annualized` MEVCUT, `ke` (β=1 basitleştirmeli) `valuation.py`'de MEVCUT — bu bayrak DÜŞÜK maliyetle TESPİT EDİLEBİLİR. (Ch.8, s.358-360)
+- **BAYRAK-26 — Sektöre Özgü Çarpanların Çapa Eksikliği:** "Hit başına değer"/"abone başına değer" gibi sektöre özgü çarpanlar çapraz sektör/piyasa referans NOKTASI sunmadığından yatırımcıları normalde kabul ETMEYECEKLERİ aşırı fiyatlara razı edebilir. Nasıl tespit edilir: kullanılan çarpanın TÜM piyasada hesaplanabilir olup OLMADIĞI kontrol edilmeli. Gereken veri: METODOLOJİK kontrol, veri gerektirmez. (Ch.7, s.312-313)
+- **BAYRAK-27 — Çapraz Ülke P/E Kıyasında Makro Fark İhmali:** Sadece P/E seviyesine bakarak "X ülkesi pahalı, Y ülkesi ucuz" yargısına varmak ülkeler arası faiz oranı/büyüme/risk primi FARKINI yok sayar (somut örnek: Japonya ham P/E'de en pahalı ama regresyon SONRASI Brezilya en pahalı çıkar). Nasıl tespit edilir: kıyas faiz oranı+risk+büyüme KONTROLÜ SONRASI (regresyon artığı) sapmaya mı dayanıyor, yoksa HAM P/E seviyesine mi? Gereken veri: METODOLOJİK kontrol + ülke-düzeyi makro veri (QuaxisLabs kapsamı DIŞINDA — tekil şirket motoru). (Ch.8, s.380-383)
+
+## Uygulama notları (devam)
+
+**Nicel (skorlanabilir):**
+- **Kazanç Verimi (E/P, FORMÜL-84)** — `pe_ratio`'nun basit TERSİ, tek satır kod, DÜŞÜK maliyetli; negatif kazançlı şirketlerde bile anlamlı SIRALAMA sağlar.
+- **Fiyat/Satış (P/S, FORMÜL-77)** — `market_cap`/`ttm_revenue`, tek satır kod; ama zaten TUTARLI alternatifi (`ev_revenue`) MEVCUT olduğundan öncelik DÜŞÜK.
+- **Nakit-hariç (net) piyasa değeri özkaynak (FORMÜL-86)** — `market_cap - cash`, tek satır kod; nakit-ağır şirketlerde (özellikle teknoloji benzeri BIST/NASDAQ şirketleri) çarpanları daha ANLAMLI hale getirir.
+- **BAYRAK-19 kod düzeltmesi** — `price_to_operating_profit` alanının TANIM OLARAK TUTARSIZ olduğu tespit edildi; ya `enterprise_value / ttm_operating_profit` (FD/EFK) olarak DEĞİŞTİRİLMELİ ya da mevcut isim/dokümantasyonuna "tutarsız tanım, SADECE referans amaçlı" notu EKLENMELİ — bu Kısmın EN somut, EN düşük maliyetli kod-kalitesi bulgusudur.
+- **BAYRAK-25 (ROE-ke farkı üzerinden P/BV yorumlama)** — `roe_annualized` ve `valuation.py`'nin β=1 basitleştirmeli `cost_of_equity_pct`'i ZATEN mevcut olduğundan, "fazla getiri" (ROE-ke) işareti `pb_ratio` ile BİRLİKTE gösterilerek DÜŞÜK maliyetli bir tutarlılık kontrolü (rozet) üretilebilir.
+
+**Nitel (LLM yorumuna uygun):**
+- Companion variable çerçevesi (İLKE-160) — LLM'e "bu firma, çarpanının companion değişkeninde (büyüme/ROE/net marj) sektöre göre NASIL konumlanıyor" diye SORULABİLECEK bir değerlendirme çerçevesi.
+- Sektöre özgü çarpan riski (BAYRAK-26) — LLM'in "bu firma standart-dışı bir metrikle mi savunuluyor" diye bir şüphecilik notu üretmesi.
+- Çapraz zaman/ülke kıyası uyarıları (BAYRAK-22/27) — rapor şablonuna eklenebilecek bir "bu kıyas temel değişken FARKLARINI hesaba kattı mı" dikkat notu.
+- Şerefiye/goodwill kirliliği (İLKE-170) — satın-alma-ağırlıklı büyüyen şirketlerin P/BV'sinin neden YANILTICI ucuz görünebileceğine dair LLM'e verilebilecek NİTEL bir uyarı.
+
+**Veri eksikliği / mimari eksiklik nedeniyle UYGULANAMAZ:**
+- **PEG'in doğru büyüme bazı (FORMÜL-74)** — kitaba göre EPS/net kâr büyümesi gerekirken QuaxisLabs REVENUE büyümesi kullanıyor; kök neden yine çok-yıllı HBK/net kâr büyüme serisi eksikliği (kitaplar arası 8. tekrar).
+- **Sektör/piyasa regresyonu (FORMÜL-82/83/85) — YENİ TÜR eksiklik:** Bu Kısımda İLK KEZ netleşen bulgu, önceki "tekil veri EKSİK" örüntüsünden FARKLIDIR — QuaxisLabs'ın TEKİL varlık analiz mimarisi, ÇOK-FİRMA cross-sectional karşılaştırma/regresyon/persentil ALTYAPISINI hiç İÇERMİYOR. Beta/DPS gibi veri açıkları giderilse BİLE, bu formül grubu (sektör regresyonu, agregatif P/E, evren-çapında persentil) YENİ bir MİMARİ bileşen (çoklu-şirket istatistik motoru) gerektirir — bu, ürünün BIST/NASDAQ/Crypto evrenini TOPLU analiz eden bir modül eklemesi durumunda değerlendirilebilecek, uzun vadeli bir ÖZELLİK boşluğudur.
+- **İki aşamalı çarpan modelleri (FORMÜL-81)** — DPS/çok-yıllı büyüme eksikliğine bağlı.
+- **Opsiyon-katkılı özkaynak (FORMÜL-87)** — çalışan opsiyon verisi YOK; bu konu Kısım 6'da (Ch.11 Employee Equity Options) GENİŞLEYECEK.

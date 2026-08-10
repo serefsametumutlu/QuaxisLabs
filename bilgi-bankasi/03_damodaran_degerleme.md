@@ -563,3 +563,235 @@
 4. **income_before_tax/tax_provision (XI_29) — TEKRAR (2. kez bu kitapta) doğrulandı** — FORMÜL-27/32'nin ortak engeli; efektif vergi oranı hesaplanamadığı için Ch.3'ün "vergi oranı seçimi" (İLKE-68/69/70) metodolojisi TAMAMEN teorik kalıyor.
 5. **10+ yıllık geçmiş kazanç serisi — TEKRAR (6. kez, artık kitaplar-ötesi EN ISRARLI yapısal eksiklik) doğrulandı** — aritmetik/geometrik büyüme oranı hesaplarının (FORMÜL-36/37) ortak engeli; `trends.py`'nin 12-çeyrek penceresi bu bölümdeki hiçbir çok-yıllı büyüme formülü için YETERLİ DEĞİL.
 6. **Net Borç İhracı/Geri Ödemesi (ayrı kalemler)** — Özkaynak Yeniden Yatırım Oranı (FORMÜL-40) için gerekli, sadece dönem-sonu STOK `financial_debt` VAR, AKIŞ (ihraç/ödeme) YOK.
+
+---
+
+# KISIM 3 — Chapter 5-6: Equity Discounted Cash Flow Models + Firm Valuation Models
+
+**Kapsam:** Chapter 5: Equity Discounted Cash Flow Models (PDF s.218-260), Chapter 6: Firm Valuation Models (PDF s.261-305) — Part One (Discounted Cash Flow Valuation)'ın SON iki bölümü. ID numaralandırması kesintisiz devam eder (İLKE-99'dan, FORMÜL-52'den, BAYRAK-14'ten, Kontrol Listesi L'den).
+
+## İlkeler (devam)
+
+**Chapter 5 — Equity Discounted Cash Flow Models:**
+
+- **İLKE-99 (DDM'in temel prensibi):** Bir hissenin değeri, SONSUZA dek beklenen temettülerin bugünkü değeridir — elde tutma dönemi SONUNDAKİ beklenen fiyat da ZATEN o noktadan SONRAKİ temettülerin bugünkü değerinden TÜRER, bu yüzden model "fiyat" terimini İÇERMEDEN doğrudan temettülere indirgenebilir. (s.218-219)
+- **İLKE-100 (Gordon Büyüme Modelinin 2 kritik uyarısı):** (1) Temettü büyüme oranı SONSUZA dek sürdüğü için firmanın DİĞER TÜM operasyonel ölçütleri (gelir, kazanç) de AYNI oranda büyümek ZORUNDADIR — aksi halde payout oranı SIFIRA veya SONSUZA yakınsar (istikrarsız durum); (2) "istikrarlı büyüme oranı" konusunda analistler ENFLASYON BEKLENTİSİ farkı, firmanın EKONOMİDEN DAHA YAVAŞ büyüme SEÇENEĞİ, ve BİRKAÇ yıllık üstün büyümeyi PRİM olarak EKLEME (max +%0,25-0,5, DAHA FAZLASI için 2/3 aşamalı modele geçilmeli) nedenleriyle YİNE DE FARKLI sonuçlara ULAŞABİLİR. (s.220-221)
+- **İLKE-101:** Gordon modeli, ORTALAMA büyümesi istikrarlıya YAKIN olan DÖNGÜSEL firmalar için de KULLANILABİLİR (kazanç oynak olsa bile) — çünkü (a) temettüler kazançlardan DAHA DÜZ (smoothed) seyreder, (b) ortalama büyüme kullanmanın matematiksel etkisi KÜÇÜKTÜR. (s.221)
+- **İLKE-102 (2 aşamalı DDM):** Patent koruması VEYA güçlü giriş engelleri gibi BELİRLİ/ÖNGÖRÜLEBİLİR bir "üstün büyüme SONU" olan firmalar için uygundur. İstikrarlı dönem payout oranı, İÇ TUTARLILIK için `1 - g/ROE` özdeşliğinden TÜRETİLMELİDİR (rastgele SEÇİLMEMELİ) — YÜKSEK büyüme firmasının beta'sı 2 olabilir ama İSTİKRARLI dönemde 0,8-1,2 bandına YAKINSAMALIDIR (Ch.4 kuralının TEKRARI). (s.222-223)
+- **İLKE-103 (İma edilen büyüme oranı — "implied growth rate"):** Mevcut piyasa fiyatına ULAŞMAK için gereken büyüme oranı, İKİ şekilde YORUMLANABİLİR: (1) GÜVENLİK MARJI göstergesi (Goldman Sachs örneği: gerçek büyüme, analistin %16,82 baz senaryosundan HAYLI DÜŞÜK olsa bile hisse HALA ucuz kalabilir çünkü piyasa fiyatı sadece %2,6 büyüme İMA EDER); (2) analistin modelde EKSİK bıraktığı bir unsurun (örn. yatırım bankası kazançlarının DÖNGÜSELLİĞİ) İPUCU. (s.225-226)
+- **İLKE-104 (H Modeli):** İki aşamalı modelin AKSİNE büyüme oranı ANİDEN DEĞİL DOĞRUSAL OLARAK (linear) yüksek başlangıç oranından (ga) istikrarlı orana (gn) 2H yıl İÇİNDE AZALIR. İKİ SINIRLAMASI VAR: (1) sapmalar (özellikle BÜYÜK sapmalar) KATI doğrusal yapıdan değeri BOZAR; (2) payout oranının HER İKİ AŞAMADA SABİT tutulması İÇSEL TUTARSIZLIK yaratır (büyüme DÜŞTÜKÇE payout genelde ARTAR) — bu yüzden DÜŞÜK/SIFIR temettülü firmalar için UYGUNSUZDUR. (s.226-228)
+- **İLKE-105 (3 aşamalı DDM):** EN GENEL model — payout oranına HİÇBİR kısıt KOYMAZ, yüksek büyüme + geçiş + istikrarlı büyüme 3 AYRI aşamayı ayrı ayrı MODELLER. PRATİKTE, hem büyümesi HEM DE payout/riskinin ZAMAN İÇİNDE değişmesi beklenen (%25'i AŞAN "çok yüksek" büyümeli, kitabın kaba kuralına göre — istikrarlı büyüme %6-8 iken) firmalar için EN UYGUN modeldir. (s.228-230, dipnot 4)
+- **İLKE-106 (DDM'in 3 gücü):** (1) Temettü, firmadan gelen TEK "ELLE TUTULUR" nakit akışıdır (FCFE tahminleri her zaman TAHMİN olarak KALIR — yatırımcı Microsoft'un nakit bakiyesinden PAY TALEP EDEMEZ); (2) DAHA AZ VARSAYIM gerektirir (capex/amortisman/işletme sermayesi TAHMİN edilmez, sadece geçmiş temettü + büyüme oranı); (3) yöneticiler temettüyü OYNAK kazançlarla bile SÜRDÜRÜLEBİLİR seviyede tutmaya ÇALIŞIR — bu yüzden temettü bazlı değerleme ZAMAN İÇİNDE DAHA AZ OYNAKTIR. (s.232)
+- **İLKE-107 (DDM'in 2 zaafı):** (1) FCFE'DEN AZ dağıtan firmalarda (nakit biriktiren) — model bu nakdi/değerini GÖZ ARDI EDER, DEĞERİ DÜŞÜK GÖSTERİR; (2) FCFE'DEN ÇOK dağıtan firmalarda (borç/yeni hisse ile finanse edilen temettü) — dış finansmanın SONSUZA DEK SÜRDÜRÜLEBİLECEĞİNİ ZIMNEN varsayarak DEĞERİ ABARTIR. (s.232-233)
+- **İLKE-108 (DDM'in 3 UYGUN kullanım senaryosu):** (1) FCFE'yi AŞAN temettü ödeyen firmalarda TABAN/MUHAFAZAKAR değer sağlar (dağıtılmayan nakdin KÖTÜ yatırımlara/akiziyona harcanacağı varsayımıyla); (2) FCFE'yi ORTALAMA OLARAK dağıtan İSTİKRARLI/OLGUN firmalarda (özellikle eskiden düzenlenmiş telefon/elektrik şirketleri) GERÇEKÇİ tahmin verir; (3) capex/işletme sermayesi tahmininin ZOR/ANLAMSIZ olduğu sektörlerde (banka, yatırım bankası, sigorta — işletme sermayesi kavramı bu şirketlerde ANLAMSIZDIR VE düzenleyici sermaye oranları defter özkaynağına DAYANIR) TEK UYGULANABİLİR yöntemdir. [→ KONTROL LİSTESİ L] (s.233-234)
+- **İLKE-109 (Genişletilmiş DDM — hisse geri alımı dahil):** ABD'de 2000'lerin başından itibaren hisse geri alımı ile dağıtılan nakit, KONVANSİYONEL temettüyü AŞMIŞTIR — "modifiye payout oranı" ((temettü+geri alım)/net kâr) TEK YIL yerine 4-5 YILLIK ORTALAMA olarak hesaplanmalıdır (geri alımlar temettü GİBİ düzleştirilmiş DEĞİLDİR, bir yıl $3 milyar geri alıp SONRAKİ 3 yıl HİÇ yapmayabilir). (s.234-235)
+- **İLKE-110:** Hisse geri alımı özkaynak DEFTER DEĞERİNİ düşürerek ROE'yi YAPAY OLARAK ARTIRABİLİR — bu YÜKSELTİLMİŞ ROE, YENİ yatırımların MARJİNAL getirisi olarak KULLANILIRSA firma değeri ABARTILIR; DÜZELTME: son yıllardaki geri alımları defter özkaynağına GERİ EKLEYİP ROE'yi YENİDEN hesaplamak DAHA MAKUL bir sonuç verir. (s.235-236)
+- **İLKE-111:** DDM, TEK bir şirket için OLDUĞU KADAR bir SEKTÖRE veya TÜM PİYASAYA da uygulanabilir — piyasa fiyatı toplam piyasa değeriyle, beta piyasanın KENDİSİ için 1 İLE (ihtiyaç YOK), sektör için SEKTÖR BETASI ile değiştirilir; TÜM firmaların BİRLEŞİK kazanç büyümesinin EKONOMİDEN uzun süre HIZLI OLAMAYACAĞI konusunda EK dikkat gerekir. (s.237)
+- **İLKE-112 (FCFE modelinin temel prensibi):** FCFE'yi kullanmak, temettü YERİNE nakdi koymaktan FAZLASIDIR — FCFE'nin TAMAMEN dağıtıldığı ZIMNEN varsayılır, bunun 2 SONUCU vardır: (1) firma içinde GELECEKTE HİÇBİR nakit BİRİKMEZ; (2) beklenen büyüme, SADECE faaliyet varlıklarından gelen gelirin büyümesini YANSITIR (nakit/menkul kıymet GELİRİNİN büyümesini DEĞİL). (s.239)
+- **İLKE-113:** FCFE modeli, halka açık bir şirketin hissedarını ÖZEL bir işletmenin sahibi GİBİ ele alır — bu, GÜÇLÜ bir KURUMSAL YÖNETİM sisteminin VARLIĞINI ZIMNEN varsayar: yöneticiler FCFE'yi dağıtmaya ZORLANAMASA bile, hissedarlar dağıtılmayan nakdin İSRAF EDİLMEMESİ için BASKI yapabildiği varsayılır. (s.239-240)
+- **İLKE-114:** FCFE modelinde tutarlılık İÇİN 2 kritik değişiklik gerekir: standart TUTMA ORANI (retention ratio) yerine ÖZKAYNAK YENİDEN YATIRIM ORANI (equity reinvestment rate — net kârın NE KADARININ firmaya geri yatırıldığını ölçer, dağıtılmayan HERŞEYİN otomatik yeniden yatırıldığı varsayımı YERİNE); standart ROE yerine NONCASH (nakit dışı) ROE (nakit/menkul kıymet gelirinin VE defter değerinin ARINDIRILMIŞ hali) — model içinde ARTIK nakit BİRİKMEDİĞİ için. (s.240)
+- **İLKE-115 (Sabit büyüme FCFE modeli — Gordon'un FCFE karşılığı):** Gordon modeliyle AYNI kısıtlara TABİDİR (istikrarlı büyüme ≤ ekonomi büyümesi, beta ~1). İstikrarlı dönem reinvestment tahmininde 2 yol: SEKTÖR ortalama capex/amortisman oranı KULLAN, VEYA `g/ROE` özdeşliğinden TÜRET. Firma istikrarlı VE FCFE'sini TAM dağıtıyorsa, sonuç Gordon modeliyle AYNI ÇIKAR. (s.241-242)
+- **İLKE-116 (2 aşamalı FCFE modeli):** Terminal value hesabındaki reinvestment/beta/borç oranı İSTİKRARLI dönem karakteristikleriyle TUTARLI olmalıdır — YÜKSEK büyüme fazında capex, amortismanı BÜYÜK ÖLÇÜDE AŞABİLİR ama İSTİKRARLI fazda bu FARK DARALMALIDIR. (s.243-244)
+- **İLKE-117 (E Modeli — 3 aşamalı FCFE):** Yüksek büyüme + geçiş + istikrarlı büyüme 3 aşaması İÇİN tasarlanmıştır — ÖZELLİKLE yakın gelecekte NEGATİF FCFE beklenen (agresif yeniden yatırım yapan) GENÇ/yüksek-büyüme firmaları için EN GERÇEKÇİ sonuçları verir: negatif nakit akışlarının bugünkü değeri, DOLAYLI olarak büyümeyi finanse etmek için gelecekte İHRAÇ EDİLECEK yeni hisselerin SEYRELME (dilution) etkisini de YAKALAR. (s.246-248)
+- **İLKE-118 (FCFE'nin DDM'ye göre 2 avantajı):** (1) yönetimin temettü POLİTİKASINA BAĞIMLI DEĞİLDİR — "potansiyel temettüyü" (ne DAĞITILABİLECEĞİNİ) kullanır; (2) NEGATİF DEĞER alabilir (temettü ASLA negatif OLAMAZ) — yüksek yeniden yatırım ihtiyacı olan büyüme firmaları için GERÇEKÇİ bir özellik, bu firmaların GELECEKTE yeni hisse ihraç edeceğini modele DOLAYLI olarak dahil eder. (s.250-251)
+- **İLKE-119 ("Yaygın Hata" — FCFE modelinde çift sayım):** FCFE'yi iskonto EDİP AYRICA firma içindeki nakit BİRİKİMİNİ ayrıca değere EKLEMEK bir ÇİFT SAYIM hatasıdır — FCFE modeli ZATEN TÜM nakdin dağıtıldığını (birikmediğini) VARSAYAR. [→ BAYRAK-15] (s.251)
+- **İLKE-120 (FCFE modelinin sınırı):** Capex/amortisman/işletme sermayesi/net borç akışlarının tahmini İMKÂNSIZ/ANLAMSIZ olduğu durumlarda (finansal hizmetler firmaları, güvenilmez finansal bilgi) FCFE modeli KULLANILAMAZ — DDM'ye GERİ DÖNÜLMELİDİR. (s.252)
+- **İLKE-121 (FCFE ve DDM ne zaman EŞİTLENİR):** (1) temettü=FCFE İSE (basit); (2) FCFE>temettü AMA fazla nakit ADİL FİYATLI (Net Bugünkü Değeri SIFIR) varlıklara YATIRILIYORSA — bu durumda DDM'de nakit BİRİKİMİNİN AYRICA TAKİP EDİLİP değere EKLENMESİ GEREKİR (aksi halde DDM SADECE bir "alt sınır" olarak kalır, cash TAMAMEN İSRAF EDİLMİŞ GİBİ VARSAYILMIŞ olur). [→ KONTROL LİSTESİ M] (s.252-253)
+- **İLKE-122 (FCFE ve DDM ne zaman FARKLILAŞIR):** FCFE>temettü VE fazla nakit DÜŞÜK GETİRİLİ/NEGATİF NPV yatırımlara (KÖTÜ akiziyonlar) HARCANIYORSA FCFE değeri DAHA YÜKSEK çıkar; TEMETTÜ FCFE'Yİ AŞIYORSA firma yeni hisse/borç İHRAÇ ETMEK ZORUNDA kalır, bu 3 OLUMSUZ sonuçtan BİRİNE yol açar: hisse ihraç MALİYETİ, AŞIRI kaldıraç, veya sermaye KISITLAMASI nedeniyle İYİ PROJELERİN REDDEDİLMESİ. (s.253-254)
+- **İLKE-123 (FCFE-DDM farkının anlamı):** İki modelin farkı, "KONTROL DEĞERİ"NİN bir bileşeni olarak yorumlanabilir — düşmanca bir devralmada alıcı, temettü POLİTİKASINI DEĞİŞTİRİP FCFE'yi YAKALAYABİLİR. Kurumsal kontrol PİYASASININ AÇIK olduğu (devralma OLASILIĞI yüksek) durumlarda FCFE değeri, KAPALI olduğu durumlarda DDM değeri DAHA UYGUN KIYASLAMA (benchmark) noktasıdır. (s.254-255)
+- **İLKE-124 (Hisse başı vs toplam/aggregate değerleme):** Hisse başı yaklaşım BASİTTİR (veri daha erişilebilir) ama TOPLAM değerleme 2 nedenle TERCİH EDİLİR: (1) faaliyet varlıkları/nakit AYRIMI net kârdan BAŞLAYINCA DAHA KOLAY yapılır; (2) opsiyon/warrant/dönüştürülebilir tahvil VARKEN "kaç hisse" sorusu TARTIŞMALIDIR — EN SAĞLAM yöntem opsiyonları AYRI bir opsiyon fiyatlama modeliyle DEĞERLEYİP toplam özkaynak değerinden ÇIKARMAK, kalan tutarı GERÇEK (seyreltilmemiş) hisse sayısına BÖLMEKTİR. (s.258-259)
+
+**Chapter 6 — Firm Valuation Models:**
+
+- **İLKE-125 (Cost of Capital yaklaşımının temel prensibi):** FCFF, WACC ile İSKONTO EDİLİR — borcun VERGİ FAYDASI (vergi SONRASI maliyette) VE borcun getirdiği EK RİSK (daha yüksek beta/maliyette) HER İKİSİ DE cost of capital İÇİNE ZATEN GÖMÜLÜDÜR. Borç verenler ile özkaynak sahipleri, firmaya sermaye SAĞLAYAN "ORTAKLAR" olarak görülür — fark SADECE nakit akışı ÖNCELİĞİNDEDİR (borç veren SABİT/öncelikli, özkaynak sahibi ARTIK/sonraki talep sahibidir). (s.261-262)
+- **İLKE-126 (İstikrarlı büyüme FCFF modelinde tutarlılık):** Reinvestment oranı İSTİKRARLI büyüme oranı VE sürdürülebilir ROC'tan TÜRETİLMELİDİR (İLKE-95'in FIRMA versiyonu); işletme sermayesi DEĞİŞİMİ SONSUZA DEK NEGATİF olamaz (İLKE-73'ün firma seviyesindeki TEKRARI — kısa vadede kabul edilebilir ama TERMİNAL değerde SIFIRLANMALI/pozitife dönmeli); beta 0,8-1,2 bandına yakınsamalı. (s.262-263)
+- **İLKE-127 (Faaliyet Varlığı Değerinden Özkaynak Değerine Geçiş — 6+6 kalem):** EKLENECEK: nakit ve menkul kıymetler, azınlık pay YATIRIMLARININ değeri (başka şirketlerdeki), ATIL/kullanılmayan varlıklar. ÇIKARILACAK: faizli borç, operating lease taahhütlerinin PV'si, KONSOLİDE edilen iştiraklerdeki AZINLIK PAYLARI (parent şirket %50+ hissedarsa konsolide edilir ama azınlık payı ÇIKARILMALI), fonsuz emeklilik/sağlık yükümlülükleri, beklenen dava ÖDEMELERİ. [→ KONTROL LİSTESİ N] (s.265-267)
+- **İLKE-128 ("Ne kadar detay?" — Ch.1'in parsimoni ilkesinin firma değerlemesindeki somut uygulaması):** Faaliyet MARJLARI istikrarlıysa doğrudan FAALİYET KÂRINDAN başlamak YETERLİDİR; marjlar DEĞİŞKENSE (özellikle marjı hedef değere YAKINSAYAN genç firmalarda) GELİRDEN başlayıp YIL YIL marj projeksiyonu yapmak GEREKİR — daha fazla detay SADECE, o detayı TAHMİN ETMEK için YETERLİ BİLGİ varsa DEĞER KATAR. (s.275)
+- **İLKE-129 (Cost of Capital yaklaşımının 3 sınırlaması):** (1) FCFE, insanların DOĞAL olarak düşündüğü (borç ödemesi SONRASI) nakit akışına DAHA SEZGİSELDİR; (2) FCFF'nin BORÇ-ÖNCESİ odağı SAĞ KALIM sorunlarını GİZLEYEBİLİR (FCFF pozitifken FCFE, büyük borç yükü nedeniyle AŞIRI NEGATİF olabilir — firma yeni fon BULAMAZSA batabilir, FCFF bunu ASLA GÖSTERMEZ); (3) SABİT borç ORANI varsayımı GERÇEKÇİ OLMAYABİLİR — büyüyen bir firma hedef orana ULAŞMAK için MASİF miktarda borç ihraç etmek ZORUNDA kalabilir, defter borç oranı FIRLAYIP KOVENANT tetikleyebilir. [→ BAYRAK-16] (s.278)
+- **İLKE-130 (Firma vs özkaynak değerlemesi — TEORİDE eşit, PRATİKTE 3 KOŞUL gerektirir):** DEĞERLER teoride EŞİT olmalıdır AMA pratikte YAKINSAMA İÇİN 3 varsayım GEREKİR: (1) cost of capital hesabında kullanılan borç/özkaynak DEĞERLERİ, VARILAN sonuçtaki değerlerle EŞİT olmalı (DAİRESELLİK uyarısı — piyasa fiyatı yanlışsa iki yöntem UYUŞMAZ); (2) olağanüstü/nakit-dışı bir kalem OLMAMALI; (3) faiz gideri = pretax cost of debt × PİYASA DEĞERİ borç OLMALI (eski, DÜŞÜK faizli borç varsa İKİ yöntem SAPAR). (s.279-280)
+- **İLKE-131 (APV — Adjusted Present Value — yaklaşımının 3 adımı):** (1) BORÇSUZ (unlevered) firma değeri (unlevered cost of equity ile iskonto); (2) borcun yarattığı VERGİ TASARRUFUNUN bugünkü değeri (perpetuite varsayımıyla `t×D`); (3) beklenen İFLAS MALİYETİNİN bugünkü değeri (temerrüt olasılığı × iflas maliyeti). [→ KONTROL LİSTESİ O] (s.280-282)
+- **İLKE-132 (İflas olasılığı tahmininin 2 yolu):** (1) her borç seviyesinde SENTETİK kredi notu tahmin edip AMPİRİK temerrüt oranı tablolarını (Altman&Kishore gibi) KULLANMAK; (2) firmanın GÖZLEMLENEBİLİR karakteristiklerine dayalı probit/istatistiksel bir MODEL kullanmak. (s.282)
+- **İLKE-133 (İflas maliyeti — YÜKSEK belirsizlik taşıyan bir girdi):** DOĞRUDAN maliyetler (hukuki/idari) GENELDE KÜÇÜK (Warner 1977, demiryolu iflasları çalışması: ~%5, firma değerine ORANLA); DOLAYLI maliyetler (müşteri/tedarikçi güveni kaybı, operasyonel BOZULMA) firma değerinin %25-30'una KADAR çıkabileceği SPEKÜLE edilir (Shapiro&Titman — DOĞRUDAN kanıt SUNMAZLAR); Altman (1984) 1980-82 arası batan 7 firmada ORTALAMA %15 tahmin etmiştir. Bu belirsizlik, APV yaklaşımının EN BÜYÜK PRATİK zaafıdır. (s.282-283)
+- **İLKE-134 (Cost of Capital vs APV — farklılık nedenleri):** (1) İFLAS MALİYETİNİN ele alınışı FARKLIDIR — APV, DOLAYLI iflas maliyetlerini AYRI/ESNEK bir şekilde MODELLEYEBİLİR, Cost of Capital yaklaşımı BUNLARI SADECE pretax cost of debt/levered beta İÇİNE DOLAYLI/EKSİK biçimde GÖMER; (2) APV vergi faydasını SADECE MEVCUT $-borç ÜZERİNDEN hesaplar, Cost of Capital yaklaşımı İSE (sabit borç ORANI varsayımı nedeniyle) GELECEKTEKİ borç İHRAÇLARININ vergi faydasını da BUGÜNKÜ değere DAHİL EDER. (s.284-285)
+- **İLKE-135 (APV'nin YAYGIN metodolojik hatası):** İflas maliyeti TAHMİN EDİLEMEDİĞİNDE (yaygın durum), analistler bunu genelde TAMAMEN İHMAL EDER — bu, SİSTEMATİK olarak "OPTİMAL borç oranı %100'DÜR" gibi GERÇEKÇİ OLMAYAN bir sonuca YOL AÇAR (sadece vergi FAYDASI sayılıp İFLAS MALİYETİ SAYILMAZSA borç HER ZAMAN "ucuz" görünür). [→ BAYRAK-17] (s.301-302)
+- **İLKE-136 (Artık Getiri/EVA modelleri — Ch.4'ün mantıksal DEVAMI):** Ch.4'te kurulan "büyüme, SADECE fazla getiriyle BİRLİKTE değer yaratır" ilkesinin DOĞRUDAN UYGULAMASIDIR — EVA, Yatırılan Sermaye × (ROC - Cost of Capital) olarak TANIMLANIR, firma DEĞERİNİ mevcut+gelecek "fazla getiri"nin toplamı olarak İFADE EDER. (s.285-286)
+- **İLKE-137 (EVA hesabında yatırılan sermaye tahmini):** Piyasa değeri, GELECEK büyümeyi de İÇERDİĞİNDEN, "SADECE mevcut varlıklara yatırılan sermaye" için DEFTER DEĞERİ bir PROXY olarak KULLANILIR — ANCAK DCF'teki AYNI 3 düzeltme (operating lease KAPİTALİZASYONU, R&D KAPİTALİZASYONU, tek seferlik/kozmetik kalemlerin ARINDIRILMASI) EVA hesabı için de MUTLAKA GEREKLİDİR — aksi halde defter değeri "DÜZELTİLEMEYECEK KADAR BOZUK" olabilir (bu durumda sermaye SIFIRDAN, varlık BAZLI tahmin edilmelidir). (s.286-287)
+- **İLKE-138 (EVA hesabında cost of capital — MUTLAKA piyasa değeri ağırlıklı):** Sermaye İÇİN defter değeri, cost of capital İÇİN piyasa değeri kullanmak ÇELİŞKİLİ DEĞİLDİR — firma, PİYASA DEĞERİ cost of capital'ını AŞMAK ZORUNDADIR (fonlar BAŞKA YERDE piyasa oranıyla değerlendirilebilirdi). DEFTER DEĞERİ cost of capital kullanmak, cost of capital'ı SİSTEMATİK OLARAK DÜŞÜK gösterir (ÖZELLİKLE yüksek kaldıraçlı firmalarda DAHA FAZLA) — bu da EVA'yı YAPAY OLARAK ŞİŞİRİR. [→ BAYRAK-18] (s.287)
+- **İLKE-139 (Firma Değeri = Sermaye + EVA'ların BD'si — DCF ile MATEMATİKSEL eşdeğerlik):** Firma değeri, Yatırılan Sermaye + Mevcut Varlıkların EVA'sının bugünkü değeri + Gelecek Yatırımların EVA'sının bugünkü değeri OLARAK yazılabilir — DOĞRU koşullar sağlandığında standart DCF (FCFF/WACC) ile TAM AYNI sonucu VERİR (kitapta Titan Cement örneğiyle SAYISAL olarak DOĞRULANMIŞTIR). (s.287-288, 290-292)
+- **İLKE-140 (EVA-DCF eşdeğerliğinin 4 KOŞULU):** (1) DCF'te kullanılan düzeltilmiş faaliyet kârı İLE EVA'da kullanılan AYNI olmalı; (2) büyüme oranı FUNDAMENTALS'tan (reinvestment×ROC) türetilmiş olmalı, EGZOJEN bir sayı OLMAMALI; (3) yatırılan sermaye HER DÖNEM reinvestment EKLENEREK güncellenmeli; (4) terminal değer varsayımları (ÖZELLİKLE sermaye getirisi=sermaye maliyeti ÖZEL durumunda) TUTARLI olmalı. Bu 4 koşuldan HERHANGİ BİRİ İHLAL edilirse İKİ yöntem FARKLI sonuç VERİR. (s.292-293)
+- **İLKE-141 (Modigliani-Miller 1958 teoremi ve UZANTILARI):** VERGİSİZ/temerrüzSÜZ/agency-maliyetSİZ bir dünyada firma DEĞERİ finansman KARIŞIMINDAN BAĞIMSIZDIR — borcun UCUZLUĞU, özkaynağın ARTAN riskiyle (ve YÜKSELEN cost of equity'siyle) TAM DENGELENİR, cost of capital SABİT KALIR. MM'nin SONRAKİ makalesi VERGİYİ eklediğinde optimal borç oranı %100'e (AŞIRI uç) KAYAR; İFLAS RİSKİ de eklenince bir TRADE-OFF (denge noktası) OLUŞUR. (s.293)
+- **İLKE-142 (Sermaye yapısının değere etkisi — KARIŞIK ampirik kanıt):** BORÇ oranı ile değerleme ÇARPANLARI arasında KESİTSEL (farklı firmalar arası) KORELASYON ZAYIFTIR (bu MM görüşünü DESTEKLER) AMA kaldıraç ARTIRAN EYLEMLER (borçla finanse edilen hisse GERİ ALIMI) genelde firma DEĞERİNİ ARTIRIR (bu, kaldıracın ETKİSİ OLDUĞUNU DESTEKLER) — sonuç KESİN DEĞİLDİR. (s.293-294)
+- **İLKE-143 (Optimal sermaye yapısı — 2 eşdeğer yöntem):** (1) COST OF CAPITAL yaklaşımı — WACC'ı MİNİMİZE eden borç ORANINI bul (bu, firma değerini MAKSİMİZE eder, ÇÜNKÜ nakit akışları SABİT tutulup SADECE iskonto oranı DEĞİŞTİRİLİR); (2) APV yaklaşımı — levered firma değerini DOĞRUDAN MAKSİMİZE eden $-BORÇ tutarını bul. AYNI varsayımlarla İKİSİ de AYNI (Titan Cement örneğinde HER İKİSİ de ~%40 optimal borç oranı) sonucu VERİR. [→ KONTROL LİSTESİ P] (s.294-301)
+- **İLKE-144 (Sermaye yapısı analizinde MEVCUT borcun da YENİDEN FİYATLANMASI GEREKİR):** Her borç seviyesinde MEVCUT (eski) borcun da YENİ orana karşılık gelen FAİZ oranıyla REFİNANSE edildiği VARSAYILMALIDIR — bu (a) koruyucu "put" opsiyonu olan eski borç sahiplerinin GERÇEK davranışını YANSITIR, (b) "SERVET TRANSFERİ" (wealth expropriation — borç ARTINCA eski, düşük-faizli borç sahiplerinin KAYBI) etkisini ENGELLER. Ayrıca, borç seviyesi YÜKSELDİKÇE FAİZ GİDERİ FVÖK'ü AŞARSA vergi ORANI (kalan vergi kalkanı payına göre) AŞAĞI DÜZELTİLMELİDİR — tam vergi avantajı ARTIK GEÇERLİ DEĞİLDİR. (s.296-298)
+
+## Formüller (devam)
+
+- **FORMÜL-52 — Temettü İskonto Modeli (Genel, Sonsuz Ufuk)**
+  - Formül: `P0 = Σ [DPSt / (1+ke)^t]` (t=1'den sonsuza)
+  - QuaxisLabs karşılığı: **VERİ EKSİK** — DPS eksikliği (kümülatif, kitaplar arası en sık tekrarlanan açık) nedeniyle UYGULANAMAZ.
+
+- **FORMÜL-53 — Gordon Büyüme Modeli**
+  - Formül: `P0 = DPS1 / (ke - g)`
+  - QuaxisLabs karşılığı: **VERİ EKSİK** (DPS) — ANCAK yapısal olarak `valuation.py`'nin Damodaran FCFE bloğundaki `equity_value = fcfe * (1+g) / (ke-g)` satırıyla BİREBİR AYNI matematiksel İSKELETİ (Gordon büyüme formülü) paylaşır, SADECE `DPS` yerine `FCFE` kullanılmıştır — bu KISIM 1'de not edilen FORMÜL-47'nin (istikrarlı dönem terminal değer) DAHA GENEL/kök halidir.
+
+- **FORMÜL-54 — İstikrarlı Dönem Payout Oranı (Türetilmiş)**
+  - Formül: `Payout_n = 1 - (g_n / ROE_n)`
+  - QuaxisLabs karşılığı: `roe_annualized` VAR; `g_n` (istikrarlı büyüme) `valuation.py`'de zaten `min(hasılat büyümesi, risksiz faiz, ROE×0.9)` olarak TANIMLI — payout oranının KENDİSİ (temettü dağıtımı GÖSTERİMİ için) hesaplanmıyor ama `reinvestment_rate = g/ROE` satırı MATEMATİKSEL OLARAK `1-payout` ile AYNI ÖZDEŞLİKTİR (Kısım 1 FORMÜL-49 ile AYNI formül, BURADA DDM bağlamında YENİDEN karşımıza çıktı).
+
+- **FORMÜL-55 — İki Aşamalı Temettü İskonto Modeli**
+  - Formül: `P0 = Σ[DPSt/(1+ke,hg)^t] (t=1..n) + Pn/(1+ke,hg)^n`, `Pn = DPSn+1/(ke,st - gn)`
+  - QuaxisLabs karşılığı: **VERİ EKSİK** (DPS).
+
+- **FORMÜL-56 — H Modeli (Doğrusal Azalan Büyüme)**
+  - Formül: `P0 = [DPS0×(1+gn)]/(ke-gn) + [DPS0×H×(ga-gn)]/(ke-gn)` (H = geçiş süresinin yarısı, 2H = toplam geçiş yılı)
+  - QuaxisLabs karşılığı: **VERİ EKSİK** (DPS).
+
+- **FORMÜL-57 — Üç Aşamalı Temettü İskonto Modeli (Genel Form)**
+  - Formül: yüksek büyüme (EPSt×Πa iskonto edilir, ke,hg ile) + geçiş (değişen EPSt×Πt, kümülatif ke ile) + istikrarlı terminal değer (Pn2, ke,st ile)
+  - QuaxisLabs karşılığı: **VERİ EKSİK** (DPS + çok-yıllı EPS serisi).
+
+- **FORMÜL-58 — Modifiye Payout Oranı (Hisse Geri Alımı Dahil)**
+  - Formül: `Modifiye Payout = (Temettü + Hisse Geri Alımı) / Net Kâr` (4-5 yıllık ORTALAMA önerilir)
+  - QuaxisLabs karşılığı: **TAMAMEN VERİ EKSİK** — hem temettü HEM geri alım verisi YOK.
+
+- **FORMÜL-59 — FCFE (Sabit Borç Oranı Kısayolu, Kısım 2 FORMÜL-26'nın DDM bağlamındaki paraleli)**
+  - Formül: `FCFE = Net Kâr - (1-δ)×(Capex-Amortisman) - (1-δ)×ΔNoncash İşletme Sermayesi` (δ=borçla finanse edilen oran)
+  - QuaxisLabs karşılığı: Kısım 2'deki AYNI VERİ EKSİKLİĞİ (Capex).
+
+- **FORMÜL-60 — Sabit (İstikrarlı) Büyüme FCFE Modeli**
+  - Formül: `P0 = FCFE1 / (ke - gn)`
+  - QuaxisLabs karşılığı: `valuation.py`'nin Damodaran bloğuyla YAPISAL OLARAK ÖZDEŞ (bkz. FORMÜL-53 notu) — ZATEN UYGULANIYOR (basitleştirilmiş `reinvestment_rate=g/ROE` girdisiyle).
+
+- **FORMÜL-61 — İki Aşamalı FCFE Modeli**
+  - Formül: `P0 = Σ[FCFEt/(1+ke,hg)^t] (t=1..n) + Pn/(1+ke,hg)^n`, `Pn = FCFE_n+1/(ke,st-gn)`
+  - QuaxisLabs karşılığı: **VERİ EKSİK** (çok-dönemli Capex/WC projeksiyonu YOK) — mevcut Damodaran modeli SADECE tek-aşamalı (Kısım 1) versiyona sahip, ÇOK-AŞAMALI (yüksek büyüme+istikrarlı) GENİŞLETME şu an YOK.
+
+- **FORMÜL-62 — E Modeli (Üç Aşamalı FCFE, Genel Form)**
+  - Formül: yüksek büyüme + geçiş + istikrarlı terminal değer FCFE ile (FORMÜL-57'nin FCFE karşılığı)
+  - QuaxisLabs karşılığı: **VERİ EKSİK** (aynı kök nedenler — Capex/WC çok-dönemli projeksiyon).
+
+- **FORMÜL-63 — İstikrarlı Büyüme FCFF Modeli (Firma Değeri)**
+  - Formül: `Firma Değeri = FCFF1 / (WACC - gn)`
+  - QuaxisLabs karşılığı: **TAMAMEN VERİ EKSİK** — WACC hiç hesaplanmıyor (Kısım 1 FORMÜL-21), FCFF de (Kısım 2 FORMÜL-27) eksik veriye bağlı; QuaxisLabs'ın Damodaran modeli SADECE özkaynak (FCFE) tarafını uyguluyor, FİRMA (FCFF/WACC) tarafı HİÇ YOK.
+
+- **FORMÜL-64 — Genel FCFF Modeli (n Dönem + Terminal Değer)**
+  - Formül: `Firma Değeri = Σ[FCFFt/(1+WACC)^t] (t=1..n) + [FCFFn+1/(WACC-gn)]/(1+WACC)^n`
+  - QuaxisLabs karşılığı: **TAMAMEN VERİ EKSİK** (aynı kök nedenler — FORMÜL-63).
+
+- **FORMÜL-65 — Faaliyet Varlığı Değerinden Özkaynak Değerine Geçiş (Tablo 6.1)**
+  - Formül: `Özkaynak Değeri = Faaliyet Varlığı Değeri + Nakit/Menkul Kıymet + Azınlık Yatırımları + Atıl Varlıklar - Faizli Borç - Kira Taahhütleri PV'si - Azınlık Payları(konsolide) - Fonsuz Emeklilik/Sağlık - Beklenen Dava Ödemeleri`
+  - QuaxisLabs karşılığı: **KISMEN VAR** — `cash`, `financial_debt` HAZIR; azınlık payı yatırımları, atıl varlıklar, kira taahhüt PV'si, fonsuz emeklilik/dava yükümlülükleri hiçbiri STANDALONE alan olarak YOK (Buffett turunda da kısmen tespit edilen eksiklikler) — Faaliyet Varlığı Değerinin KENDİSİ zaten hesaplanamadığından (FORMÜL-63/64 eksikliği) bu geçiş formülü ŞU AN PRATİK ÖNEM TAŞIMIYOR.
+
+- **FORMÜL-66 — APV: Borçsuz (Unlevered) Firma Değeri**
+  - Formül: `Değer(Unlevered) = FCFF0×(1+g) / (ρu - g)` (ρu = unlevered cost of equity)
+  - QuaxisLabs karşılığı: **VERİ EKSİK** — `ρu` için unlevered beta gerekir (Kısım 1 FORMÜL-02/10 eksikliği), FCFF de (Kısım 2 FORMÜL-27) eksik.
+
+- **FORMÜL-67 — APV: Borcun Vergi Tasarrufunun Bugünkü Değeri (Perpetuite)**
+  - Formül: `Vergi Tasarrufu BD = t × D` (t = marjinal vergi oranı, D = mevcut $ borç)
+  - QuaxisLabs karşılığı: `financial_debt` HAZIR; marjinal vergi oranı (`t`) XI_29'da YOK (Kısım 1 FORMÜL-18'in AYNI eksikliği) — bu, formüldeki İKİ girdiden BİRİNİN eksik olduğu, GÖRECELİ olarak DÜŞÜK maliyetli bir formül (borç zaten VAR, sadece marjinal vergi oranı SABİT bir ülke/sektör varsayımıyla DOLDURULABİLİR — kesin ideal değil ama BASİT bir yaklaşık uygulanabilir).
+
+- **FORMÜL-68 — APV: Beklenen İflas Maliyetinin Bugünkü Değeri**
+  - Formül: `İflas Maliyeti BD = πa × BC` (πa = ek borçla temerrüt olasılığı, BC = iflas maliyetinin BD'si, genelde firma değerinin bir yüzdesi olarak varsayılır)
+  - QuaxisLabs karşılığı: **VERİ EKSİK/METODOLOJİK ZORLUK** — `πa` için sentetik kredi notu GEREKİR (interest coverage ratio, Kısım 1 FORMÜL-17/19 eksikliği); `BC` İSE hiçbir veriden TÜRETİLEMEZ, ELLE bir varsayım (kitap örneği: firma değerinin %30'u) GEREKTİRİR — bu KISIM 1'deki `merton.py` (Distance-to-Default/EDF) modeliyle KAVRAMSAL OLARAK YAKINDIR ama Merton modeli İFLAS MALİYETİNİ değil, SADECE temerrüt olasılığını tahmin eder; BC HİÇBİR modülde YOK.
+
+- **FORMÜL-69 — Levered Firma Değeri (APV Toplamı)**
+  - Formül: `Levered Değer = Unlevered Değer + Vergi Faydası BD'si - Beklenen İflas Maliyeti BD'si`
+  - QuaxisLabs karşılığı: Alt bileşenlerin (FORMÜL-66/67/68) TÜMÜ eksik veriye BAĞLI — **UYGULANAMAZ**.
+
+- **FORMÜL-70 — EVA (Economic Value Added)**
+  - Formül: `EVA = (ROC - WACC) × Yatırılan Sermaye`
+  - QuaxisLabs karşılığı: **KISMEN VAR/PARALEL** — `fundamental_screens.py`'nin Greenblatt `return_on_capital_pct` (EBIT/(NWC+Net Sabit Varlık)) ROC bileşenine YAKIN bir başlangıç noktası sunuyor (Kısım 2 FORMÜL-44 notuyla AYNI); WACC hiç YOK (Kısım 1 FORMÜL-21) — formül TAMAMEN UYGULANAMAZ ama YARISI (ROC) MEVCUT.
+
+- **FORMÜL-71 — Firma Değeri (EVA/Artık Getiri Yaklaşımı)**
+  - Formül: `Firma Değeri = Yatırılan Sermaye + Σ PV(EVAt, mevcut varlıklar) + Σ PV(EVA, gelecek yatırımlar)`
+  - QuaxisLabs karşılığı: **TAMAMEN VERİ EKSİK** (WACC + çok-dönemli reinvestment projeksiyonu eksikliği).
+
+- **FORMÜL-72 — Optimal Sermaye Yapısı (Cost of Capital Yöntemi)**
+  - Formül: `Optimal D/(D+E) = argmin[WACC(D/(D+E))]` (her borç seviyesinde levered beta + sentetik kredi notu bazlı cost of debt yeniden hesaplanarak)
+  - QuaxisLabs karşılığı: **TAMAMEN VERİ EKSİK** — hem levered/unlevered beta (Kısım 1) hem sentetik kredi notu (interest_expense eksikliği) hem WACC'ın KENDİSİ eksik; bu, kitabın EN VERİ-YOĞUN metodolojilerinden biridir ve QuaxisLabs'ın MEVCUT veri modeliyle EN UZAK olduğu formül grubudur.
+
+## Eşikler (devam)
+
+| Metrik | Eşik / Değer | Yorum | Kaynak bölüm |
+|---|---|---|---|
+| JPMorgan Chase (Kasım 2005) — Gordon modeli girdileri | Payout **%65,38**, ROE **%11,16**, beta **0,8**, cost of equity **%7,7** | Tahmini değer piyasa fiyatına ($38) ÇOK YAKIN çıkan somut illüstrasyon | Ch.5, s.221-222 |
+| Goldman Sachs (Kasım 2005) — 2 aşamalı DDM ima edilen büyüme | Baz senaryo **%16,82** vs piyasa fiyatını AÇIKLAYAN **%2,6** | "İma edilen büyüme oranı" kavramına (İLKE-103) somut örnek | Ch.5, s.225-226 |
+| "Çok yüksek büyüme" tanımı (pratik kural) | **>%25** (istikrarlı büyüme %6-8 iken) | 3 aşamalı DDM/E Modeli uygunluk eşiği | Ch.5, dipnot 4 |
+| ABD büyük/olgun firmalarda ortalama payout oranı | **~%60** | Gordon modeli/DDM'in "istikrarlı firma" varsayımına referans değer | Ch.5, dipnot 1 |
+| ExxonMobil FCFE modeli — normalize edilmiş girdiler | Noncash ROE **%21,88**, reinvestment **%16,98**, ima edilen büyüme **%3,71** | Döngüsel emtia şirketinde kâr NORMALLEŞTİRME somut örneği | Ch.5, s.242-243 |
+| Toyota 2 aşamalı FCFE — girdiler | Noncash ROE **%16,55**, equity reinvestment **%64,4%**, büyüme **%10,66** | Yüksek reinvestment oranına somut örnek | Ch.5, s.244-245 |
+| Titan Cement — yüksek/istikrarlı dönem ROC karşılaştırması | ROC **%19,25** (yüksek büyüme) → **%6,57** (istikrarlı, =cost of capital) | Fazla getirinin istikrarlı dönemde EROZYONUNA somut örnek | Ch.6, s.267-268, 290-292 |
+| Titan Cement — optimal borç oranı (HEM Cost of Capital HEM APV yöntemiyle) | **~%40** | İki BAĞIMSIZ yöntemin AYNI sonuca ULAŞTIĞINI DOĞRULAYAN somut örnek | Ch.6, s.298-301 |
+| Doğrudan iflas maliyeti (Warner 1977, demiryolu iflasları) | **~%5** (firma değerine oranla) | APV'nin BC girdisi için tarihsel referans NOKTASI | Ch.6, s.283 |
+| Dolaylı iflas maliyeti (Shapiro&Titman SPEKÜLASYONU) | **%25-30** (firma değerine oranla) | DOĞRUDAN kanıt YOK, sadece SPEKÜLASYON olarak belirtilmiş | Ch.6, s.283 |
+| İflas maliyeti (Altman 1984, 7 firma, 1980-82) | **~%15** (ortalama) | APV illüstrasyonlarında (Titan Cement) KULLANILAN somut referans | Ch.6, s.283, 300 |
+| SAP — sentetik kredi notu / default spread | **AAA** / **%0,35** | Düşük kaldıraçlı büyük teknoloji firmasına somut örnek | Ch.6, s.273 |
+
+**Tablo 6.2 — Altman & Kishore (2000): Kredi Notuna Göre 10 Yıllık Kümülatif Temerrüt Oranı:**
+
+| Kredi Notu | Temerrüt Oranı |
+|---|---|
+| AAA | %0,01 |
+| AA | %0,28 |
+| A+ | %0,40 |
+| A | %0,53 |
+| A− | %1,41 |
+| BBB | %2,30 |
+| BB | %12,20 |
+| B+ | %19,28 |
+| B | %26,36 |
+| B− | %32,50 |
+| CCC | %46,61 |
+| CC | %65,00 |
+| C | %80,00 |
+| D | %100,00 |
+
+(APV yaklaşımının `πa` — temerrüt olasılığı — girdisi için, Kısım 1'deki Tablo 2.4'ün — interest coverage → sentetik not — DOĞAL DEVAMI/uygulaması.)
+
+## Kontrol listeleri (devam)
+
+**Kontrol Listesi L — DDM'in 3 Uygun Kullanım Senaryosu (Ch.5, s.233-234):**
+1. FCFE'yi AŞAN temettü ödeyen firmalarda TABAN/muhafazakâr değer sağlar.
+2. FCFE'yi ORTALAMA OLARAK dağıtan istikrarlı/olgun firmalarda (eski düzenlenmiş utility'ler örneği) GERÇEKÇİ tahmin verir.
+3. Nakit akışı tahmininin ZOR/ANLAMSIZ olduğu sektörlerde (banka/yatırım bankası/sigorta) TEK UYGULANABİLİR yöntemdir.
+
+**Kontrol Listesi M — FCFE/DDM Yakınsama ve Ayrışma Koşulları (Ch.5, s.252-254):**
+- EŞİTLENİR EĞER: (a) temettü=FCFE İSE, VEYA (b) FCFE>temettü AMA fazla nakit ADİL FİYATLI (NPV=0) varlıklara yatırılıyorsa (NOT: bu durumda DDM'de nakit BİRİKİMİNİN AYRICA İZLENİP değere EKLENMESİ GEREKİR).
+- FARKLILAŞIR EĞER: (a) fazla nakit DÜŞÜK GETİRİLİ/kötü akiziyonlara harcanıyorsa (FCFE > DDM), VEYA (b) temettü FCFE'yi AŞIYORSA (ihraç maliyeti/aşırı kaldıraç/sermaye kısıtlaması riskleri doğar).
+
+**Kontrol Listesi N — Faaliyet Varlığı Değerinden Özkaynak Değerine Geçiş (Tablo 6.1, Ch.6, s.265-267):**
+- EKLE: Nakit ve menkul kıymetler + Azınlık pay yatırımlarının değeri + Atıl/kullanılmayan varlıklar.
+- ÇIKAR: Faizli borç + Operating lease taahhütlerinin PV'si + Konsolide edilen iştiraklerdeki azınlık payları + Fonsuz emeklilik/sağlık yükümlülükleri + Beklenen dava ödemeleri.
+
+**Kontrol Listesi O — APV Yaklaşımının 3 Adımı (Ch.6, s.280-282):**
+1. Borçsuz (unlevered) firma değerini HESAPLA (unlevered cost of equity ile iskonto).
+2. Borcun VERGİ TASARRUFUNUN bugünkü değerini EKLE (`t×D`, perpetuite varsayımıyla).
+3. Beklenen İFLAS MALİYETİNİN bugünkü değerini ÇIKAR (`πa×BC`).
+
+**Kontrol Listesi P — Optimal Sermaye Yapısı Tahmini, Cost of Capital Yöntemi Adımları (Ch.6, s.294-296):**
+1. Her borç ORANI seviyesinde levered betayı (Hamada denklemiyle) yeniden HESAPLA → cost of equity.
+2. Her borç ORANI seviyesinde $-borç/faiz giderini TAHMİN ET, sentetik kredi notunu (interest coverage ratio ile) TÜRET → pretax cost of debt.
+3. Faiz gideri FVÖK'ü AŞARSA vergi oranını (kalan vergi kalkanı payına göre) DÜZELT → after-tax cost of debt.
+4. Her seviyede WACC'ı HESAPLA — WACC'IN EN DÜŞÜK olduğu borç oranı OPTİMALDİR.
+
+## Kırmızı bayraklar (devam)
+
+- **BAYRAK-14 — DDM'de Büyük/Artan Nakit Biriktiren Firmaların Sistematik Olarak Düşük Değerlenmesi:** DDM, temettü DIŞINDAKİ tüm nakit akışlarını (ve firma içinde biriken nakdi) TAMAMEN GÖZ ARDI EDER — modifiye payout oranı ((temettü+geri alım)/net kâr) SÜREKLİ ÇOK DÜŞÜK (örn. <%40) VE nakit bakiyesi HER YIL BÜYÜYORSA, DDM sonucu sadece bir "TABAN/ALT SINIR" değer olarak OKUNMALIDIR, GERÇEK değer OLARAK DEĞİL. Nasıl tespit edilir: modifiye payout oranı TRENDİNİ VE nakit bakiyesi BÜYÜME oranını izle. Gereken veri: temettü+geri alım (VERİ EKSİK), `cash` (mevcut, TREND takibi için YETERLİ). (Ch.5, s.232-233)
+- **BAYRAK-15 — FCFE Modelinde Çift Sayım Hatası:** FCFE'yi iskonto EDİP AYRICA firma içindeki nakit BİRİKİMİNİ de değere EKLEMEK — FCFE modeli ZATEN TÜM nakdin dağıtıldığını (BİRİKMEDİĞİNİ) varsayar, bu yüzden AYRICA "nakit birikimi" eklemek ÇİFTE sayımdır. Nasıl tespit edilir: bir DCF/FCFE modelinde HEM "FCFE'nin bugünkü değeri" HEM "gelecekteki nakit bakiyesinin bugünkü değeri" AYRI AYRI toplama EKLENİYOR MU kontrol et. Gereken veri: METODOLOJİK bir kontrol, veri gerektirmez — modelin KENDİSİ incelenmelidir. (Ch.5, s.251)
+- **BAYRAK-16 — Sabit Borç Oranı Varsayımının Büyüyen Firmayı Aşırı Borçlanmaya Zorlaması:** Cost of Capital yaklaşımında SABİT bir hedef borç ORANI (örn. %30) varsayılırsa, HIZLA büyüyen bir firma bu ORANI KORUMAK için GİDEREK ARTAN miktarda YENİ borç İHRAÇ ETMEK zorunda kalır — bu, DEFTER borç oranını KOVENANT tetikleyecek/İFLAS riskini ARTIRACAK seviyelere FIRLATABİLİR, ki modeldeki SABİT oran varsayımı bu RİSKİ GİZLER. Nasıl tespit edilir: modelin ima ettiği YILLIK $-borç ihracını, firmanın MEVCUT büyüklüğüyle KIYASLA — orantısız büyükse ŞÜPHELEN. Gereken veri: çok-yıllı büyüme + borç oranı VARSAYIM SETİ (METODOLOJİK kontrol). (Ch.6, s.278)
+- **BAYRAK-17 — APV'de İflas Maliyetinin İhmal Edilmesi:** Analistler İFLAS MALİYETİNİ (BC) tahmin EDEMEDİKLERİNDE genelde bunu TAMAMEN İHMAL EDİP SADECE vergi FAYDASINI hesaba KATARLAR — bu SİSTEMATİK OLARAK "OPTİMAL borç oranı %100'DÜR" gibi GERÇEKÇİ OLMAYAN bir sonuca YOL AÇAR. Nasıl tespit edilir: bir APV analizinde "beklenen iflas maliyeti" AYRI, AÇIK bir SATIR olarak VAR MI kontrol et — YOKSA veya SIFIR olarak bırakılmışsa şüphelen. Gereken veri: METODOLOJİK kontrol. (Ch.6, s.301-302)
+- **BAYRAK-18 — EVA Hesabında Defter Değeri Cost of Capital Kullanımı:** Yatırılan sermaye İÇİN defter değeri KABUL EDİLEBİLİR bir proxy iken, COST OF CAPITAL için de DEFTER değeri (piyasa değeri YERİNE) kullanmak cost of capital'ı SİSTEMATİK OLARAK DÜŞÜK gösterir (ÖZELLİKLE yüksek kaldıraçlı firmalarda DAHA BÜYÜK sapmayla) — bu da hesaplanan EVA'yı YAPAY OLARAK ŞİŞİRİR ("şirket aslında olduğundan DAHA DEĞER YARATIYOR" YANILSAMASI). Nasıl tespit edilir: EVA/artık getiri raporlarında kullanılan "cost of capital" ağırlıklarının PİYASA DEĞERİ mi DEFTER değeri mi OLDUĞUNU kontrol et. Gereken veri: `market_cap` (piyasa değeri, MEVCUT) vs `equity` (defter değeri, MEVCUT) — bu iki alan ZATEN QuaxisLabs'ta VAR, karşılaştırma KOLAYLIKLA yapılabilir. (Ch.6, s.287)
+
+## Uygulama notları (devam)
+
+**Nicel (skorlanabilir):**
+- Bu Kısımda TESPİT EDİLEN tek somut DÜŞÜK-MALİYETLİ potansiyel eklenti: **BAYRAK-18 tespiti için `market_cap` vs `equity` (defter değeri) ORANI** — her ikisi de ZATEN QuaxisLabs'ta MEVCUT (`compute_valuation().market_cap`, `balance_sheet.equity`), TEK bir oran hesaplaması EVA-tarzı bir "defter/piyasa kaldıraç sapması" UYARISI üretebilir (ama EVA'nın KENDİSİ WACC eksikliği nedeniyle UYGULANAMIYOR — bu, YAN ürün bir sinyal olurdu, ANA formül DEĞİL).
+- Bu Kısımdaki formüllerin BÜYÜK ÇOĞUNLUĞU (FORMÜL-52-72, TOPLAM 21 formül) DPS, Capex, WACC, unlevered beta, marjinal vergi oranı gibi Kısım 1-2'de ZATEN "VERİ EKSİK" olarak İŞARETLENMİŞ kalemlere BAĞLIDIR — bu Kısım YENİ bir veri açığı KEŞFETMEDİ, MEVCUT açıkların (özellikle WACC/marjinal vergi/DPS) DAHA FAZLA formülü BLOKE ETTİĞİNİ DOĞRULADI.
+
+**Nitel (LLM yorumuna uygun):**
+- "İma edilen büyüme oranı" (implied growth rate, İLKE-103) hesabı — piyasa fiyatına ULAŞMAK için gereken büyümeyi TERSİNE ÇÖZMEK, MEVCUT `pe_ratio`/büyüme verisiyle YAKLAŞIK olarak KODLANABİLİR (Graham/PEG mantığına BENZER bir "ima edilen" gösterge) — bu, hâlâ İYİ bir NİCEL aday, sadece BURADA nitel olarak İŞARETLENDİ çünkü DDM/Gordon-özel formülasyonu DPS gerektiriyor; basitleştirilmiş bir F/K-bazlı versiyonu (mevcut Graham/PEG rozetleriyle AYNI mantıkta) DÜŞÜNÜLEBİLİR.
+- APV/Cost of Capital yaklaşımlarının HANGİSİNİN "daha uygun" olduğu (İLKE-134) — LLM'e "bu firmanın borç yapısı NE KADAR İSTİKRARLI/değişken" diye SORULABİLECEK bir NİTEL değerlendirme.
+- BAYRAK-16/17 (metodolojik hatalar) — bir DCF/APV MODELİNİN kendisinin (varsayım seti) LLM tarafından İNCELENMESİNİ gerektirir, sayısal tarama İLE tespit EDİLEMEZ.
+
+**Veri eksikliği nedeniyle UYGULANAMAZ (bu Kısımda PEKİŞTİRİLEN, YENİ bulgu YOK):**
+- Bu Kısım, Kısım 1-2'de TESPİT edilen TÜM ana veri açıklarının (DPS, Capex, WACC/unlevered beta, marjinal vergi oranı/interest_expense) Part One'ın (DCF Valuation) SON iki bölümünde de AYNI ŞİDDETTE devam ettiğini DOĞRULADI — özellikle **WACC'ın HİÇ hesaplanmaması**, bu Kısımdaki FORMÜL-63/64/66-72 (7 formül) gibi FİRMA-seviyesi (FCFF-bazlı) modellerin TAMAMININ ortak, TEK engelidir. Bu, Part One (Ch.2-6) BOYUNCA tekrarlanan bulguya dayanarak: **QuaxisLabs'ın Damodaran değerleme modeli SADECE özkaynak (FCFE, tek-aşamalı) tarafını kapsıyor; firma-seviyesi (FCFF/WACC/APV/EVA) DEĞERLEME AİLESİNİN TAMAMI şu an ürün kapsamı DIŞINDA** — bu, Part One sonunda netleşen EN ÖNEMLİ YAPISAL gözlemdir.

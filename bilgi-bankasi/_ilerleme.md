@@ -159,12 +159,15 @@ Kitap büyük ölçüde NİCEL/formül ağırlıklı (Graham/Buffett'a göre dah
 ### Durum
 TOC ve bölüm sınırları PyMuPDF `get_text()` ile doğrudan (OCR'sız) çıkarıldı, tüm 18 bölüm başlığı + Part sınırları + appendix'ler PDF içinde regex ile bulunup sayfa numaralarıyla doğrulandı. Kullanıcı 9 kısımlık planı onayladı.
 
-### Bölüm bazlı durum — Kısım 1-2/9 TAMAMLANDI (kullanıcı onayı ile art arda devam ediliyor, kısım-kısım onay artık istenmiyor)
+### Bölüm bazlı durum — Kısım 1-3/9 TAMAMLANDI (Part One / Discounted Cash Flow Valuation KISMI'nın TAMAMI bitti) — **KULLANICI TALEBİYLE BU NOKTADA DURDURULDU (token/kota kaygısı)**
 | Kısım | Bölümler | PDF sayfa | İLKE | FORMÜL | Eşik satırı | Kontrol maddesi | BAYRAK | Durum |
 |---|---|---|---|---|---|---|---|---|
 | **Kısım 1** | Ch.1 Introduction to Valuation + Ch.2 Estimating Discount Rates | s.15-117 | 01-57 (57) | 01-24 (24) | 15 + Tablo 2.4 (15 satır kredi notu bandı) | 13 (A:5+B:5+C:3) | 01-07 (7) | TAMAMLANDI, commit `2cbf155` |
-| **Kısım 2** | Ch.3 Measuring Cash Flows + Ch.4 Forecasting Cash Flows | s.118-217 | 58-98 (41) | 25-51 (27) | 15 | 8 (D-K) | 08-13 (6) | TAMAMLANDI, henüz commit edilmedi |
-| Kısım 3-9 | Ch.5-18 + appendix'ler | s.218-864 | — | — | — | — | — | İşlenmedi |
+| **Kısım 2** | Ch.3 Measuring Cash Flows + Ch.4 Forecasting Cash Flows | s.118-217 | 58-98 (41) | 25-51 (27) | 15 | 8 (D-K) | 08-13 (6) | TAMAMLANDI, commit `a0a1277` |
+| **Kısım 3** | Ch.5 Equity DCF Models + Ch.6 Firm Valuation Models | s.218-305 | 99-144 (46) | 52-72 (21) | 12 + Tablo 6.2 (14 satır kredi notu/temerrüt oranı) | 5 (L-P) | 14-18 (5) | TAMAMLANDI, bu turda commit edilecek |
+| **Kısım 4-9** | Ch.7-18 + appendix'ler | s.306-864 | — | — | — | — | — | **İŞLENMEDİ — DURDURULDU. Sıradaki adım: Kısım 4 = Ch.7 Relative Valuation: First Principles + Ch.8 Equity Multiples, PDF s.306-385. İLKE-145'ten, FORMÜL-73'ten, BAYRAK-19'dan devam edilecek.** |
+
+**Kitap geneli TOPLAM sayılar (Kısım 1-3, script ile doğrulandı, kesintisiz/tekrarsız):** İLKE **144** (01-144), FORMÜL **72** (01-72), BAYRAK **18** (01-18), EŞİK toplam **42** satır (15+15+12) + 2 ayrı kredi-notu-bandı tablosu (Tablo 2.4: 15 satır, Tablo 6.2: 14 satır), KONTROL LİSTESİ **26** madde (A-P, 16 liste).
 
 **Kısım 1 — özel notlar:**
 - Bu PDF'te metin katmanı VAR (Graham/Buffett'ın aksine OCR GEREKMEDİ) — ama kitaptaki formüller çoğunlukla görsel/denklem render olarak gömülü ve `get_text()` ile KAYBOLUYOR; formüllerin çoğu ÇEVRELEYEN metin + değişken tanımları + Illustration 2.1-2.8'deki sayısal örneklerden TERS MÜHENDİSLİKLE yeniden inşa edildi (kitaptaki orijinal denklem gösteriminin birebir kopyası değil — zaten telif kuralına uygun).
@@ -181,5 +184,10 @@ TOC ve bölüm sınırları PyMuPDF `get_text()` ile doğrudan (OCR'sız) çıka
 - Noncash İşletme Sermayesi (nakit + kısa vadeli faizli borç arındırılmış) DÜŞÜK maliyetli bir potansiyel iyileştirme olarak işaretlendi — `fundamental_screens.py`'nin HAM `net_working_capital`'i bu düzeltmeyi henüz YAPMIYOR.
 - Temettü/DPS eksikliği bu kitapta 2. kez (Kısım 1 + Kısım 2), kitaplar arası TOPLAM 6. kez doğrulandı — artık QuaxisLabs'ın en SIK tekrarlanan tekil veri açığı olarak KESİNLEŞTİ.
 
-### Sonraki adım (Damodaran)
-Kullanıcı artık kısım-kısım onay istemiyor — Kısım 3'ten (Ch.5 Equity DCF Models + Ch.6 Firm Valuation Models, PDF s.218-305) başlayarak Kısım 9'a kadar ART ARDA, durmadan işlenecek; her kısım kendi standardında BİR KEZ işlenip commit edilecek, tekrar açılıp genişletilmeyecek (zenginleştirme turu YOK). Kısım 9 sonunda tüm kitap için tutarlılık taraması + final rapor yapılacak.
+### Kısım 3 — özel notlar
+- Part One (Discounted Cash Flow Valuation, Ch.1-6)'ın TAMAMI bu kısımla BİTTİ. En önemli YAPISAL sonuç: **QuaxisLabs'ın mevcut Damodaran değerleme modeli (`valuation.py`) SADECE özkaynak/FCFE (tek-aşamalı, β=1 varsayımlı) tarafını kapsıyor — firma-seviyesi (FCFF/WACC/APV/EVA) DEĞERLEME AİLESİNİN TAMAMI (Ch.6'nın konusu) şu an ürün kapsamı DIŞINDA**, çünkü WACC hiç hesaplanmıyor ve bu tek eksiklik Kısım 3'teki 7 formülün (FORMÜL-63/64/66-72) TAMAMINI bloke ediyor.
+- DDM ailesi (Gordon/2-aşamalı/H-modeli/3-aşamalı) TAMAMEN DPS eksikliğine bağlı — bu, kitaplar arası ARTIK 6. kez doğrulanan en sık tekrarlanan veri açığı.
+- Tek somut düşük-maliyetli bulgu: BAYRAK-18 (EVA'da defter-değeri cost-of-capital kullanımı tespiti) için gereken `market_cap` (piyasa değeri) ve `equity` (defter değeri) ikisi de ZATEN QuaxisLabs'ta mevcut — ama EVA'nın kendisi WACC eksikliği nedeniyle uygulanamıyor, bu sadece YAN bir sinyal olurdu.
+
+### DURDURULDU — kullanıcı token/kota kaygısı nedeniyle (bkz. koordinatör talimatı)
+Kısım 1-3 TAMAMLANDI ve commit edildi (Part One / Discounted Cash Flow Valuation'ın TAMAMI). Kısım 4-9 (Ch.7-18, Part Two: Relative Valuation + Part Three: Loose Ends) HENÜZ İŞLENMEDİ. **Sıradaki oturumda başlanacak yer:** Kısım 4 = Ch.7 Relative Valuation: First Principles + Ch.8 Equity Multiples (PDF s.306-385) — ID numaralandırması İLKE-145'ten, FORMÜL-73'ten, BAYRAK-19'dan, Kontrol Listesi Q'dan DEVAM edecek (kesintisiz). Her kısım kendi standardında BİR KEZ işlenip commit edilmeli, tekrar açılıp genişletilmemeli (zenginleştirme turu YOK — Graham dersi). Kısım 9 sonunda tüm kitap için tutarlılık taraması (script ile İLKE/FORMÜL/BAYRAK numaralarının kesintisiz/tekrarsız doğrulanması) + `_ilerleme.md`'ye kitap geneli TOPLAM sayılar bloğu + final rapor yapılmalı.

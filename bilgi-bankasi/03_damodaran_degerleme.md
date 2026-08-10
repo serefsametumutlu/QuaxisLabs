@@ -294,3 +294,272 @@
 4. **Kira taahhüt takvimi (operating lease schedule)** — FORMÜL-23/BAYRAK-05 için gerekli; BIST'te göreceli düşük öncelik (ABD'ye kıyasla daha az yaygın bir açıklama pratiği).
 5. **Piyasa değeri borç (bono fiyatlama/vade yapısı)** — FORMÜL-22/tam WACC için gerekli; DÜŞÜK öncelik (defter değeri kısayolu kitabın kendisince de kabul edilebilir bulunuyor, olgun şirketler için).
 6. **Temettü verisi (DPS)** — FORMÜL-15 (implied cost of equity) için gerekli; bu ARTIK BEŞİNCİ kez (Graham 3, Buffett 1, şimdi Damodaran) farklı kitapta tespit edilen KÜMÜLATİF EN SIK tekrarlanan veri açığı.
+
+---
+
+# KISIM 2 — Chapter 3-4: Measuring Cash Flows + Forecasting Cash Flows
+
+**Kapsam:** Chapter 3: Measuring Cash Flows (PDF s.118-166), Chapter 4: Forecasting Cash Flows (PDF s.167-217). ID numaralandırması Kısım 1'in devamı (İLKE-58'den, FORMÜL-25'ten, BAYRAK-08'den başlar; kesintisiz).
+
+## İlkeler (devam)
+
+**Chapter 3 — Measuring Cash Flows:**
+
+- **İLKE-58:** Nakit akışları 3 farklı eksende sınıflandırılabilir: (1) ÖZKAYNAĞA vs FİRMAYA (borç ödemeleri sonrası/öncesi); (2) NOMİNAL vs REEL (enflasyon içerip içermediği — para birimine göre değişir); (3) VERGİ ÖNCESİ vs SONRASI (kurumlar vergisi sonrası ama yatırımcı vergisi ÖNCESİ standart tanım). (s.118-119)
+- **İLKE-59:** Güncellenmiş kazanç ("trailing 12-month"/TTM) kullanmak KRİTİKTİR — yıllık rapor birkaç ay ESKİ olabilir, özellikle HIZLA değişen (genç/yüksek büyüme) firmalarda son çeyreklik verilerle GÜNCELLENMEDEN değerleme yapmak DEĞER DÜŞÜK GÖSTERİR (Google örneği: 2005 ortası TTM geliri son 10-K'nın 2 KATINDAN FAZLA). Dezavantajı: bazı kalemler (opsiyon detayları gibi) SADECE yıllık raporda açıklanır, çeyreklik veriyle TUTARSIZLIK riski taşır. (s.120-121)
+- **İLKE-60:** Muhasebe kazançlarının 2 EN YAYGIN yanlış sınıflandırması: (1) SERMAYE giderlerinin (R&D gibi) operasyonel gider sayılması — hem faaliyet kârını HEM özkaynak defter değerini DÜŞÜK gösterir; (2) FİNANSAL giderlerin (operating lease) operasyonel gider sayılması — SADECE faaliyet kârını etkiler, net kârı ETKİLEMEZ. (s.121-122)
+- **İLKE-61:** R&D giderlerinin kapitalize EDİLMESİ GEREKİR — muhasebe standartları (belirsizlik gerekçesiyle) TAMAMEN gider yazılmasını zorunlu kılsa da, bu ARAŞTIRMANIN YARATTIĞI VARLIĞIN bilançoda GÖRÜNMEMESİNE ve sermaye/kârlılık oranlarının BOZULMASINA yol açar. Amortisman ömrü SEKTÖRE göre değişir (ilaç firması UZUN — onay süreci uzun; yazılım firması KISA — ürün hızlı ortaya çıkar). (s.122-123)
+- **İLKE-62 ("Diğer" kapitalize edilebilir operasyonel giderler):** R&D'nin ötesinde, MARKA DEĞERİ yaratan reklam (Gillette/Coca-Cola), İNSAN SERMAYESİ yaratan eğitim/işe alım (danışmanlık firmaları), MÜŞTERİ EDİNİMİ yaratan SG&A (Amazon/AOL tipi e-tailer'lar) argümanla kapitalize edilebilir — ANCAK bu YALNIZCA faydanın BİRDEN FAZLA döneme YAYILDIĞINA dair SOMUT KANIT varsa savunulabilir; keyfi kullanım TEHLİKELİDİR. (s.126-127)
+- **İLKE-63:** Operating lease borca çevrildikten SONRA faaliyet kârı 2 adımda düzeltilir: (1) kira gideri geri EKLENİR (finansal gider olduğu için); (2) kiralanan varlığın AMORTİSMANI DÜŞÜLÜR. Amortismanın borç anaparası geri ödemesine YAKLAŞIK EŞİT olduğu varsayılırsa, kısayol: sadece İMA EDİLEN FAİZ GİDERİ geri eklenir (tam düzeltmenin YAKLAŞIK karşılığı). (s.127-128)
+- **İLKE-64 ("Yönetilen kazançlar" fenomeni):** 1990'larda Microsoft 40 çeyrekten 39'unda, Intel de BENZER şekilde analist tahminlerini AŞTI — piyasalar bu davranışı ÖĞRENİR ve "FISILDANAN KAZANÇLAR" (whispered earnings, resmi konsensüsün birkaç kuruş ÜZERİNDE, GAYRIRESMİ bir eşik) oluşturarak tepki verir; Intel 1997'de resmi tahmini AŞMASINA RAĞMEN fısıltı tahmininin ALTINDA kaldığı için hisse fiyatı %5 DÜŞTÜ. (s.129-130)
+- **İLKE-65 (Kazanç yönetiminin 2 sebebi):** (1) Piyasaların İSTİKRARLI+beklenti-üstü kazançları ÖDÜLLENDİRDİĞİNE dair YAYGIN inanç; (2) YÖNETİCİ ÇIKARI — kazanç düştüğünde işten çıkarılma riski artar, tazminat genelde kâr HEDEFLERİNE BAĞLIDIR. (s.130)
+- **İLKE-66 (4 tür olağanüstü/özel kalem, FARKLI muamele gerektirir):** (1) GERÇEKTEN tek seferlik (10 yılda 1 kez) → analiz DIŞI bırakılır; (2) DÜZENLİ ARALIKLARLA tekrarlayan (örn. her 3 yılda restructuring) → aslında "sıradan" gider, YILLIK ORTALAMAYA YAYILARAK dahil edilmeli; (3) HER YIL tekrarlayan ama OYNAK → çok yıllık ORTALAMA ile normalleştirilmeli; (4) İŞARET DEĞİŞTİREN (döviz kuru çevirisi gibi) → GÖZ ARDI edilmesi EN İHTİYATLI yaklaşımdır (zamanla TERSİNE döner). [→ KONTROL LİSTESİ D]
+- **İLKE-67:** Şerefiye amortismanı ve "in-process R&D" write-off'ları NAKİT DIŞI ve genelde VERGİDEN DÜŞÜLEMEZ giderlerdir — kazanç tabanı olarak bu kalemler ÇIKARILMADAN ÖNCEKİ (pre-amortization/pre-writeoff) kazanca bakılmalıdır. Deng&Lev (1999) 389 firmada (1990-96), in-process R&D write-off'larının ORTALAMA alım fiyatının %72'sini oluşturduğunu ve alıcı firmanın kazancını akiziyondan SONRAKİ 4. çeyrekte ORTALAMA %22 ARTIRDIĞINI bulmuştur. (s.134) [→ BAYRAK-11]
+- **İLKE-68 (Efektif vs marjinal vergi oranı ayrımı):** Efektif vergi oranı = ÖDENEN vergi/RAPORLANAN vergi öncesi kâr; marjinal vergi oranı = firmanın SON (veya bir sonraki) gelir dolarına uygulanan yasal orandır. ABD'de marjinal federal oran %35 (eyalet+yerel ile ~%40) iken 2005 ABD medyan EFEKTİF oranı SADECE ~%32'dir, bazı firmalarda %100'ü AŞAR veya NEGATİF çıkar. Farkın 4 nedeni: (1) raporlama vs vergi muhasebesi farklı standartlar KULLANIR (örn. düz-hat vs hızlandırılmış amortisman); (2) vergi KREDİLERİ; (3) vergi ERTELEME (gelecekte daha YÜKSEK efektif orana döner); (4) KADEMELİ (tiered) vergi yapısı. (s.135-137)
+- **İLKE-69:** Değerlemede vergi oranı seçimi — SÜREKLİ (perpetuity) kullanılacaksa GÜVENLİ seçim MARJİNAL orandır (hiçbir düşük-efektif-oran nedeni SONSUZA dek SÜRMEZ); İLK yıl(lar) için EFEKTİF oran kullanılıp ZAMANLA marjinal orana YAKINSATILABİLİR; TERMİNAL DEĞER hesabında MUTLAKA marjinal oran kullanılmalıdır. (s.137-138)
+- **İLKE-70 (Net operasyonel zarar - NOL etkisi):** Büyük NOL taşıyan firmalarda 2 yaklaşım VAR: (1) vergi oranını ZAMAN İÇİNDE SIFIRDAN marjinal orana KADEMELİ artır (hem faaliyet kârı HEM cost of capital hesaplamasında AYNI sıfır oranı kullanılmalı — İÇ TUTARLILIK); (2) firmayı NOL'siz değerleyip SONRA vergi tasarrufunun bugünkü değerini AYRICA ekle (limit: bu, tasarrufun GARANTİLİ+ANINDA olduğunu VARSAYAR, gerçekte kazanç belirsizliği taşır → DEĞERİ ABARTABİLİR). (s.140-141)
+- **İLKE-71 (İşletme sermayesi tanımının DÜZELTİLMESİ):** Değerleme amaçlı "noncash işletme sermayesi" standart muhasebe tanımından FARKLIDIR — DÖNEN VARLIKLARDAN nakit/menkul kıymet ÇIKARILIR (adil getiri sağladığı için işletme sermayesi SAYILMAZ — İSTİSNA: banka sisteminin ZAYIF olduğu piyasalarda veya günlük operasyon için ZORUNLU büyük nakit tutuluyorsa dahil edilebilir) VE KISA VADELİ YÜKÜMLÜLÜKLERDEN faiz taşıyan borç (kısa vadeli borç + uzun vadeli borcun cari kısmı) ÇIKARILIR (cost of capital hesabında ZATEN sayıldığı için ÇİFT SAYIM önlenir). (s.150-151)
+- **İLKE-72:** İşletme sermayesi değişimi TAHMİNİNDE HAM ($ tutarı) DEĞİL, GELİR YÜZDESİ ORANI tercih edilmelidir — yıldan yıla değişim AŞIRI OYNAKTIR (yalıtılmış bir baz yıl kullanma riski). (s.153-154) [→ KONTROL LİSTESİ G]
+- **İLKE-73 (Negatif işletme sermayesi/değişimi):** Kısa vadede (3-5 yıl) VERİMLİLİK kazanımından kaynaklı NEGATİF DEĞİŞİM olağan olabilir ama SONSUZA DEK sürdürülemez (verimsizlik BİTER, ÖTESİ gelir/kâra ZARAR verir). NEGATİF (mutlak) işletme sermayesi (Wal-Mart/Dell tipi tedarikçi kredisi stratejisi) — HEM gerçek bir maliyet taşır (erken ödeme İNDİRİMİ kaybı) HEM derecelendirme kuruluşlarınca DEFAULT RİSKİ göstergesi sayılır; terminal değerde işletme sermayesi değişiminin SIFIRA yakınsatılması veya YUKARI dönmesi varsayılmalıdır. (s.155-157) [→ BAYRAK-12]
+- **İLKE-74 (Temettü politikasının 3 kalıbı):** (1) Temettüler YAPIŞKANDIR — çoğu dönemde HBK sabit tutulur, artış AZALIŞTAN 5 KAT daha yaygındır; (2) temettüler KAZANCI TAKİP EDER, ÖNCÜLÜK ETMEZ (firma artışın SÜRDÜRÜLEBİLİRLİĞİNDEN emin olana kadar bekler); (3) hisse geri alımları GİDEREK temettünün ALTERNATİFİ haline gelmektedir (geri alımdan farklı olarak temettüyü KESMEK piyasa tarafından CEZALANDIRILIR, geri alım İSE herhangi bir yıl DURDURULABİLİR). (s.158-159)
+- **İLKE-75 (FCFE'ye oranla dağıtım oranı):** Cash Returned/FCFE oranı 1'e YAKINSA firma ELİNDEKİNİN TAMAMINI dağıtıyor demektir; ÇOK ALTINDAYSA nakit biriktiriyor; ÇOK ÜZERİNDEYSE (mevcut nakitten VEYA yeni ihraçtan finanse ediyor) demektir. NYSE ortalaması (2004): **%60** — firmaların çoğu ÖDEYEBİLECEKLERİNDEN AZ dağıtır. (s.161-162)
+- **İLKE-76 (Firmaların FCFE'den AZ dağıtmasının 5 nedeni):** (1) istikrar arzusu (temettü kesmekten KAÇINMA); (2) gelecek yatırım ihtiyacı (menkul kıymet ihracı MALİYETLİ, nakit TAMPON tutulur); (3) vergi faktörleri (2003 ÖNCESİ temettü sermaye kazancından DAHA YÜKSEK vergilendiriliyordu); (4) sinyal verme amaçlı KULLANIM (artış=olumlu, azalış=olumsuz sinyal, ampirik olarak DOĞRULANMIŞ); (5) yönetici çıkarı (imparatorluk kurma güdüsü, kâr düşüşünü GİZLEYECEK nakit YASTIĞI). [→ KONTROL LİSTESİ H] (s.162-164)
+
+**Chapter 4 — Forecasting Cash Flows:**
+
+- **İLKE-77 (Yüksek büyüme süresinin 3 belirleyicisi):** (1) FİRMA BÜYÜKLÜĞÜ — küçük firmalar (BÜYÜK bir pazarda) fazla getiriyi DAHA UZUN sürdürebilir, sadece MEVCUT pazar payına değil TOPLAM pazar büyüme potansiyeline de BAKILMALI; (2) MEVCUT büyüme oranı ve fazla getiri MOMENTUMU; (3) REKABET AVANTAJININ BÜYÜKLÜĞÜ VE SÜRDÜRÜLEBİLİRLİĞİ — EN KRİTİK belirleyici, giriş engelleri güçlüyse UZUN yüksek-büyüme dönemi savunulabilir, yönetim kalitesi de (Jack Welch/Roberto Goizueta örnekleri) rol oynar. (s.168-169) [→ KONTROL LİSTESİ I]
+- **İLKE-78:** Yüksek büyüme, sadece firmayı BÜYÜTÜR — DEĞER YARATMASI için sermaye getirisinin sermaye MALİYETİNİ AŞMASI (fazla getiri) GEREKİR; bir firmanın 5-10 yıl yüksek büyüyeceğini varsaymak ZIMNEN o dönemde fazla getiri kazanacağını varsaymaktır — REKABETÇİ bir piyasada bu fazla getiriler ER YA DA GEÇ yeni rakiplerce EROZYONA UĞRAR. (dipnot 1, s.168)
+- **İLKE-79 (Geçmiş büyüme hesaplama tuzakları):** Aritmetik ORTALAMA ile geometrik ORTALAMA sonuçları ÖZELLİKLE OYNAK kazançlarda BÜYÜK FARKLILAŞIR (geometrik DAHA DOĞRU gösterge — bileşik etkiyi yakalar); tahmin BAŞLANGIÇ/BİTİŞ noktası SEÇİMİ sonucu ÇARPITABİLİR (kötü yıldan iyi yıla ölçmek YAPAY yüksek büyüme gösterir); NEGATİF (veya sıfır) başlangıç kazancında YÜZDE BÜYÜME ORANI ANLAMSIZDIR — bu durumda geçmiş büyümeyi TAHMİNDE YOK SAYMAK daha DOĞRUDUR. (s.171-173)
+- **İLKE-80 ("Higgledy Piggledy Growth" — Little 1960):** Bir dönemin kazanç büyüme oranı, BİR SONRAKİ dönemin büyüme oranıyla NEREDEYSE HİÇ ilişkili DEĞİLDİR (ardışık dönem korelasyonları SIK SIK NEGATİF, ortalama korelasyon ~0,02) — bu ilişki KÜÇÜK firmalarda DAHA DA ZAYIFTIR (oynaklık daha yüksek). Gelir büyümesi, kazanç büyümesinden DAHA İSTİKRARLI/ÖNGÖRÜLEBİLİRDİR (muhasebe seçimlerinin etkisi DAHA AZDIR). (s.173-175)
+- **İLKE-81 (Firma büyüklüğünün büyüme üzerindeki etkisi):** Yüzdesel büyüme oranı FİRMA BÜYÜKLÜĞÜYLE TERS orantılı ZORLUK taşır ($10 milyon kazançlı firma için %50 büyüme, $500 milyon kazançlı firma için AYNI YÜZDEDEN ÇOK DAHA ZOR) — hızla büyümüş küçük firmaların GEÇMİŞ büyüme oranlarını GELECEĞE UZATMAK TEHLİKELİDİR; asıl test firmanın büyümeyi NASIL YÖNETTİĞİ (ölçeklenebilirlik) sorusudur. (s.175)
+- **İLKE-82 (Yönetim tahminlerinin RİSKLERİ):** (1) Yönetim şirketin geleceği (ve kendi becerisi) konusunda TARAFSIZ OLAMAZ — tahminler genelde TEMENNİ LİSTESİ niteliğindedir; (2) yönetici tazminatı tahmini AŞMAYA BAĞLIYSA tahminleri BİLEREK DÜŞÜK tutma eğilimi doğar; (3) yönetim tahminleri İÇ TUTARSIZLIK içerebilir (örn. yeni sermaye harcaması OLMADAN 10 yıl %10 gelir büyümesi VARSAYMAK). Yönetim tahminleri TAMAMEN göz ardı EDİLMEMELİ ama FİZİBİLİTE ve İÇ TUTARLILIK kontrolünden GEÇİRİLMELİDİR. (s.176)
+- **İLKE-83 (Analist tahminlerinin GÜÇ/ZAYIF yönleri):** Analistler GEÇMİŞ veriye EK olarak GÜNCEL bilgi, REKABETÇİ sinyal (bir telekom firmasının kötü raporu DİĞERLERİNİ etkiler) ve bazen ÖZEL bilgi kullanabilir — ama bu ÜSTÜNLÜK sadece KISA VADELİ (1-2 çeyrek ileri) tahminlerde AMPİRİK olarak DOĞRULANMIŞTIR; 3-5 YILLIK uzun vadeli tahminlerde üstünlük ÇOK KÜÇÜKTÜR ve geçmiş büyüme oranları HALA analist tahminlerinde BÜYÜK rol oynar. AYRICA analistler genelde HBK (EPS) tahmin eder — HBK büyümesi FAALİYET KÂRI büyümesinden FARKLIDIR (genelde YÜKSEKTİR), değerleme için AŞAĞI DÜZELTİLMELİDİR. (s.177-179)
+- **İLKE-84 (Temel/fundamental büyüme — İÇSEL değişken):** En SAĞLAM büyüme tahmin yöntemi, büyümeyi firmanın YATIRIM POLİTİKASINA (ne kadar yeniden yatırım YAPTIĞI + bu yatırımların NE KADAR KALİTELİ olduğu) BAĞLI KILMAKTIR — bu, (1) İÇ TUTARLILIK sağlar (yüksek büyüme varsayan firma bunun KARŞILIĞINI yeniden yatırımla ÖDEMEK ZORUNDADIR) ve (2) firmaların DEĞER YARATMAK için NE YAPABİLECEĞİNE dair TEMEL bir çerçeve sunar. (s.179)
+- **İLKE-85 (Marjinal ROE'nin bilgi değeri):** Standart ROE (net kâr/ÖNCEKİ YIL SONU özkaynak) hem ESKİ hem YENİ projelerin GETİRİSİNİ karıştırır — büyük firmalarda eski yatırımların AĞIRLIĞI nedeniyle YENİ yatırımlardaki KÖTÜLEŞME GECİKMELİ yansır. MARJİNAL ROE (Δnet kâr/Δönceki yıl özkaynağı) YENİ YATIRIMLARIN kalitesine dair DAHA DOĞRUDAN bir sinyal verir — Goldman Sachs 2005 örneğinde standart ROE %18,49 iken marjinal ROE ÇOK DAHA DÜŞÜK çıkmıştır (yeni yatırımların GETİRİSİNİN düştüğüne dair UYARI). (s.183-184)
+- **İLKE-86 (Değişen ROE'nin büyümeye 2. bileşeni — "verimlilik kaynaklı büyüme"):** ROE SABİT değilse, büyümeye MEVCUT VARLIKLARIN getirisindeki İYİLEŞME/KÖTÜLEŞMEDEN gelen EK bir bileşen EKLENİR — $100M özkaynaklı, %10 ROE'li bir firma ROE'sini %11'e ÇIKARIRSA, HİÇ yeniden yatırım YAPMASA BİLE %10 kazanç büyümesi KAYDEDER. Bu, YENİ yatırımlardaki İYİLEŞMEDEN (normal temel büyüme) AYRIŞTIRILMALIDIR — SADECE mevcut varlıklardaki verimlilik ARTIŞINDAN kaynaklanır. AZALAN ROE'nin etkisi İSE ORANSIZ BÜYÜK bir büyüme DÜŞÜŞÜ yaratır. (s.184-186)
+- **İLKE-87 (Sermaye getirisi/ROC ölçüm sorunları):** Defter değeri MEVCUT yatırımlardaki sermayeyi DOĞRU YANSITMAYABİLİR (tarihsel maliyet + amortisman KARARLARI yüzünden) — R&D/operating lease VARLIĞI kapitalize EDİLMEMİŞSE ROC YAPAY OLARAK ŞİŞER; ayrıca MEVCUT yatırımların getirisi, GELECEKTEKİ (marjinal) yatırımların getirisiyle AYNI OLMAYABİLİR — bu fark UZUN VADEDE (ileri yıllara gidildikçe) BÜYÜR. (s.188-189)
+- **İLKE-88 (3 büyüme senaryosu):** (1) İSTİKRARLI ROC — büyüme = yeniden yatırım oranı × ROC (sabit); (2) ARTAN/DEĞİŞEN ROC — büyümeye VERİMLİLİK bileşeni EKLENİR (İLKE-86 ile AYNI mantık, firma seviyesinde); (3) NEGATİF ROC (zarar eden firmalar) — GELİRDEN başlanarak YUKARI DOĞRU tahmin yapılır: önce gelir büyümesi, sonra hedef faaliyet marjına YAKINSAMA, sonra satış/sermaye oranıyla yeniden yatırım tahmini. (s.186, 193)
+- **İLKE-89 ("Değişen ROC" firma tipleri):** (1) DÜŞÜK ROC'lu firmalar VERİMLİLİK/marj İYİLEŞTİRDİKÇE — bu durumda KÜÇÜK ROC artışları (örn. %1'den %2'ye) BÜYÜME ORANINDA ORANTISIZ BÜYÜK sıçrama yaratır (kazanç 2 KATINA çıkar → %100 büyüme oranı); (2) YÜKSEK ROC'lu firmalar rekabet GİRİŞİYLE getirilerinin (hem YENİ HEM MEVCUT yatırımlarda) ERİMESİNİ BEKLEYENLER. (s.191-192)
+- **İLKE-90 (Gelir büyümesi tahmininde 5 dikkat noktası):** (1) gelir arttıkça büyüme HIZI AZALIR ($2M'lik firma için 10 kat artış makul, $2B'lik firma için DEĞİL); (2) bileşik büyüme oranları GÖRÜNÜŞTE düşük olsa da UZUN VADEDE MASİF etki yaratır (yıllık %40 × 10 yıl = 40 KAT); (3) tahmin edilen $ geliri, PAZARIN TOPLAM BÜYÜKLÜĞÜNE göre MANTIK KONTROLÜ edilmeli (10 yıl sonra %90-100 pazar payı ÇIKIYORSA varsayım GÖZDEN GEÇİRİLMELİ); (4) gelir büyümesi VARSAYIMLARI faaliyet marjı VARSAYIMLARIYLA TUTARLI olmalı (agresif fiyatlama = yüksek büyüme AMA düşük marj); (5) rekabet yapısı/firmanın büyümeyi KALDIRMA kapasitesi hakkında SÜBJEKTİF yargı GEREKİR. (s.193-194) [→ KONTROL LİSTESİ J]
+- **İLKE-91 (Satış/Sermaye Oranı):** Gelir büyümesini yeniden yatırım ihtiyacına BAĞLAYAN köprü oran — her 1$'lık YATIRILAN sermayenin NE KADAR gelir ÜRETTİĞİNİ ölçer. DÜŞÜK satış/sermaye oranı YATIRIM İHTİYACINI ARTIRIR (nakit akışını AZALTIR); YÜKSEK oran TERSİNİ yapar. Tahmin için hem FİRMANIN KENDİ geçmişine hem SEKTÖR ORTALAMASINA bakılır. (s.198)
+- **İLKE-92 (Satış/sermaye oranı TUTARLILIK kontrolü):** Kullanılan satış/sermaye oranından TÜRETİLEN yıllık ROC'lar, HEM sektör ORTALAMASI HEM firmanın KENDİ sermaye MALİYETİYLE karşılaştırılarak SINANMALIDIR — örnek: %10 sermaye maliyetli, %15 sektör ortalamalı bir sektörde %40 ROC ÇIKMASI, yatırımın (satış/sermaye oranının) ÇOK DÜŞÜK/YETERSİZ TUTULDUĞUNU gösterir. (s.198-199)
+- **İLKE-93 (Terminal değer — 3 yöntem, SADECE 1'İ TUTARLI):** (1) TASFİYE değeri (defter bazlı VEYA kazanç gücü bazlı) — firmanın SONLU ömrü olduğu senaryolar için; (2) ÇARPAN yaklaşımı — BASİT ama TEHLİKELİ: emsal firmalardan türetilen çarpan kullanılırsa, DCF ile GÖRELİ değerlemeyi TEHLİKELİ biçimde KARIŞTIRIR (artık "içsel değer" DEĞİL karma bir sonuçtur); (3) İSTİKRARLI BÜYÜME modeli — SADECE TUTARLI DCF yöntemidir (temelleri sağlamsa). (s.200-202)
+- **İLKE-94 (İstikrarlı büyüme oranının SINIRI):** Hiçbir firma SONSUZA dek FAALİYET GÖSTERDİĞİ EKONOMİNİN büyüme oranından YÜKSEK büyüyemez (aksi halde SONSUZDA ekonominin TAMAMINI YUTAR — matematiksel imkânsızlık); firma SADECE YEREL değil ÇOKULUSLU/KÜRESEL çalışıyorsa sınır KÜRESEL ekonomi büyümesidir. PRATİK BASİT KURAL: istikrarlı büyüme oranı, DEĞERLEMEDE KULLANILAN RİSKSİZ ORANI AŞMAMALIDIR (risksiz oran = reel büyüme+enflasyon özdeşliğinden). (s.202-204)
+- **İLKE-95 (İstikrarlı dönem firma karakteristiklerinin ZORUNLU DÜZELTMESİ):** Yüksek büyüme döneminden istikrarlı döneme geçerken 4 değişken TUTARLI hale GETİRİLMELİDİR: (1) BETA piyasa ortalamasına (1'e, en fazla 1,2'ye — ABD firmalarının 2/3'ü 0,8-1,2 bandında) YAKINSAMALI; (2) SERMAYE/ÖZKAYNAK GETİRİSİ (fazla getiri) SEKTÖR ORTALAMASINA yakınsamalı (TAMAMEN sıfırlanması ZORUNLU DEĞİL — rekabet avantajları BİRDEN yok OLMAZ, ama sonsuza dek YÜKSEK fazla getiri VARSAYIMI da GÜVENİLMEZ); (3) BORÇ ORANI olgun sektör firmaları seviyesine YÜKSELMELİ (kaldıraç kapasitesi büyüdükçe artar) — kredi notu/maliyet de BUNA GÖRE yeniden tahmin edilmeli; (4) YENİDEN YATIRIM/TUTMA ORANI, istikrarlı büyüme oranıyla İÇ TUTARLI olacak şekilde (g/ROE veya g/ROC formülüyle) TÜRETİLMELİDİR — RASTGELE bir sayı DEĞİL. [→ FORMÜL-49/50, KONTROL LİSTESİ K] (s.204-207)
+- **İLKE-96 (Büyüme-değer İLİŞKİSİNİN matematiksel ispatı):** Sermaye getirisi SERMAYE MALİYETİNE EŞİTSE, istikrarlı büyüme oranını DEĞİŞTİRMENİN DEĞER ÜZERİNDE HİÇBİR ETKİSİ YOKTUR (terminal değer formülü matematiksel olarak SADELEŞİR — büyümenin YARATTIĞI EK nakit akışı, YARATTIĞI EK yeniden yatırım İHTİYACIYLA TAM DENGELENİR). Değer SADECE sermaye getirisi maliyetin ÜZERİNDEYSE büyümeyle ARTAR. Bu, "%0 büyüme varsayımının değeri DEĞİŞTİRMEDİĞİ" somut örnekle (Alloy Mills illüstrasyonu) DOĞRULANMIŞTIR. [→ BAYRAK-13] (s.207-209)
+- **İLKE-97 (Geçiş modeli seçimi):** (1) 2 AŞAMALI (yüksek büyümeden İSTİKRARLIYA ANİ geçiş) — ORTA büyüme oranlı firmalar için uygun (geçiş DRAMATİK değilse); (2) 3 AŞAMALI (yüksek büyüme + KADEMELİ geçiş dönemi) — ÇOK yüksek büyümeli firmalar için, risk/getiri/yeniden-yatırım TÜMÜNÜN KADEMELİ değişimine izin verir; (3) N AŞAMALI (her yıl AYRI karakteristik) — GENÇ veya NEGATİF marjlı firmalar için EN UYGUN. Not: istikrarlı büyüme oranından DAHA DÜŞÜK bir "yüksek büyüme" dönemi de MÜMKÜNDÜR (örn. ilk 5 yıl %2, sonra %4'e YÜKSELME). (s.211-212)
+- **İLKE-98 (3 nakit akışı tahmin yaklaşımı ve RİSKLERİ):** (1) BEKLENEN DEĞER — her dönem için TEK bir en iyi tahmin (iyi/kötü senaryoları ZIMNEN İÇEREN); riskleri: "en iyi durum"/"muhafazakâr" tahminlerin YANLIŞLIKLA beklenen değer YERİNE kullanılması, İFLAS OLASILIĞININ göz ardı edilmesi (going-concern VARSAYIMI), yönetimin GERÇEK ZAMANLI ÖĞRENME/UYUM YETENEĞİNİN modellenememesi (real-option eleştirisi). (2) SENARYO ANALİZİ — iyimser/kötümser aralık; RİSKİ: senaryolar SPEKTRUMUN UÇLARINI kapsıyorsa (en iyi/en kötü) sonuç aralığı O KADAR GENİŞ olur ki KARAR VERMEDE İŞE YARAMAZ (15$-70$ aralığı 40$'lık piyasa fiyatı için ANLAMSIZDIR). (3) SİMÜLASYON — her girdi için DAĞILIM tahmini + tekrarlı örnekleme; 2 YAYGIN YANLIŞ ANLAMA: simülasyon çıktısının OTOMATİK "risk ayarlı" olduğu sanılması (HALA risk ayarlı iskonto oranı GEREKİR) ve RİSKİN ÇİFT SAYILMASI (hem iskonto oranında hem "değerin düşük çıkma OLASILIĞI" ile AYRICA). (s.212-215)
+
+## Formüller (devam)
+
+- **FORMÜL-25 — FCFE (Serbest Nakit Akışı — Özkaynağa, TAM tanım)**
+  - Formül: `FCFE = Net Kâr - Net Sermaye Harcaması - ΔNoncash İşletme Sermayesi + Net Borç İhracı (yeni borç - anapara ödemesi)`
+  - QuaxisLabs karşılığı: **VERİ EKSİK (kısmen)** — `net_income` VAR; Net Sermaye Harcaması (Capex verisi YOK), ΔNoncash İşletme Sermayesi (ham `current_assets`/`short_term_liabilities` VAR ama "noncash" arındırılmış — nakit ve kısa vadeli faizli borç çıkarılmış — versiyonu HESAPLANMIYOR), Net Borç İhracı (borç ihraç/geri ödeme AYRI kalemler olarak YOK, sadece dönem-sonu STOK `financial_debt` VAR) — TAMAMI eksik. `valuation.py`'nin Damodaran bloğu bu YÜZDEN doğrudan bu formülü DEĞİL, basitleştirilmiş `FCFE = TTM_Net_Kâr × (1-reinvestment_rate)` kısayolunu kullanıyor (reinvestment_rate=g/ROE ÖZDEŞLİĞİNDEN türetilir, ham capex/wc/borç verisi GEREKTİRMEZ).
+
+- **FORMÜL-26 — FCFE (Sabit Borç Oranı ile Basitleştirilmiş)**
+  - Formül: `FCFE = Net Kâr - (1-δ) × (Net Sermaye Harcaması + ΔİşletmeSermayesi)` (δ = borçla finanse edilen oran, sabit hedef borç oranı varsayımıyla net borç ödemesi terimi elenir)
+  - QuaxisLabs karşılığı: Aynı VERİ EKSİKLİĞİ (FORMÜL-25).
+
+- **FORMÜL-27 — FCFF (Serbest Nakit Akışı — Firmaya)**
+  - Formül: `FCFF = Faaliyet Kârı × (1-Vergi Oranı) - Net Sermaye Harcaması - ΔNoncash İşletme Sermayesi`
+  - QuaxisLabs karşılığı: `operating_profit`/`ebitda` VAR; vergi oranı XI_29'da `income_before_tax`/`tax_provision` YOK (efektif oran hesaplanamaz, sadece STATİK varsayılan kullanılabilir); Net Sermaye Harcaması VE ΔNoncash İşletme Sermayesi (FORMÜL-25 ile AYNI eksiklik) — **VERİ EKSİK**.
+
+- **FORMÜL-28 — R&D Kapitalizasyonu: Araştırma Varlığı Değeri**
+  - Formül: `Araştırma Varlığı = Σ [(Amortismansız Kalan Oran)_i × R&D_(t-i)]` (i=0'dan amortisman ömrüne, düz-hat amortisman varsayımıyla)
+  - QuaxisLabs karşılığı: **TAMAMEN VERİ EKSİK** — R&D gideri standalone alan olarak isyatirim.py/sec_edgar.py'de YOK (bu, Buffett turundan beri KÜMÜLATİF olarak tekrarlanan bir eksiklik).
+
+- **FORMÜL-29 — R&D Kapitalizasyonu Sonrası Düzeltilmiş Faaliyet Kârı**
+  - Formül: `Düzeltilmiş Faaliyet Kârı = Raporlanan Faaliyet Kârı + Bu Yılki R&D Gideri - Araştırma Varlığının Bu Yılki Amortismanı`
+  - QuaxisLabs karşılığı: R&D verisi eksikliği (FORMÜL-28) nedeniyle **UYGULANAMAZ**.
+
+- **FORMÜL-30 — R&D Expensing'in Ekstra Vergi Avantajı**
+  - Formül: `Ekstra Vergi Avantajı = (R&D Gideri - Araştırma Varlığı Amortismanı) × Vergi Oranı`
+  - QuaxisLabs karşılığı: R&D + vergi oranı İKİLİ eksiklik (FORMÜL-17/18, FORMÜL-28) — **UYGULANAMAZ**.
+
+- **FORMÜL-31 — Operating Lease Sonrası Düzeltilmiş Faaliyet Kârı (kısayol/yaklaşık versiyon)**
+  - Formül: `Düzeltilmiş Faaliyet Kârı ≈ Raporlanan Faaliyet Kârı + İma Edilen Faiz Gideri (Kira Borcu Değeri × Pretax Cost of Debt)`
+  - QuaxisLabs karşılığı: Kira taahhüt takvimi eksikliği (bkz. Kısım 1 FORMÜL-23) — **VERİ EKSİK**.
+
+- **FORMÜL-32 — Efektif Vergi Oranı**
+  - Formül: `Efektif Vergi Oranı = Ödenen/Tahakkuk Eden Vergi ÷ Raporlanan Vergi Öncesi Kâr`
+  - QuaxisLabs karşılığı: **VERİ EKSİK** — `income_before_tax`/`tax_provision` XI_29'da YOK (sadece `STANDARD_ITEM_MAP_FINANSMAN`, finansman şirketleri şemasında var); bu Kısım 1'de de (FORMÜL-18 bağlamında) tespit edilen AYNI kök eksiklik, artık İKİNCİ kez bu kitapta doğrulandı.
+
+- **FORMÜL-33 — Noncash İşletme Sermayesi (Değerleme-Amaçlı Düzeltilmiş Tanım)**
+  - Formül: `Noncash İşletme Sermayesi = (Dönen Varlıklar - Nakit ve Menkul Kıymetler) - (Kısa Vadeli Yükümlülükler - Kısa Vadeli Faizli Borç)`
+  - QuaxisLabs karşılığı: **KISMEN VAR** — `current_assets`, `short_term_liabilities`, `cash` ham alanları HAZIR; ancak `calculator.py`'de bu "noncash" DÜZELTİLMİŞ oran HESAPLANMIYOR (mevcut `current_ratio` = `current_assets/short_term_liabilities`, HAM/düzeltilmemiş tanım kullanıyor). `fundamental_screens.py`'nin Greenblatt bloğundaki `net_working_capital = current_assets - short_term_liabilities` da AYNI HAM tanımı kullanıyor (nakit/kısa-vadeli-borç arındırması YOK) — DÜŞÜK MALİYETLİ bir potansiyel iyileştirme: nakit zaten `cash` alanından ÇIKARILABİLİR, kısa vadeli faizli borç için `short_term_financial_debt` (itemCode "2AA") ZATEN mevcut.
+
+- **FORMÜL-34 — Temettü Verimi**
+  - Formül: `Temettü Verimi = Hisse Başı Temettü (DPS) ÷ Piyasa Fiyatı`
+  - QuaxisLabs karşılığı: **VERİ EKSİK** — DPS/temettü verisi hiçbir fetcher'da YOK (kitaplar arası EN SIK tekrarlanan açık, bkz. Kısım 1 sonu).
+
+- **FORMÜL-35 — Nakit Getirisi/FCFE Oranı (Cash Returned to FCFE Ratio)**
+  - Formül: `Oran = (Ödenen Temettü + Hisse Geri Alımı) ÷ FCFE`
+  - QuaxisLabs karşılığı: **TAMAMEN VERİ EKSİK** — hem pay (temettü + geri alım verisi YOK) hem payda (FCFE, FORMÜL-25 eksikliği) eksik.
+
+- **FORMÜL-36 — Aritmetik Ortalama Büyüme Oranı**
+  - Formül: `Aritmetik Ortalama = (1/n) × Σ gt` (gt = her yılın büyüme oranı)
+  - QuaxisLabs karşılığı: **VERİ EKSİK (yapısal)** — `trends.py`'nin 12-çeyrek/~3 yıllık penceresi kitabın önerdiği 5-10 yıllık geçmiş kazanç serisini SAĞLAMIYOR; bu, Graham/Buffett turlarında da TEKRARLANAN "10+ yıllık trend serisi yok" yapısal eksikliğinin YİNE karşımıza çıkışı.
+
+- **FORMÜL-37 — Geometrik Ortalama Büyüme Oranı**
+  - Formül: `Geometrik Ortalama = (Kazanç_bugün / Kazanç_(bugün-n)) ^ (1/n) - 1`
+  - QuaxisLabs karşılığı: Aynı yapısal eksiklik (FORMÜL-36).
+
+- **FORMÜL-38 — HBK Büyüme Oranı (Temel, Tutma Oranı × ROE)**
+  - Formül: `g = b × ROE` (b = tutma oranı = 1 - temettü dağıtım oranı)
+  - QuaxisLabs karşılığı: **KISMEN VAR** — `roe_annualized` HAZIR; tutma oranı (b) DPS/temettü eksikliği nedeniyle HESAPLANAMIYOR — `valuation.py`'nin Damodaran bloğundaki `reinvestment_rate = g/ROE` özdeşliği aslında BU formülün TERSİNE ÇEVRİLMİŞ (g biliniyormuş gibi varsayılıp b geriye çözülen) bir versiyonudur, kitabın kendi yönünde (b'den g'ye) DOĞRUDAN UYGULANAMIYOR.
+
+- **FORMÜL-39 — Net Kâr Büyüme Oranı (Genişletilmiş, Yeni Hisse İhracını da Kapsar)**
+  - Formül: `g(Net Kâr) = Özkaynak Yeniden Yatırım Oranı × ROE`
+  - QuaxisLabs karşılığı: **VERİ EKSİK** — Özkaynak Yeniden Yatırım Oranı (FORMÜL-40) eksikliğine bağlı.
+
+- **FORMÜL-40 — Özkaynak Yeniden Yatırım Oranı**
+  - Formül: `Oran = (Net Sermaye Harcaması + ΔNoncash İşletme Sermayesi - Net Borç İhracı) ÷ Net Kâr`
+  - QuaxisLabs karşılığı: **TAMAMEN VERİ EKSİK** (Capex + net borç ihracı verisi yok).
+
+- **FORMÜL-41 — ROE (Kaldıraç Ayrıştırmalı)**
+  - Formül: `ROE = ROC + (D/E) × (ROC - Vergi Sonrası Ortalama Faiz Oranı)`
+  - QuaxisLabs karşılığı: `roe_annualized` DOĞRUDAN VAR (bu ayrıştırılmış türetimi GEREKTİRMEDEN); D/E hesaplanabilir ama vergi sonrası faiz oranı (`interest_expense` eksikliği, Kısım 1 FORMÜL-17/18) nedeniyle bu AYRIŞTIRILMIŞ formül UYGULANAMAZ — mevcut ROE zaten DOĞRUDAN hesaplı olduğundan pratik ÖNEM DÜŞÜK.
+
+- **FORMÜL-42 — Marjinal ROE**
+  - Formül: `Marjinal ROE = ΔNet Kâr(bu yıl) ÷ ΔÖzkaynak Defter Değeri(önceki yıl)`
+  - QuaxisLabs karşılığı: **VAR (ucuz eklenti)** — `net_income` ve `equity` her ikisi de ÇOK dönemli (TTM/YoY/QoQ) olarak MEVCUT; bu oran `calculator.py`'ye tek satırlık bir HESAPLAMA olarak EKLENEBİLİR — hiçbir yeni ham veri GEREKTİRMEZ, standart ROE'nin (`roe_annualized`) YANINDA "yeni yatırım kalitesi" sinyali sağlar.
+
+- **FORMÜL-43 — Verimlilik Kaynaklı Ek Büyüme**
+  - Formül: `Ek Büyüme = (ROE_t - ROE_(t-1)) ÷ ROE_(t-1)`
+  - QuaxisLabs karşılığı: **VAR (ucuz eklenti)** — `roe_annualized`'in YoY serisi (zaten `trends.py`'de İZLENEBİLİR aralıkta, en az 4-5 çeyrek) üzerinden DOĞRUDAN hesaplanabilir.
+
+- **FORMÜL-44 — Faaliyet Kârı Büyüme Oranı (İstikrarlı ROC Senaryosu)**
+  - Formül: `g = Yeniden Yatırım Oranı × ROC`
+  - QuaxisLabs karşılığı: **KISMEN VAR/PARALEL** — `fundamental_screens.py`'nin Greenblatt bloğu (`return_on_capital_pct = EBIT / (Net Çalışma Sermayesi + Maddi Duran Varlık)`) KAVRAMSAL OLARAK Damodaran'ın ROC tanımına (vergi ÖNCESİ versiyon, after-tax DEĞİL) YAKINDIR — Yeniden Yatırım Oranı (FORMÜL-45) eksikliği nedeniyle `g` YİNE DE doğrudan TÜRETİLEMİYOR, ama ROC bileşeni HAZIR bir başlangıç noktası sunuyor.
+
+- **FORMÜL-45 — Yeniden Yatırım Oranı (Firma, Reinvestment Rate)**
+  - Formül: `Oran = (Net Sermaye Harcaması + ΔNoncash İşletme Sermayesi) ÷ Vergi Sonrası Faaliyet Kârı`
+  - QuaxisLabs karşılığı: **TAMAMEN VERİ EKSİK** (Capex verisi yok) — `valuation.py`'nin Damodaran bloğundaki `reinvestment_rate = g/ROE` kısayolu TAM OLARAK bu formülün YERİNE (ham capex olmadan) İKAME olarak tasarlanmıştır.
+
+- **FORMÜL-46 — Satış/Sermaye Oranıyla Yeniden Yatırım Tahmini**
+  - Formül: `Yıllık Yeniden Yatırım = ΔGelir ($) ÷ Satış-Sermaye Oranı`
+  - QuaxisLabs karşılığı: **VERİ EKSİK** — Satış/Sermaye oranı hesaplamak için TOPLAM sermaye (borç+özkaynak, veya invested capital) VE gelir GEREKİR; `total_assets`/`equity`/`financial_debt` VAR ama bu oranı DOĞRUDAN hesaplayan bir alan `calculator.py`'de YOK — DÜŞÜK MALİYETLİ bir eklenti adayı (ham veri ÇOĞU zaten mevcut, sadece bir oran hesaplaması eksik).
+
+- **FORMÜL-47 — İstikrarlı Dönem Terminal Değer (Özkaynak)**
+  - Formül: `Terminal Değer(Özkaynak) = CF_equity,(n+1) ÷ (Cost of Equity_n - g_n)`
+  - QuaxisLabs karşılığı: `valuation.py`'nin Damodaran bloğundaki `equity_value = fcfe * (1 + g_pct/100) / ((cost_of_equity_pct - g_pct)/100)` satırı BU formülün (SADECE tek aşamalı, "n=0" — yani BAŞTAN istikrarlı büyüme kabul edilen) ÖZEL HALİDİR — ZATEN MEVCUT ve UYGULANIYOR (Kısım 1'de de not edildi).
+
+- **FORMÜL-48 — İstikrarlı Dönem Terminal Değer (Firma)**
+  - Formül: `Terminal Değer(Firma) = FCFF_(n+1) ÷ (WACC_n - g_n)`
+  - QuaxisLabs karşılığı: **TAMAMEN VERİ EKSİK** — WACC hiç hesaplanmıyor (Kısım 1 FORMÜL-21), FCFF de (FORMÜL-27) eksik veriye bağlı.
+
+- **FORMÜL-49 — İstikrarlı Dönem Tutma Oranı (Özdeşlikten Türetilmiş)**
+  - Formül: `b_n = g_n ÷ ROE_n`
+  - QuaxisLabs karşılığı: **VAR, ZATEN UYGULANIYOR** — `valuation.py`'nin `reinvestment_rate = g_pct / roe_pct` satırı BİREBİR bu formüldür (kitabın "istikrarlı dönemde tutma oranı büyüme oranına ve ROE'ye göre TÜRETİLMELİDİR, rastgele seçilmemelidir" ilkesinin — İLKE-95 — QuaxisLabs'taki ZATEN DOĞRU uygulamasıdır).
+
+- **FORMÜL-50 — İstikrarlı Dönem Yeniden Yatırım Oranı (Firma)**
+  - Formül: `Yeniden Yatırım Oranı_n = g_n ÷ ROC_n`
+  - QuaxisLabs karşılığı: FORMÜL-49'un FİRMA-seviyesi (ROE yerine ROC) karşılığı — QuaxisLabs SADECE ÖZKAYNAK versiyonunu (FORMÜL-49) uyguluyor, FİRMA/FCFF versiyonu WACC eksikliği nedeniyle **UYGULANMIYOR**.
+
+- **FORMÜL-51 — Tasfiye Değeri (2 Yöntem)**
+  - Formül: (Defter bazlı) `Tasfiye Değeri = Defter Değeri × (1+enflasyon)^yıl`; (Kazanç gücü bazlı) `Tasfiye Değeri = Σ [Beklenen Nakit Akışı_t ÷ (1+r)^t]` (tasfiye SONRASI kalan ömür için)
+  - QuaxisLabs karşılığı: **UYGULANMIYOR/KAPSAM DIŞI** — QuaxisLabs bir "going concern" (devam eden işletme) tarayıcısıdır, tasfiye senaryosu ÜRETMEZ; defter değeri versiyonu için `equity`/`total_assets` teorik olarak KULLANILABİLİR ama bu senaryo şu an ÜRÜN KAPSAMI DIŞINDA.
+
+## Eşikler (devam)
+
+| Metrik | Eşik / Değer | Yorum | Kaynak bölüm |
+|---|---|---|---|
+| Cisco R&D amortisman ömrü (2005 örneği) | **5 yıl** | Yazılım/teknoloji firmaları için tipik varsayım (ilaç firmalarında DAHA UZUN) | Ch.3, s.123-124 |
+| Cisco R&D gideri (FY2005) → Araştırma Varlığı Değeri | $3.320M → **$9,918M** (araştırma varlığı) | Kapitalize edilmiş R&D'nin bilanço/kârlılık etkisine somut örnek | Ch.3, s.124-125 |
+| Target operating lease borç değeri eklenmesi | $9.538M (konvansiyonel borç) → **$11.243M** (+ $1.704,82M kira borcu) | Kısım 1 FORMÜL-23'ün somut uygulama örneği | Ch.3, s.128-129 |
+| ABD medyan efektif vergi oranı (Ocak 2005) | **~%32** | Bazı firmalarda %100'ü aşan veya negatif efektif oranlar GÖZLENDİ | Ch.3, s.135 |
+| ABD marjinal federal + eyalet/yerel kurumsal vergi oranı | **~%40** (federal %35 + ~%5) | Terminal value hesaplarında KULLANILMASI gereken oran | Ch.3, s.135-136 |
+| Sirius Satellite Radio — NOL sonrası ilk vergi ödeme yılı oranı | **%28,05** (yıl 9), sonra **%35** (yıl 10+, marjinal) | NOL'lü genç firmalarda kademeli vergi oranı artışına somut örnek | Ch.3, s.141-142 |
+| NYSE ortalama temettü/FCFE oranı (2004) | **%60** | Firmaların ÇOĞU ödeyebileceğinden AZ dağıtıyor | Ch.3, s.161-162 |
+| ABD medyan/ortalama temettü verimi (Ocak 2005) | Medyan **~%2**, ortalama **%2,4** | SADECE temettü ödeyen hisseler arasında | Ch.3, s.157-158 |
+| Temettü artış:kesinti oranı | En az **5:1** | Temettülerin "yapışkanlığının" ampirik kanıtı | Ch.3, s.162-163 |
+| Little (1960) — ardışık dönem kazanç büyümesi korelasyonu | **~0,02** (ortalama) | "Higgledy piggledy growth" — geçmiş büyüme geleceği ÇOK ZAYIF öngörür | Ch.4, s.173-174 |
+| Stable-period beta kuralı (pratik) | **≤ 1,2** (ABD firmalarının 2/3'ü 0,8-1,2 bandında) | İstikrarlı dönem beta TAVANI | Ch.4, s.204-205, dipnot 12 |
+| İstikrarlı büyüme oranı TAVANI (pratik kural) | **≤ Risksiz Oran** | Coca-Cola örneği: nominal ABD$ %4 / reel %2 (2006 başı) | Ch.4, s.203-204 |
+| Titan Cement — 5 yıllık (2000-2004) ROC/yeniden yatırım aralığı | ROC ort. **~%20** (2002-04); yeniden yatırım oranı **%17,48 – %72,01** | Yeniden yatırım oranının YILDAN YILA AŞIRI oynaklığına somut örnek | Ch.4, s.190-191 |
+| Goldman Sachs — istikrarlı dönem varsayımları (illüstrasyon) | Beta **1,00**, ROE **%12**, payout **%66,67**, cost of equity **%8,5** | Yüksek büyümeden istikrarlı büyümeye geçiş varsayım seti örneği | Ch.4, s.209-210 |
+| Sirius Radio — hedef istikrarlı faaliyet marjı | **%20** (sektör ortalaması) | Negatif ROC senaryosunda "yukarı yakınsama" hedefi somut örneği | Ch.4, s.196-197 |
+
+## Kontrol listeleri (devam)
+
+**Kontrol Listesi D — 4 Tür Olağanüstü/Özel Kalem ve Muamele Yöntemi (Ch.3, s.132-134):**
+1. GERÇEKTEN tek seferlik → tamamen ÇIKAR (gelir/gider hesaplamasından).
+2. DÜZENLİ ARALIKLARLA tekrarlayan (örn. her 3 yılda 1 restructuring) → YILLIK ORTALAMAYA YAY, "olağanüstü" SAYMA.
+3. HER YIL tekrarlayan ama OYNAK → çok yıllık ORTALAMA ile NORMALLEŞTİR.
+4. İŞARET DEĞİŞTİREN (örn. döviz kuru çevirisi) → GÖZ ARDI ET (zamanla TERSİNE döneceği varsayımıyla).
+
+**Kontrol Listesi E — Kazanç Yönetimi Teknikleri (Ch.3, s.131-132 — kırmızı bayrak tespiti için TEMEL liste):**
+1. İleriye dönük PLANLAMA (yatırım/varlık satışı zamanlamasıyla kazancı DÜZLEŞTİRME — ZARARSIZ sayılabilir).
+2. GELİR TANIMA zamanlaması (MUHAFAZAKAR gösterip SONRAKİ döneme SAKLAMA — Microsoft Windows 95 örneği).
+3. ÇEYREK SONUNDA erken gelir kaydı (ürün SEVKİYATI + gelir kaydı — MicroStrategy örneği). [→ BAYRAK-09]
+4. Operasyonel giderlerin SERMAYE gideri gibi GÖSTERİLMESİ (AOL CD maliyeti örneği).
+5. Büyük RESTRUCTURING/write-off (SONRAKİ çeyreklerin kazancını YAPAY ARTIRIR — IBM örneği). [→ BAYRAK-10]
+6. REZERV kullanımı (iyi yıllarda MUHAFAZAKAR karşılık ayırıp kötü yıllarda BOZMA).
+7. YATIRIM GELİRİ realizasyonu (defter değeri DÜŞÜK yatırımları SATIP kâr YAZMA — Intel örneği).
+
+**Kontrol Listesi F — Çok Uluslu Firmalarda Marjinal Vergi Oranı, 3 Yaklaşım (Ch.3, s.136-137):**
+1. Ülke gelirlerine göre AĞIRLIKLI ORTALAMA marjinal oran (dezavantaj: ağırlıklar ZAMANLA değişir).
+2. ANA ÜLKE (incorporation) marjinal oranı (varsayım: yabancı kazanç ER YA DA GEÇ REPATRIATE edilir).
+3. Her ülkenin gelirini AYRI TUTUP kendi marjinal oranını UYGULAMA — EN GÜVENLİ/DOĞRU yaklaşım.
+
+**Kontrol Listesi G — Noncash İşletme Sermayesi Değişimi Tahmin Yöntemleri, 5 Seçenek (Ch.3, s.154-156):**
+1. Ham $ değişimi + kazanç büyüme oranıyla BÜYÜT (EN AZ GÜVENİLİR — aşırı oynak).
+2. Son yıl "%gelir" oranı × gelecek gelir DEĞİŞİMİ (DAHA İYİ, ama tek yıla BAĞIMLI).
+3. MARJİNAL %gelir oranı (Δİşletme Sermayesi/ΔGelir, son yıl) — İŞ KARMASI DEĞİŞEN firmalar için uygun.
+4. ÇOK YILLIK ORTALAMA "%gelir" oranı — yıldan yıla dalgalanmayı SMOOTH eder.
+5. SEKTÖR ORTALAMASI "%gelir" oranı — çok OYNAK/ÖNGÖRÜLEMEZ geçmişi olan veya çok KÜÇÜK firmalar için EN UYGUN.
+
+**Kontrol Listesi H — Firmaların FCFE'den Az Temettü Dağıtmasının 5 Nedeni (Ch.3, s.162-164):**
+1. İstikrar arzusu (temettü KESİNTİSİNDEN kaçınma).
+2. Gelecek yatırım ihtiyacı (ihraç MALİYETİ nedeniyle nakit TAMPONU tutma).
+3. Vergi faktörleri (temettü/sermaye kazancı vergi FARKI, özellikle aile şirketlerinde).
+4. Sinyal verme (artış=olumlu, kesinti=olumsuz piyasa TEPKİSİ).
+5. Yönetici çıkarı (imparatorluk kurma güdüsü, kâr düşüşünü GİZLEYECEK nakit yastığı).
+
+**Kontrol Listesi I — Yüksek Büyüme Süresini Belirleyen 3 Faktör (Ch.4, s.169):**
+1. Firma büyüklüğü (KÜÇÜK firma + BÜYÜK toplam pazar = UZUN potansiyel yüksek büyüme).
+2. Mevcut büyüme oranı VE fazla getiri MOMENTUMU.
+3. Rekabet avantajının BÜYÜKLÜĞÜ ve SÜRDÜRÜLEBİLİRLİĞİ (EN KRİTİK faktör — giriş engelleri + yönetim kalitesi).
+
+**Kontrol Listesi J — Gelir Büyümesi Tahmininde 5 Dikkat Noktası (Ch.4, s.193-194):**
+1. Büyüme hızı, GELİR ARTTIKÇA azalır (büyüklük kısıtı).
+2. Bileşik büyüme oranları GÖRÜNÜŞTE düşük olsa da UZUN VADEDE MASİF etki yaratır.
+3. Tahmin edilen $ geliri PAZAR BÜYÜKLÜĞÜYLE mantık kontrolünden GEÇİRİLMELİ (aşırı pazar payı = ALARM).
+4. Gelir büyümesi VARSAYIMLARI, faaliyet MARJI varsayımlarıyla TUTARLI olmalı.
+5. Rekabet yapısı + firmanın büyümeyi KALDIRMA kapasitesi hakkında SÜBJEKTİF yargı ZORUNLUDUR.
+
+**Kontrol Listesi K — İstikrarlı Döneme Geçişte Düzeltilmesi ZORUNLU 4 Değişken (Ch.4, s.204-207):**
+1. BETA → piyasa ortalamasına (≤1,2) yakınsat.
+2. FAZLA GETİRİ (ROC/ROE - maliyet) → sektör ortalamasına yakınsat (SIFIRLAMA ZORUNLU DEĞİL).
+3. BORÇ ORANI → olgun sektör firmaları seviyesine YÜKSELT, kredi notu/maliyeti YENİDEN tahmin et.
+4. YENİDEN YATIRIM/TUTMA ORANI → g/ROC veya g/ROE ÖZDEŞLİĞİNDEN TÜRET (rastgele SEÇME).
+
+## Kırmızı bayraklar (devam)
+
+- **BAYRAK-08 — "Fısıldanan Kazançlar" (Whispered Earnings) Aşımı Kırılganlığı:** Bir firma ÇOK SAYIDA ardışık çeyrekte (Microsoft: 40'ta 39, Intel BENZER) analist konsensüsünü İSTİKRARLI biçimde AŞIYORSA, piyasa RESMİ konsensüsün ÜZERİNDE GAYRIRESMİ bir "fısıltı" beklentisi OLUŞTURUR — firma resmi tahmini AŞSA BİLE fısıltının ALTINDA kalırsa hisse fiyatı DÜŞEBİLİR (Intel 1997: $2,10 EPS, konsensüs $2,06 AŞILDI ama fısıltı $2,15'ti, hisse %5 DÜŞTÜ). Nasıl tespit edilir: firmanın SON 8-12 çeyreklik "beklenti aşma" ORANINI ve TUTARLILIĞINI incele — aşırı istikrarlı/mükemmel aşım kaydı, doğal İŞ OYNAKLIĞIYLA TUTARSIZDIR. Gereken veri: çeyreklik analist konsensüs + gerçekleşen EPS SERİSİ (VERİ EKSİK — QuaxisLabs analist tahmini ÇEKMİYOR). (Ch.3, s.129-130)
+- **BAYRAK-09 — Çeyrek Sonu Erken Gelir Kaydı (Revenue Front-Loading):** Zayıf bir çeyreğin SON GÜNLERİNDE dağıtıcı/perakendeciye ürün SEVK EDİP geliri o çeyreğe KAYDETMEK (MicroStrategy 1999 örneği: son 4 günde açıklanan anlaşmalar çeyreğin geliri olarak kaydedildi). Nasıl tespit edilir: büyük anlaşma açıklamalarının çeyrek SONUNA YIĞILIP yığılmadığını, SONRAKİ çeyreklerde BENZER büyüklükte iptal/iade OLUP OLMADIĞINI incele. Gereken veri: çeyrek İÇİ (aylık) gelir dağılımı + anlaşma AÇIKLAMA tarihleri (VERİ EKSİK). (Ch.3, s.130-131)
+- **BAYRAK-10 — Restructuring/Write-off Sonrası Yapay Kazanç Sıçraması:** Büyük bir restructuring charge/write-off SONRASI (özellikle amortisman gideri/varlık tabanının KÜÇÜLTÜLMESİYLE) SONRAKİ dönemlerin kazancı YAPAY OLARAK ARTAR (IBM 1996 örneği: eski tesisleri silerek amortisman/gelir oranını %7'den %5'e düşürdü — tek başına vergi öncesi kârın %18'i kadar bir etki). Nasıl tespit edilir: BÜYÜK bir restructuring charge SONRASINDA amortisman/gelir ORANINDA ANİ bir düşüş var mı KONTROL ET. Gereken veri: restructuring charge tutarı + amortisman gideri SERİSİ (amortisman ham veri KISMEN VAR — `depreciation_amortization`, restructuring charge AYRI kalem olarak YOK). (Ch.3, s.132)
+- **BAYRAK-11 — Akiziyon Sonrası "In-Process R&D" Write-off ile Kazanç Şişirme:** Bir akiziyon SONRASI büyük bir "devam eden R&D" write-off'u yapılması, SONRAKİ çeyreklerin (özellikle 4. çeyreğin) kazancını AKİZİYONUN GERÇEK MALİYETİNİ YANSITMADAN ARTIRIR (Deng&Lev 1999: 389 firma örnekleminde ORTALAMA %72 write-off oranı, sonraki 4. çeyrekte %22 kazanç artışı). Nasıl tespit edilir: büyük bir akiziyon TARİHİNİN HEMEN SONRASINDAKİ çeyreklerde OLAĞANDIŞI kazanç sıçraması var mı KONTROL ET. Gereken veri: akiziyon takvimi/tutarı + goodwill amortisman kalemi (VERİ EKSİK — QuaxisLabs akiziyon geçmişi ÇEKMİYOR). (Ch.3, s.134)
+- **BAYRAK-12 — Giderek Daha Negatif Hale Gelen (Noncash) İşletme Sermayesi:** İşletme sermayesinin (veya değişiminin) SÜREKLİ/GİDEREK daha negatif hale gelmesi — kısa vadede "verimlilik" gibi görünse de (Wal-Mart/Dell tarzı tedarikçi kredisi stratejisi) GERÇEK bir maliyet TAŞIR (erken ödeme indirimi kaybı) VE derecelendirme kuruluşlarınca DEFAULT RİSKİ göstergesi SAYILIR — SONSUZA dek SÜRDÜRÜLEMEZ. Nasıl tespit edilir: noncash işletme sermayesi/gelir oranının ÇOK YILLIK TRENDİNİ izle — sürekli DÜŞÜŞ (daha negatife gidiş) bir uyarı sinyalidir. Gereken veri: `current_assets`/`short_term_liabilities`/`cash` QuaxisLabs'ta VAR ama "noncash" arındırılmış oran HESAPLANMIYOR (FORMÜL-33) — DÜŞÜK MALİYETLİ potansiyel eklenti. (Ch.3, s.155-157)
+- **BAYRAK-13 — İstikrarlı Dönemde Sermaye Getirisinin Sermaye Maliyetinin ÇOK ÜZERİNDE Varsayılması:** Bir DCF modelinde İSTİKRARLI (terminal) dönem için ROC/ROE'nin sermaye/özkaynak MALİYETİNİN AŞIRI ÜZERİNDE (kalıcı fazla getiri) varsayılması, TEORİK OLARAK SÜRDÜRÜLEMEZ bir durumdur (rekabet fazla getiriyi ER YA DA GEÇ eritir) ve terminal değeri (dolayısıyla toplam değeri) YAPAY OLARAK ŞİŞİRMENİN EN YAYGIN yöntemlerinden biridir. Nasıl tespit edilir: modeldeki istikrarlı dönem ROC/ROE'sini SEKTÖR ORTALAMASI ve firmanın KENDİ sermaye/özkaynak MALİYETİYLE karşılaştır — kalıcı/büyük fark ŞÜPHE UYANDIRMALI. Gereken veri: uzun vadeli (terminal) varsayım seti — bu METODOLOJİK bir kontrol, QuaxisLabs'ın MEVCUT tekil-dönem verisiyle DOĞRUDAN taranamaz (bir DCF MODELİNİN kendisi incelenmelidir). (Ch.4, s.191-192, 207-209)
+
+## Uygulama notları (devam)
+
+**Nicel (skorlanabilir, düşük maliyetli eklenti adayları — bu Kısımda TESPİT edildi):**
+- **Marjinal ROE** (FORMÜL-42, `ΔNet Kâr/Δönceki-yıl-Özkaynak`) — SIFIR yeni ham veri gerektirir, mevcut `net_income`/`equity` serilerinden HESAPLANABİLİR; standart ROE'nin YANINDA "yeni yatırım kalitesi" sinyali sunar.
+- **Verimlilik Kaynaklı Ek Büyüme** (FORMÜL-43, `ΔROE/ROE_(t-1)`) — aynı şekilde SIFIR yeni veri, mevcut `roe_annualized` serisinden.
+- **Noncash İşletme Sermayesi** (FORMÜL-33/BAYRAK-12) — nakit VE kısa vadeli faizli borcun (`short_term_financial_debt`, itemCode "2AA" ZATEN mevcut) mevcut `current_assets`/`short_term_liabilities`'ten ÇIKARILMASI — DÜŞÜK maliyetli, `fundamental_screens.py`'nin HAM `net_working_capital`'ini İYİLEŞTİREBİLİR.
+- **Satış/Sermaye Oranı** (FORMÜL-46) — `total_assets`/`equity`/`financial_debt` üzerinden invested capital TÜRETİLEBİLİR, TEK bir oran hesaplaması eksik.
+
+**Nitel (LLM yorumuna uygun):**
+- Kazanç yönetimi teknikleri (Kontrol Listesi E, BAYRAK-08/09/10/11) — bunların ÇOĞU dipnot/haber/anlaşma DUYURUSU okuması gerektirir, sayısal tarama YERİNE bir LLM'in şirket haberlerini/açıklamalarını TARAYIP "bu bulgu VAR MI" diye SORULMASINA uygun.
+- Yüksek büyüme süresi tahmini (Kontrol Listesi I) VE terminal değer/istikrarlı büyüme geçişi VARSAYIMLARININ TUTARLILIĞI (Kontrol Listesi K, BAYRAK-13) — NİTEL/YARGISAL bir değerlendirmedir, bir LLM'in "bu şirketin rekabet avantajı NE KADAR SÜRDÜRÜLEBİLİR" sorusuna YANIT ÜRETMESİNE uygun ama OTOMATİK SKORLANAMAZ.
+- Gelir büyümesi/pazar payı mantık kontrolü (Kontrol Listesi J, madde 3) — LLM'e "bu büyüme oranı X yıl sonra firmayı pazarın %Y'sine getirir, bu MAKUL MÜ" diye SORULABİLİR.
+
+**Veri eksikliği nedeniyle UYGULANAMAZ (öncelik sırasına göre, bu Kısımda EKLENEN/PEKİŞTİRİLEN):**
+1. **Capex (Sermaye Harcaması) — TEKRAR (4. kez, Buffett + Kısım 1 + şimdi 2 kez bu Kısımda) doğrulandı** — FCFE/FCFF/yeniden yatırım oranı/Özkaynak Yeniden Yatırım Oranı formüllerinin (FORMÜL-25/26/27/40/45) TÜMÜNÜN ORTAK ENGELİ. QuaxisLabs'ın "TAMAMEN EKSİK" olarak zaten işaretlediği alan — bu Kısım bunun NE KADAR ÇOK formülü BLOKE ettiğini SOMUTLAŞTIRDI.
+2. **R&D gideri — TEKRAR (3. kez) doğrulandı** — FORMÜL-28/29/30 (kapitalizasyon zinciri) bu tek veriye bağlı.
+3. **Temettü + Hisse Geri Alımı — TEKRAR (6. kez, kitaplar arası EN SIK) doğrulandı** — FORMÜL-34/35, tutma oranı (FORMÜL-38) hesaplarının TAMAMI için gerekli.
+4. **income_before_tax/tax_provision (XI_29) — TEKRAR (2. kez bu kitapta) doğrulandı** — FORMÜL-27/32'nin ortak engeli; efektif vergi oranı hesaplanamadığı için Ch.3'ün "vergi oranı seçimi" (İLKE-68/69/70) metodolojisi TAMAMEN teorik kalıyor.
+5. **10+ yıllık geçmiş kazanç serisi — TEKRAR (6. kez, artık kitaplar-ötesi EN ISRARLI yapısal eksiklik) doğrulandı** — aritmetik/geometrik büyüme oranı hesaplarının (FORMÜL-36/37) ortak engeli; `trends.py`'nin 12-çeyrek penceresi bu bölümdeki hiçbir çok-yıllı büyüme formülü için YETERLİ DEĞİL.
+6. **Net Borç İhracı/Geri Ödemesi (ayrı kalemler)** — Özkaynak Yeniden Yatırım Oranı (FORMÜL-40) için gerekli, sadece dönem-sonu STOK `financial_debt` VAR, AKIŞ (ihraç/ödeme) YOK.

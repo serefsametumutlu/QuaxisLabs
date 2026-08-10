@@ -159,11 +159,12 @@ Kitap büyük ölçüde NİCEL/formül ağırlıklı (Graham/Buffett'a göre dah
 ### Durum
 TOC ve bölüm sınırları PyMuPDF `get_text()` ile doğrudan (OCR'sız) çıkarıldı, tüm 18 bölüm başlığı + Part sınırları + appendix'ler PDF içinde regex ile bulunup sayfa numaralarıyla doğrulandı. Kullanıcı 9 kısımlık planı onayladı.
 
-### Bölüm bazlı durum — Kısım 1/9 TAMAMLANDI
+### Bölüm bazlı durum — Kısım 1-2/9 TAMAMLANDI (kullanıcı onayı ile art arda devam ediliyor, kısım-kısım onay artık istenmiyor)
 | Kısım | Bölümler | PDF sayfa | İLKE | FORMÜL | Eşik satırı | Kontrol maddesi | BAYRAK | Durum |
 |---|---|---|---|---|---|---|---|---|
-| **Kısım 1** | Ch.1 Introduction to Valuation + Ch.2 Estimating Discount Rates | s.15-117 | 01-57 (57) | 01-24 (24) | 15 + Tablo 2.4 (15 satır kredi notu bandı) | 13 (A:5+B:5+C:3) | 01-07 (7) | TAMAMLANDI, henüz commit edilmedi |
-| Kısım 2-9 | Ch.3-18 + appendix'ler | s.118-864 | — | — | — | — | — | İşlenmedi |
+| **Kısım 1** | Ch.1 Introduction to Valuation + Ch.2 Estimating Discount Rates | s.15-117 | 01-57 (57) | 01-24 (24) | 15 + Tablo 2.4 (15 satır kredi notu bandı) | 13 (A:5+B:5+C:3) | 01-07 (7) | TAMAMLANDI, commit `2cbf155` |
+| **Kısım 2** | Ch.3 Measuring Cash Flows + Ch.4 Forecasting Cash Flows | s.118-217 | 58-98 (41) | 25-51 (27) | 15 | 8 (D-K) | 08-13 (6) | TAMAMLANDI, henüz commit edilmedi |
+| Kısım 3-9 | Ch.5-18 + appendix'ler | s.218-864 | — | — | — | — | — | İşlenmedi |
 
 **Kısım 1 — özel notlar:**
 - Bu PDF'te metin katmanı VAR (Graham/Buffett'ın aksine OCR GEREKMEDİ) — ama kitaptaki formüller çoğunlukla görsel/denklem render olarak gömülü ve `get_text()` ile KAYBOLUYOR; formüllerin çoğu ÇEVRELEYEN metin + değişken tanımları + Illustration 2.1-2.8'deki sayısal örneklerden TERS MÜHENDİSLİKLE yeniden inşa edildi (kitaptaki orijinal denklem gösteriminin birebir kopyası değil — zaten telif kuralına uygun).
@@ -173,5 +174,12 @@ TOC ve bölüm sınırları PyMuPDF `get_text()` ile doğrudan (OCR'sız) çıka
 - **Pozitif bulgu:** `src/analysis/valuation.py` (Damodaran İstikrarlı Büyüme FCFE modeli) ve `src/analysis/merton.py` (Merton temerrüt modeli) kitabın Ch.1-2'deki kavramlarının (Gordon büyüme DCF, CAPM cost of equity, default riski) KISMİ/basitleştirilmiş uygulamalarını ZATEN İÇERİYOR — Kısım 1'in QuaxisLabs karşılığı notları bu MEVCUT kodun kitabın TAM metodolojisine göre hangi kısayolları (β=1, WACC yok, ülke primi λ ayrıştırması yok) aldığını belgeledi.
 - Net Borç formülü (`calculator.net_debt()`) kitaptaki basit tanımdan (borç−nakit) DAHA KAPSAMLI (borç−nakit−finansal yatırımlar) — kitaba göre değil, QuaxisLabs'a göre GÜNCEL/doğru kabul edildi.
 
+### Kısım 2 — özel notlar
+- Capex (sermaye harcaması) eksikliğinin bu Kısımdaki ETKİSİ SOMUTLAŞTI: FCFE/FCFF/Özkaynak+Firma Yeniden Yatırım Oranı formüllerinin (FORMÜL-25/26/27/40/45) TAMAMI bu tek veriye bağlı — artık 4. kez (Buffett + Kısım 1 + bu Kısımda 2 ayrı formül grubu) doğrulandı, QuaxisLabs'ın en yüksek hacimli tekil veri açığı.
+- **Yeni ucuz eklenti adayları tespit edildi:** Marjinal ROE (`ΔNet Kâr/Δönceki-yıl-özkaynak`) ve "verimlilik kaynaklı büyüme" (`ΔROE/ROE_(t-1)`) — SIFIR yeni ham veri gerektirir, mevcut `net_income`/`equity`/`roe_annualized` serilerinden DOĞRUDAN türetilebilir.
+- `fundamental_screens.py` (Faz 21, Greenblatt/Carlisle/Piotroski) dosyasının üst notunda dikkat çekici bir ifade bulundu: "eski 'Değerleme Analizi' panelindeki ... Aswath Damodaran modeli ... TAMAMEN kaldırıldı" — ANCAK kod incelemesi `valuation.py::compute_valuation_assessment()` (Damodaran FCFE bloğu dahil) hâlâ `card.py`/`deep_card.py` tarafından AKTİF olarak import edildiğini gösterdi. Bu muhtemelen İKİ AYRI panelin (eski "Değerleme Analizi" vs yeni Faz 21 "Değerleme" ekranı) KARIŞTIRILMAMASI gereken bir nüans — Kısım 1'deki bulgular (valuation.py'nin Damodaran bloğu MEVCUT) GEÇERLİLİĞİNİ KORUYOR, ama bu çelişki `00_sentez.md` aşamasında (veya bir orkestratör turunda) NET netleştirilmeli.
+- Noncash İşletme Sermayesi (nakit + kısa vadeli faizli borç arındırılmış) DÜŞÜK maliyetli bir potansiyel iyileştirme olarak işaretlendi — `fundamental_screens.py`'nin HAM `net_working_capital`'i bu düzeltmeyi henüz YAPMIYOR.
+- Temettü/DPS eksikliği bu kitapta 2. kez (Kısım 1 + Kısım 2), kitaplar arası TOPLAM 6. kez doğrulandı — artık QuaxisLabs'ın en SIK tekrarlanan tekil veri açığı olarak KESİNLEŞTİ.
+
 ### Sonraki adım (Damodaran)
-Kısım 1 (Ch.1-2) tamamlandı, kullanıcı onayı ile Kısım 2'ye (Ch.3 Measuring Cash Flows + Ch.4 Forecasting Cash Flows, PDF s.118-217) geçilecek. **UYARI (Graham dersine göre):** Kısım 1 TAMAMLANDI ve commit edildikten sonra TEKRAR AÇILIP genişletilmeyecek — ikinci bir "zenginleştirme turu" YAPILMAYACAK.
+Kullanıcı artık kısım-kısım onay istemiyor — Kısım 3'ten (Ch.5 Equity DCF Models + Ch.6 Firm Valuation Models, PDF s.218-305) başlayarak Kısım 9'a kadar ART ARDA, durmadan işlenecek; her kısım kendi standardında BİR KEZ işlenip commit edilecek, tekrar açılıp genişletilmeyecek (zenginleştirme turu YOK). Kısım 9 sonunda tüm kitap için tutarlılık taraması + final rapor yapılacak.

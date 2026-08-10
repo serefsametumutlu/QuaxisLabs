@@ -5,6 +5,7 @@
 |---|---|---|---|
 | 01 | The Intelligent Investor (Benjamin Graham, Rev. Ed. — Jason Zweig commentary) | **TAMAMLANDI** — Tüm kısımlar (Introduction + Ch.1-20 + Postscript + Appendix) işlendi. | `bilgi-bankasi/01_graham_akilli_yatirimci.md` |
 | 02 | Warren Buffett and the Interpretation of Financial Statements | **TAMAMLANDI** — 5 ana kısım (Gelir Tablosu, Bilanço, Özkaynaklar, Nakit Akış Tablosu, Değerleme) + Appendix model şirket karşılaştırması işlendi. Terimler Sözlüğü bilinçli olarak atlandı (sadece tanım niteliğinde). | `bilgi-bankasi/02_buffett_finansal_tablolar.md` |
+| 03 | Damodaran on Valuation, 2nd Ed. (Aswath Damodaran) | **DEVAM EDİYOR** — Kısım 1/9 (Ch.1-2) TAMAMLANDI, henüz commit edilmedi. Kısım 2-9 işlenmedi, sıradaki kısım için kullanıcı onayı bekleniyor. | `bilgi-bankasi/03_damodaran_degerleme.md` |
 
 ## Kitap geneli TOPLAM sayılar — 02 Buffett (dosya üzerinde script ile doğrulandı)
 - İLKE: **61** (İLKE-01…61, kesintisiz, tekrarsız)
@@ -126,3 +127,51 @@ Bu kitap (02) için ana içerik çıkarımı TAMAMLANDI. Olası sonraki adımlar
 9. **Capex + Nakit Akış Finansman Faaliyetleri** (temettü/geri alım/borç) — İş Yatırım "4D"/"4E" araştırması VEYA KAP XBRL etiketleri (Nakit Akış, ikinci en çok vurgulanan gösterge).
 10. **Dağıtılmamış Kârlar + Hazine Hissesi** — KAP XBRL standart etiketleri mevcut, isyatirim.py tarafı araştırılmalı (Özkaynaklar).
 11. **Envanter, Şerefiye, Maddi Olmayan Duran Varlıklar** — düşük öncelik, ilgili ilkeler çoğunlukla nitel/çok-yıllı karşılaştırma gerektiriyor (Bilanço).
+
+---
+
+## 03 — Damodaran on Valuation (Aswath Damodaran, 2nd Ed., 2006) — TOC çıkarıldı, PLAN AŞAMASINDA
+
+### Kaynak
+- `kitaplar/damodaran-on-valuation.pdf` — toplam **929 PDF sayfası**, metin katmanı VAR (OCR gerekmedi, `get_text()` doğrudan çalıştı).
+- İçerik gövdesi: PDF s.15 (Chapter 1 başlığı) — PDF s.864 (Chapter 18 sonu). PDF s.865-929 Index.
+- Kitabın kendi 3 ana bölümü: **Part One: Discounted Cash Flow Valuation** (Ch.2-6), **Part Two: Relative Valuation** (Ch.7-9), **Part Three: Loose Ends in Valuation** (Ch.10-18) — Ch.1 (Introduction) bu üçünün dışında, girişte.
+- Sayfa dönüşümü (DOĞRULANMADI, sonraki turda teyit edilecek): kitap sayfası ≈ PDF index − 14 (Ch.1 PDF s.15 = kitap s.1 varsayımıyla).
+
+### Bölüm Planı (9 KISIM — kullanıcı onayı bekleniyor)
+| Kısım | İçerik (bölümler) | PDF sayfa aralığı | Yaklaşık sayfa | Beklenen odak / madde yoğunluğu tahmini |
+|---|---|---|---|---|
+| **Kısım 1** | Ch.1 Introduction to Valuation + Ch.2 Estimating Discount Rates | s.15-117 | ~103 | Değerleme felsefesi, önyargı/belirsizlik kaynakları, risk tanımı, Özkaynak Maliyeti (CAPM/Beta), Sermaye Maliyeti — yüksek formül yoğunluğu (CAPM, beta hesapları) |
+| **Kısım 2** | Ch.3 Measuring Cash Flows + Ch.4 Forecasting Cash Flows | s.118-217 | ~100 | Nakit akışı kategorileri, kazanç normalleştirme, vergi etkisi, yeniden yatırım ihtiyacı, büyüme dönemi tahmini, terminal değer — yüksek formül yoğunluğu |
+| **Kısım 3** | Ch.5 Equity DCF Models + Ch.6 Firm Valuation Models | s.218-305 | ~88 | Temettü İskonto Modeli, FCFE, FCFF, Sermaye Maliyeti/APV/Artık Getiri yaklaşımları — Part One'ın kapanışı, çekirdek DCF formülleri |
+| **Kısım 4** | Ch.7 Relative Valuation: First Principles + Ch.8 Equity Multiples | s.306-385 | ~80 | Çarpan mantığı, standardizasyon, F/K ve türevleri, dağılım karakteristikleri |
+| **Kısım 5** | Ch.9 Value Multiples + Ch.10 Cash/Cross Holdings/Other Assets (+App.10.1) | s.386-477 | ~92 | FD/FAVÖK ve türevleri; nakit/çapraz iştirak/finansal yatırım düzeltmeleri — Part Two kapanışı + Part Three başlangıcı |
+| **Kısım 6** | Ch.11 Employee Equity Options + Ch.12 Value of Intangibles (+App.12.1 Option Pricing) | s.478-590 | ~113 | Opsiyon bazlı tazminat düzeltmesi, maddi olmayan varlık değerlemesi, opsiyon fiyatlama modelleri |
+| **Kısım 7** | Ch.13 Value of Control + Ch.14 Value of Liquidity | s.591-705 | ~115 | Kontrol primi, likidite iskontosu — nitel+nicel karışık, sıkça eşik/yüzde içerir |
+| **Kısım 8** | Ch.15 Value of Synergy + Ch.16 Value of Transparency (+App.16.1, 16.2) | s.706-795 | ~90 | Sinerji değerlemesi/yaygın hatalar, şeffaflık/karmaşıklık skorlama |
+| **Kısım 9** | Ch.17 Cost of Distress + Ch.18 Closing Thoughts | s.796-864 | ~69 | Finansal sıkıntı maliyeti, model seçim rehberi ("10 Steps to Better Valuations" — kontrol listesi niteliğinde) |
+
+**Toplam: 9 kısım, ~850 PDF sayfası içerik.** Graham (7 kısım/~625 kitap sayfası, ortalama ~89 sayfa/kısım) ile kıyasla bu kitap hem daha uzun hem formül yoğunluğu daha yüksek (DCF+çarpan+opsiyon fiyatlama modelleri) olduğundan 9 kısıma bölündü; ortalama kısım büyüklüğü (~94 PDF sayfası) Graham ile aynı bandın hafif üzerinde tutuldu.
+
+### Beklenen madde yoğunluğu (kaba tahmin, doğrulanmadı)
+Kitap büyük ölçüde NİCEL/formül ağırlıklı (Graham/Buffett'a göre daha az kontrol listesi/kırmızı bayrak, çok daha fazla FORMÜL). Kısım başına kabaca 10-20 formül, 15-25 ilke, 5-15 eşik satırı beklenir; kontrol listesi yoğunlukla sadece Kısım 9'da (Ch.18 "Ten Steps to Better Valuations") belirgin olacaktır.
+
+### Durum
+TOC ve bölüm sınırları PyMuPDF `get_text()` ile doğrudan (OCR'sız) çıkarıldı, tüm 18 bölüm başlığı + Part sınırları + appendix'ler PDF içinde regex ile bulunup sayfa numaralarıyla doğrulandı. Kullanıcı 9 kısımlık planı onayladı.
+
+### Bölüm bazlı durum — Kısım 1/9 TAMAMLANDI
+| Kısım | Bölümler | PDF sayfa | İLKE | FORMÜL | Eşik satırı | Kontrol maddesi | BAYRAK | Durum |
+|---|---|---|---|---|---|---|---|---|
+| **Kısım 1** | Ch.1 Introduction to Valuation + Ch.2 Estimating Discount Rates | s.15-117 | 01-57 (57) | 01-24 (24) | 15 + Tablo 2.4 (15 satır kredi notu bandı) | 13 (A:5+B:5+C:3) | 01-07 (7) | TAMAMLANDI, henüz commit edilmedi |
+| Kısım 2-9 | Ch.3-18 + appendix'ler | s.118-864 | — | — | — | — | — | İşlenmedi |
+
+**Kısım 1 — özel notlar:**
+- Bu PDF'te metin katmanı VAR (Graham/Buffett'ın aksine OCR GEREKMEDİ) — ama kitaptaki formüller çoğunlukla görsel/denklem render olarak gömülü ve `get_text()` ile KAYBOLUYOR; formüllerin çoğu ÇEVRELEYEN metin + değişken tanımları + Illustration 2.1-2.8'deki sayısal örneklerden TERS MÜHENDİSLİKLE yeniden inşa edildi (kitaptaki orijinal denklem gösteriminin birebir kopyası değil — zaten telif kuralına uygun).
+- **Bu turun EN YÜKSEK öncelikli tekil bulgusu:** `interest_expense` (faiz gideri) XI_29 (BIST sanayi) şemasında YOK — bu, Graham (Kısım 3) ve Buffett (Gelir Tablosu) turlarından sonra ARTIK 3. kez, farklı bir kitapta/bağlamda (bu kez cost of debt/interest coverage ratio/sentetik kredi notu formülleri, FORMÜL-17/18/19) doğrulandı. XI_29'a bu alanın eklenmesi TEK BAŞINA 3 formülü (+2 kırmızı bayrağı, BAYRAK-06/07) birden çözer.
+- **Temettü verisi (DPS) eksikliği** ARTIK 5. kez (Graham 3, Buffett 1, şimdi Damodaran) farklı kitapta tekrarlanan KÜMÜLATİF en sık veri açığı olarak doğrulandı (FORMÜL-15, implied cost of equity).
+- **Pazar endeksi (BIST100/S&P500) getiri serisi hiç çekilmiyor** — gerçek CAPM betası (regresyon) ve bottom-up beta bu yüzden UYGULANAMIYOR; `valuation.py`'nin mevcut Damodaran FCFE bloğu β=1 (piyasa ortalaması) sabit varsayımıyla çalışıyor, bu Kısım 1'de AÇIKÇA belgelendi.
+- **Pozitif bulgu:** `src/analysis/valuation.py` (Damodaran İstikrarlı Büyüme FCFE modeli) ve `src/analysis/merton.py` (Merton temerrüt modeli) kitabın Ch.1-2'deki kavramlarının (Gordon büyüme DCF, CAPM cost of equity, default riski) KISMİ/basitleştirilmiş uygulamalarını ZATEN İÇERİYOR — Kısım 1'in QuaxisLabs karşılığı notları bu MEVCUT kodun kitabın TAM metodolojisine göre hangi kısayolları (β=1, WACC yok, ülke primi λ ayrıştırması yok) aldığını belgeledi.
+- Net Borç formülü (`calculator.net_debt()`) kitaptaki basit tanımdan (borç−nakit) DAHA KAPSAMLI (borç−nakit−finansal yatırımlar) — kitaba göre değil, QuaxisLabs'a göre GÜNCEL/doğru kabul edildi.
+
+### Sonraki adım (Damodaran)
+Kısım 1 (Ch.1-2) tamamlandı, kullanıcı onayı ile Kısım 2'ye (Ch.3 Measuring Cash Flows + Ch.4 Forecasting Cash Flows, PDF s.118-217) geçilecek. **UYARI (Graham dersine göre):** Kısım 1 TAMAMLANDI ve commit edildikten sonra TEKRAR AÇILIP genişletilmeyecek — ikinci bir "zenginleştirme turu" YAPILMAYACAK.

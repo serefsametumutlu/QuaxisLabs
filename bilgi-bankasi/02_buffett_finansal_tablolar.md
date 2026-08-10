@@ -2,7 +2,7 @@
 
 ## Meta
 - **Kaynak:** `kitaplar/WARREN BUFFETT AND THE INTERPRETATION OF FINANCIAL STATEMENTS.pdf` (224 sayfa, taranmış/image-only PDF, metin katmanı yok — OCR ile çıkarıldı: PyMuPDF `get_textpage_ocr`, Tesseract, dpi=300, `language='eng'`).
-- **Bu dosyanın kapsamı:** "GELİR TABLOSU" (Böl.7-20, s.45-88), "BİLANÇO" (Böl.21-42, s.89-146) VE "ÖZKAYNAKLAR" (Böl.43-49, s.147-165) ana kısımları. Nakit Akış (Böl.50-52) ve Değerleme (Böl.53-57) bölümleri SONRAKİ turlarda bu dosyaya eklenecek.
+- **Bu dosyanın kapsamı:** "GELİR TABLOSU" (Böl.7-20, s.45-88), "BİLANÇO" (Böl.21-42, s.89-146), "ÖZKAYNAKLAR" (Böl.43-49, s.147-165) VE "NAKİT AKIŞ TABLOSU" (Böl.50-52, s.168-179) ana kısımları. Değerleme (Böl.53-57) bölümü SONRAKİ turda bu dosyaya eklenecek.
 - **ID numaralandırması dosya genelinde KESİNTİSİZDİR** (İLKE/FORMÜL/BAYRAK bölümler arası devam eder); Eşik tablosu ve Kontrol Listeleri her ana kısım için ayrı/yeni numaralanır (bunlar referans amaçlı, çapraz atıf gerektirmiyor).
 - **İşlenen bölümler:**
   - Böl.7 Gelir Tablosuna Giriş (s.45-47)
@@ -379,3 +379,92 @@ Bölüm 49 sonunda (PDF s.166) "PART FOUR: THE CASH FLOW STATEMENT" bölüm-ayı
 4. Ödenen Temettü ve Hisse Geri Alım Harcaması tutarları da bilanço/gelir tablosu şemalarında YOK — bunlar tipik olarak Nakit Akış Tablosu'nun "Finansman Faaliyetleri" bölümünde raporlanır. SONRAKİ ana kısım (Böl.50-52, Nakit Akış Tablosu) işlenirken bu iki alanın oradaki karşılığı ÖZELLİKLE kontrol edilmeli — hem bu bölümün (Dağıtılmamış Kâr büyüme oranı) hem de sonraki bölümün (Böl.52, Hisse Geri Alımları) formülleri bu veriye bağımlı.
 5. Kaldıraç/spread kavramı (Böl.49) sanayi şirketleri için doğrudan uygulanabilir bir QuaxisLabs formülü değil — daha çok NİTEL bir uyarı ilkesi (kazancın kaynağını sorgulama) olarak ele alınmalı; bankalar için en yakın kavramsal karşılık olan `net_interest_margin_current` zaten mevcut ve kullanılabilir.
 6. OCR notu: Bu turda sayısal eşiklerde belirsizlik YOK; tek düzeltme İÇİNDEKİLER tablosuyla çapraz kontrol edilerek yapılan bölüm numarası düzeltmesiydi (s.162/s.164'teki "CHAPTER 49" ikili tekrarının 48/49 olarak ayrıştırılması) — bkz. yukarıdaki "OCR notu / düzeltme".
+
+---
+---
+
+# NAKİT AKIŞ TABLOSU (Bölüm 50-52, PDF s.168-179)
+
+## İşlenen bölümler (bu ana kısım)
+- Böl.50 Nakit Akış Tablosu: Warren'ın Nakdi Bulduğu Yer (s.168-172)
+- Böl.51 Yatırım Harcamaları (Capex): Zengin Olmanın Sırlarından Biri, Onlara Sahip OLMAMAK (s.173-176)
+- Böl.52 Hisse Geri Alımları: Warren'ın Vergisiz Hissedar Zenginleştirme Yöntemi (s.177-179)
+
+**Sınır doğrulaması:** Bölüm 52 PDF s.179'da bitiyor; s.180 "VALUING THE COMPANY WITH A DURABLE COMPETITIVE ADVANTAGE" bölüm-ayırıcı sayfası (Buffett alıntısı), Değerleme ana kısmı (Böl.53) s.182'de başlıyor — bu turda doğrulandı.
+
+**OCR notu:** Gövde metni yüksek güvenilirlikte okundu; sayısal eşiklerde OCR belirsizliği YOK. TEK dikkat çeken nokta bir OCR/tutarlılık şüphesi: Böl.50'nin (s.171) kendi örnek tablosu "Issuance (Retirement) of Stock, Net" kalemini **Finansman Faaliyetleri** altında gösterirken, Böl.52 (s.179) metni aynı kalemi bulmak için "nakit akış tablosunda **Yatırım Faaliyetleri** (Investing Activities) altına bakın" diyor — muhasebe standardı açısından da doğrusu Finansman Faaliyetleri'dir (hisse ihracı/geri alımı bir sermaye işlemidir). Bu büyük olasılıkla s.179'daki OCR'ın "Financing" kelimesini "Investing" olarak yanlış okumasından kaynaklanıyor; **"(OCR belirsiz, s.179'da teyit edilmeli)"** notuyla işaretlendi, bu dosyada Böl.50'nin (içsel olarak tutarlı, muhasebe standardıyla uyumlu) sınıflandırması esas alındı.
+
+---
+
+## İlkeler (devam)
+
+- **İLKE-44:** Tahakkuk esaslı muhasebe (accrual) nedeniyle gelir tablosundaki "kâr" ile gerçek nakit hareketi FARKLI olabilir — şirket kâğıt üzerinde kârlı ama nakit sıkıntısında olabilir (ya da tersi); nakit akış tablosu GERÇEK nakit hareketini üç ayrı bölümde (Faaliyet/Yatırım/Finansman) izler. (s.168-171)
+- **İLKE-45:** Faaliyetlerden Nakit Akışı, net kâra amortisman/itfa payının GERİ EKLENMESİYLE bulunur — bunlar muhasebesel gerçek giderlerdir ama o yılın nakdini TÜKETMEZ (nakit çıkışı geçmiş yıllarda zaten gerçekleşmiştir). (s.169)
+- **İLKE-46:** Dayanıklı rekabet avantajlı bir şirket, sürekliliği olan (devam eden) faaliyetleri için kazancının DAHA KÜÇÜK bir kısmını yatırım harcamasına (capex) ayırır — avantajı olmayan şirketler ise rekabette kalabilmek için sürekli ağır capex yapmak zorunda kalır. (s.174)
+- **İLKE-47:** Bazı sektörler (örn. telekomünikasyon) YAPISAL OLARAK kalıcı/ağır capex gerektirir — Warren bu tür sektörlerden, altta yatan ekonomiyi capex yükü zayıflattığı için, KAÇINIR. (s.174)
+- **İLKE-48:** Capex/Kazanç oranı DEĞERLENDİRİLİRKEN tek yıl değil, 10 YILLIK toplam bakılmalıdır — bu, işin gerçek uzun-vadeli capex yoğunluğu hakkında daha güvenilir bir resim verir. (s.175-176)
+- **İLKE-49:** Düşük capex'e sahip şirketler (fazla nakit üretirler) genelde HEM hisse geri alımı yapabilir HEM DE uzun vadeli borcu düşük tutabilir/azaltabilir — Warren için bu İKİ eylemin BİRLİKTE görülmesi güçlü bir pozitif sinyaldir. (s.175)
+- **İLKE-50:** Warren temettüyü SEVMEZ çünkü hissedar temettüyü aldığı anda vergi öder; hisse geri alımı ise hissedar ZENGİNLİĞİNİ ARTIRIR ama VERGİ hisse SATILANA kadar ERTELENİR — bu yüzden geri alımı "vergisiz zenginleştirme" yöntemi olarak tercih eder. (s.178-179)
+- **İLKE-51:** Şirketin yıldan yıla İSTİKRARLI bir şekilde hisse geri alması/geri çekmesi ("history" of repurchasing), dayanıklı rekabet avantajının bir GÖSTERGESİDİR — bu fazladan nakit ancak güçlü/sürdürülebilir bir ekonomik motorla üretilebilir. (s.179)
+
+---
+
+## Formüller (devam)
+
+| # | Formül | QuaxisLabs karşılığı |
+|---|---|---|
+| **FORMÜL-24** Faaliyetlerden Nakit Akışı = Net Kâr + Amortisman + İtfa Payı (s.169) | **KISMEN MEVCUT.** `operating_cash_flow` (`isyatirim.py` `STANDARD_ITEM_MAP_XI_29["operating_cash_flow"]="4C"`) İş Yatırım'dan DOĞRUDAN çekiliyor (muhtemelen zaten resmi "Faaliyetlerden Nakit Akışı" rakamı, kitaptaki gibi Net Kâr+D&A'dan YENİDEN türetilmiyor). Ama bu alan `calculator.py`'nin `Ratios`/`AnalysisResult` yapısında HİÇ YOK — sadece `src/analysis/fundamental_screens.py`'de Piotroski F-Skoru'nun 2. kriterinde (pozitif mi/değil mi, ikili test) kullanılıyor. Mutlak tutar/marj olarak hiçbir yerde gösterilmiyor/skorlanmıyor. |
+| **FORMÜL-25** Yatırım Faaliyetlerinden Nakit Akışı = Yatırım Harcamaları (Capex, negatif) + Diğer Yatırım Kalemleri (s.170) | **VERİ EKSİK (TAMAMEN).** `capex` (yatırım harcaması) standalone alan olarak `isyatirim.py`, `kap_financials.py` ve `pipeline.py`'nin HİÇBİRİNDE yok. |
+| **FORMÜL-26** Finansman Faaliyetlerinden Nakit Akışı = Ödenen Nakit Temettüler (negatif) + Hisse İhracı/(Geri Alımı) Net + Borç İhracı/(Geri Ödemesi) Net (s.171) | **VERİ EKSİK (TAMAMEN) — Özkaynaklar turunda ertelenen sorunun KESİN CEVABI.** Bu üç kalemin (`Ödenen Temettü`, `Hisse İhracı/Geri Alımı Net`, `Borç İhracı/Geri Ödemesi Net`) HİÇBİRİ `isyatirim.py`, `kap_financials.py` veya `pipeline.py`'de standalone alan olarak YOK. Nakit akış tablosuna dair İş Yatırım şemasında (`STANDARD_ITEM_MAP_XI_29`) çekilen TEK kalem `operating_cash_flow` (4C) — yatırım ve finansman faaliyetlerinin HİÇBİR alt kalemi çekilmiyor. |
+| **FORMÜL-27** Nakit Değişimi (Net) = Faaliyet + Yatırım + Finansman Nakit Akışları Toplamı (s.171) | **VERİ EKSİK (türetilemez — bileşenleri eksik).** Dolaylı bir iz var: `cash` (1AA) bilanço STOK değeri olarak dönemsel karşılaştırmalı çekiliyor (`BalanceSheetSummary.cash`, QoQ) — iki dönem arası bilanço nakit farkı yaklaşık "net change in cash"i verir, ama resmi 3-bölümlü nakit akış tablosundan TÜRETİLMİYOR; capex/temettü/borç kaynaklı olup olmadığını AYIRT EDEMEZ. |
+| **FORMÜL-28** Capex/Net Kâr Oranı (10 yıllık toplam veya yıllık) — eşik ≤%50 / <%25 (s.175-176) | **VERİ EKSİK.** FORMÜL-25'in ham verisi eksik olduğu için türetilemez. Kitabın bu bölümde en çok vurguladığı gösterge, TAMAMEN hesaplanamıyor. |
+| **FORMÜL-29** Hisse Başına Kâr Değişimi (geri alım etkisi) = Net Kâr / Tedavüldeki Hisse Sayısı (s.178) | **VERİ EKSİK.** Gelir Tablosu turunda (FORMÜL-08) tespit edilen aynı eksikliğin tekrarı — tedavüldeki hisse sayısı/HBK standalone hesaplanmıyor; `share_capital` alanı sadece piyasa değeri hesabı için kullanılıyor. |
+
+---
+
+## Eşikler — Nakit Akış Tablosu (tablo)
+
+| Gösterge | Eşik / Aralık | Yorum | Örnek şirketler | Sayfa |
+|---|---|---|---|---|
+| Capex / Net Kâr (10 yıllık toplam) | ≤%50 | Dayanıklı rekabet avantajı ARAMAK için iyi aday | Coca-Cola %19, Moody's %5 | s.174-176 |
+| Capex / Net Kâr (10 yıllık toplam) | <%25 (tutarlı) | Dayanıklı rekabet avantajı GÜÇLÜ olasılık | Moody's %5 | s.174-176 |
+| Capex / Net Kâr (10 yıllık toplam) | >%100 (kazancı AŞIYOR) | Dayanıklı avantaj YOK, genelde borçla finanse ediliyor | GM %444, Goodyear %950 | s.175 |
+| Capex / Net Kâr (yıllık) | Sektöre göre değişken, düşük-orta bandı tercih edilir | Referans aralığı | Wrigley %49, Altria %20, P&G %28, Pepsico %36, American Express %23, Coca-Cola %19, Moody's %5 | s.176 |
+| Hisse Geri Alım Geçmişi | Yıldan yıla İSTİKRARLI | Dayanıklı rekabet avantajı işareti | GEICO, The Washington Post Co. (Warren'ın bizzat uyguladığı örnekler) | s.179 |
+| Temettü vs Geri Alım Tercihi | Geri alım AĞIRLIKLI | Warren'ın tercih ettiği "vergisiz zenginleştirme" yöntemi | — | s.178-179 |
+
+---
+
+## Kontrol Listesi — Nakit Akış Tablosu (10 madde)
+
+1. Faaliyetlerden Nakit Akışı, raporlanan net kârla TUTARLI mı (amortisman/itfa geri eklenmiş mi)?
+2. Şirket kâğıt üzerinde kârlı görünürken NAKİT AÇIĞI veriyor mu (ya da tersi) — tahakkuk/nakit farkı var mı?
+3. Son 10 yılın TOPLAM capex'i, son 10 yılın TOPLAM net kârının yüzde kaçı?
+4. Bu oran ≤%50 mi (iyi aday); <%25 mi (güçlü sinyal)?
+5. Şirket telekom/ağır-sermaye-yoğun bir sektörde mi — yapısal capex riski var mı?
+6. Düşük capex + hisse geri alım programı + düşük/azalan uzun vadeli borç ÜÇLÜSÜ BİRLİKTE görülüyor mu?
+7. Şirket temettü mü yoksa hisse geri alımı mı tercih ediyor — hangisi baskın?
+8. "Issuance (Retirement) of Stock, Net" kalemi yıldan yıla NEGATİF mi (sürekli geri alım = olumlu sinyal)?
+9. Yüksek capex ihtiyacı EK BORÇLA mı finanse ediliyor (bilanço tarafındaki borç artışıyla çapraz kontrol edilmeli)?
+10. Finansman faaliyetleri nakit akışı (temettü+geri alım+borç hareketleri) net POZİTİF mi NEGATİF mi — şirket net olarak sermaye mi TOPLUYOR yoksa hissedarlara mı GERİ VERİYOR?
+
+---
+
+## Kırmızı Bayraklar (devam)
+
+- **BAYRAK-28:** Capex'in (10 yıllık toplam) net kârı AŞMASI (>%100) — kazancın tamamının ve fazlasının yeniden yatırıma gitmesi, dayanıklı avantaj YOK işareti; genelde ek borçla finanse edilir. (s.175)
+- **BAYRAK-29:** Yüksek/artan capex ihtiyacının banka kredisi veya yeni borç ihracıyla finanse edilmesi — bilançodaki borç yükünü VE faiz giderini ARTIRIR, kısır döngü riski. (s.175)
+- **BAYRAK-30:** Şirketin yapısal olarak ağır-capex gerektiren bir sektörde olması (örn. telekomünikasyon) — Warren'ın bilinçli olarak KAÇINDIĞI bir sektör-düzeyi risk. (s.174)
+- **BAYRAK-31:** Hisse geri alımı YERİNE sürekli yüksek temettü dağıtımı tercih edilmesi — vergisel açıdan hissedar için ALT-OPTİMAL (Warren'ın tercih ettiği yöntem DEĞİL); tek başına olumsuz sayılmaz ama Warren'ın ideal profiliyle örtüşmez. (s.178-179)
+- **BAYRAK-32:** "Issuance (Retirement) of Stock, Net" kaleminin tutarsız/düzensiz olması (bazı yıllar geri alım, bazı yıllar yeni hisse ihracı) — istikrarlı bir sermaye-döndürme politikasının YOKLUĞU, dayanıklı avantaj sinyalinin zayıflığı. (s.179)
+
+---
+
+## Uygulama Notları — Nakit Akış Tablosu
+
+1. Bu bölüm, önceki turlarda ertelenen iki veri-eksikliği sorusunun **KESİN CEVABINI** verdi: **Ödenen Temettü, Hisse İhracı/Geri Alımı (Net), Borç İhracı/Geri Ödemesi (Net) ve Yatırım Harcaması (Capex)** — dördü de `isyatirim.py`, `kap_financials.py` ve `pipeline.py`'de TARANDI, HİÇBİRİ standalone alan olarak YOK. Nakit akış tablosuna dair İş Yatırım şemasında (`STANDARD_ITEM_MAP_XI_29`) çekilen TEK kalem `operating_cash_flow` ("4C") — bu da `calculator.py`'nin `Ratios`/`AnalysisResult` yapısında HİÇ YER ALMIYOR, sadece `fundamental_screens.py`'de Piotroski F-Skoru'nun ikili (pozitif mi/değil mi) kriterinde kullanılıyor.
+2. Bu, kitabın bu bölümde en çok vurguladığı gösterge olan **Capex/Net Kâr oranını (≤%50 / <%25 eşikleri) QuaxisLabs'ın TAMAMEN HESAPLAYAMADIĞI** anlamına gelir. Gelir Tablosu turunda tespit edilen "Faiz Gideri" eksikliğiyle birlikte düşünüldüğünde, kitabın en önemli iki göstergesinden biri gelir tablosu tarafında (Faiz Gideri/Faaliyet Kârı), diğeri nakit akış tablosu tarafında (Capex/Net Kâr) veri modelinde TAMAMEN eksik.
+3. Öncelik önerisi: İş Yatırım'ın MaliTablo kaynağında yatırım faaliyetleri (capex) ve finansman faaliyetleri (temettü/geri alım/borç) kalemlerinin itemCode'ları araştırılmalı (bu turda doğrulanmadı, sadece bir varsayım — "4B"/"4C" sıralamasının devamında "4D"/"4E" gibi kodlar olabilir). KAP XBRL tarafında standart IFRS taksonomi etiketleri mevcuttur (`ifrs-full_PurchaseOfPropertyPlantAndEquipment`, `ifrs-full_DividendsPaid`, `ifrs-full_PaymentsForRepurchaseOfShares` gibi) — `kap_financials.py`'ye eklenmesi teknik olarak mümkün görünüyor, bu turda kod içinde ARANMADI/doğrulanmadı, ayrı bir araştırma görevi olarak önerilir.
+4. `operating_cash_flow` (4C) ham verisi ZATEN mevcut olduğundan, capex verisi olmadan bile DÜŞÜK MALİYETLİ bir ara adım eklenebilir: "Faaliyetlerden Nakit Akışı Marjı" (=operating_cash_flow/revenue) veya "Nakit Kâr Kalitesi" (=operating_cash_flow/net_income, ideal ~1'e yakın veya üzerinde) — tam Buffett formülü değil ama düşük maliyetle nakit-kalite sinyali sağlar.
+5. OCR notu: Ch52'nin (s.179) "Issuance (Retirement) of Stock, Net kalemini bulmak için Yatırım Faaliyetleri'ne bakın" ifadesi, Ch50'nin (s.171) kendi tablosuyla ÇELİŞİYOR (orada aynı kalem Finansman Faaliyetleri altında) — muhasebe standardı da Finansman tarafını doğrular; bu OCR hatası olarak işaretlendi, dosyada Ch50'nin sınıflandırması esas alındı (bkz. yukarıdaki "OCR notu").
+6. Bu bölümdeki didaktik örnek nakit akış tablosu (Net Kâr $5.981mn, Toplam Faaliyet NA $7.269mn, Toplam Yatırım NA -$6.719mn, Toplam Finansman NA $973mn, Net Değişim $1.523mn) — Gelir Tablosu/Bilanço bölümlerindeki örnek tablolardan FARKLI OLARAK bu kez toplamlar birbirini TUTARLI şekilde doğruluyor (aritmetik kontrol edildi: 7.269-6.719+973=1.523 ✓) — yine de gerçek/isimlendirilmiş bir şirkete ait olmadığından eşik tablosuna KAYNAK YAPILMADI, sadece formül yapısını doğrulamak için kullanıldı.

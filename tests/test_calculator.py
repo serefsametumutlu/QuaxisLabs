@@ -18,11 +18,13 @@ from src.analysis.calculator import (
     compute_valuation,
     compute_valuation_bank,
     compute_valuation_insurance,
+    compute_valuation_financing,
     ebitda,
     ebitda_cum,
     analyze,
     analyze_bank,
     analyze_insurance,
+    analyze_financing,
     classify_change,
     classify_debt_change,
     margin_pct,
@@ -811,6 +813,117 @@ def test_compute_valuation_bank_no_ev_carpanlari() -> None:
 def test_compute_valuation_bank_fiyat_yoksa_none() -> None:
     result = analyze_bank("GARAN", _sample_bank_financials())
     assert compute_valuation_bank(result, price=None, share_capital=Decimal("4200")) is None
+
+
+# --- analyze_financing() / compute_valuation_financing() (Tasarruf Finansman Şirketi/XI_29K) -----------------------------------------------------
+#
+# KTLEV canli verisiyle (data/exploration/KTLEV_XI_29K_raw_2026Q1.json, KAP
+# disclosure_index=1605385 ile net kar 3.361.411.828 birebir doğrulandı)
+# mertebe olarak tutarli, elle hesaplanmis kucuk rakamlarla.
+
+
+def _financing_donem(financing_revenue, operating_expenses, net_operating_profit, net_income,
+                      cash=None, overdue_receivables=None, total_assets=None, equity=None) -> dict:
+    d = {
+        "financing_revenue": Decimal(financing_revenue), "financing_revenue_cum": Decimal(financing_revenue),
+        "operating_expenses": Decimal(operating_expenses), "operating_expenses_cum": Decimal(operating_expenses),
+        "net_operating_profit": Decimal(net_operating_profit), "net_operating_profit_cum": Decimal(net_operating_profit),
+        "net_income": Decimal(net_income), "net_income_cum": Decimal(net_income),
+    }
+    if cash is not None:
+        d["cash"] = Decimal(cash)
+    if overdue_receivables is not None:
+        d["overdue_receivables"] = Decimal(overdue_receivables)
+    if total_assets is not None:
+        d["total_assets"] = Decimal(total_assets)
+    if equity is not None:
+        d["equity"] = Decimal(equity)
+    return d
+
+
+_FINANSMAN_LATEST = (2026, 3)
+_FINANSMAN_YOY_PRIOR = (2025, 3)
+_FINANSMAN_QOQ_PRIOR = (2025, 12)
+
+
+def _sample_financing_financials() -> dict:
+    return {
+        _FINANSMAN_LATEST: _financing_donem(
+            4033, -1726, 4763, 3361, cash=5012, overdue_receivables=131, total_assets=56679, equity=15819
+        ),
+        _FINANSMAN_QOQ_PRIOR: _financing_donem(3200, -1400, 3800, 2600, cash=8518, overdue_receivables=90, total_assets=47500, equity=12456),
+        _FINANSMAN_YOY_PRIOR: _financing_donem(2884, -1200, 3300, 1109, cash=3600, overdue_receivables=60, total_assets=25000, equity=6567),
+    }
+
+
+def test_analyze_financing_gelir_tablosu_yoy() -> None:
+    result = analyze_financing("KTLEV", _sample_financing_financials())
+    assert result.income_statement.financing_revenue.current == Decimal("4033")
+    assert result.income_statement.financing_revenue.comparison == Decimal("2884")
+    assert result.income_statement.financing_revenue.percent_change == pct(4033, 2884)
+
+
+def test_analyze_financing_operating_expenses_negatif_deger_class() -> None:
+    """Esas Faaliyet Giderleri fetcher katmaninda ZATEN negatiflenmis olarak
+    gelir (bkz. isyatirim.standardized_value_financing); analyze_financing
+    bunu OLDUGU GIBI tasir, tekrar isaret DEGISTIRMEZ."""
+    result = analyze_financing("KTLEV", _sample_financing_financials())
+    assert result.income_statement.operating_expenses.current == Decimal("-1726")
+
+
+def test_analyze_financing_bilanco_qoq() -> None:
+    result = analyze_financing("KTLEV", _sample_financing_financials())
+    assert result.balance_sheet.total_assets.current == Decimal("56679")
+    assert result.balance_sheet.total_assets.comparison == Decimal("47500")
+
+
+def test_analyze_financing_ratios_roe_ve_roa() -> None:
+    result = analyze_financing("KTLEV", _sample_financing_financials())
+    r = result.ratios
+    # TTM = guncel YTD(2026/3=3361) + gecen yil tam yil(2025/12=2600) -
+    # gecen yil ayni donem YTD(2025/3=1109) = 4852 (bkz. _trailing_12m_from_cumulative)
+    ttm_net_income = Decimal("3361") + Decimal("2600") - Decimal("1109")
+    assert r.ttm_net_income == ttm_net_income
+    assert r.roe_annualized == ttm_net_income / Decimal("15819") * 100
+    assert r.return_on_assets_annualized == ttm_net_income / Decimal("56679") * 100
+    assert r.net_margin_current == Decimal("3361") / Decimal("4033") * 100
+    assert r.equity_to_assets_current == Decimal("15819") / Decimal("56679") * 100
+
+
+def test_analyze_financing_bos_sozluk_hata_firlatir() -> None:
+    with pytest.raises(ValueError):
+        analyze_financing("KTLEV", {})
+
+
+def test_analyze_financing_tek_donem_cokmeden_calisir() -> None:
+    financials = {_FINANSMAN_LATEST: _sample_financing_financials()[_FINANSMAN_LATEST]}
+    result = analyze_financing("KTLEV", financials)
+    assert result.latest_period == _FINANSMAN_LATEST
+    assert result.income_statement.financing_revenue.comparison is None
+    assert len(result.quarterly_series) == 1
+
+
+def test_compute_valuation_financing_fk_pddd_hesaplar() -> None:
+    result = analyze_financing("KTLEV", _sample_financing_financials())
+    val = compute_valuation_financing(result, price=Decimal("46.01"), share_capital=Decimal("2070"))
+
+    assert val is not None
+    assert val.market_cap == Decimal("46.01") * Decimal("2070")
+    assert val.pb_ratio == val.market_cap / Decimal("15819")
+
+
+def test_compute_valuation_financing_fiyat_yoksa_none() -> None:
+    result = analyze_financing("KTLEV", _sample_financing_financials())
+    assert compute_valuation_financing(result, price=None, share_capital=Decimal("2070")) is None
+
+
+def test_compute_valuation_financing_no_ev_carpanlari() -> None:
+    """compute_valuation_financing BILEREK FD/FAVOK, FD/Hasilat, PD/EFK
+    URETMEZ -- bkz. compute_valuation_bank ile AYNI gerekce."""
+    result = analyze_financing("KTLEV", _sample_financing_financials())
+    val = compute_valuation_financing(result, price=Decimal("46.01"), share_capital=Decimal("2070"))
+    assert not hasattr(val, "ev_ebitda")
+    assert not hasattr(val, "net_debt")
 
 
 # --- analyze_insurance() / compute_valuation_insurance() (sigorta/UFRS_K) -----------------------------------------------------

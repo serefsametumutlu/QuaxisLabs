@@ -14,6 +14,7 @@ import pytest
 
 from src.fetchers.isyatirim import (
     FinancialItem,
+    STANDARD_ITEM_MAP_FINANSMAN,
     STANDARD_ITEM_MAP_UFRS,
     STANDARD_ITEM_MAP_UFRS_K,
     STANDARD_ITEM_MAP_UFRS_KATILIM,
@@ -34,6 +35,8 @@ from src.fetchers.isyatirim import (
     standardized_value_ufrs,
     standardized_value_ufrs_k,
     standardized_value_ufrs_katilim,
+    standardized_value_financing,
+    quarterly_standardized_value_financing,
     technical_balance_ufrs_k,
     technical_provisions_ufrs_k,
     total_debt,
@@ -281,6 +284,56 @@ def test_standardized_value_ufrs_xi_29_semasinda_hata_firlatir() -> None:
     raw = RawFinancials(ticker="THYAO", company_code="THYAO", financial_group="XI_29", periods=[], items={})
     with pytest.raises(UnsupportedFinancialGroupError):
         standardized_value_ufrs(raw, "loans", (2026, 6))
+
+
+# --- STANDARD_ITEM_MAP_FINANSMAN (Tasarruf Finansman Sirketi/XI_29K): KTLEV
+# canli kesif yanitiyla dogrulanan kodlar (bkz. data/exploration/
+# KTLEV_XI_29K_raw_2026Q1.json, KAP disclosure_index=1605385 ile net kar
+# 3.361.411.828 birebir dogrulandi) -----------------------------------------------------
+
+
+def _raw_financing(items: dict) -> RawFinancials:
+    return RawFinancials(ticker="KTLEV", company_code="KTLEV", financial_group="XI_29K", periods=list(items), items=items)
+
+
+def test_standardized_value_financing_net_income_gercek_ktlev_degeri() -> None:
+    period = (2026, 3)
+    item_code = STANDARD_ITEM_MAP_FINANSMAN["net_income"]
+    raw = _raw_financing({item_code: FinancialItem(item_code, "NET DONEM KARI (ZARARI)", {period: Decimal("3361411828")})})
+    assert standardized_value_financing(raw, "net_income", period) == Decimal("3361411828")
+
+
+def test_standardized_value_financing_operating_expenses_isaret_degistirilmez() -> None:
+    """Esas Faaliyet Giderleri ham veride ZATEN NEGATIF gelir (KTLEV canli
+    yaniti: -1725631994) -- bankadaki 'interest_expense'in AKSINE burada
+    isaret DONUSUMU yapilmaz, oldugu gibi tasinir."""
+    period = (2026, 3)
+    item_code = STANDARD_ITEM_MAP_FINANSMAN["operating_expenses"]
+    raw = _raw_financing(
+        {item_code: FinancialItem(item_code, "ESAS FAALIYET GIDERLERI (-)", {period: Decimal("-1725631994")})}
+    )
+    assert standardized_value_financing(raw, "operating_expenses", period) == Decimal("-1725631994")
+
+
+def test_quarterly_standardized_value_financing_bilanco_kalemi_ceyreklestirilmez() -> None:
+    """total_assets (STOK deger) kumulatif -> ceyreklik donusumune TABI
+    DEGILDIR -- standardized_value_financing ile ayni sonucu dondurmeli."""
+    period = (2026, 3)
+    item_code = STANDARD_ITEM_MAP_FINANSMAN["total_assets"]
+    raw = _raw_financing({item_code: FinancialItem(item_code, "AKTIF TOPLAMI", {period: Decimal("56679474844")})})
+    assert quarterly_standardized_value_financing(raw, "total_assets", period) == Decimal("56679474844")
+
+
+def test_standardized_value_financing_bilinmeyen_alan_hata_firlatir() -> None:
+    raw = _raw_financing({})
+    with pytest.raises(KeyError):
+        standardized_value_financing(raw, "loans", (2026, 3))
+
+
+def test_standardized_value_financing_xi_29_semasinda_hata_firlatir() -> None:
+    raw = RawFinancials(ticker="THYAO", company_code="THYAO", financial_group="XI_29", periods=[], items={})
+    with pytest.raises(UnsupportedFinancialGroupError):
+        standardized_value_financing(raw, "total_assets", (2026, 3))
 
 
 # --- STANDARD_ITEM_MAP_UFRS_K (sigorta): ANSGR canli kesif yanitiyla

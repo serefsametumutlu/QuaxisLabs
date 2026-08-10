@@ -107,6 +107,20 @@ FIELD_LABELS_TR: dict[str, str] = {
     "net_premiums_earned_cum": "Alınan Net Primler",
     "technical_income_cum": "Teknik Gelirler",
     "technical_balance_cum": "Teknik Denge",
+    # --- Tasarruf Finansman Şirketi (XI_29K) alanları -- bkz. analyze_financing() -----------------------------------------------------
+    "financing_revenue": "Esas Faaliyet Gelirleri",
+    "operating_expenses": "Esas Faaliyet Giderleri",
+    "other_operating_income": "Diğer Faaliyet Gelirleri",
+    "financing_expenses": "Finansman Giderleri",
+    "pretax_profit": "Vergi Öncesi Kâr/Zarar",
+    "tax_provision": "Vergi Karşılığı",
+    "overdue_receivables": "Takipteki Alacaklar",
+    "financing_revenue_cum": "Esas Faaliyet Gelirleri",
+    "operating_expenses_cum": "Esas Faaliyet Giderleri",
+    "other_operating_income_cum": "Diğer Faaliyet Gelirleri",
+    "financing_expenses_cum": "Finansman Giderleri",
+    "pretax_profit_cum": "Vergi Öncesi Kâr/Zarar",
+    "tax_provision_cum": "Vergi Karşılığı",
 }
 
 
@@ -1061,6 +1075,187 @@ def analyze_bank(
         ratios=ratios,
         quarterly_series=quarterly_series,
         findings=findings,
+    )
+
+
+# --- Tasarruf Finansman Şirketi (XI_29K) analiz sonucu -----------------------------------------------------
+#
+# Bankadaki gibi ayri bir paralel veri modeli: Katilimevim (KTLEV) gibi
+# Tasarruf Finansman Sirketlerinin gelir tablosu/bilancosu sanayi/banka
+# kalemlerinden FARKLIDIR (bkz. isyatirim.py STANDARD_ITEM_MAP_FINANSMAN).
+# Kural 3 geregi SADECE acikca/tek anlamli etiketli "toplam" kalemler
+# eslendi -- bilesik/yorum gerektiren kalemler (orn. "Gercege Uygun Deger
+# Farki K/Z'a Yansitilan Finansal Varliklar") BILINCLI OLARAK DISARIDA
+# birakildi, bu yuzden "cari oran"/"kaldirac" gibi sanayi/banka rasyolari
+# BURADA YOK (girdi kalemleri yok, uretilirse UYDURMA olurdu).
+
+
+@dataclass(frozen=True)
+class FinancingIncomeStatementSummary:
+    financing_revenue: LineItemChange
+    operating_expenses: LineItemChange
+    net_operating_profit: LineItemChange
+    net_income: LineItemChange
+
+
+@dataclass(frozen=True)
+class FinancingBalanceSheetSummary:
+    cash: LineItemChange
+    overdue_receivables: LineItemChange
+    total_assets: LineItemChange
+    equity: LineItemChange
+
+
+@dataclass(frozen=True)
+class FinancingRatios:
+    net_margin_current: Decimal | None  # net kar / esas faaliyet geliri (guncel donem, KUMULATIF)
+    roe_annualized: Decimal | None  # yıllıklandırılmış (TTM net kar / guncel ozkaynak)
+    return_on_assets_annualized: Decimal | None  # yıllıklandırılmış (TTM net kar / guncel toplam varlik)
+    equity_to_assets_current: Decimal | None
+    ttm_net_income: Decimal | None
+    ttm_financing_revenue: Decimal | None
+
+
+@dataclass(frozen=True)
+class FinancingQuarterlySeriesPoint:
+    period: Period
+    financing_revenue: Decimal | None
+    net_income: Decimal | None
+
+
+@dataclass(frozen=True)
+class FinancingAnalysisResult:
+    ticker: str
+    latest_period: Period
+    income_statement: FinancingIncomeStatementSummary
+    balance_sheet: FinancingBalanceSheetSummary
+    ratios: FinancingRatios
+    quarterly_series: list[FinancingQuarterlySeriesPoint] = field(default_factory=list)
+    findings: list[Finding] = field(default_factory=list)
+    sector_template: str = "finansman"
+
+
+def analyze_financing(ticker: str, financials_by_period: FinancialsByPeriod) -> FinancingAnalysisResult:
+    """Tasarruf Finansman Sirketleri (XI_29K, orn. KTLEV) icin analyze_bank()'in
+    karsiligi -- bkz. modul ici ust not. financials_by_period en az 1 donem
+    icermelidir."""
+    if not financials_by_period:
+        raise ValueError("financials_by_period bos olamaz.")
+
+    periods_desc = sorted(financials_by_period.keys(), reverse=True)
+    latest_period = periods_desc[0]
+
+    current = financials_by_period.get(latest_period, {})
+    yoy_prior = financials_by_period.get(year_ago_period(latest_period), {})
+    qoq_prior = financials_by_period.get(previous_quarter_period(latest_period), {})
+
+    income_statement = FinancingIncomeStatementSummary(
+        financing_revenue=_line_item_change(
+            FIELD_LABELS_TR["financing_revenue"],
+            current.get("financing_revenue_cum"),
+            yoy_prior.get("financing_revenue_cum"),
+        ),
+        operating_expenses=_line_item_change(
+            FIELD_LABELS_TR["operating_expenses"],
+            current.get("operating_expenses_cum"),
+            yoy_prior.get("operating_expenses_cum"),
+        ),
+        net_operating_profit=_line_item_change(
+            FIELD_LABELS_TR["net_operating_profit"],
+            current.get("net_operating_profit_cum"),
+            yoy_prior.get("net_operating_profit_cum"),
+        ),
+        net_income=_line_item_change(
+            FIELD_LABELS_TR["net_income"], current.get("net_income_cum"), yoy_prior.get("net_income_cum")
+        ),
+    )
+
+    balance_sheet = FinancingBalanceSheetSummary(
+        cash=_line_item_change(FIELD_LABELS_TR["cash"], current.get("cash"), qoq_prior.get("cash")),
+        overdue_receivables=_line_item_change(
+            FIELD_LABELS_TR["overdue_receivables"], current.get("overdue_receivables"), qoq_prior.get("overdue_receivables")
+        ),
+        total_assets=_line_item_change(
+            FIELD_LABELS_TR["total_assets"], current.get("total_assets"), qoq_prior.get("total_assets")
+        ),
+        equity=_line_item_change(FIELD_LABELS_TR["equity"], current.get("equity"), qoq_prior.get("equity")),
+    )
+
+    ttm_financing_revenue = _trailing_12m_from_cumulative(
+        financials_by_period, latest_period, lambda d: d.get("financing_revenue_cum")
+    )
+    ttm_net_income = _trailing_12m_from_cumulative(
+        financials_by_period, latest_period, lambda d: d.get("net_income_cum")
+    )
+
+    ratios = FinancingRatios(
+        net_margin_current=_margin_pct(current.get("net_income_cum"), current.get("financing_revenue_cum")),
+        roe_annualized=_margin_pct(ttm_net_income, current.get("equity")),
+        return_on_assets_annualized=_margin_pct(ttm_net_income, current.get("total_assets")),
+        equity_to_assets_current=_margin_pct(current.get("equity"), current.get("total_assets")),
+        ttm_net_income=ttm_net_income,
+        ttm_financing_revenue=ttm_financing_revenue,
+    )
+
+    series_periods = list(reversed(periods_desc[:5]))
+    quarterly_series = [
+        FinancingQuarterlySeriesPoint(
+            period=p,
+            financing_revenue=financials_by_period.get(p, {}).get("financing_revenue"),
+            net_income=financials_by_period.get(p, {}).get("net_income"),
+        )
+        for p in series_periods
+    ]
+
+    findings = [
+        _finding("financing_revenue", "YoY", current.get("financing_revenue_cum"), yoy_prior.get("financing_revenue_cum")),
+        _finding("operating_expenses", "YoY", current.get("operating_expenses_cum"), yoy_prior.get("operating_expenses_cum")),
+        _finding(
+            "net_operating_profit", "YoY", current.get("net_operating_profit_cum"), yoy_prior.get("net_operating_profit_cum")
+        ),
+        _finding("net_income", "YoY", current.get("net_income_cum"), yoy_prior.get("net_income_cum")),
+        _finding("total_assets", "QoQ", current.get("total_assets"), qoq_prior.get("total_assets")),
+        _finding("equity", "QoQ", current.get("equity"), qoq_prior.get("equity")),
+    ]
+
+    return FinancingAnalysisResult(
+        ticker=ticker,
+        latest_period=latest_period,
+        income_statement=income_statement,
+        balance_sheet=balance_sheet,
+        ratios=ratios,
+        quarterly_series=quarterly_series,
+        findings=findings,
+    )
+
+
+@dataclass(frozen=True)
+class FinancingValuationMetrics:
+    price: Decimal
+    share_capital: Decimal
+    market_cap: Decimal
+    pe_ratio: Decimal | None
+    pb_ratio: Decimal | None
+
+
+def compute_valuation_financing(
+    analysis: FinancingAnalysisResult, price: Decimal | None, share_capital: Decimal | None
+) -> FinancingValuationMetrics | None:
+    """compute_valuation_bank()'in Tasarruf Finansman Sirketi karsiligi --
+    AYNI gerekceyle (bkz. compute_valuation_bank docstring'i) SADECE F/K ve
+    PD/DD hesaplar, EV bazli carpanlar (FD/FAVOK vb.) YOK."""
+    if price is None or share_capital is None:
+        return None
+
+    market_cap = price * share_capital
+    equity_current = analysis.balance_sheet.equity.current
+
+    return FinancingValuationMetrics(
+        price=price,
+        share_capital=share_capital,
+        market_cap=market_cap,
+        pe_ratio=_safe_div(market_cap, analysis.ratios.ttm_net_income),
+        pb_ratio=_safe_div(market_cap, equity_current),
     )
 
 

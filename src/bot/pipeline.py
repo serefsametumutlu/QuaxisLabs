@@ -124,6 +124,22 @@ _UFRS_K_STOCK_FIELDS: tuple[str, ...] = (
     "share_capital",
 )
 
+# Tasarruf Finansman Sirketleri (XI_29K, orn. KTLEV) alanlari -- bkz.
+# isyatirim.STANDARD_ITEM_MAP_FINANSMAN.
+_FINANSMAN_QUARTERLY_FIELDS: tuple[str, ...] = (
+    "financing_revenue",
+    "operating_expenses",
+    "net_operating_profit",
+    "net_income",
+)
+_FINANSMAN_STOCK_FIELDS: tuple[str, ...] = (
+    "cash",
+    "overdue_receivables",
+    "total_assets",
+    "equity",
+    "share_capital",
+)
+
 # NASDAQ/ABD (US_GAAP) alanlari -- bkz. sec_edgar.STANDARD_ITEM_MAP_US_GAAP.
 # Alan adlari BILEREK XI_29 ile AYNI tutuldu (revenue/gross_profit/
 # operating_profit/net_income/total_assets/current_assets/equity/cash) ki
@@ -198,7 +214,12 @@ class PeriodNotAvailableError(PipelineError):
 @dataclass(frozen=True)
 class PipelineResult:
     ticker: str
-    analysis: calculator.AnalysisResult | calculator.BankAnalysisResult | calculator.InsuranceAnalysisResult
+    analysis: (
+        calculator.AnalysisResult
+        | calculator.BankAnalysisResult
+        | calculator.InsuranceAnalysisResult
+        | calculator.FinancingAnalysisResult
+    )
     score: scorer.ScoreResult
     commentary: commentary_module.Commentary
     png_path: str
@@ -383,6 +404,29 @@ def _standardize_to_records_ufrs_k(raw: isyatirim.RawFinancials) -> list[reposit
             records.append(
                 (period[0], period[1], "technical_provisions", calculator.FIELD_LABELS_TR["technical_provisions"], technical_provisions)
             )
+    return records
+
+
+def _standardize_to_records_financing(raw: isyatirim.RawFinancials) -> list[repository.FinancialRecord]:
+    """_standardize_to_records()'un Tasarruf Finansman Sirketi (XI_29K, orn.
+    KTLEV) karsiligi -- bkz. isyatirim.py STANDARD_ITEM_MAP_FINANSMAN."""
+    records: list[repository.FinancialRecord] = []
+    for period in raw.periods:
+        for field in _FINANSMAN_QUARTERLY_FIELDS:
+            value = isyatirim.quarterly_standardized_value_financing(raw, field, period)
+            if value is not None:
+                label = calculator.FIELD_LABELS_TR.get(field, field)
+                records.append((period[0], period[1], field, label, value))
+
+            cum_value = isyatirim.standardized_value_financing(raw, field, period)
+            if cum_value is not None:
+                cum_label = calculator.FIELD_LABELS_TR.get(f"{field}_cum", field)
+                records.append((period[0], period[1], f"{field}_cum", cum_label, cum_value))
+        for field in _FINANSMAN_STOCK_FIELDS:
+            value = isyatirim.standardized_value_financing(raw, field, period)
+            if value is not None:
+                label = calculator.FIELD_LABELS_TR.get(field, field)
+                records.append((period[0], period[1], field, label, value))
     return records
 
 
@@ -642,7 +686,7 @@ def _has_newer_period_available(ticker: str, cached_newest: Period, financial_gr
                 ticker, exc_info=True,
             )
 
-    if financial_group not in ("XI_29", "UFRS", "UFRS_K"):
+    if financial_group not in ("XI_29", "UFRS", "UFRS_K", "XI_29K"):
         return False
     try:
         ref = kap_financials.find_latest_financial_report(ticker)
@@ -737,6 +781,61 @@ def _fetch_kap_data(ticker: str) -> tuple[str | None, list[kap.Disclosure] | Non
     return company_name, disclosures
 
 
+# CANLI hata (kullanici raporu, AHSGY, 2026-08-10 -- KRITIK): KAP'in
+# "Sunum Para Birimi" basligi ("1.000.000 TL") ile disclosure'a GERCEKTEN
+# gomulu ham XBRL rakami birbiriyle TUTARSIZ olabiliyor -- AHSGY'nin KAP
+# Finansal Rapor'unda baslik "1.000.000 TL" diyordu ama ham deger (orn.
+# Nakit = 1.009.053.647) zaten TAM TL cinsindendi; kap_financials.py'nin
+# olcek carpani (x1.000.000) korulukce uygulaninca Nakit "1 katrilyon TL"
+# gibi anlamsiz bir rakama sicradi (Toplam Varliklar da ayni sekilde
+# sise), bu da karttaki "Degisim" yuzdelerini (%108.430.801,5 gibi)
+# anlamsizlastirdi (bkz. 06_BILINEN_SORUNLAR.md #49). Bu, tek bir
+# sirkete/olceğe ozgu degil -- HERHANGI bir KAP disclosure'inin basligi
+# yanlis/tutarsiz olursa AYNI sinifta bir hataya yol acabilir. Bu yuzden
+# KAP'tan patchlenen "toplam" nitelikli kalemler (total_assets/equity),
+# Is Yatirim'in ZATEN guvendigi en guncel donemle KARSILASTIRILIR -- tek
+# ceyrekte gercekci OLMAYAN (bu esigin USTUNDE) bir sicrama/dususe
+# rastlanirsa TUM KAP yamasi (o donem icin) REDDEDILIR, Is Yatirim'in eski
+# ama TUTARLI verisiyle devam edilir (Kural 3: yanlis rakamdan iyidir).
+_KAP_PATCH_MAX_PLAUSIBLE_RATIO = Decimal(50)
+
+
+def _kap_patch_is_plausible(
+    ticker: str,
+    new_period: Period,
+    values: dict[str, Decimal | None],
+    raw: isyatirim.RawFinancials,
+    baseline_period: Period,
+    value_fn=isyatirim.standardized_value,
+) -> bool:
+    """KAP'tan patchlenen total_assets/equity, Is Yatirim'in son bilinen
+    donemine gore _KAP_PATCH_MAX_PLAUSIBLE_RATIO kati asan/altina inen bir
+    sicrama gosteriyorsa False doner (bkz. yukaridaki CANLI hata notu).
+    `value_fn`: Is Yatirim tarafinda karsilastirma degerini okumak icin
+    kullanilacak fonksiyon -- XI_29 icin standardized_value, UFRS/UFRS_K
+    icin standardized_value_ufrs/standardized_value_ufrs_k (alan adlari
+    ayni ('total_assets'/'equity') ama itemCode haritalari farkli)."""
+    for field in ("total_assets", "equity"):
+        new_value = values.get(field)
+        if new_value is None or new_value == 0:
+            continue
+        try:
+            baseline_value = value_fn(raw, field, baseline_period)
+        except KeyError:
+            continue
+        if baseline_value is None or baseline_value == 0:
+            continue
+        ratio = abs(new_value) / abs(baseline_value)
+        if ratio > _KAP_PATCH_MAX_PLAUSIBLE_RATIO or ratio < (Decimal(1) / _KAP_PATCH_MAX_PLAUSIBLE_RATIO):
+            logger.warning(
+                "%s icin KAP yamasi (%s) reddedildi: '%s' alani Is Yatirim'in %s donemine gore "
+                "%.1fx degisim gosteriyor (esik: %sx) -- olcek/birim hatasi olabilir, KAP yamasi ATLANDI.",
+                ticker, quarter_label(new_period), field, quarter_label(baseline_period), ratio, _KAP_PATCH_MAX_PLAUSIBLE_RATIO,
+            )
+            return False
+    return True
+
+
 def _kap_patch_records_for_xi29(
     ticker: str, newest_isyatirim_period: Period, raw: isyatirim.RawFinancials
 ) -> tuple[list[repository.FinancialRecord], Period | None]:
@@ -779,6 +878,9 @@ def _kap_patch_records_for_xi29(
 
     values = kap_financials.standardized_record_values(raw_kap)
 
+    if not _kap_patch_is_plausible(ticker, raw_kap.period, values, raw, newest_isyatirim_period):
+        return [], None
+
     # CANLI hata (kullanici raporu, OTKAR): KAP'tan SADECE KUMULATIF
     # amortisman/itfa gideri gelir (bkz. kap_financials.py _DEPRECIATION_TAG
     # notu) -- TEK CEYREKLIK deger (FAVOK = operating_profit_ebitda_base +
@@ -818,7 +920,9 @@ def _kap_patch_records_for_xi29(
     return records, raw_kap.period
 
 
-def _kap_patch_records_for_ufrs(ticker: str, newest_isyatirim_period: Period) -> tuple[list[repository.FinancialRecord], Period | None]:
+def _kap_patch_records_for_ufrs(
+    ticker: str, newest_isyatirim_period: Period, raw: isyatirim.RawFinancials
+) -> tuple[list[repository.FinancialRecord], Period | None]:
     """_kap_patch_records_for_xi29()'un konvansiyonel banka (UFRS) karsiligi
     -- bkz. kap_financials.py STANDARD_ITEM_MAP_KAP_UFRS_* modul notu (YKBNK
     ile CANLI dogrulandi, Fintables'in konsolide rakamlarina TL'ye kadar
@@ -846,6 +950,12 @@ def _kap_patch_records_for_ufrs(ticker: str, newest_isyatirim_period: Period) ->
         return [], None
 
     values = kap_financials.standardized_record_values_ufrs(raw_kap)
+
+    if not _kap_patch_is_plausible(
+        ticker, raw_kap.period, values, raw, newest_isyatirim_period, value_fn=isyatirim.standardized_value_ufrs
+    ):
+        return [], None
+
     year, period_no = raw_kap.period
     records: list[repository.FinancialRecord] = []
     for field, value in values.items():
@@ -865,7 +975,9 @@ def _kap_patch_records_for_ufrs(ticker: str, newest_isyatirim_period: Period) ->
     return records, raw_kap.period
 
 
-def _kap_patch_records_for_ufrs_k(ticker: str, newest_isyatirim_period: Period) -> tuple[list[repository.FinancialRecord], Period | None]:
+def _kap_patch_records_for_ufrs_k(
+    ticker: str, newest_isyatirim_period: Period, raw: isyatirim.RawFinancials
+) -> tuple[list[repository.FinancialRecord], Period | None]:
     """_kap_patch_records_for_xi29()'un sigorta (UFRS_K) karsiligi -- bkz.
     kap_financials.py STANDARD_ITEM_MAP_KAP_UFRS_K_* modul notu (RAYSG ile
     CANLI dogrulandi: net_income 1.896.687.175 TL, kullanicinin Fintables'te
@@ -897,6 +1009,12 @@ def _kap_patch_records_for_ufrs_k(ticker: str, newest_isyatirim_period: Period) 
         return [], None
 
     values = kap_financials.standardized_record_values_ufrs_k(raw_kap)
+
+    if not _kap_patch_is_plausible(
+        ticker, raw_kap.period, values, raw, newest_isyatirim_period, value_fn=isyatirim.standardized_value_ufrs_k
+    ):
+        return [], None
+
     year, period_no = raw_kap.period
     records: list[repository.FinancialRecord] = []
     for field, value in values.items():
@@ -908,6 +1026,62 @@ def _kap_patch_records_for_ufrs_k(ticker: str, newest_isyatirim_period: Period) 
     if not records:
         logger.warning(
             "%s (sigorta) icin KAP Finansal Rapor (disclosure_index=%s) ayristirildi ama hicbir "
+            "standart alan cikarilamadi -- Is Yatirim verisiyle devam edilecek.",
+            ticker, raw_kap.disclosure_index,
+        )
+        return [], None
+
+    return records, raw_kap.period
+
+
+def _kap_patch_records_for_financing(
+    ticker: str, newest_isyatirim_period: Period, raw: isyatirim.RawFinancials
+) -> tuple[list[repository.FinancialRecord], Period | None]:
+    """_kap_patch_records_for_xi29()'un Tasarruf Finansman Sirketi (XI_29K,
+    orn. KTLEV) karsiligi -- bkz. kap_financials.py STANDARD_ITEM_MAP_KAP_FINANSMAN_*
+    modul notu. CANLI hata (kullanici raporu, 2026-08-10): "KTLEV 2Ç bilancosu
+    geldi fakat hala 1Ç bilanco geliyor" -- Is Yatirim henuz islememisti, KAP'ta
+    ZATEN vardi (TATGD/RAYSG ile AYNI gecikme deseni). Bilanco kalemleri (cash/
+    overdue_receivables/total_assets/equity) Is Yatirim'in (2025,12) donemiyle
+    TL'ye kadar BIREBIR dogrulandi; "net_operating_profit" icin TEK bir KAP
+    tag'i bulunamadigindan (Kural 3) bu alan patch'te None kalir. SADECE
+    financial_group=='XI_29K' icin cagrilmali. Bu fonksiyon ASLA istisna
+    FIRLATMAZ (bkz. _kap_patch_records_for_xi29 ile ayni ilke)."""
+    try:
+        ref = kap_financials.find_latest_financial_report(ticker)
+    except Exception as exc:  # noqa: BLE001 -- bkz. docstring
+        logger.warning("%s icin KAP Finansal Rapor kontrolu basarisiz (Is Yatirim verisiyle devam edilecek): %s", ticker, exc)
+        return [], None
+
+    if ref is None or ref.period <= newest_isyatirim_period:
+        return [], None
+
+    logger.info(
+        "%s (finansman) icin KAP'ta Is Yatirim'dan (%s) daha yeni bir Finansal Rapor bulundu: %s (disclosure_index=%s)",
+        ticker, quarter_label(newest_isyatirim_period), quarter_label(ref.period), ref.disclosure_index,
+    )
+    raw_kap = kap_financials.fetch_latest_financing_financials(ticker)
+    if raw_kap is None:
+        return [], None
+
+    values = kap_financials.standardized_record_values_financing(raw_kap)
+
+    if not _kap_patch_is_plausible(
+        ticker, raw_kap.period, values, raw, newest_isyatirim_period, value_fn=isyatirim.standardized_value_financing
+    ):
+        return [], None
+
+    year, period_no = raw_kap.period
+    records: list[repository.FinancialRecord] = []
+    for field, value in values.items():
+        if value is None:
+            continue
+        label = calculator.FIELD_LABELS_TR.get(field, field)
+        records.append((year, period_no, field, label, value))
+
+    if not records:
+        logger.warning(
+            "%s (finansman) icin KAP Finansal Rapor (disclosure_index=%s) ayristirildi ama hicbir "
             "standart alan cikarilamadi -- Is Yatirim verisiyle devam edilecek.",
             ticker, raw_kap.disclosure_index,
         )
@@ -977,7 +1151,7 @@ def _fetch_and_store(ticker: str, periods: list[Period] | None) -> None:
     company_name, disclosures = kap_future.result()
     executor.shutdown(wait=True)
 
-    if raw.financial_group not in ("XI_29", "UFRS", "UFRS_KATILIM", "UFRS_K"):
+    if raw.financial_group not in ("XI_29", "UFRS", "UFRS_KATILIM", "UFRS_K", "XI_29K"):
         raise UnsupportedCompanyTypeError(
             f"'{ticker}' icin finansal tablo semasi ('{raw.financial_group}') henuz desteklenmiyor."
         )
@@ -987,17 +1161,19 @@ def _fetch_and_store(ticker: str, periods: list[Period] | None) -> None:
     # TEK donemi ayrica cekip asagidaki "kullaniciya sor" kontrolunden ONCE
     # devreye sokariz -- boylece TATGD gibi bir durumda (Is Yatirim hala
     # eski ceyregi donduruyor ama KAP'ta yenisi zaten var) kullaniciya
-    # gereksiz yere "eski donemi mi analiz edeyim?" SORULMAZ. XI_29 VE
-    # UFRS (konvansiyonel banka) icin dogrulandi -- UFRS_KATILIM/UFRS_K
-    # HENUZ desteklenmiyor (bkz. kap_financials.py sinirlamasi).
+    # gereksiz yere "eski donemi mi analiz edeyim?" SORULMAZ. XI_29/UFRS/
+    # UFRS_K/XI_29K icin dogrulandi -- UFRS_KATILIM HENUZ desteklenmiyor
+    # (bkz. kap_financials.py sinirlamasi).
     kap_patch_records: list[repository.FinancialRecord] = []
     kap_patch_period: Period | None = None
     if raw.financial_group == "XI_29" and raw.periods:
         kap_patch_records, kap_patch_period = _kap_patch_records_for_xi29(ticker, max(raw.periods), raw)
     elif raw.financial_group == "UFRS" and raw.periods:
-        kap_patch_records, kap_patch_period = _kap_patch_records_for_ufrs(ticker, max(raw.periods))
+        kap_patch_records, kap_patch_period = _kap_patch_records_for_ufrs(ticker, max(raw.periods), raw)
     elif raw.financial_group == "UFRS_K" and raw.periods:
-        kap_patch_records, kap_patch_period = _kap_patch_records_for_ufrs_k(ticker, max(raw.periods))
+        kap_patch_records, kap_patch_period = _kap_patch_records_for_ufrs_k(ticker, max(raw.periods), raw)
+    elif raw.financial_group == "XI_29K" and raw.periods:
+        kap_patch_records, kap_patch_period = _kap_patch_records_for_financing(ticker, max(raw.periods), raw)
 
     # Eger _resolve_raw_financials bir ceyrek geriye kaydirdiysa (periods
     # parametresi None olarak baslayip raw.periods'in en yenisi guess_last_periods'in
@@ -1021,6 +1197,8 @@ def _fetch_and_store(ticker: str, periods: list[Period] | None) -> None:
         records = _standardize_to_records_ufrs(raw)
     elif raw.financial_group == "UFRS_KATILIM":
         records = _standardize_to_records_ufrs_katilim(raw)
+    elif raw.financial_group == "XI_29K":
+        records = _standardize_to_records_financing(raw)
     else:
         records = _standardize_to_records_ufrs_k(raw)
     records = records + kap_patch_records
@@ -1426,6 +1604,7 @@ def run_pipeline(ticker: str, *, periods: list[Period] | None = None, market: st
     is_bank = bool(company and company.financial_group in ("UFRS", "UFRS_KATILIM"))
     is_participation_bank = bool(company and company.financial_group == "UFRS_KATILIM")
     is_insurance = bool(company and company.financial_group == "UFRS_K")
+    is_financing = bool(company and company.financial_group == "XI_29K")
 
     price = price_future.result()
     price_executor.shutdown(wait=True)
@@ -1438,7 +1617,7 @@ def run_pipeline(ticker: str, *, periods: list[Period] | None = None, market: st
     # (Kural 9) herhangi bir hata bu bloğu SESSİZCE atlar, kartın geri
     # kalanı bundan ETKİLENMEZ.
     valuation_assessment = None
-    if is_us or not (is_bank or is_insurance):
+    if is_us or not (is_bank or is_insurance or is_financing):
         financial_group = "US_GAAP" if is_us else (company.financial_group if company else None)
         try:
             valuation_assessment = compute_valuation_assessment_for_ticker(
@@ -1536,6 +1715,31 @@ def run_pipeline(ticker: str, *, periods: list[Period] | None = None, market: st
             lambda: commentary_module.generate_commentary_insurance(analysis, score, disclosures_db),
         )
         context = card.build_insurance_card_context(
+            analysis,
+            score,
+            yorum,
+            disclosures_db,
+            company_name=company_name,
+            sector=sector,
+            price=price,
+            valuation=valuation,
+            now=datetime.now(),
+        )
+    elif is_financing:
+        analysis = calculator.analyze_financing(ticker, financials_by_period)
+        share_capital = financials_by_period.get(analysis.latest_period, {}).get("share_capital")
+        valuation = calculator.compute_valuation_financing(analysis, price, share_capital)
+        valuation_input = (
+            scorer.ValuationInput(pe_ratio=valuation.pe_ratio, pb_ratio=valuation.pb_ratio)
+            if valuation is not None
+            else None
+        )
+        score = scorer.score_financing(analysis, valuation=valuation_input)
+        yorum = _get_or_generate_commentary(
+            ticker, analysis.latest_period, fresh,
+            lambda: commentary_module.generate_commentary_financing(analysis, score, disclosures_db),
+        )
+        context = card.build_financing_card_context(
             analysis,
             score,
             yorum,

@@ -1,0 +1,5223 @@
+{
+  "BNTAS": {
+    "financial_group": "XI_29",
+    "company_name": "BANTAŞ BANDIRMA AMBALAJ SANAYİ VE TİCARET A.Ş.",
+    "sector": "METAL EŞYA MAKİNE ELEKTRİKLİ CİHAZLAR VE ULAŞIM ARAÇLARI",
+    "price": "6.8",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "revenue_growth_yoy_pct": "-2.268495266280725061730146925",
+    "ebitda_margin_current": "13.37703455075443101787701647",
+    "ebitda_margin_prior_year": "14.37910624417176112123663354",
+    "net_margin_current": "16.56350020572029077513782754",
+    "net_debt_to_ebitda": "-3.378472460054783639844177327",
+    "roe_annualized": "15.60981621686677860941889077",
+    "current_ratio": "6.189360994634411144074573014",
+    "net_debt": "-718253265.0000",
+    "valuation_metrics": {
+      "price": "6.8",
+      "share_capital": "241875000.0000",
+      "market_cap": "1644750000.00000",
+      "net_debt": "-718253265.0000",
+      "enterprise_value": "926496735.00000",
+      "pe_ratio": "5.820086986972336396717850983",
+      "pb_ratio": "0.9085048823281608433415818304",
+      "ev_ebitda": "4.357994395651198276762509673",
+      "ev_revenue": "0.5993559494282717951936951108",
+      "price_to_operating_profit": "5.331673082157563405270923615"
+    },
+    "fundamental_screens": {
+      "has_data": true,
+      "graham": {
+        "graham_multiple": "5.287577443238962669330664290",
+        "fair_value_price": "14.02722622478343230231617942",
+        "upside_pct": "106.2827385997563573870026385",
+        "verdict": "Graham Ölçütüne Göre Ucuz"
+      },
+      "greenblatt": {
+        "ebit": "308486656.0000",
+        "enterprise_value": "926496735.00000",
+        "earnings_yield_pct": "33.29603271618652816947055944",
+        "earnings_yield_band": "Yüksek",
+        "net_working_capital": "1031686491.0000",
+        "net_fixed_assets": "761089236.0000",
+        "return_on_capital_pct": "17.20720842847511399846167150",
+        "return_on_capital_band": "Orta"
+      },
+      "acquirers_multiple": {
+        "acquirers_multiple": "3.003360816358941632794645095",
+        "band": "Ucuz"
+      },
+      "piotroski": {
+        "score": 6,
+        "criteria_evaluated": 9,
+        "band": "Orta",
+        "details": [
+          [
+            "Aktif Kârlılığı (ROA) Pozitif",
+            true
+          ],
+          [
+            "Faaliyet Nakit Akışı Pozitif",
+            true
+          ],
+          [
+            "ROA Geçen Yıla Göre Arttı",
+            false
+          ],
+          [
+            "Nakit Akışı Net Kârdan Yüksek (Kazanç Kalitesi)",
+            true
+          ],
+          [
+            "Uzun Vadeli Kaldıraç Azaldı",
+            true
+          ],
+          [
+            "Cari Oran Arttı (Likidite İyileşti)",
+            true
+          ],
+          [
+            "Pay Sulanması Yok",
+            true
+          ],
+          [
+            "Brüt Kâr Marjı Arttı",
+            false
+          ],
+          [
+            "Aktif Devir Hızı Arttı (Verimlilik)",
+            false
+          ]
+        ]
+      }
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "5.820086986972336396717850983",
+      "own_pb": "0.9085048823281608433415818304",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "5.287577443238962669330664290",
+      "graham_fair_value_price": "14.02722622478343230231617942",
+      "graham_upside_pct": "106.2827385997563573870026385",
+      "graham_verdict": "Graham Ölçütüne Göre Ucuz",
+      "peg_ratio": null,
+      "peg_verdict": null,
+      "damodaran_cost_of_equity_pct": null,
+      "damodaran_growth_used_pct": null,
+      "damodaran_fair_value_price": null,
+      "damodaran_upside_pct": null,
+      "damodaran_verdict": null
+    },
+    "merton": {
+      "asset_value": "1789202105.24",
+      "asset_volatility_pct": "46.0574",
+      "debt_face_value": "198929006.0000",
+      "distance_to_default": "5.2337",
+      "default_probability_pct": "0.0",
+      "converged": true
+    },
+    "equity_volatility_pct": "50.1024",
+    "debt_point_used": "198929006.0000",
+    "multi_scenario": {
+      "pe": {
+        "multiple_name": "F/K",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 2,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "6.485548820615984699389589275",
+            "sample_size": 4,
+            "target_price": "7.577503923722423397907195531"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "4.183795483602088434005328233",
+            "sample_size": 14,
+            "target_price": "4.888210322659465581345268833"
+          }
+        ],
+        "blended_target_price": "6.23285712319094448962623218"
+      },
+      "pb": {
+        "multiple_name": "PD/DD",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 2,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "0.9895921760213626024439520508",
+            "sample_size": 4,
+            "target_price": "7.406924198030455058386830053"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "0.9030365335885669005960112162",
+            "sample_size": 16,
+            "target_price": "6.759070366981465149924360752"
+          }
+        ],
+        "blended_target_price": "7.08299728250596010415559540"
+      },
+      "ev_ebitda": {
+        "multiple_name": "FD/FAVÖK",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 2,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          }
+        ],
+        "blended_target_price": null
+      },
+      "final_target_price_a": "6.65792720284845229689091379"
+    },
+    "final_target_price": "6.65792720284845229689091379"
+  },
+  "FORTE": {
+    "financial_group": "XI_29",
+    "company_name": "FORTE BİLGİ İLETİŞİM TEKNOLOJİLERİ VE SAVUNMA SANAYİ A.Ş.",
+    "sector": "BİLİŞİM",
+    "price": "113.3",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "revenue_growth_yoy_pct": "195.3976907551900372124428886",
+    "ebitda_margin_current": "30.22300951972025089537843859",
+    "ebitda_margin_prior_year": "8.940345840904726085968603910",
+    "net_margin_current": "18.52230278241334336270755050",
+    "net_debt_to_ebitda": "1.554537111705337845991535675",
+    "roe_annualized": "96.70959300673030138324087202",
+    "current_ratio": "1.407864656786926440340484488",
+    "net_debt": "1978810723.0000",
+    "valuation_metrics": {
+      "price": "113.3",
+      "share_capital": "67000000.0000",
+      "market_cap": "7591100000.00000",
+      "net_debt": "1978810723.0000",
+      "enterprise_value": "9569910723.00000",
+      "pe_ratio": "2.506006362714204398122146047",
+      "pb_ratio": "2.423548554103672607505885448",
+      "ev_ebitda": "7.518041620502357399390401332",
+      "ev_revenue": "2.242558974211392977890092449",
+      "price_to_operating_profit": "7.127025020168154189543042169"
+    },
+    "fundamental_screens": {
+      "has_data": true,
+      "graham": {
+        "graham_multiple": "6.073428096930613798378288685",
+        "fair_value_price": "218.0741667774678230794673953",
+        "upside_pct": "92.47499274269004684860317326",
+        "verdict": "Graham Ölçütüne Göre Ucuz"
+      },
+      "greenblatt": {
+        "ebit": "1065114824.0000",
+        "enterprise_value": "9569910723.00000",
+        "earnings_yield_pct": "11.12983030698644898946775681",
+        "earnings_yield_band": "Orta",
+        "net_working_capital": "1193974456.0000",
+        "net_fixed_assets": "200576471.0000",
+        "return_on_capital_pct": "76.37690408992858530436443502",
+        "return_on_capital_band": "Yüksek"
+      },
+      "acquirers_multiple": {
+        "acquirers_multiple": "8.984862953142036074037403502",
+        "band": "Makul"
+      },
+      "piotroski": {
+        "score": 7,
+        "criteria_evaluated": 9,
+        "band": "Orta",
+        "details": [
+          [
+            "Aktif Kârlılığı (ROA) Pozitif",
+            true
+          ],
+          [
+            "Faaliyet Nakit Akışı Pozitif",
+            true
+          ],
+          [
+            "ROA Geçen Yıla Göre Arttı",
+            true
+          ],
+          [
+            "Nakit Akışı Net Kârdan Yüksek (Kazanç Kalitesi)",
+            true
+          ],
+          [
+            "Uzun Vadeli Kaldıraç Azaldı",
+            false
+          ],
+          [
+            "Cari Oran Arttı (Likidite İyileşti)",
+            true
+          ],
+          [
+            "Pay Sulanması Yok",
+            true
+          ],
+          [
+            "Brüt Kâr Marjı Arttı",
+            true
+          ],
+          [
+            "Aktif Devir Hızı Arttı (Verimlilik)",
+            false
+          ]
+        ]
+      }
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "2.506006362714204398122146047",
+      "own_pb": "2.423548554103672607505885448",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "6.073428096930613798378288685",
+      "graham_fair_value_price": "218.0741667774678230794673953",
+      "graham_upside_pct": "92.47499274269004684860317326",
+      "graham_verdict": "Graham Ölçütüne Göre Ucuz",
+      "peg_ratio": "0.01282515854219552156110970570",
+      "peg_verdict": "Büyümeye Göre Ucuz (PEG)",
+      "damodaran_cost_of_equity_pct": "40",
+      "damodaran_growth_used_pct": "32",
+      "damodaran_fair_value_price": "499.1496805029850746268656716",
+      "damodaran_upside_pct": "340.5557639037820605709317490",
+      "damodaran_verdict": "Damodaran Modeline Göre Ucuz"
+    },
+    "merton": {
+      "asset_value": "10257368493.6",
+      "asset_volatility_pct": "43.9978",
+      "debt_face_value": "3672744607.5000",
+      "distance_to_default": "2.8417",
+      "default_probability_pct": "0.2244",
+      "converged": true
+    },
+    "equity_volatility_pct": "59.4208",
+    "debt_point_used": "3672744607.5000",
+    "multi_scenario": {
+      "pe": {
+        "multiple_name": "F/K",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 2,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "2.456084563915380093043407580",
+            "sample_size": 4,
+            "target_price": "111.0429667026939452527307850"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "97.66291253593768702512739312",
+            "sample_size": 6,
+            "target_price": "4415.474818801832077935115507"
+          }
+        ],
+        "blended_target_price": "2263.258892752263011593923146"
+      },
+      "pb": {
+        "multiple_name": "PD/DD",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 2,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "2.380874660819114229680890820",
+            "sample_size": 4,
+            "target_price": "111.3050112464412221049541487"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "4.970408482044551050743795742",
+            "sample_size": 12,
+            "target_price": "232.3647611937044663656605793"
+          }
+        ],
+        "blended_target_price": "171.8348862200728442353073640"
+      },
+      "ev_ebitda": {
+        "multiple_name": "FD/FAVÖK",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 2,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          }
+        ],
+        "blended_target_price": null
+      },
+      "final_target_price_a": "1217.546889486167927914615255"
+    },
+    "final_target_price": "930.1880058928947865995154216"
+  },
+  "ISDMR": {
+    "financial_group": "XI_29",
+    "company_name": "İSKENDERUN DEMİR VE ÇELİK A.Ş.",
+    "sector": "ANA METAL SANAYİ",
+    "price": "52.75",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "revenue_growth_yoy_pct": "25.89184123034501874825107002",
+    "ebitda_margin_current": "9.995002632702069727988199747",
+    "ebitda_margin_prior_year": "10.58244395040337230574336429",
+    "net_margin_current": "21.34957378688114403650495986",
+    "net_debt_to_ebitda": "-0.1685324694046907396998147357",
+    "roe_annualized": "8.576949388212756340919668933",
+    "current_ratio": "1.675683552085550247338145144",
+    "net_debt": "-2729702000.0000",
+    "valuation_metrics": {
+      "price": "52.75",
+      "share_capital": "2900000000.0000",
+      "market_cap": "152975000000.000000",
+      "net_debt": "-2729702000.0000",
+      "enterprise_value": "150245298000.000000",
+      "pe_ratio": "11.42859667250123739521096925",
+      "pb_ratio": "0.9802249523833983091598550404",
+      "ev_ebitda": "9.276181461706678159022155352",
+      "ev_revenue": "0.9715858117851490573214617340",
+      "price_to_operating_profit": "16.08240634810975535022098427"
+    },
+    "fundamental_screens": {
+      "has_data": true,
+      "graham": {
+        "graham_multiple": "11.20259562911158978596819736",
+        "fair_value_price": "74.75743520401463200229803660",
+        "upside_pct": "41.72025631092821232663134900",
+        "verdict": "Graham Ölçütüne Göre Ucuz"
+      },
+      "greenblatt": {
+        "ebit": "9511947198.0000",
+        "enterprise_value": "150245298000.000000",
+        "earnings_yield_pct": "6.330945011004603951066741536",
+        "earnings_yield_band": "Orta",
+        "net_working_capital": "40006290000.0000",
+        "net_fixed_assets": "140663465000.0000",
+        "return_on_capital_pct": "5.264825425816291166166689051",
+        "return_on_capital_band": "Düşük"
+      },
+      "acquirers_multiple": {
+        "acquirers_multiple": "15.79543019662586650956722437",
+        "band": "Pahalı"
+      },
+      "piotroski": {
+        "score": 6,
+        "criteria_evaluated": 9,
+        "band": "Orta",
+        "details": [
+          [
+            "Aktif Kârlılığı (ROA) Pozitif",
+            true
+          ],
+          [
+            "Faaliyet Nakit Akışı Pozitif",
+            true
+          ],
+          [
+            "ROA Geçen Yıla Göre Arttı",
+            false
+          ],
+          [
+            "Nakit Akışı Net Kârdan Yüksek (Kazanç Kalitesi)",
+            true
+          ],
+          [
+            "Uzun Vadeli Kaldıraç Azaldı",
+            true
+          ],
+          [
+            "Cari Oran Arttı (Likidite İyileşti)",
+            false
+          ],
+          [
+            "Pay Sulanması Yok",
+            true
+          ],
+          [
+            "Brüt Kâr Marjı Arttı",
+            true
+          ],
+          [
+            "Aktif Devir Hızı Arttı (Verimlilik)",
+            false
+          ]
+        ]
+      }
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "11.42859667250123739521096925",
+      "own_pb": "0.9802249523833983091598550404",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "11.20259562911158978596819736",
+      "graham_fair_value_price": "74.75743520401463200229803660",
+      "graham_upside_pct": "41.72025631092821232663134900",
+      "graham_verdict": "Graham Ölçütüne Göre Ucuz",
+      "peg_ratio": "0.4413976036245355482016220454",
+      "peg_verdict": "Büyümeye Göre Ucuz (PEG)",
+      "damodaran_cost_of_equity_pct": "40",
+      "damodaran_growth_used_pct": "7.719254449391480706827702040",
+      "damodaran_fair_value_price": "1.540207876618353674477721777",
+      "damodaran_upside_pct": "-97.08017464148179398203275492",
+      "damodaran_verdict": "Damodaran Modeline Göre Pahalı"
+    },
+    "merton": {
+      "asset_value": "203738085440.47",
+      "asset_volatility_pct": "29.5833",
+      "debt_face_value": "69907265000.0000",
+      "distance_to_default": "4.5495",
+      "default_probability_pct": "0.0003",
+      "converged": true
+    },
+    "equity_volatility_pct": "39.4002",
+    "debt_point_used": "69907265000.0000",
+    "multi_scenario": {
+      "pe": {
+        "multiple_name": "F/K",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 2,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "13.61245570754649966991146487",
+            "sample_size": 4,
+            "target_price": "62.82985209381139898038019448"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "11.10661607947411296905838374",
+            "sample_size": 12,
+            "target_price": "51.26386160795683862742250134"
+          }
+        ],
+        "blended_target_price": "57.0468568508841188039013479"
+      },
+      "pb": {
+        "multiple_name": "PD/DD",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 2,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "0.8566601040379755486001987752",
+            "sample_size": 4,
+            "target_price": "46.10045926511812775698595128"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "1.070196120180868865069538281",
+            "sample_size": 16,
+            "target_price": "57.59172443251604032151915921"
+          }
+        ],
+        "blended_target_price": "51.84609184881708403925255525"
+      },
+      "ev_ebitda": {
+        "multiple_name": "FD/FAVÖK",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 2,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          }
+        ],
+        "blended_target_price": null
+      },
+      "final_target_price_a": "54.4464743498506014215769516"
+    },
+    "final_target_price": "33.28396776055770232273725967"
+  },
+  "LOGO": {
+    "financial_group": "XI_29",
+    "company_name": "LOGO YAZILIM SANAYİ VE TİCARET A.Ş.",
+    "sector": "BİLİŞİM",
+    "price": "135.2",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "revenue_growth_yoy_pct": "2.138486910052103526625597998",
+    "ebitda_margin_current": "41.45059929293923365341044888",
+    "ebitda_margin_prior_year": "41.44207583454562123817950256",
+    "net_margin_current": "20.49784085833586576011195309",
+    "net_debt_to_ebitda": "-0.4441765454759307161892938191",
+    "roe_annualized": "20.04900447080915488558197314",
+    "current_ratio": "0.7579487140752171871876990011",
+    "net_debt": "-1056547000.0000",
+    "valuation_metrics": {
+      "price": "135.2",
+      "share_capital": "95000000.0000",
+      "market_cap": "12844000000.00000",
+      "net_debt": "-1056547000.0000",
+      "enterprise_value": "11787453000.00000",
+      "pe_ratio": "14.44854898928125101341767134",
+      "pb_ratio": "2.896790232828048976594503271",
+      "ev_ebitda": "4.955491950192368108884545597",
+      "ev_revenue": "1.679125172465058625878117751",
+      "price_to_operating_profit": "9.181821156207289412072292770"
+    },
+    "fundamental_screens": {
+      "has_data": true,
+      "graham": {
+        "graham_multiple": "41.85441559068750684025829579",
+        "fair_value_price": "99.12822038643317882972103269",
+        "upside_pct": "-26.68031036506421684192231310",
+        "verdict": "Graham Ölçütüne Göre Pahalı"
+      },
+      "greenblatt": {
+        "ebit": "1398851032.0000",
+        "enterprise_value": "11787453000.00000",
+        "earnings_yield_pct": "11.86728831071479139725944188",
+        "earnings_yield_band": "Orta",
+        "net_working_capital": "-833187000.0000",
+        "net_fixed_assets": "453938000.0000",
+        "return_on_capital_pct": null,
+        "return_on_capital_band": null
+      },
+      "acquirers_multiple": {
+        "acquirers_multiple": "8.426524862441535518701322301",
+        "band": "Makul"
+      },
+      "piotroski": {
+        "score": 7,
+        "criteria_evaluated": 9,
+        "band": "Orta",
+        "details": [
+          [
+            "Aktif Kârlılığı (ROA) Pozitif",
+            true
+          ],
+          [
+            "Faaliyet Nakit Akışı Pozitif",
+            true
+          ],
+          [
+            "ROA Geçen Yıla Göre Arttı",
+            false
+          ],
+          [
+            "Nakit Akışı Net Kârdan Yüksek (Kazanç Kalitesi)",
+            true
+          ],
+          [
+            "Uzun Vadeli Kaldıraç Azaldı",
+            true
+          ],
+          [
+            "Cari Oran Arttı (Likidite İyileşti)",
+            true
+          ],
+          [
+            "Pay Sulanması Yok",
+            true
+          ],
+          [
+            "Brüt Kâr Marjı Arttı",
+            true
+          ],
+          [
+            "Aktif Devir Hızı Arttı (Verimlilik)",
+            false
+          ]
+        ]
+      }
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "14.44854898928125101341767134",
+      "own_pb": "2.896790232828048976594503271",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "41.85441559068750684025829579",
+      "graham_fair_value_price": "99.12822038643317882972103269",
+      "graham_upside_pct": "-26.68031036506421684192231310",
+      "graham_verdict": "Graham Ölçütüne Göre Pahalı",
+      "peg_ratio": "6.756435553271269214209810068",
+      "peg_verdict": "Büyümeye Göre Pahalı (PEG)",
+      "damodaran_cost_of_equity_pct": "40",
+      "damodaran_growth_used_pct": "2.138486910052103526625597998",
+      "damodaran_fair_value_price": "22.55065879178233361154655755",
+      "damodaran_upside_pct": "-83.32051864513141005063124438",
+      "damodaran_verdict": "Damodaran Modeline Göre Pahalı"
+    },
+    "merton": {
+      "asset_value": "15346573059.07",
+      "asset_volatility_pct": "36.2318",
+      "debt_face_value": "3446363000.0000",
+      "distance_to_default": "4.8243",
+      "default_probability_pct": "0.0001",
+      "converged": true
+    },
+    "equity_volatility_pct": "43.2913",
+    "debt_point_used": "3446363000.0000",
+    "multi_scenario": {
+      "pe": {
+        "multiple_name": "F/K",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 2,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "12.07791960478756657986406513",
+            "sample_size": 4,
+            "target_price": "113.0172124397184888878609129"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "20.23983673788178456144331761",
+            "sample_size": 13,
+            "target_price": "189.3910543537383888602951494"
+          }
+        ],
+        "blended_target_price": "151.2041333967284388740780312"
+      },
+      "pb": {
+        "multiple_name": "PD/DD",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 2,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "3.452535150552887801313078045",
+            "sample_size": 4,
+            "target_price": "161.1379198482882557291728557"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "3.59518836655401942973481209",
+            "sample_size": 16,
+            "target_price": "167.7958802987154714839640052"
+          }
+        ],
+        "blended_target_price": "164.4669000735018636065684304"
+      },
+      "ev_ebitda": {
+        "multiple_name": "FD/FAVÖK",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 2,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          }
+        ],
+        "blended_target_price": null
+      },
+      "final_target_price_a": "157.8355167351151512403232308"
+    },
+    "final_target_price": "103.7215735577820241888125615"
+  },
+  "TABGD": {
+    "financial_group": "XI_29",
+    "company_name": "TAB GIDA SANAYİ VE TİCARET A.Ş.",
+    "sector": "YİYECEK VE İÇECEK HİZMETLERİ",
+    "price": "263.5",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "revenue_growth_yoy_pct": "10.87745561815617683350981408",
+    "ebitda_margin_current": "22.18938155010716927245602891",
+    "ebitda_margin_prior_year": "22.34376028452747806123572778",
+    "net_margin_current": "8.909118639344056008586591327",
+    "net_debt_to_ebitda": "0.1503852375252739630026800178",
+    "roe_annualized": "10.91516700104730539677732773",
+    "current_ratio": "1.557846737316343456216826883",
+    "net_debt": "1821679000.0000",
+    "valuation_metrics": {
+      "price": "263.5",
+      "share_capital": "261292000.0000",
+      "market_cap": "68850442000.00000",
+      "net_debt": "1821679000.0000",
+      "enterprise_value": "70672121000.00000",
+      "pe_ratio": "23.61792265932460269421453726",
+      "pb_ratio": "2.577935700443473234777818004",
+      "ev_ebitda": "5.834202240350743501722820288",
+      "ev_revenue": "1.187249810968010404268906038",
+      "price_to_operating_profit": "17.31773845472801075952407826"
+    },
+    "fundamental_screens": {
+      "has_data": true,
+      "graham": {
+        "graham_multiple": "60.88548599378574773419484634",
+        "fair_value_price": "160.1824714599485776175782970",
+        "upside_pct": "-39.20968825049389843735168994",
+        "verdict": "Graham Ölçütüne Göre Pahalı"
+      },
+      "greenblatt": {
+        "ebit": "3975717856.0000",
+        "enterprise_value": "70672121000.00000",
+        "earnings_yield_pct": "5.625581629282075742427484241",
+        "earnings_yield_band": "Düşük",
+        "net_working_capital": "5222280000.0000",
+        "net_fixed_assets": "16100710000.0000",
+        "return_on_capital_pct": "18.64521746715634158248913497",
+        "return_on_capital_band": "Orta"
+      },
+      "acquirers_multiple": {
+        "acquirers_multiple": "17.77593973207740624942375186",
+        "band": "Pahalı"
+      },
+      "piotroski": {
+        "score": 4,
+        "criteria_evaluated": 9,
+        "band": "Orta",
+        "details": [
+          [
+            "Aktif Kârlılığı (ROA) Pozitif",
+            true
+          ],
+          [
+            "Faaliyet Nakit Akışı Pozitif",
+            true
+          ],
+          [
+            "ROA Geçen Yıla Göre Arttı",
+            false
+          ],
+          [
+            "Nakit Akışı Net Kârdan Yüksek (Kazanç Kalitesi)",
+            true
+          ],
+          [
+            "Uzun Vadeli Kaldıraç Azaldı",
+            false
+          ],
+          [
+            "Cari Oran Arttı (Likidite İyileşti)",
+            false
+          ],
+          [
+            "Pay Sulanması Yok",
+            true
+          ],
+          [
+            "Brüt Kâr Marjı Arttı",
+            false
+          ],
+          [
+            "Aktif Devir Hızı Arttı (Verimlilik)",
+            false
+          ]
+        ]
+      }
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "23.61792265932460269421453726",
+      "own_pb": "2.577935700443473234777818004",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "60.88548599378574773419484634",
+      "graham_fair_value_price": "160.1824714599485776175782970",
+      "graham_upside_pct": "-39.20968825049389843735168994",
+      "graham_verdict": "Graham Ölçütüne Göre Pahalı",
+      "peg_ratio": "2.171272721159403419221344613",
+      "peg_verdict": "Büyümeye Göre Pahalı (PEG)",
+      "damodaran_cost_of_equity_pct": "40",
+      "damodaran_growth_used_pct": "9.823650300942574857099594957",
+      "damodaran_fair_value_price": "4.060393222167094461685130907",
+      "damodaran_upside_pct": "-98.45905380562918616254833742",
+      "damodaran_verdict": "Damodaran Modeline Göre Pahalı"
+    },
+    "merton": {
+      "asset_value": "77320241463.7",
+      "asset_volatility_pct": "34.7676",
+      "debt_face_value": "11663996000.0000",
+      "distance_to_default": "6.1868",
+      "default_probability_pct": "0.0",
+      "converged": true
+    },
+    "equity_volatility_pct": "39.0446",
+    "debt_point_used": "11663996000.0000",
+    "multi_scenario": {
+      "pe": {
+        "multiple_name": "F/K",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "22.52549981914748103287073110",
+            "sample_size": 4,
+            "target_price": "251.3120771865164856122261150"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "18.06594726676124061825919328",
+            "sample_size": 11,
+            "target_price": "201.5578242615736685784178134"
+          }
+        ],
+        "blended_target_price": "226.4349507240450770953219642"
+      },
+      "pb": {
+        "multiple_name": "PD/DD",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "2.636585539758404898970545422",
+            "sample_size": 3,
+            "target_price": "269.4948092021170101667178953"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "2.769198476214011973693426275",
+            "sample_size": 11,
+            "target_price": "283.0496502906830496397091896"
+          }
+        ],
+        "blended_target_price": "276.2722297464000299032135424"
+      },
+      "ev_ebitda": {
+        "multiple_name": "FD/FAVÖK",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          }
+        ],
+        "blended_target_price": null
+      },
+      "final_target_price_a": "251.3535902352225534992677533"
+    },
+    "final_target_price": "152.4363114300003698842347044"
+  },
+  "MPARK": {
+    "financial_group": "XI_29",
+    "company_name": "MLP SAĞLIK HİZMETLERİ A.Ş.",
+    "sector": "İNSAN SAĞLIĞI VE SOSYAL HİZMETLER",
+    "price": "426.75",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "revenue_growth_yoy_pct": "6.649450446190859016217393315",
+    "ebitda_margin_current": "28.77695233812793688650857153",
+    "ebitda_margin_prior_year": "24.44386109093404011914332548",
+    "net_margin_current": "8.309473876531038141323654284",
+    "net_debt_to_ebitda": "0.6606833595112217160391241671",
+    "roe_annualized": "14.34887635129333941596002992",
+    "current_ratio": "0.8391375132063748280062410140",
+    "net_debt": "13250271000.0000",
+    "valuation_metrics": {
+      "price": "426.75",
+      "share_capital": "191012000.0000",
+      "market_cap": "81514371000.000000",
+      "net_debt": "13250271000.0000",
+      "enterprise_value": "94764642000.000000",
+      "pe_ratio": "12.24881577662254449396303204",
+      "pb_ratio": "1.757567430285279878089878701",
+      "ev_ebitda": "4.725142756660465352223608082",
+      "ev_revenue": "1.417348904086601422722789334",
+      "price_to_operating_profit": "6.907748333643697136433096165"
+    },
+    "fundamental_screens": {
+      "has_data": true,
+      "graham": {
+        "graham_multiple": "21.52811966855628027781551913",
+        "fair_value_price": "436.2764186552573383277623370",
+        "upside_pct": "2.232318372643781681959540012",
+        "verdict": "Graham Ölçütüne Göre Ucuz"
+      },
+      "greenblatt": {
+        "ebit": "11800425705.0000",
+        "enterprise_value": "94764642000.000000",
+        "earnings_yield_pct": "12.45235085149163545618628518",
+        "earnings_yield_band": "Yüksek",
+        "net_working_capital": "-4475787000.0000",
+        "net_fixed_assets": "17809328000.0000",
+        "return_on_capital_pct": "88.50181437174116013143095296",
+        "return_on_capital_band": "Yüksek"
+      },
+      "acquirers_multiple": {
+        "acquirers_multiple": "8.030612146462389002431332201",
+        "band": "Makul"
+      },
+      "piotroski": {
+        "score": 6,
+        "criteria_evaluated": 9,
+        "band": "Orta",
+        "details": [
+          [
+            "Aktif Kârlılığı (ROA) Pozitif",
+            true
+          ],
+          [
+            "Faaliyet Nakit Akışı Pozitif",
+            true
+          ],
+          [
+            "ROA Geçen Yıla Göre Arttı",
+            false
+          ],
+          [
+            "Nakit Akışı Net Kârdan Yüksek (Kazanç Kalitesi)",
+            true
+          ],
+          [
+            "Uzun Vadeli Kaldıraç Azaldı",
+            true
+          ],
+          [
+            "Cari Oran Arttı (Likidite İyileşti)",
+            false
+          ],
+          [
+            "Pay Sulanması Yok",
+            true
+          ],
+          [
+            "Brüt Kâr Marjı Arttı",
+            true
+          ],
+          [
+            "Aktif Devir Hızı Arttı (Verimlilik)",
+            false
+          ]
+        ]
+      }
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "12.24881577662254449396303204",
+      "own_pb": "1.757567430285279878089878701",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "21.52811966855628027781551913",
+      "graham_fair_value_price": "436.2764186552573383277623370",
+      "graham_upside_pct": "2.232318372643781681959540012",
+      "graham_verdict": "Graham Ölçütüne Göre Ucuz",
+      "peg_ratio": "1.842079413290354646151177871",
+      "peg_verdict": "Büyümeye Göre Pahalı (PEG)",
+      "damodaran_cost_of_equity_pct": "40",
+      "damodaran_growth_used_pct": "6.649450446190859016217393315",
+      "damodaran_fair_value_price": "59.78269718112611814342606124",
+      "damodaran_upside_pct": "-85.99116644847659797459260429",
+      "damodaran_verdict": "Damodaran Modeline Göre Pahalı"
+    },
+    "merton": {
+      "asset_value": "104951861487.56",
+      "asset_volatility_pct": "31.9227",
+      "debt_face_value": "32276424500.0000",
+      "distance_to_default": "4.5366",
+      "default_probability_pct": "0.0003",
+      "converged": true
+    },
+    "equity_volatility_pct": "41.1013",
+    "debt_point_used": "32276424500.0000",
+    "multi_scenario": {
+      "pe": {
+        "multiple_name": "F/K",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "12.74465255192441450376231832",
+            "sample_size": 4,
+            "target_price": "444.0250041897044993111305143"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "8.952411510425686043315187421",
+            "sample_size": 14,
+            "target_price": "311.9029367202712399646961079"
+          }
+        ],
+        "blended_target_price": "377.9639704549878696379133111"
+      },
+      "pb": {
+        "multiple_name": "PD/DD",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "1.957492087511991152011437872",
+            "sample_size": 4,
+            "target_price": "475.2931432110975418841619901"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "2.871716423120796212573155849",
+            "sample_size": 13,
+            "target_price": "697.2733804972032957688767009"
+          }
+        ],
+        "blended_target_price": "586.2832618541504188265193455"
+      },
+      "ev_ebitda": {
+        "multiple_name": "FD/FAVÖK",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          }
+        ],
+        "blended_target_price": null
+      },
+      "final_target_price_a": "482.1236161545691442322163283"
+    },
+    "final_target_price": "313.1872485651919337967002215"
+  },
+  "KCAER": {
+    "financial_group": "XI_29",
+    "company_name": "KOCAER ÇELİK SANAYİ VE TİCARET A.Ş.",
+    "sector": "ANA METAL SANAYİ",
+    "price": "14.9",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "revenue_growth_yoy_pct": "-18.09442074862918693546538632",
+    "ebitda_margin_current": "16.00851702509368409920089969",
+    "ebitda_margin_prior_year": "14.12446578536920297725381269",
+    "net_margin_current": "7.529104191370687639547800441",
+    "net_debt_to_ebitda": "0.7014536981523923880007130709",
+    "roe_annualized": "4.389669914830250766920825734",
+    "current_ratio": "1.173060090777562481244793975",
+    "net_debt": "2413213448.0000",
+    "valuation_metrics": {
+      "price": "14.9",
+      "share_capital": "1915000000.0000",
+      "market_cap": "28533500000.00000",
+      "net_debt": "2413213448.0000",
+      "enterprise_value": "30946713448.00000",
+      "pe_ratio": "43.61301999454786427949770891",
+      "pb_ratio": "1.914467617649569471588730511",
+      "ev_ebitda": "8.995344614771918951743924238",
+      "ev_revenue": "1.186314504580603297360727372",
+      "price_to_operating_profit": "13.65198719401640724035450575"
+    },
+    "fundamental_screens": {
+      "has_data": true,
+      "graham": {
+        "graham_multiple": "83.49571448746508907185659537",
+        "fair_value_price": "7.734734926195870784466443838",
+        "upside_pct": "-48.08902734096731017136614874",
+        "verdict": "Graham Ölçütüne Göre Pahalı"
+      },
+      "greenblatt": {
+        "ebit": "2090062025.0000",
+        "enterprise_value": "30946713448.00000",
+        "earnings_yield_pct": "6.753744718359018166974950173",
+        "earnings_yield_band": "Orta",
+        "net_working_capital": "2418124876.0000",
+        "net_fixed_assets": "13837364976.0000",
+        "return_on_capital_pct": "12.85757638821846068351874851",
+        "return_on_capital_band": "Orta"
+      },
+      "acquirers_multiple": {
+        "acquirers_multiple": "14.80660051129343876768441836",
+        "band": "Makul"
+      },
+      "piotroski": {
+        "score": 6,
+        "criteria_evaluated": 9,
+        "band": "Orta",
+        "details": [
+          [
+            "Aktif Kârlılığı (ROA) Pozitif",
+            true
+          ],
+          [
+            "Faaliyet Nakit Akışı Pozitif",
+            true
+          ],
+          [
+            "ROA Geçen Yıla Göre Arttı",
+            true
+          ],
+          [
+            "Nakit Akışı Net Kârdan Yüksek (Kazanç Kalitesi)",
+            false
+          ],
+          [
+            "Uzun Vadeli Kaldıraç Azaldı",
+            false
+          ],
+          [
+            "Cari Oran Arttı (Likidite İyileşti)",
+            true
+          ],
+          [
+            "Pay Sulanması Yok",
+            true
+          ],
+          [
+            "Brüt Kâr Marjı Arttı",
+            true
+          ],
+          [
+            "Aktif Devir Hızı Arttı (Verimlilik)",
+            false
+          ]
+        ]
+      }
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "43.61301999454786427949770891",
+      "own_pb": "1.914467617649569471588730511",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "83.49571448746508907185659537",
+      "graham_fair_value_price": "7.734734926195870784466443838",
+      "graham_upside_pct": "-48.08902734096731017136614874",
+      "graham_verdict": "Graham Ölçütüne Göre Pahalı",
+      "peg_ratio": null,
+      "peg_verdict": null,
+      "damodaran_cost_of_equity_pct": null,
+      "damodaran_growth_used_pct": null,
+      "damodaran_fair_value_price": null,
+      "damodaran_upside_pct": null,
+      "damodaran_verdict": null
+    },
+    "merton": {
+      "asset_value": "39229433349.33",
+      "asset_volatility_pct": "36.3086",
+      "debt_face_value": "14730096404.0000",
+      "distance_to_default": "3.3976",
+      "default_probability_pct": "0.034",
+      "converged": true
+    },
+    "equity_volatility_pct": "49.9149",
+    "debt_point_used": "14730096404.0000",
+    "multi_scenario": {
+      "pe": {
+        "multiple_name": "F/K",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 2,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "41.19337642266492115036100077",
+            "sample_size": 3,
+            "target_price": "14.07335031544335019914580066"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "29.58293599301336731710560571",
+            "sample_size": 13,
+            "target_price": "10.10674670891863319198344385"
+          }
+        ],
+        "blended_target_price": "12.09004851218099169556462226"
+      },
+      "pb": {
+        "multiple_name": "PD/DD",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 2,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "1.761339672679799213531338432",
+            "sample_size": 4,
+            "target_price": "13.70822931711388723253715438"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "1.437505531841480476976644716",
+            "sample_size": 16,
+            "target_price": "11.18787919261564314650202308"
+          }
+        ],
+        "blended_target_price": "12.44805425486476518951958873"
+      },
+      "ev_ebitda": {
+        "multiple_name": "FD/FAVÖK",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 2,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          }
+        ],
+        "blended_target_price": null
+      },
+      "final_target_price_a": "12.26905138352287844254210550"
+    },
+    "final_target_price": "12.26905138352287844254210550"
+  },
+  "SAYAS": {
+    "financial_group": "XI_29",
+    "company_name": "SAY YENİLENEBİLİR ENERJİ EKİPMANLARI SANAYİ VE TİCARET A.Ş.",
+    "sector": "METAL EŞYA MAKİNE ELEKTRİKLİ CİHAZLAR VE ULAŞIM ARAÇLARI",
+    "price": "52.35",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "revenue_growth_yoy_pct": "13.98556837096710181454489630",
+    "ebitda_margin_current": "22.42113819271052607503071675",
+    "ebitda_margin_prior_year": "22.14136909025817804592437560",
+    "net_margin_current": "12.22011831294660698274138247",
+    "net_debt_to_ebitda": "-0.2054952897672634018241742951",
+    "roe_annualized": "12.98055906151974646358312904",
+    "current_ratio": "2.450092872391718471357524826",
+    "net_debt": "-112654281.0000",
+    "valuation_metrics": {
+      "price": "52.35",
+      "share_capital": "77250000.0000",
+      "market_cap": "4044037500.000000",
+      "net_debt": "-112654281.0000",
+      "enterprise_value": "3931383219.000000",
+      "pe_ratio": "19.83525716049822211725045430",
+      "pb_ratio": "2.574727270722796331418968778",
+      "ev_ebitda": "7.171327415196602723729716160",
+      "ev_revenue": "1.415610705296415736603870795",
+      "price_to_operating_profit": "6.974914112335317535418946004"
+    },
+    "fundamental_screens": {
+      "has_data": true,
+      "graham": {
+        "graham_multiple": "51.07037753293439038016182864",
+        "fair_value_price": "34.74748778274019235590819121",
+        "upside_pct": "-33.62466517146095060953545137",
+        "verdict": "Graham Ölçütüne Göre Pahalı"
+      },
+      "greenblatt": {
+        "ebit": "579797462.0000",
+        "enterprise_value": "3931383219.000000",
+        "earnings_yield_pct": "14.74792534082900352330165451",
+        "earnings_yield_band": "Yüksek",
+        "net_working_capital": "1005535518.0000",
+        "net_fixed_assets": "611135186.0000",
+        "return_on_capital_pct": "35.86367097303446899103331559",
+        "return_on_capital_band": "Yüksek"
+      },
+      "acquirers_multiple": {
+        "acquirers_multiple": "6.780614743360156343699207155",
+        "band": "Ucuz"
+      },
+      "piotroski": {
+        "score": 8,
+        "criteria_evaluated": 9,
+        "band": "Güçlü",
+        "details": [
+          [
+            "Aktif Kârlılığı (ROA) Pozitif",
+            true
+          ],
+          [
+            "Faaliyet Nakit Akışı Pozitif",
+            true
+          ],
+          [
+            "ROA Geçen Yıla Göre Arttı",
+            true
+          ],
+          [
+            "Nakit Akışı Net Kârdan Yüksek (Kazanç Kalitesi)",
+            true
+          ],
+          [
+            "Uzun Vadeli Kaldıraç Azaldı",
+            true
+          ],
+          [
+            "Cari Oran Arttı (Likidite İyileşti)",
+            true
+          ],
+          [
+            "Pay Sulanması Yok",
+            true
+          ],
+          [
+            "Brüt Kâr Marjı Arttı",
+            true
+          ],
+          [
+            "Aktif Devir Hızı Arttı (Verimlilik)",
+            false
+          ]
+        ]
+      }
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "19.83525716049822211725045430",
+      "own_pb": "2.574727270722796331418968778",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "51.07037753293439038016182864",
+      "graham_fair_value_price": "34.74748778274019235590819121",
+      "graham_upside_pct": "-33.62466517146095060953545137",
+      "graham_verdict": "Graham Ölçütüne Göre Pahalı",
+      "peg_ratio": "1.418266075025924343079480783",
+      "peg_verdict": "Büyümeye Göre Pahalı (PEG)",
+      "damodaran_cost_of_equity_pct": "40",
+      "damodaran_growth_used_pct": "11.68250315536777181722481614",
+      "damodaran_fair_value_price": "1.040900289009813561518675251",
+      "damodaran_upside_pct": "-98.01165178794686998754789828",
+      "damodaran_verdict": "Damodaran Modeline Göre Pahalı"
+    },
+    "merton": {
+      "asset_value": "4573701036.36",
+      "asset_volatility_pct": "48.1814",
+      "debt_face_value": "729415152.5000",
+      "distance_to_default": "4.2335",
+      "default_probability_pct": "0.0012",
+      "converged": true
+    },
+    "equity_volatility_pct": "54.4918",
+    "debt_point_used": "729415152.5000",
+    "multi_scenario": {
+      "pe": {
+        "multiple_name": "F/K",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 2,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "18.25541266282230513751125418",
+            "sample_size": 3,
+            "target_price": "48.18041153517079620779986656"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "33.35770225464802171115612687",
+            "sample_size": 11,
+            "target_price": "88.03897518951859013657179494"
+          }
+        ],
+        "blended_target_price": "68.10969336234469317218583075"
+      },
+      "pb": {
+        "multiple_name": "PD/DD",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 2,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "2.81826270025073785998417212",
+            "sample_size": 4,
+            "target_price": "57.30162337415594460650586202"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "6.296722434362795608708553569",
+            "sample_size": 16,
+            "target_price": "128.0265382618001470641173553"
+          }
+        ],
+        "blended_target_price": "92.66408081797804583531160865"
+      },
+      "ev_ebitda": {
+        "multiple_name": "FD/FAVÖK",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 2,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          }
+        ],
+        "blended_target_price": null
+      },
+      "final_target_price_a": "80.3868870901613695037487197"
+    },
+    "final_target_price": "48.64849236970074712685670192"
+  },
+  "TTKOM": {
+    "financial_group": "XI_29",
+    "company_name": "TÜRK TELEKOMÜNİKASYON A.Ş.",
+    "sector": "TELEKOMÜNİKASYON",
+    "price": "54.5",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "revenue_growth_yoy_pct": "9.252254167462060221748284732",
+    "ebitda_margin_current": "39.25706998147204105113751316",
+    "ebitda_margin_prior_year": "41.67717838451091784640549812",
+    "net_margin_current": "8.655141813051055914743413714",
+    "net_debt_to_ebitda": "0.9819692675577617072358652403",
+    "roe_annualized": "11.53056919424102578190621783",
+    "current_ratio": "0.8193712766009378721190362836",
+    "net_debt": "119413427000.0000",
+    "valuation_metrics": {
+      "price": "54.5",
+      "share_capital": "3500000000.0000",
+      "market_cap": "190750000000.00000",
+      "net_debt": "119413427000.0000",
+      "enterprise_value": "310163427000.00000",
+      "pe_ratio": "6.236641255429639902889332576",
+      "pb_ratio": "0.7191202353538968243382739476",
+      "ev_ebitda": "2.550558684111756474132901824",
+      "ev_revenue": "1.044381827309692066251818392",
+      "price_to_operating_profit": "3.275184445994666135880127857"
+    },
+    "fundamental_screens": {
+      "has_data": true,
+      "graham": {
+        "graham_multiple": "4.484894927422385207764769595",
+        "fair_value_price": "122.0707533880037282703365462",
+        "upside_pct": "123.9830337394563821474065068",
+        "verdict": "Graham Ölçütüne Göre Ucuz"
+      },
+      "greenblatt": {
+        "ebit": "58240994712.0000",
+        "enterprise_value": "310163427000.00000",
+        "earnings_yield_pct": "18.77751844417169146122440800",
+        "earnings_yield_band": "Yüksek",
+        "net_working_capital": "-24125273000.0000",
+        "net_fixed_assets": "208396946000.0000",
+        "return_on_capital_pct": "31.60604870179910940516614293",
+        "return_on_capital_band": "Yüksek"
+      },
+      "acquirers_multiple": {
+        "acquirers_multiple": "5.325517335920325412453096290",
+        "band": "Ucuz"
+      },
+      "piotroski": {
+        "score": 5,
+        "criteria_evaluated": 9,
+        "band": "Orta",
+        "details": [
+          [
+            "Aktif Kârlılığı (ROA) Pozitif",
+            true
+          ],
+          [
+            "Faaliyet Nakit Akışı Pozitif",
+            true
+          ],
+          [
+            "ROA Geçen Yıla Göre Arttı",
+            false
+          ],
+          [
+            "Nakit Akışı Net Kârdan Yüksek (Kazanç Kalitesi)",
+            true
+          ],
+          [
+            "Uzun Vadeli Kaldıraç Azaldı",
+            false
+          ],
+          [
+            "Cari Oran Arttı (Likidite İyileşti)",
+            false
+          ],
+          [
+            "Pay Sulanması Yok",
+            true
+          ],
+          [
+            "Brüt Kâr Marjı Arttı",
+            true
+          ],
+          [
+            "Aktif Devir Hızı Arttı (Verimlilik)",
+            false
+          ]
+        ]
+      }
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "6.236641255429639902889332576",
+      "own_pb": "0.7191202353538968243382739476",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "4.484894927422385207764769595",
+      "graham_fair_value_price": "122.0707533880037282703365462",
+      "graham_upside_pct": "123.9830337394563821474065068",
+      "graham_verdict": "Graham Ölçütüne Göre Ucuz",
+      "peg_ratio": "0.6740672210846086080334684620",
+      "peg_verdict": "Büyümeye Göre Ucuz (PEG)",
+      "damodaran_cost_of_equity_pct": "40",
+      "damodaran_growth_used_pct": "9.252254167462060221748284732",
+      "damodaran_fair_value_price": "6.135159971807793506955870374",
+      "damodaran_upside_pct": "-88.74282573980221374870482501",
+      "damodaran_verdict": "Damodaran Modeline Göre Pahalı"
+    },
+    "merton": {
+      "asset_value": "334030409991.19",
+      "asset_volatility_pct": "25.5056",
+      "debt_face_value": "197324483000.0000",
+      "distance_to_default": "3.1909",
+      "default_probability_pct": "0.0709",
+      "converged": true
+    },
+    "equity_volatility_pct": "44.6512",
+    "debt_point_used": "197324483000.0000",
+    "multi_scenario": {
+      "pe": {
+        "multiple_name": "F/K",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "8.07671404866163858360908954",
+            "sample_size": 4,
+            "target_price": "70.57980371547527833432042209"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "9.423122949288021790424230062",
+            "sample_size": 13,
+            "target_price": "82.34563761208647808155890663"
+          }
+        ],
+        "blended_target_price": "76.46272066378087820793966435"
+      },
+      "pb": {
+        "multiple_name": "PD/DD",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "0.8907714819156907113191003828",
+            "sample_size": 4,
+            "target_price": "67.50894131148172158209215011"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "1.312482581465945428734023269",
+            "sample_size": 15,
+            "target_price": "99.46918077571853984883040894"
+          }
+        ],
+        "blended_target_price": "83.4890610436001307154612795"
+      },
+      "ev_ebitda": {
+        "multiple_name": "FD/FAVÖK",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          }
+        ],
+        "blended_target_price": null
+      },
+      "final_target_price_a": "79.9758908536905044617004719"
+    },
+    "final_target_price": "50.43959850093742007980263129"
+  },
+  "TUPRS": {
+    "financial_group": "XI_29",
+    "company_name": "TÜPRAŞ-TÜRKİYE PETROL RAFİNERİLERİ A.Ş.",
+    "sector": "KİMYA İLAÇ PETROL LASTİK VE PLASTİK ÜRÜNLER",
+    "price": "323.5",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "revenue_growth_yoy_pct": "57.69043567193917516030822279",
+    "ebitda_margin_current": "13.70729359419239156465797598",
+    "ebitda_margin_prior_year": "7.501495798442690329040106951",
+    "net_margin_current": "11.40519875997616616604145371",
+    "net_debt_to_ebitda": "-1.163625259566459481468741474",
+    "roe_annualized": "15.70050319250561540993288419",
+    "current_ratio": "1.350713929172197522580809025",
+    "net_debt": "-130717903000.0000",
+    "valuation_metrics": {
+      "price": "323.5",
+      "share_capital": "1926796000.0000",
+      "market_cap": "623318506000.00000",
+      "net_debt": "-130717903000.0000",
+      "enterprise_value": "492600603000.00000",
+      "pe_ratio": "8.568953634071525154997478454",
+      "pb_ratio": "1.345368838881725756567331571",
+      "ev_ebitda": "4.385034424308883375726807487",
+      "ev_revenue": "0.4187059894517936342732961495",
+      "price_to_operating_profit": "6.932919401884833622144728615"
+    },
+    "fundamental_screens": {
+      "has_data": true,
+      "graham": {
+        "graham_multiple": "11.52840320110215213265882828",
+        "fair_value_price": "451.9401915962403941295529957",
+        "upside_pct": "39.70330497565390854082009141",
+        "verdict": "Graham Ölçütüne Göre Ucuz"
+      },
+      "greenblatt": {
+        "ebit": "89907075197.0000",
+        "enterprise_value": "492600603000.00000",
+        "earnings_yield_pct": "18.25151545683349478157256742",
+        "earnings_yield_band": "Yüksek",
+        "net_working_capital": "114111553000.0000",
+        "net_fixed_assets": "350569987000.0000",
+        "return_on_capital_pct": "19.34810562885713084277029813",
+        "return_on_capital_band": "Orta"
+      },
+      "acquirers_multiple": {
+        "acquirers_multiple": "5.478997085831538553458522647",
+        "band": "Ucuz"
+      },
+      "piotroski": {
+        "score": 8,
+        "criteria_evaluated": 9,
+        "band": "Güçlü",
+        "details": [
+          [
+            "Aktif Kârlılığı (ROA) Pozitif",
+            true
+          ],
+          [
+            "Faaliyet Nakit Akışı Pozitif",
+            true
+          ],
+          [
+            "ROA Geçen Yıla Göre Arttı",
+            true
+          ],
+          [
+            "Nakit Akışı Net Kârdan Yüksek (Kazanç Kalitesi)",
+            true
+          ],
+          [
+            "Uzun Vadeli Kaldıraç Azaldı",
+            true
+          ],
+          [
+            "Cari Oran Arttı (Likidite İyileşti)",
+            true
+          ],
+          [
+            "Pay Sulanması Yok",
+            true
+          ],
+          [
+            "Brüt Kâr Marjı Arttı",
+            true
+          ],
+          [
+            "Aktif Devir Hızı Arttı (Verimlilik)",
+            false
+          ]
+        ]
+      }
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "8.568953634071525154997478454",
+      "own_pb": "1.345368838881725756567331571",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "11.52840320110215213265882828",
+      "graham_fair_value_price": "451.9401915962403941295529957",
+      "graham_upside_pct": "39.70330497565390854082009141",
+      "graham_verdict": "Graham Ölçütüne Göre Ucuz",
+      "peg_ratio": "0.1485333493197988354439331329",
+      "peg_verdict": "Büyümeye Göre Ucuz (PEG)",
+      "damodaran_cost_of_equity_pct": "40",
+      "damodaran_growth_used_pct": "14.13045287325505386893959577",
+      "damodaran_fair_value_price": "16.65555874817244809643487542",
+      "damodaran_upside_pct": "-94.85145015512443644623342337",
+      "damodaran_verdict": "Damodaran Modeline Göre Pahalı"
+    },
+    "merton": {
+      "asset_value": "872816583164.26",
+      "asset_volatility_pct": "28.0013",
+      "debt_face_value": "343590871000.0000",
+      "distance_to_default": "4.3322",
+      "default_probability_pct": "0.0007",
+      "converged": true
+    },
+    "equity_volatility_pct": "39.2094",
+    "debt_point_used": "343590871000.0000",
+    "multi_scenario": {
+      "pe": {
+        "multiple_name": "F/K",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 1,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "11.66576946899445495318188446",
+            "sample_size": 4,
+            "target_price": "440.4127486714564695989517564"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "6.877771672518143322580862082",
+            "sample_size": 14,
+            "target_price": "259.6535389353523026936376119"
+          }
+        ],
+        "blended_target_price": "350.0331438034043861462946842"
+      },
+      "pb": {
+        "multiple_name": "PD/DD",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 1,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "1.182127228668793568704353471",
+            "sample_size": 4,
+            "target_price": "284.2478192019236408368692624"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "0.8385528537976068223354711321",
+            "sample_size": 14,
+            "target_price": "201.6338125008214893324908461"
+          }
+        ],
+        "blended_target_price": "242.9408158513725650846800542"
+      },
+      "ev_ebitda": {
+        "multiple_name": "FD/FAVÖK",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 1,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          }
+        ],
+        "blended_target_price": null
+      },
+      "final_target_price_a": "296.4869798273884756154873692"
+    },
+    "final_target_price": "184.5544113957020646078663717"
+  },
+  "AYGAZ": {
+    "financial_group": "XI_29",
+    "company_name": "AYGAZ A.Ş.",
+    "sector": "KİMYA İLAÇ PETROL LASTİK VE PLASTİK ÜRÜNLER",
+    "price": "284.5",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "revenue_growth_yoy_pct": "8.685150782052414052159463978",
+    "ebitda_margin_current": "3.919056886527918633757597318",
+    "ebitda_margin_prior_year": "3.038428963610867363606548457",
+    "net_margin_current": "14.01333869183357896030934293",
+    "net_debt_to_ebitda": "-0.9570066720180551501389697000",
+    "roe_annualized": "10.72555503312069703355556518",
+    "current_ratio": "1.554438902034280952565367298",
+    "net_debt": "-3942406000.0000",
+    "valuation_metrics": {
+      "price": "284.5",
+      "share_capital": "219801000.0000",
+      "market_cap": "62533384500.00000",
+      "net_debt": "-3942406000.0000",
+      "enterprise_value": "58590978500.00000",
+      "pe_ratio": "6.934195109044161123118757908",
+      "pb_ratio": "0.7437309125244952293308646562",
+      "ev_ebitda": "14.22277597603250931375577394",
+      "ev_revenue": "0.5602884634795829171947928941",
+      "price_to_operating_profit": "23.24267573117988126656571496"
+    },
+    "fundamental_screens": {
+      "has_data": true,
+      "graham": {
+        "graham_multiple": "5.157175256072305654315135443",
+        "fair_value_price": "594.2478028413037062004189137",
+        "upside_pct": "108.8744473958888246750154354",
+        "verdict": "Graham Ölçütüne Göre Ucuz"
+      },
+      "greenblatt": {
+        "ebit": "2690455489.0000",
+        "enterprise_value": "58590978500.00000",
+        "earnings_yield_pct": "4.591927900640881087179658554",
+        "earnings_yield_band": "Düşük",
+        "net_working_capital": "5812519000.0000",
+        "net_fixed_assets": "12577621000.0000",
+        "return_on_capital_pct": "14.62988040874077086960730043",
+        "return_on_capital_band": "Orta"
+      },
+      "acquirers_multiple": {
+        "acquirers_multiple": "21.77734541216191813385543804",
+        "band": "Pahalı"
+      },
+      "piotroski": {
+        "score": 6,
+        "criteria_evaluated": 9,
+        "band": "Orta",
+        "details": [
+          [
+            "Aktif Kârlılığı (ROA) Pozitif",
+            true
+          ],
+          [
+            "Faaliyet Nakit Akışı Pozitif",
+            false
+          ],
+          [
+            "ROA Geçen Yıla Göre Arttı",
+            true
+          ],
+          [
+            "Nakit Akışı Net Kârdan Yüksek (Kazanç Kalitesi)",
+            false
+          ],
+          [
+            "Uzun Vadeli Kaldıraç Azaldı",
+            true
+          ],
+          [
+            "Cari Oran Arttı (Likidite İyileşti)",
+            true
+          ],
+          [
+            "Pay Sulanması Yok",
+            true
+          ],
+          [
+            "Brüt Kâr Marjı Arttı",
+            true
+          ],
+          [
+            "Aktif Devir Hızı Arttı (Verimlilik)",
+            false
+          ]
+        ]
+      }
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "6.934195109044161123118757908",
+      "own_pb": "0.7437309125244952293308646562",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "5.157175256072305654315135443",
+      "graham_fair_value_price": "594.2478028413037062004189137",
+      "graham_upside_pct": "108.8744473958888246750154354",
+      "graham_verdict": "Graham Ölçütüne Göre Ucuz",
+      "peg_ratio": "0.7983966292644513722558133855",
+      "peg_verdict": "Büyümeye Göre Ucuz (PEG)",
+      "damodaran_cost_of_equity_pct": "40",
+      "damodaran_growth_used_pct": "8.685150782052414052159463978",
+      "damodaran_fair_value_price": "27.08959703322896511287226532",
+      "damodaran_upside_pct": "-90.47817327478770997790078548",
+      "damodaran_verdict": "Damodaran Modeline Göre Pahalı"
+    },
+    "merton": {
+      "asset_value": "70484547987.41",
+      "asset_volatility_pct": "36.7446",
+      "debt_face_value": "10949768000.0000",
+      "distance_to_default": "5.7548",
+      "default_probability_pct": "0.0",
+      "converged": true
+    },
+    "equity_volatility_pct": "41.4167",
+    "debt_point_used": "10949768000.0000",
+    "multi_scenario": {
+      "pe": {
+        "multiple_name": "F/K",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 1,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "9.166395165504633694210249855",
+            "sample_size": 4,
+            "target_price": "376.0839410452562154433789863"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "6.467743284881087433540739496",
+            "sample_size": 14,
+            "target_price": "265.3621560415413289459448396"
+          }
+        ],
+        "blended_target_price": "320.7230485433987721946619130"
+      },
+      "pb": {
+        "multiple_name": "PD/DD",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 1,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "0.711468299522271194719458332",
+            "sample_size": 4,
+            "target_price": "272.1585560119091710522617366"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "0.6913175794983941283303013505",
+            "sample_size": 13,
+            "target_price": "264.4502844445306811768289448"
+          }
+        ],
+        "blended_target_price": "268.3044202282199261145453407"
+      },
+      "ev_ebitda": {
+        "multiple_name": "FD/FAVÖK",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 1,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          }
+        ],
+        "blended_target_price": null
+      },
+      "final_target_price_a": "294.5137343858093491546036268"
+    },
+    "final_target_price": "187.5440794447771955379110822"
+  },
+  "ESCOM": {
+    "financial_group": "XI_29",
+    "company_name": "ESCORT TEKNOLOJİ YATIRIM A.Ş.",
+    "sector": "BİLİŞİM",
+    "price": "5.8",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "revenue_growth_yoy_pct": "74219.92101853697428742276261",
+    "ebitda_margin_current": "98.99881574311962098281830592",
+    "ebitda_margin_prior_year": "-565.7825891967311142116802870",
+    "net_margin_current": "45.63192874421199593610837706",
+    "net_debt_to_ebitda": "-0.0003899094471580063933734786960",
+    "roe_annualized": "39.83329548795107542343009735",
+    "current_ratio": "0.4315896070617490076505068843",
+    "net_debt": "-1127930.0000",
+    "valuation_metrics": {
+      "price": "5.8",
+      "share_capital": "704842185.0000",
+      "market_cap": "4088084673.00000",
+      "net_debt": "-1127930.0000",
+      "enterprise_value": "4086956743.00000",
+      "pe_ratio": "2.408018404791462485847721604",
+      "pb_ratio": "0.9591930865848290893761235808",
+      "ev_ebitda": "1.412803138689294917091352543",
+      "ev_revenue": "1.404719021645678891758546019",
+      "price_to_operating_profit": "1.411769235756542857501929284"
+    },
+    "fundamental_screens": {
+      "has_data": true,
+      "graham": {
+        "graham_multiple": "2.309754606244999299128644157",
+        "fair_value_price": "18.10240727855752696125618852",
+        "upside_pct": "212.1104703199573614009687676",
+        "verdict": "Graham Ölçütüne Göre Ucuz"
+      },
+      "greenblatt": {
+        "ebit": "2895717352.0000",
+        "enterprise_value": "4086956743.00000",
+        "earnings_yield_pct": "70.85265477692382808760254109",
+        "earnings_yield_band": "Yüksek",
+        "net_working_capital": "-43495002.0000",
+        "net_fixed_assets": "3749701.0000",
+        "return_on_capital_pct": null,
+        "return_on_capital_band": null
+      },
+      "acquirers_multiple": {
+        "acquirers_multiple": "1.411379719148776921097788138",
+        "band": "Ucuz"
+      },
+      "piotroski": {
+        "score": 4,
+        "criteria_evaluated": 9,
+        "band": "Orta",
+        "details": [
+          [
+            "Aktif Kârlılığı (ROA) Pozitif",
+            true
+          ],
+          [
+            "Faaliyet Nakit Akışı Pozitif",
+            false
+          ],
+          [
+            "ROA Geçen Yıla Göre Arttı",
+            true
+          ],
+          [
+            "Nakit Akışı Net Kârdan Yüksek (Kazanç Kalitesi)",
+            false
+          ],
+          [
+            "Uzun Vadeli Kaldıraç Azaldı",
+            false
+          ],
+          [
+            "Cari Oran Arttı (Likidite İyileşti)",
+            false
+          ],
+          [
+            "Pay Sulanması Yok",
+            true
+          ],
+          [
+            "Brüt Kâr Marjı Arttı",
+            false
+          ],
+          [
+            "Aktif Devir Hızı Arttı (Verimlilik)",
+            true
+          ]
+        ]
+      }
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "2.408018404791462485847721604",
+      "own_pb": "0.9591930865848290893761235808",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "2.309754606244999299128644157",
+      "graham_fair_value_price": "18.10240727855752696125618852",
+      "graham_upside_pct": "212.1104703199573614009687676",
+      "graham_verdict": "Graham Ölçütüne Göre Ucuz",
+      "peg_ratio": "0.00003244436765420488761864937621",
+      "peg_verdict": "Büyümeye Göre Ucuz (PEG)",
+      "damodaran_cost_of_equity_pct": "40",
+      "damodaran_growth_used_pct": "32",
+      "damodaran_fair_value_price": "7.815385543134027938466821483",
+      "damodaran_upside_pct": "34.74802660575910238735899109",
+      "damodaran_verdict": "Damodaran Modeline Göre Ucuz"
+    },
+    "merton": {
+      "asset_value": "4143649902.3",
+      "asset_volatility_pct": "59.0325",
+      "debt_face_value": "76520420.0000",
+      "distance_to_default": "7.0089",
+      "default_probability_pct": "0.0",
+      "converged": true
+    },
+    "equity_volatility_pct": "59.8349",
+    "debt_point_used": "76520420.0000",
+    "multi_scenario": {
+      "pe": {
+        "multiple_name": "F/K",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 2,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "2.348959951823824190342390852",
+            "sample_size": 3,
+            "target_price": "5.657750660654951913647130708"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "0.9998857283954015988334201311",
+            "sample_size": 10,
+            "target_price": "2.408344227416965856472496628"
+          }
+        ],
+        "blended_target_price": "4.033047444035958885059813668"
+      },
+      "pb": {
+        "multiple_name": "PD/DD",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 2,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "0.9375719595251713640777566398",
+            "sample_size": 4,
+            "target_price": "5.669262467901529791796165847"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "0.4969672990566628562452771522",
+            "sample_size": 16,
+            "target_price": "3.005036602996543853476253001"
+          }
+        ],
+        "blended_target_price": "4.337149535449036822636209424"
+      },
+      "ev_ebitda": {
+        "multiple_name": "FD/FAVÖK",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 2,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          }
+        ],
+        "blended_target_price": null
+      },
+      "final_target_price_a": "4.185098489742497853848011546"
+    },
+    "final_target_price": "5.637213311099109887695535521"
+  },
+  "KORDS": {
+    "financial_group": "XI_29",
+    "company_name": "KORDSA TEKNİK TEKSTİL A.Ş.",
+    "sector": "TEKSTİL, GİYİM EŞYASI VE DERİ",
+    "price": "68.4",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "revenue_growth_yoy_pct": "29.24181407856465254669637228",
+    "ebitda_margin_current": "12.06016173535842968855477271",
+    "ebitda_margin_prior_year": "6.714567302974692408908605656",
+    "net_margin_current": "5.687438692277582462383766109",
+    "net_debt_to_ebitda": "5.733053636023784360105940107",
+    "roe_annualized": "-3.225541092820677952065195413",
+    "current_ratio": "1.222472403233618727049104357",
+    "net_debt": "15338272193.0000",
+    "valuation_metrics": {
+      "price": "68.4",
+      "share_capital": "194529076.0000",
+      "market_cap": "13305788798.40000",
+      "net_debt": "15338272193.0000",
+      "enterprise_value": "28644060991.40000",
+      "pe_ratio": "-18.93022983948671601323543691",
+      "pb_ratio": "0.6106023424380458894561872861",
+      "ev_ebitda": "10.70641699083797289291695968",
+      "ev_revenue": "0.7216945747625762324744748513",
+      "price_to_operating_profit": "14.47783493257210209257945942"
+    },
+    "fundamental_screens": {
+      "has_data": true,
+      "graham": null,
+      "greenblatt": {
+        "ebit": "919045483.0000",
+        "enterprise_value": "28644060991.40000",
+        "earnings_yield_pct": "3.208502744341772055342964103",
+        "earnings_yield_band": "Düşük",
+        "net_working_capital": "4116319604.0000",
+        "net_fixed_assets": "13383524915.0000",
+        "return_on_capital_pct": "5.251735134001735412789926628",
+        "return_on_capital_band": "Düşük"
+      },
+      "acquirers_multiple": {
+        "acquirers_multiple": "31.16718543449932825577034037",
+        "band": "Pahalı"
+      },
+      "piotroski": {
+        "score": 6,
+        "criteria_evaluated": 9,
+        "band": "Orta",
+        "details": [
+          [
+            "Aktif Kârlılığı (ROA) Pozitif",
+            false
+          ],
+          [
+            "Faaliyet Nakit Akışı Pozitif",
+            true
+          ],
+          [
+            "ROA Geçen Yıla Göre Arttı",
+            true
+          ],
+          [
+            "Nakit Akışı Net Kârdan Yüksek (Kazanç Kalitesi)",
+            true
+          ],
+          [
+            "Uzun Vadeli Kaldıraç Azaldı",
+            false
+          ],
+          [
+            "Cari Oran Arttı (Likidite İyileşti)",
+            true
+          ],
+          [
+            "Pay Sulanması Yok",
+            true
+          ],
+          [
+            "Brüt Kâr Marjı Arttı",
+            true
+          ],
+          [
+            "Aktif Devir Hızı Arttı (Verimlilik)",
+            false
+          ]
+        ]
+      }
+    },
+    "damodaran": {
+      "has_data": false,
+      "peer_count": 0,
+      "own_pe": "-18.93022983948671601323543691",
+      "own_pb": "0.6106023424380458894561872861",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": null,
+      "graham_fair_value_price": null,
+      "graham_upside_pct": null,
+      "graham_verdict": null,
+      "peg_ratio": null,
+      "peg_verdict": null,
+      "damodaran_cost_of_equity_pct": null,
+      "damodaran_growth_used_pct": null,
+      "damodaran_fair_value_price": null,
+      "damodaran_upside_pct": null,
+      "damodaran_verdict": null
+    },
+    "merton": {
+      "asset_value": "30779704432.92",
+      "asset_volatility_pct": "19.3165",
+      "debt_face_value": "24066812235.0000",
+      "distance_to_default": "2.8337",
+      "default_probability_pct": "0.2301",
+      "converged": true
+    },
+    "equity_volatility_pct": "44.6287",
+    "debt_point_used": "24066812235.0000",
+    "multi_scenario": {
+      "pe": {
+        "multiple_name": "F/K",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "90.35819416758275990484769392",
+            "sample_size": 4,
+            "target_price": "-326.4884015391459212132833036"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "90.35819416758275990484769392",
+            "sample_size": 4,
+            "target_price": "-326.4884015391459212132833036"
+          }
+        ],
+        "blended_target_price": "-326.4884015391459212132833036"
+      },
+      "pb": {
+        "multiple_name": "PD/DD",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "0.6081246893129363102601662232",
+            "sample_size": 4,
+            "target_price": "68.12245197573134030683054897"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "0.9009095123333530267618065825",
+            "sample_size": 16,
+            "target_price": "100.9203639762547724199310173"
+          }
+        ],
+        "blended_target_price": "84.52140797599305636338078315"
+      },
+      "ev_ebitda": {
+        "multiple_name": "FD/FAVÖK",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          }
+        ],
+        "blended_target_price": null
+      },
+      "final_target_price_a": "-120.9834967815764324249512602"
+    },
+    "final_target_price": "-120.9834967815764324249512602"
+  },
+  "CIMSA": {
+    "financial_group": "XI_29",
+    "company_name": "ÇİMSA ÇİMENTO SANAYİ VE TİCARET A.Ş.",
+    "sector": "TAŞ VE TOPRAĞA DAYALI",
+    "price": "44.82",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "revenue_growth_yoy_pct": "-9.174461082334050818628128058",
+    "ebitda_margin_current": "19.70632920921257112497801378",
+    "ebitda_margin_prior_year": "18.28113568098133212438343128",
+    "net_margin_current": "9.946176279200056168917886977",
+    "net_debt_to_ebitda": "2.711846394079275718939939235",
+    "roe_annualized": "9.145267933657284139738003044",
+    "current_ratio": "0.8785569546824571933909477737",
+    "net_debt": "26253905000.0000",
+    "valuation_metrics": {
+      "price": "44.82",
+      "share_capital": "945591000.0000",
+      "market_cap": "42381388620.000000",
+      "net_debt": "26253905000.0000",
+      "enterprise_value": "68635293620.000000",
+      "pe_ratio": "9.764377751625769539541298995",
+      "pb_ratio": "0.8929785074405975941696945751",
+      "ev_ebitda": "7.089550050172319833045001287",
+      "ev_revenue": "1.303805533208008196261229831",
+      "price_to_operating_profit": "8.086415250380860111851832392"
+    },
+    "fundamental_screens": {
+      "has_data": true,
+      "graham": {
+        "graham_multiple": "8.719379470732957852076072223",
+        "fair_value_price": "71.99798165762672387913817944",
+        "upside_pct": "60.63806706297796492444930710",
+        "verdict": "Graham Ölçütüne Göre Ucuz"
+      },
+      "greenblatt": {
+        "ebit": "5241060137.0000",
+        "enterprise_value": "68635293620.000000",
+        "earnings_yield_pct": "7.636100700635423317942819052",
+        "earnings_yield_band": "Orta",
+        "net_working_capital": "-3315323000.0000",
+        "net_fixed_assets": "49006523000.0000",
+        "return_on_capital_pct": "11.47061170860034317330251777",
+        "return_on_capital_band": "Orta"
+      },
+      "acquirers_multiple": {
+        "acquirers_multiple": "13.09568900678309465465307253",
+        "band": "Makul"
+      },
+      "piotroski": {
+        "score": 6,
+        "criteria_evaluated": 9,
+        "band": "Orta",
+        "details": [
+          [
+            "Aktif Kârlılığı (ROA) Pozitif",
+            true
+          ],
+          [
+            "Faaliyet Nakit Akışı Pozitif",
+            true
+          ],
+          [
+            "ROA Geçen Yıla Göre Arttı",
+            true
+          ],
+          [
+            "Nakit Akışı Net Kârdan Yüksek (Kazanç Kalitesi)",
+            true
+          ],
+          [
+            "Uzun Vadeli Kaldıraç Azaldı",
+            true
+          ],
+          [
+            "Cari Oran Arttı (Likidite İyileşti)",
+            false
+          ],
+          [
+            "Pay Sulanması Yok",
+            true
+          ],
+          [
+            "Brüt Kâr Marjı Arttı",
+            false
+          ],
+          [
+            "Aktif Devir Hızı Arttı (Verimlilik)",
+            false
+          ]
+        ]
+      }
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "9.764377751625769539541298995",
+      "own_pb": "0.8929785074405975941696945751",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "8.719379470732957852076072223",
+      "graham_fair_value_price": "71.99798165762672387913817944",
+      "graham_upside_pct": "60.63806706297796492444930710",
+      "graham_verdict": "Graham Ölçütüne Göre Ucuz",
+      "peg_ratio": null,
+      "peg_verdict": null,
+      "damodaran_cost_of_equity_pct": null,
+      "damodaran_growth_used_pct": null,
+      "damodaran_fair_value_price": null,
+      "damodaran_upside_pct": null,
+      "damodaran_verdict": null
+    },
+    "merton": {
+      "asset_value": "69797719839.65",
+      "asset_volatility_pct": "28.2123",
+      "debt_face_value": "37757839000.0000",
+      "distance_to_default": "3.171",
+      "default_probability_pct": "0.076",
+      "converged": true
+    },
+    "equity_volatility_pct": "46.4499",
+    "debt_point_used": "37757839000.0000",
+    "multi_scenario": {
+      "pe": {
+        "multiple_name": "F/K",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 1,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "12.06525324546942489532564184",
+            "sample_size": 3,
+            "target_price": "55.38137341848560435371923115"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "11.10047996152730412703901978",
+            "sample_size": 13,
+            "target_price": "50.95291523239318280555401106"
+          }
+        ],
+        "blended_target_price": "53.1671443254393935796366211"
+      },
+      "pb": {
+        "multiple_name": "PD/DD",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 1,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "0.9454757808550489729864064693",
+            "sample_size": 3,
+            "target_price": "47.45492096935180877611127164"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "1.044015148847180104550748192",
+            "sample_size": 12,
+            "target_price": "52.40076729891883084417270566"
+          }
+        ],
+        "blended_target_price": "49.92784413413531981014198865"
+      },
+      "ev_ebitda": {
+        "multiple_name": "FD/FAVÖK",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 1,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          }
+        ],
+        "blended_target_price": null
+      },
+      "final_target_price_a": "51.5474942297873566948893049"
+    },
+    "final_target_price": "51.5474942297873566948893049"
+  },
+  "OYAKC": {
+    "financial_group": "XI_29",
+    "company_name": "OYAK ÇİMENTO FABRİKALARI A.Ş.",
+    "sector": "TAŞ VE TOPRAĞA DAYALI",
+    "price": "20.66",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "revenue_growth_yoy_pct": "-5.645873318820283815406338740",
+    "ebitda_margin_current": "24.45765920381849615271635610",
+    "ebitda_margin_prior_year": "22.61471882260408712978174381",
+    "net_margin_current": "12.79523236081040029783369541",
+    "net_debt_to_ebitda": "-0.6590181741356566913121597538",
+    "roe_annualized": "10.15523871166931953787787003",
+    "current_ratio": "2.448227011068330760394396124",
+    "net_debt": "-10753039000.0000",
+    "valuation_metrics": {
+      "price": "20.66",
+      "share_capital": "4861656000.0000",
+      "market_cap": "100441812960.000000",
+      "net_debt": "-10753039000.0000",
+      "enterprise_value": "89688773960.000000",
+      "pe_ratio": "12.98554629043567641694568656",
+      "pb_ratio": "1.318713223808063100470427090",
+      "ev_ebitda": "5.496728139420384447899593032",
+      "ev_revenue": "1.430050851194429387396795392",
+      "price_to_operating_profit": "8.288807077220959891764353946"
+    },
+    "fundamental_screens": {
+      "has_data": true,
+      "graham": {
+        "graham_multiple": "17.12421161156926571872724393",
+        "fair_value_price": "23.68188584081423794350408184",
+        "upside_pct": "14.62674656734868317281743388",
+        "verdict": "Graham Ölçütüne Göre Ucuz"
+      },
+      "greenblatt": {
+        "ebit": "12117764598.0000",
+        "enterprise_value": "89688773960.000000",
+        "earnings_yield_pct": "13.51090450116350325010062162",
+        "earnings_yield_band": "Yüksek",
+        "net_working_capital": "21857133000.0000",
+        "net_fixed_assets": "43373610000.0000",
+        "return_on_capital_pct": "18.57676923594140266039894717",
+        "return_on_capital_band": "Orta"
+      },
+      "acquirers_multiple": {
+        "acquirers_multiple": "7.401428971049896277247355717",
+        "band": "Ucuz"
+      },
+      "piotroski": {
+        "score": 5,
+        "criteria_evaluated": 9,
+        "band": "Orta",
+        "details": [
+          [
+            "Aktif Kârlılığı (ROA) Pozitif",
+            true
+          ],
+          [
+            "Faaliyet Nakit Akışı Pozitif",
+            true
+          ],
+          [
+            "ROA Geçen Yıla Göre Arttı",
+            false
+          ],
+          [
+            "Nakit Akışı Net Kârdan Yüksek (Kazanç Kalitesi)",
+            true
+          ],
+          [
+            "Uzun Vadeli Kaldıraç Azaldı",
+            true
+          ],
+          [
+            "Cari Oran Arttı (Likidite İyileşti)",
+            true
+          ],
+          [
+            "Pay Sulanması Yok",
+            false
+          ],
+          [
+            "Brüt Kâr Marjı Arttı",
+            false
+          ],
+          [
+            "Aktif Devir Hızı Arttı (Verimlilik)",
+            false
+          ]
+        ]
+      }
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "12.98554629043567641694568656",
+      "own_pb": "1.318713223808063100470427090",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "17.12421161156926571872724393",
+      "graham_fair_value_price": "23.68188584081423794350408184",
+      "graham_upside_pct": "14.62674656734868317281743388",
+      "graham_verdict": "Graham Ölçütüne Göre Ucuz",
+      "peg_ratio": null,
+      "peg_verdict": null,
+      "damodaran_cost_of_equity_pct": null,
+      "damodaran_growth_used_pct": null,
+      "damodaran_fair_value_price": null,
+      "damodaran_upside_pct": null,
+      "damodaran_verdict": null
+    },
+    "merton": {
+      "asset_value": "111474630204.08",
+      "asset_volatility_pct": "41.8318",
+      "debt_face_value": "15193599000.0000",
+      "distance_to_default": "5.3199",
+      "default_probability_pct": "0.0",
+      "converged": true
+    },
+    "equity_volatility_pct": "46.4267",
+    "debt_point_used": "15193599000.0000",
+    "multi_scenario": {
+      "pe": {
+        "multiple_name": "F/K",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 1,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "12.20681638472430541439148738",
+            "sample_size": 4,
+            "target_price": "19.42104096876950567773912618"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "6.775982346254939851154002734",
+            "sample_size": 14,
+            "target_price": "10.78058574838211218246797724"
+          }
+        ],
+        "blended_target_price": "15.10081335857580893010355171"
+      },
+      "pb": {
+        "multiple_name": "PD/DD",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 1,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "1.615871826149539921439115294",
+            "sample_size": 4,
+            "target_price": "25.31552071029241254658286417"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "1.312008617383416733356491628",
+            "sample_size": 16,
+            "target_price": "20.55496035511557520534827783"
+          }
+        ],
+        "blended_target_price": "22.93524053270399387596557100"
+      },
+      "ev_ebitda": {
+        "multiple_name": "FD/FAVÖK",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 1,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          }
+        ],
+        "blended_target_price": null
+      },
+      "final_target_price_a": "19.01802694563990140303456136"
+    },
+    "final_target_price": "19.01802694563990140303456136"
+  },
+  "NTGAZ": {
+    "financial_group": "XI_29",
+    "company_name": "NATURELGAZ SANAYİ VE TİCARET A.Ş.",
+    "sector": "ELEKTRİK GAZ VE BUHAR",
+    "price": "10.73",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "revenue_growth_yoy_pct": "11.42421071717906918814729558",
+    "ebitda_margin_current": "18.36271005083226920555274719",
+    "ebitda_margin_prior_year": "17.29019553940375919711563540",
+    "net_margin_current": "5.894627235248896577806311195",
+    "net_debt_to_ebitda": "-0.1406366040502883635165809915",
+    "roe_annualized": "19.68748222055631199864019360",
+    "current_ratio": "1.987942010988134963240231911",
+    "net_debt": "-316060014.0000",
+    "valuation_metrics": {
+      "price": "10.73",
+      "share_capital": "690000000.0000",
+      "market_cap": "7403700000.000000",
+      "net_debt": "-316060014.0000",
+      "enterprise_value": "7087639986.000000",
+      "pe_ratio": "6.269402062186425741339582784",
+      "pb_ratio": "1.234287416328143346994672369",
+      "ev_ebitda": "3.153773252576244459986080394",
+      "ev_revenue": "0.7259141019607369644865217537",
+      "price_to_operating_profit": "4.366112082308345418372869970"
+    },
+    "fundamental_screens": {
+      "has_data": true,
+      "graham": {
+        "graham_multiple": "7.738244073258417314895072833",
+        "fair_value_price": "18.29657369023396280262008546",
+        "upside_pct": "70.51792814756722090046677968",
+        "verdict": "Graham Ölçütüne Göre Ucuz"
+      },
+      "greenblatt": {
+        "ebit": "1695719180.0000",
+        "enterprise_value": "7087639986.000000",
+        "earnings_yield_pct": "23.92501853013841834827077234",
+        "earnings_yield_band": "Yüksek",
+        "net_working_capital": "868395756.0000",
+        "net_fixed_assets": "5896164095.0000",
+        "return_on_capital_pct": "25.06769423807112975161700583",
+        "return_on_capital_band": "Yüksek"
+      },
+      "acquirers_multiple": {
+        "acquirers_multiple": "4.179725080422809158766488682",
+        "band": "Ucuz"
+      },
+      "piotroski": {
+        "score": 7,
+        "criteria_evaluated": 9,
+        "band": "Orta",
+        "details": [
+          [
+            "Aktif Kârlılığı (ROA) Pozitif",
+            true
+          ],
+          [
+            "Faaliyet Nakit Akışı Pozitif",
+            true
+          ],
+          [
+            "ROA Geçen Yıla Göre Arttı",
+            false
+          ],
+          [
+            "Nakit Akışı Net Kârdan Yüksek (Kazanç Kalitesi)",
+            true
+          ],
+          [
+            "Uzun Vadeli Kaldıraç Azaldı",
+            true
+          ],
+          [
+            "Cari Oran Arttı (Likidite İyileşti)",
+            true
+          ],
+          [
+            "Pay Sulanması Yok",
+            true
+          ],
+          [
+            "Brüt Kâr Marjı Arttı",
+            true
+          ],
+          [
+            "Aktif Devir Hızı Arttı (Verimlilik)",
+            false
+          ]
+        ]
+      }
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "6.269402062186425741339582784",
+      "own_pb": "1.234287416328143346994672369",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "7.738244073258417314895072833",
+      "graham_fair_value_price": "18.29657369023396280262008546",
+      "graham_upside_pct": "70.51792814756722090046677968",
+      "graham_verdict": "Graham Ölçütüne Göre Ucuz",
+      "peg_ratio": "0.5487820749628559027134929792",
+      "peg_verdict": "Büyümeye Göre Ucuz (PEG)",
+      "damodaran_cost_of_equity_pct": "40",
+      "damodaran_growth_used_pct": "11.42421071717906918814729558",
+      "damodaran_fair_value_price": "2.801023643561108512790984768",
+      "damodaran_upside_pct": "-73.89539940763179391620703851",
+      "damodaran_verdict": "Damodaran Modeline Göre Pahalı"
+    },
+    "merton": {
+      "asset_value": "8147821049.81",
+      "asset_volatility_pct": "48.9196",
+      "debt_face_value": "1024749910.5000",
+      "distance_to_default": "4.6477",
+      "default_probability_pct": "0.0002",
+      "converged": true
+    },
+    "equity_volatility_pct": "53.8363",
+    "debt_point_used": "1024749910.5000",
+    "multi_scenario": {
+      "pe": {
+        "multiple_name": "F/K",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 1,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "7.45393842339391930834664761",
+            "sample_size": 4,
+            "target_price": "12.75731855919985844555258277"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "7.134151358875244207396679829",
+            "sample_size": 11,
+            "target_price": "12.21000716199641794618556354"
+          }
+        ],
+        "blended_target_price": "12.48366286059813819586907316"
+      },
+      "pb": {
+        "multiple_name": "PD/DD",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 1,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "1.397045856139121985216558443",
+            "sample_size": 4,
+            "target_price": "12.14490388386776641332354593"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "0.8769785045296593382081900081",
+            "sample_size": 16,
+            "target_price": "7.623815352178507839895741397"
+          }
+        ],
+        "blended_target_price": "9.884359618023137126609643665"
+      },
+      "ev_ebitda": {
+        "multiple_name": "FD/FAVÖK",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 1,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          }
+        ],
+        "blended_target_price": null
+      },
+      "final_target_price_a": "11.18401123931063766123935841"
+    },
+    "final_target_price": "7.830816201010826001860008953"
+  },
+  "CWENE": {
+    "financial_group": "XI_29",
+    "company_name": "CW ENERJİ MÜHENDİSLİK TİCARET VE SANAYİ A.Ş.",
+    "sector": "ELEKTRİK GAZ VE BUHAR",
+    "price": "42.2",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "revenue_growth_yoy_pct": "9.772770007860409097599983104",
+    "ebitda_margin_current": "22.81014468488921197541731906",
+    "ebitda_margin_prior_year": "11.15350653770167554260806175",
+    "net_margin_current": "11.50764457180109470105989645",
+    "net_debt_to_ebitda": "2.032748499927460844355771699",
+    "roe_annualized": "18.15167909985864507281744928",
+    "current_ratio": "1.146758289090117593686801820",
+    "net_debt": "9426161231.0000",
+    "valuation_metrics": {
+      "price": "42.2",
+      "share_capital": "1078290009.0000",
+      "market_cap": "45503838379.80000",
+      "net_debt": "9426161231.0000",
+      "enterprise_value": "54929999610.80000",
+      "pe_ratio": "14.14161572115503358180893663",
+      "pb_ratio": "2.566940705239222638662119309",
+      "ev_ebitda": "11.84563594590924179033860394",
+      "ev_revenue": "2.651250598103954959909686714",
+      "price_to_operating_profit": "13.46210244731732429674032048"
+    },
+    "fundamental_screens": {
+      "has_data": true,
+      "graham": {
+        "graham_multiple": "36.30068903248377994454772334",
+        "fair_value_price": "33.22356835552652570719543563",
+        "upside_pct": "-21.27116503429733244740418097",
+        "verdict": "Graham Ölçütüne Göre Pahalı"
+      },
+      "greenblatt": {
+        "ebit": "3380143522.0000",
+        "enterprise_value": "54929999610.80000",
+        "earnings_yield_pct": "6.153547325595496434039089971",
+        "earnings_yield_band": "Orta",
+        "net_working_capital": "2694292066.0000",
+        "net_fixed_assets": "11388576973.0000",
+        "return_on_capital_pct": "24.00181037428732706402326433",
+        "return_on_capital_band": "Orta"
+      },
+      "acquirers_multiple": {
+        "acquirers_multiple": "16.25078913166930312375061333",
+        "band": "Pahalı"
+      },
+      "piotroski": {
+        "score": 4,
+        "criteria_evaluated": 9,
+        "band": "Orta",
+        "details": [
+          [
+            "Aktif Kârlılığı (ROA) Pozitif",
+            true
+          ],
+          [
+            "Faaliyet Nakit Akışı Pozitif",
+            false
+          ],
+          [
+            "ROA Geçen Yıla Göre Arttı",
+            true
+          ],
+          [
+            "Nakit Akışı Net Kârdan Yüksek (Kazanç Kalitesi)",
+            false
+          ],
+          [
+            "Uzun Vadeli Kaldıraç Azaldı",
+            false
+          ],
+          [
+            "Cari Oran Arttı (Likidite İyileşti)",
+            true
+          ],
+          [
+            "Pay Sulanması Yok",
+            false
+          ],
+          [
+            "Brüt Kâr Marjı Arttı",
+            true
+          ],
+          [
+            "Aktif Devir Hızı Arttı (Verimlilik)",
+            false
+          ]
+        ]
+      }
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "14.14161572115503358180893663",
+      "own_pb": "2.566940705239222638662119309",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "36.30068903248377994454772334",
+      "graham_fair_value_price": "33.22356835552652570719543563",
+      "graham_upside_pct": "-21.27116503429733244740418097",
+      "graham_verdict": "Graham Ölçütüne Göre Pahalı",
+      "peg_ratio": "1.447042722767514819150692480",
+      "peg_verdict": "Büyümeye Göre Pahalı (PEG)",
+      "damodaran_cost_of_equity_pct": "40",
+      "damodaran_growth_used_pct": "9.772770007860409097599983104",
+      "damodaran_fair_value_price": "5.002422458896738956888056920",
+      "damodaran_upside_pct": "-88.14591834384659014955436749",
+      "damodaran_verdict": "Damodaran Modeline Göre Pahalı"
+    },
+    "merton": {
+      "asset_value": "60574779392.39",
+      "asset_volatility_pct": "41.2639",
+      "debt_face_value": "20756244815.0000",
+      "distance_to_default": "3.1647",
+      "default_probability_pct": "0.0776",
+      "converged": true
+    },
+    "equity_volatility_pct": "54.9211",
+    "debt_point_used": "20756244815.0000",
+    "multi_scenario": {
+      "pe": {
+        "multiple_name": "F/K",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 1,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "13.69510875996947645829062932",
+            "sample_size": 3,
+            "target_price": "40.86757843420656045383937924"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "12.22976375687481598140851598",
+            "sample_size": 11,
+            "target_price": "36.49484194143867362917343200"
+          }
+        ],
+        "blended_target_price": "38.68121018782261704150640562"
+      },
+      "pb": {
+        "multiple_name": "PD/DD",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 1,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "2.256594294895104026705165475",
+            "sample_size": 4,
+            "target_price": "37.09796609255869686685975075"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "1.337140983071028223563495246",
+            "sample_size": 14,
+            "target_price": "21.98233460181882890317047324"
+          }
+        ],
+        "blended_target_price": "29.54015034718876288501511200"
+      },
+      "ev_ebitda": {
+        "multiple_name": "FD/FAVÖK",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 1,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          }
+        ],
+        "blended_target_price": null
+      },
+      "final_target_price_a": "34.11068026750568996326075881"
+    },
+    "final_target_price": "22.46737714406210956071167806"
+  },
+  "TAVHL": {
+    "financial_group": "XI_29",
+    "company_name": "TAV HAVALİMANLARI HOLDİNG A.Ş.",
+    "sector": "HOLDİNGLER VE YATIRIM ŞİRKETLERİ",
+    "price": "271.75",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "revenue_growth_yoy_pct": "36.90172474255992502347622560",
+    "ebitda_margin_current": "33.15853501385260886968476301",
+    "ebitda_margin_prior_year": "32.24603657644057633494099673",
+    "net_margin_current": "13.15272771848546903218809536",
+    "net_debt_to_ebitda": "2.748514998995663001853440334",
+    "roe_annualized": "6.986007726301379764430215249",
+    "current_ratio": "0.8805632457700655413179005087",
+    "net_debt": "90371336000.0000",
+    "valuation_metrics": {
+      "price": "271.75",
+      "share_capital": "363281000.0000",
+      "market_cap": "98721611750.000000",
+      "net_debt": "90371336000.0000",
+      "enterprise_value": "189092947750.000000",
+      "pe_ratio": "17.09771790761825636371390356",
+      "pb_ratio": "1.194447894047425994108462592",
+      "ev_ebitda": "5.750991698243547118591682061",
+      "ev_revenue": "1.752053357510767704658376173",
+      "price_to_operating_profit": "4.664738603259502041177140092"
+    },
+    "fundamental_screens": {
+      "has_data": true,
+      "graham": {
+        "graham_multiple": "20.42233314777158913834502891",
+        "fair_value_price": "285.2384931826121524318324057",
+        "upside_pct": "4.963566948523331161667858583",
+        "verdict": "Graham Ölçütüne Göre Ucuz"
+      },
+      "greenblatt": {
+        "ebit": "21163374874.0000",
+        "enterprise_value": "189092947750.000000",
+        "earnings_yield_pct": "11.19204873889856635332927164",
+        "earnings_yield_band": "Orta",
+        "net_working_capital": "-6457619000.0000",
+        "net_fixed_assets": "42267923000.0000",
+        "return_on_capital_pct": "59.09856245286272911841239884",
+        "return_on_capital_band": "Yüksek"
+      },
+      "acquirers_multiple": {
+        "acquirers_multiple": "8.934914628493765441013753504",
+        "band": "Makul"
+      },
+      "piotroski": {
+        "score": 8,
+        "criteria_evaluated": 9,
+        "band": "Güçlü",
+        "details": [
+          [
+            "Aktif Kârlılığı (ROA) Pozitif",
+            true
+          ],
+          [
+            "Faaliyet Nakit Akışı Pozitif",
+            true
+          ],
+          [
+            "ROA Geçen Yıla Göre Arttı",
+            true
+          ],
+          [
+            "Nakit Akışı Net Kârdan Yüksek (Kazanç Kalitesi)",
+            true
+          ],
+          [
+            "Uzun Vadeli Kaldıraç Azaldı",
+            false
+          ],
+          [
+            "Cari Oran Arttı (Likidite İyileşti)",
+            true
+          ],
+          [
+            "Pay Sulanması Yok",
+            true
+          ],
+          [
+            "Brüt Kâr Marjı Arttı",
+            true
+          ],
+          [
+            "Aktif Devir Hızı Arttı (Verimlilik)",
+            true
+          ]
+        ]
+      }
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "17.09771790761825636371390356",
+      "own_pb": "1.194447894047425994108462592",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "20.42233314777158913834502891",
+      "graham_fair_value_price": "285.2384931826121524318324057",
+      "graham_upside_pct": "4.963566948523331161667858583",
+      "graham_verdict": "Graham Ölçütüne Göre Ucuz",
+      "peg_ratio": "0.4633311322681597620107625488",
+      "peg_verdict": "Büyümeye Göre Ucuz (PEG)",
+      "damodaran_cost_of_equity_pct": "40",
+      "damodaran_growth_used_pct": "6.287406953671241787987193724",
+      "damodaran_fair_value_price": "5.010961420235525129012382362",
+      "damodaran_upside_pct": "-98.15603995575509654866149682",
+      "damodaran_verdict": "Damodaran Modeline Göre Pahalı"
+    },
+    "merton": {
+      "asset_value": "169013174261.97",
+      "asset_volatility_pct": "23.6549",
+      "debt_face_value": "96801344000.0000",
+      "distance_to_default": "3.5905",
+      "default_probability_pct": "0.0165",
+      "converged": true
+    },
+    "equity_volatility_pct": "40.495",
+    "debt_point_used": "96801344000.0000",
+    "multi_scenario": {
+      "pe": {
+        "multiple_name": "F/K",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "29.2947330324331566409506760",
+            "sample_size": 4,
+            "target_price": "465.6085534091415201188650370"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "12.56868968385838618635704524",
+            "sample_size": 11,
+            "target_price": "199.7659243206164035455165085"
+          }
+        ],
+        "blended_target_price": "332.6872388648789618321907728"
+      },
+      "pb": {
+        "multiple_name": "PD/DD",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "1.179823959531710110622122277",
+            "sample_size": 3,
+            "target_price": "268.4228944607373554884348290"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "1.286514378497391933637230786",
+            "sample_size": 16,
+            "target_price": "292.6961352596138051205147437"
+          }
+        ],
+        "blended_target_price": "280.5595148601755803044747864"
+      },
+      "ev_ebitda": {
+        "multiple_name": "FD/FAVÖK",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          }
+        ],
+        "blended_target_price": null
+      },
+      "final_target_price_a": "306.6233768625272710683327796"
+    },
+    "final_target_price": "185.9784106856105726926046207"
+  },
+  "TERA": {
+    "financial_group": "XI_29",
+    "company_name": "TERA YATIRIM MENKUL DEĞERLER A.Ş.",
+    "sector": "ARACI KURUMLAR",
+    "price": "185.3",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "revenue_growth_yoy_pct": "53.10963339575903024937738450",
+    "ebitda_margin_current": "20.58407831933485477995825436",
+    "ebitda_margin_prior_year": "9.325885864074357218389869900",
+    "net_margin_current": "45.71220823152088565687004090",
+    "net_debt_to_ebitda": "-2.336529395209729961413890868",
+    "roe_annualized": "71.13042709708223846186359358",
+    "current_ratio": "1.583286490352956685598411890",
+    "net_debt": "-146367542474.0000",
+    "valuation_metrics": {
+      "price": "185.3",
+      "share_capital": "700000000.0000",
+      "market_cap": "129710000000.00000",
+      "net_debt": "-146367542474.0000",
+      "enterprise_value": "-16657542474.00000",
+      "pe_ratio": "1.974474941296492177992789134",
+      "pb_ratio": "1.404452458669058693107072680",
+      "ev_ebitda": "-0.2659116699275682133451071762",
+      "ev_revenue": "-0.03081037310406688597479046314",
+      "price_to_operating_profit": "1.939043607112543694035065465"
+    },
+    "fundamental_screens": {
+      "has_data": true,
+      "graham": {
+        "graham_multiple": "2.773056185884303769956241311",
+        "fair_value_price": "527.8218248380804049179548032",
+        "upside_pct": "184.8471801608636831721288738",
+        "verdict": "Graham Ölçütüne Göre Ucuz"
+      },
+      "greenblatt": {
+        "ebit": "66893802452.0000",
+        "enterprise_value": "-16657542474.00000",
+        "earnings_yield_pct": null,
+        "earnings_yield_band": null,
+        "net_working_capital": "92493595382.0000",
+        "net_fixed_assets": "234606912.0000",
+        "return_on_capital_pct": "72.13965201213480132433030903",
+        "return_on_capital_band": "Yüksek"
+      },
+      "acquirers_multiple": {
+        "acquirers_multiple": "-0.2490147347499449933048335782",
+        "band": "Ucuz"
+      },
+      "piotroski": {
+        "score": 6,
+        "criteria_evaluated": 9,
+        "band": "Orta",
+        "details": [
+          [
+            "Aktif Kârlılığı (ROA) Pozitif",
+            true
+          ],
+          [
+            "Faaliyet Nakit Akışı Pozitif",
+            true
+          ],
+          [
+            "ROA Geçen Yıla Göre Arttı",
+            false
+          ],
+          [
+            "Nakit Akışı Net Kârdan Yüksek (Kazanç Kalitesi)",
+            false
+          ],
+          [
+            "Uzun Vadeli Kaldıraç Azaldı",
+            true
+          ],
+          [
+            "Cari Oran Arttı (Likidite İyileşti)",
+            true
+          ],
+          [
+            "Pay Sulanması Yok",
+            false
+          ],
+          [
+            "Brüt Kâr Marjı Arttı",
+            true
+          ],
+          [
+            "Aktif Devir Hızı Arttı (Verimlilik)",
+            true
+          ]
+        ]
+      }
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "1.974474941296492177992789134",
+      "own_pb": "1.404452458669058693107072680",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "2.773056185884303769956241311",
+      "graham_fair_value_price": "527.8218248380804049179548032",
+      "graham_upside_pct": "184.8471801608636831721288738",
+      "graham_verdict": "Graham Ölçütüne Göre Ucuz",
+      "peg_ratio": "0.03717734081467337252974535598",
+      "peg_verdict": "Büyümeye Göre Ucuz (PEG)",
+      "damodaran_cost_of_equity_pct": "40",
+      "damodaran_growth_used_pct": "32",
+      "damodaran_fair_value_price": "851.8574166714857142857142857",
+      "damodaran_upside_pct": "359.7179798550921285945570889",
+      "damodaran_verdict": "Damodaran Modeline Göre Ucuz"
+    },
+    "merton": {
+      "asset_value": "244367336640.27",
+      "asset_volatility_pct": "37.4553",
+      "debt_face_value": "158606337227.0000",
+      "distance_to_default": "1.8211",
+      "default_probability_pct": "3.4295",
+      "converged": true
+    },
+    "equity_volatility_pct": "69.572",
+    "debt_point_used": "158606337227.0000",
+    "multi_scenario": {
+      "pe": {
+        "multiple_name": "F/K",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "2.536729173456642201173320715",
+            "sample_size": 4,
+            "target_price": "238.0662858819898328958388011"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "1.476377290099902195924157444",
+            "sample_size": 11,
+            "target_price": "138.5546638925064498127749489"
+          }
+        ],
+        "blended_target_price": "188.3104748872481413543068750"
+      },
+      "pb": {
+        "multiple_name": "PD/DD",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "2.54358042408708574378398951",
+            "sample_size": 4,
+            "target_price": "335.5937395203769008924006731"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "0.566579176770087146753346881",
+            "sample_size": 13,
+            "target_price": "74.7530618124226761483039389"
+          }
+        ],
+        "blended_target_price": "205.1734006663997885203523060"
+      },
+      "ev_ebitda": {
+        "multiple_name": "FD/FAVÖK",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          }
+        ],
+        "blended_target_price": null
+      },
+      "final_target_price_a": "196.7419377768239649373295905"
+    },
+    "final_target_price": "458.7881293346886646766834686"
+  },
+  "TATGD": {
+    "financial_group": "XI_29",
+    "company_name": "TAT GIDA SANAYİ A.Ş.",
+    "sector": "GIDA, İÇECEK VE TÜTÜN",
+    "price": "17.73",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "revenue_growth_yoy_pct": "5.914722687790381652238479098",
+    "ebitda_margin_current": "1.758181964169562604927068413",
+    "ebitda_margin_prior_year": "2.591878724270104194080330017",
+    "net_margin_current": "8.819523910822472335614014229",
+    "net_debt_to_ebitda": "2.640076192659045177757256929",
+    "roe_annualized": "7.321644813800875971172243495",
+    "current_ratio": "1.602096383387779761031760893",
+    "net_debt": "2660259855.0000",
+    "valuation_metrics": {
+      "price": "17.73",
+      "share_capital": "244800000.0000",
+      "market_cap": "4340304000.000000",
+      "net_debt": "2660259855.0000",
+      "enterprise_value": "7000563855.000000",
+      "pe_ratio": "7.012950083949069907120256701",
+      "pb_ratio": "0.5134632961159012545090659715",
+      "ev_ebitda": "6.947449864357302798233408976",
+      "ev_revenue": "0.7113658243519015334970689285",
+      "price_to_operating_profit": "4.686414923604472615781910485"
+    },
+    "fundamental_screens": {
+      "has_data": true,
+      "graham": {
+        "graham_multiple": "3.600892465600775843183537596",
+        "fair_value_price": "44.31950677998035642127068509",
+        "upside_pct": "149.9690173715756143331679926",
+        "verdict": "Graham Ölçütüne Göre Ucuz"
+      },
+      "greenblatt": {
+        "ebit": "926145907.0000",
+        "enterprise_value": "7000563855.000000",
+        "earnings_yield_pct": "13.22959016134851040509507645",
+        "earnings_yield_band": "Yüksek",
+        "net_working_capital": "2491584301.0000",
+        "net_fixed_assets": "6695207854.0000",
+        "return_on_capital_pct": "10.08127637345029278067954722",
+        "return_on_capital_band": "Orta"
+      },
+      "acquirers_multiple": {
+        "acquirers_multiple": "7.558813143899150223205596912",
+        "band": "Ucuz"
+      },
+      "piotroski": {
+        "score": 8,
+        "criteria_evaluated": 9,
+        "band": "Güçlü",
+        "details": [
+          [
+            "Aktif Kârlılığı (ROA) Pozitif",
+            true
+          ],
+          [
+            "Faaliyet Nakit Akışı Pozitif",
+            true
+          ],
+          [
+            "ROA Geçen Yıla Göre Arttı",
+            true
+          ],
+          [
+            "Nakit Akışı Net Kârdan Yüksek (Kazanç Kalitesi)",
+            true
+          ],
+          [
+            "Uzun Vadeli Kaldıraç Azaldı",
+            true
+          ],
+          [
+            "Cari Oran Arttı (Likidite İyileşti)",
+            true
+          ],
+          [
+            "Pay Sulanması Yok",
+            true
+          ],
+          [
+            "Brüt Kâr Marjı Arttı",
+            true
+          ],
+          [
+            "Aktif Devir Hızı Arttı (Verimlilik)",
+            false
+          ]
+        ]
+      }
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "7.012950083949069907120256701",
+      "own_pb": "0.5134632961159012545090659715",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "3.600892465600775843183537596",
+      "graham_fair_value_price": "44.31950677998035642127068509",
+      "graham_upside_pct": "149.9690173715756143331679926",
+      "graham_verdict": "Graham Ölçütüne Göre Ucuz",
+      "peg_ratio": "1.185676903910597936843965156",
+      "peg_verdict": "Büyümeye Göre Pahalı (PEG)",
+      "damodaran_cost_of_equity_pct": "40",
+      "damodaran_growth_used_pct": "5.914722687790381652238479098",
+      "damodaran_fair_value_price": "1.509589591067639580461875968",
+      "damodaran_upside_pct": "-91.48567630531506158791948127",
+      "damodaran_verdict": "Damodaran Modeline Göre Pahalı"
+    },
+    "merton": {
+      "asset_value": "7660962182.64",
+      "asset_volatility_pct": "25.9591",
+      "debt_face_value": "4573278283.0000",
+      "distance_to_default": "3.0903",
+      "default_probability_pct": "0.1",
+      "converged": true
+    },
+    "equity_volatility_pct": "45.8013",
+    "debt_point_used": "4573278283.0000",
+    "multi_scenario": {
+      "pe": {
+        "multiple_name": "F/K",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "16.83869985998313259624264916",
+            "sample_size": 4,
+            "target_price": "42.57126386808446294855900637"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "16.83869985998313259624264916",
+            "sample_size": 4,
+            "target_price": "42.57126386808446294855900637"
+          }
+        ],
+        "blended_target_price": "42.57126386808446294855900637"
+      },
+      "pb": {
+        "multiple_name": "PD/DD",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "0.7504561414586683961005143187",
+            "sample_size": 3,
+            "target_price": "25.91341482188201700865521801"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "0.7810578936929220795316207023",
+            "sample_size": 13,
+            "target_price": "26.97010002453931983293414792"
+          }
+        ],
+        "blended_target_price": "26.44175742321066842079468296"
+      },
+      "ev_ebitda": {
+        "multiple_name": "FD/FAVÖK",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          }
+        ],
+        "blended_target_price": null
+      },
+      "final_target_price_a": "34.50651064564756568467684466"
+    },
+    "final_target_price": "21.30774222381559524299085719"
+  },
+  "AKMGY": {
+    "financial_group": "XI_29",
+    "company_name": "AKMERKEZ GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "sector": "GAYRİMENKUL YATIRIM ORTAKLIKLARI",
+    "price": "258.0",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "revenue_growth_yoy_pct": "0.2704125241808109250284670480",
+    "ebitda_margin_current": "62.61394453901526318043485467",
+    "ebitda_margin_prior_year": "65.12666046853650047508986366",
+    "net_margin_current": "86.30838476248488960028664103",
+    "net_debt_to_ebitda": "-0.9292157319865322746629540179",
+    "roe_annualized": "7.428987591376158707054474381",
+    "current_ratio": "5.802877767316095700248666136",
+    "net_debt": "-786156000.0000",
+    "valuation_metrics": {
+      "price": "258.0",
+      "share_capital": "37264000.0000",
+      "market_cap": "9614112000.00000",
+      "net_debt": "-786156000.0000",
+      "enterprise_value": "8827956000.00000",
+      "pe_ratio": "11.62635152086343038175918820",
+      "pb_ratio": "0.8637202118147175526763021167",
+      "ev_ebitda": "10.43441199518276208959096273",
+      "ev_revenue": "6.704711023061475839748848962",
+      "price_to_operating_profit": "11.98253158686093850673194999"
+    },
+    "fundamental_screens": {
+      "has_data": true,
+      "graham": {
+        "graham_multiple": "10.04191479823252564914911365",
+        "fair_value_price": "386.1914894101544212086566367",
+        "upside_pct": "49.68662380238543457699869640",
+        "verdict": "Graham Ölçütüne Göre Ucuz"
+      },
+      "greenblatt": {
+        "ebit": "802343973.0000",
+        "enterprise_value": "8827956000.00000",
+        "earnings_yield_pct": "9.088672088986397304200428729",
+        "earnings_yield_band": "Orta",
+        "net_working_capital": "795760000.0000",
+        "net_fixed_assets": "170000.0000",
+        "return_on_capital_pct": "100.8058463683992310881610192",
+        "return_on_capital_band": "Yüksek"
+      },
+      "acquirers_multiple": {
+        "acquirers_multiple": "11.00270743854643499640272116",
+        "band": "Makul"
+      },
+      "piotroski": {
+        "score": 5,
+        "criteria_evaluated": 9,
+        "band": "Orta",
+        "details": [
+          [
+            "Aktif Kârlılığı (ROA) Pozitif",
+            true
+          ],
+          [
+            "Faaliyet Nakit Akışı Pozitif",
+            true
+          ],
+          [
+            "ROA Geçen Yıla Göre Arttı",
+            false
+          ],
+          [
+            "Nakit Akışı Net Kârdan Yüksek (Kazanç Kalitesi)",
+            false
+          ],
+          [
+            "Uzun Vadeli Kaldıraç Azaldı",
+            false
+          ],
+          [
+            "Cari Oran Arttı (Likidite İyileşti)",
+            true
+          ],
+          [
+            "Pay Sulanması Yok",
+            true
+          ],
+          [
+            "Brüt Kâr Marjı Arttı",
+            true
+          ],
+          [
+            "Aktif Devir Hızı Arttı (Verimlilik)",
+            false
+          ]
+        ]
+      }
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "11.62635152086343038175918820",
+      "own_pb": "0.8637202118147175526763021167",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "10.04191479823252564914911365",
+      "graham_fair_value_price": "386.1914894101544212086566367",
+      "graham_upside_pct": "49.68662380238543457699869640",
+      "graham_verdict": "Graham Ölçütüne Göre Ucuz",
+      "peg_ratio": "42.99487072976504606580650880",
+      "peg_verdict": "Büyümeye Göre Pahalı (PEG)",
+      "damodaran_cost_of_equity_pct": "40",
+      "damodaran_growth_used_pct": "0.2704125241808109250284670480",
+      "damodaran_fair_value_price": "53.96745683851339635052027225",
+      "damodaran_upside_pct": "-79.08238107034364482537973946",
+      "damodaran_verdict": "Damodaran Modeline Göre Pahalı"
+    },
+    "merton": {
+      "asset_value": "9735028885.36",
+      "asset_volatility_pct": "50.442",
+      "debt_face_value": "166518000.0000",
+      "distance_to_default": "8.4476",
+      "default_probability_pct": "0.0",
+      "converged": true
+    },
+    "equity_volatility_pct": "51.0764",
+    "debt_point_used": "166518000.0000",
+    "multi_scenario": {
+      "pe": {
+        "multiple_name": "F/K",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "12.37292120978180065404412468",
+            "sample_size": 4,
+            "target_price": "274.5671044261213761193953040"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "11.33060741762615314548550045",
+            "sample_size": 11,
+            "target_price": "251.4371519303975969458347252"
+          }
+        ],
+        "blended_target_price": "263.0021281782594865326150146"
+      },
+      "pb": {
+        "multiple_name": "PD/DD",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "0.8802155238907041118246250353",
+            "sample_size": 3,
+            "target_price": "262.9272790625831395776454668"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "0.8463693741757856658154469254",
+            "sample_size": 13,
+            "target_price": "252.8171687432912424777094430"
+          }
+        ],
+        "blended_target_price": "257.8722239029371910276774549"
+      },
+      "ev_ebitda": {
+        "multiple_name": "FD/FAVÖK",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          }
+        ],
+        "blended_target_price": null
+      },
+      "final_target_price_a": "260.4371760405983387801462348"
+    },
+    "final_target_price": "177.8492883597643618082958498"
+  },
+  "BRSAN": {
+    "financial_group": "XI_29",
+    "company_name": "BORUSAN BİRLEŞİK BORU FABRİKALARI SANAYİ VE TİCARET A.Ş.",
+    "sector": "ANA METAL SANAYİ",
+    "price": "572.0",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "revenue_growth_yoy_pct": "43.04532991491129628320367668",
+    "ebitda_margin_current": "11.74004658563532755780195548",
+    "ebitda_margin_prior_year": "8.800040354690035466960845851",
+    "net_margin_current": "6.041987365527621530844389531",
+    "net_debt_to_ebitda": "0.9738541930301897010472576956",
+    "roe_annualized": "6.212626556923384952089746894",
+    "current_ratio": "1.110401511121995604597949018",
+    "net_debt": "7387718000.0000",
+    "valuation_metrics": {
+      "price": "572.0",
+      "share_capital": "141772000.0000",
+      "market_cap": "81093584000.00000",
+      "net_debt": "7387718000.0000",
+      "enterprise_value": "88481302000.00000",
+      "pe_ratio": "30.07436389119379182551291328",
+      "pb_ratio": "1.868407917930082606983168368",
+      "ev_ebitda": "11.66366758415393089661139264",
+      "ev_revenue": "0.8977289453341245833643973196",
+      "price_to_operating_profit": "15.98968388114892300099065565"
+    },
+    "fundamental_screens": {
+      "has_data": true,
+      "graham": {
+        "graham_multiple": "56.19117962101704999932019538",
+        "fair_value_price": "361.9538606072716203567011244",
+        "upside_pct": "-36.72135304068677965791938385",
+        "verdict": "Graham Ölçütüne Göre Pahalı"
+      },
+      "greenblatt": {
+        "ebit": "5071618964.0000",
+        "enterprise_value": "88481302000.00000",
+        "earnings_yield_pct": "5.731853905133538835131517391",
+        "earnings_yield_band": "Düşük",
+        "net_working_capital": "5185106000.0000",
+        "net_fixed_assets": "37596477000.0000",
+        "return_on_capital_pct": "11.85467813100791525175681321",
+        "return_on_capital_band": "Orta"
+      },
+      "acquirers_multiple": {
+        "acquirers_multiple": "17.44636232100026511376535660",
+        "band": "Pahalı"
+      },
+      "piotroski": {
+        "score": 8,
+        "criteria_evaluated": 9,
+        "band": "Güçlü",
+        "details": [
+          [
+            "Aktif Kârlılığı (ROA) Pozitif",
+            true
+          ],
+          [
+            "Faaliyet Nakit Akışı Pozitif",
+            true
+          ],
+          [
+            "ROA Geçen Yıla Göre Arttı",
+            true
+          ],
+          [
+            "Nakit Akışı Net Kârdan Yüksek (Kazanç Kalitesi)",
+            true
+          ],
+          [
+            "Uzun Vadeli Kaldıraç Azaldı",
+            true
+          ],
+          [
+            "Cari Oran Arttı (Likidite İyileşti)",
+            false
+          ],
+          [
+            "Pay Sulanması Yok",
+            true
+          ],
+          [
+            "Brüt Kâr Marjı Arttı",
+            true
+          ],
+          [
+            "Aktif Devir Hızı Arttı (Verimlilik)",
+            true
+          ]
+        ]
+      }
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "30.07436389119379182551291328",
+      "own_pb": "1.868407917930082606983168368",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "56.19117962101704999932019538",
+      "graham_fair_value_price": "361.9538606072716203567011244",
+      "graham_upside_pct": "-36.72135304068677965791938385",
+      "graham_verdict": "Graham Ölçütüne Göre Pahalı",
+      "peg_ratio": "0.6986672875000025705045910301",
+      "peg_verdict": "Büyümeye Göre Ucuz (PEG)",
+      "damodaran_cost_of_equity_pct": "40",
+      "damodaran_growth_used_pct": "5.591363901231046456880772205",
+      "damodaran_fair_value_price": "5.836607916850263458408024511",
+      "damodaran_upside_pct": "-98.97961400055065324153705865",
+      "damodaran_verdict": "Damodaran Modeline Göre Pahalı"
+    },
+    "merton": {
+      "asset_value": "116510439316.86",
+      "asset_volatility_pct": "42.1108",
+      "debt_face_value": "48798983500.0000",
+      "distance_to_default": "2.616",
+      "default_probability_pct": "0.4449",
+      "converged": true
+    },
+    "equity_volatility_pct": "60.43",
+    "debt_point_used": "48798983500.0000",
+    "multi_scenario": {
+      "pe": {
+        "multiple_name": "F/K",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 2,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "51.87110353063948538505659572",
+            "sample_size": 4,
+            "target_price": "986.5635505000213701383278377"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "30.79404575418873865915520649",
+            "sample_size": 10,
+            "target_price": "585.6880044120783218024920934"
+          }
+        ],
+        "blended_target_price": "786.1257774560498459704099655"
+      },
+      "pb": {
+        "multiple_name": "PD/DD",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 2,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "1.851458237932569076830465122",
+            "sample_size": 3,
+            "target_price": "566.8109741638653543716646913"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "1.95397171213366871977168791",
+            "sample_size": 15,
+            "target_price": "598.1947564098701949484685507"
+          }
+        ],
+        "blended_target_price": "582.502865286867774660066621"
+      },
+      "ev_ebitda": {
+        "multiple_name": "FD/FAVÖK",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 2,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          }
+        ],
+        "blended_target_price": null
+      },
+      "final_target_price_a": "684.314321371458810315238293"
+    },
+    "final_target_price": "412.9232359896153915725061856"
+  },
+  "FMIZP": {
+    "financial_group": "XI_29",
+    "company_name": "FEDERAL MOGUL İZMİT PİSTON VE PİM ÜRETİM TESİSLERİ A.Ş.",
+    "sector": "METAL EŞYA MAKİNE ELEKTRİKLİ CİHAZLAR VE ULAŞIM ARAÇLARI",
+    "price": "283.75",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "revenue_growth_yoy_pct": "40.02178450328623153022332215",
+    "ebitda_margin_current": "18.53962560666044831432372765",
+    "ebitda_margin_prior_year": "10.30748963111339777074634836",
+    "net_margin_current": "21.39236837866245645750383602",
+    "net_debt_to_ebitda": "-2.847551999237704765949051801",
+    "roe_annualized": "21.62156011735757458542033905",
+    "current_ratio": "6.355601077318962427467352491",
+    "net_debt": "-434632614.0000",
+    "valuation_metrics": {
+      "price": "283.75",
+      "share_capital": "14276790.0000",
+      "market_cap": "4051039162.500000",
+      "net_debt": "-434632614.0000",
+      "enterprise_value": "3616406548.500000",
+      "pe_ratio": "26.29963791182556103772083400",
+      "pb_ratio": "5.686392021752727953173599732",
+      "ev_ebitda": "23.69335702276015237937899145",
+      "ev_revenue": "4.152678714578134693153327691",
+      "price_to_operating_profit": "30.34320728780017192020902710"
+    },
+    "fundamental_screens": {
+      "has_data": true,
+      "graham": {
+        "graham_multiple": "149.5500511967904444433194896",
+        "fair_value_price": "110.0610992915673158797648483",
+        "upside_pct": "-61.21194738623178294986260853",
+        "verdict": "Graham Ölçütüne Göre Pahalı"
+      },
+      "greenblatt": {
+        "ebit": "133507283.0000",
+        "enterprise_value": "3616406548.500000",
+        "earnings_yield_pct": "3.691711128423204159011050967",
+        "earnings_yield_band": "Düşük",
+        "net_working_capital": "485138425.0000",
+        "net_fixed_assets": "238150443.0000",
+        "return_on_capital_pct": "18.45836275196205563611688269",
+        "return_on_capital_band": "Orta"
+      },
+      "acquirers_multiple": {
+        "acquirers_multiple": "27.08770987796972843796094630",
+        "band": "Pahalı"
+      },
+      "piotroski": {
+        "score": 7,
+        "criteria_evaluated": 9,
+        "band": "Orta",
+        "details": [
+          [
+            "Aktif Kârlılığı (ROA) Pozitif",
+            true
+          ],
+          [
+            "Faaliyet Nakit Akışı Pozitif",
+            true
+          ],
+          [
+            "ROA Geçen Yıla Göre Arttı",
+            true
+          ],
+          [
+            "Nakit Akışı Net Kârdan Yüksek (Kazanç Kalitesi)",
+            true
+          ],
+          [
+            "Uzun Vadeli Kaldıraç Azaldı",
+            true
+          ],
+          [
+            "Cari Oran Arttı (Likidite İyileşti)",
+            false
+          ],
+          [
+            "Pay Sulanması Yok",
+            true
+          ],
+          [
+            "Brüt Kâr Marjı Arttı",
+            true
+          ],
+          [
+            "Aktif Devir Hızı Arttı (Verimlilik)",
+            false
+          ]
+        ]
+      }
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "26.29963791182556103772083400",
+      "own_pb": "5.686392021752727953173599732",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "149.5500511967904444433194896",
+      "graham_fair_value_price": "110.0610992915673158797648483",
+      "graham_upside_pct": "-61.21194738623178294986260853",
+      "graham_verdict": "Graham Ölçütüne Göre Pahalı",
+      "peg_ratio": "0.6571330648603654752182380463",
+      "peg_verdict": "Büyümeye Göre Ucuz (PEG)",
+      "damodaran_cost_of_equity_pct": "40",
+      "damodaran_growth_used_pct": "19.45940410562181712687830514",
+      "damodaran_fair_value_price": "6.274706354903686738753111113",
+      "damodaran_upside_pct": "-97.78864974276522053259802252",
+      "damodaran_verdict": "Damodaran Modeline Göre Pahalı"
+    },
+    "merton": {
+      "asset_value": "4119364812.04",
+      "asset_volatility_pct": "48.4463",
+      "debt_face_value": "94093149.0000",
+      "distance_to_default": "8.219",
+      "default_probability_pct": "0.0",
+      "converged": true
+    },
+    "equity_volatility_pct": "49.2634",
+    "debt_point_used": "94093149.0000",
+    "multi_scenario": {
+      "pe": {
+        "multiple_name": "F/K",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 2,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "40.00168285371345104598507165",
+            "sample_size": 4,
+            "target_price": "431.5830334925440258205026350"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "41.18616165785379529200416858",
+            "sample_size": 11,
+            "target_price": "444.3625197273601365513423031"
+          }
+        ],
+        "blended_target_price": "437.9727766099520811859224690"
+      },
+      "pb": {
+        "multiple_name": "PD/DD",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 2,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": "6.396179883137120237119122482",
+            "sample_size": 4,
+            "target_price": "319.1682942184388258618788396"
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": "11.63038003285516621000723153",
+            "sample_size": 15,
+            "target_price": "580.3539962947279776268000769"
+          }
+        ],
+        "blended_target_price": "449.7611452565834017443394582"
+      },
+      "ev_ebitda": {
+        "multiple_name": "FD/FAVÖK",
+        "scenarios": [
+          {
+            "label": "Sektör Ortalaması",
+            "multiple": null,
+            "sample_size": 2,
+            "target_price": null
+          },
+          {
+            "label": "Kısa Dönem Ortalaması (son 1 yıl)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          },
+          {
+            "label": "Uzun Dönem Ortalaması (mevcut derinlik)",
+            "multiple": null,
+            "sample_size": 0,
+            "target_price": null
+          }
+        ],
+        "blended_target_price": null
+      },
+      "final_target_price_a": "443.8669609332677414651309636"
+    },
+    "final_target_price": "268.8300591019221195745798226"
+  },
+  "ISCTR": {
+    "financial_group": "UFRS",
+    "company_name": "TÜRKİYE İŞ BANKASI A.Ş.",
+    "sector": "BANKALAR",
+    "price": "12.36",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "net_interest_margin_current": "16.33229166729704691571249759",
+    "net_interest_margin_prior_year": "16.52692884524386213289713834",
+    "return_on_assets_annualized": "1.329039527436955883229115223",
+    "roe_annualized": "14.93112438529968195801780971",
+    "equity_to_assets_current": "8.901134925548212742977730077",
+    "valuation_metrics": {
+      "price": "12.36",
+      "share_capital": "24999970000.0000",
+      "market_cap": "308999629200.000000",
+      "pe_ratio": "4.566704365417550241083224126",
+      "pb_ratio": "0.6818603091094049401751716719"
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "4.566704365417550241083224126",
+      "own_pb": "0.6818603091094049401751716719",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "3.113854450214879739304234095",
+      "graham_fair_value_price": "33.22466230628911859879470321",
+      "graham_upside_pct": "168.8079474618860728057823884",
+      "graham_verdict": "Graham Ölçütüne Göre Ucuz",
+      "peg_ratio": null,
+      "peg_verdict": null,
+      "damodaran_cost_of_equity_pct": null,
+      "damodaran_growth_used_pct": null,
+      "damodaran_fair_value_price": null,
+      "damodaran_upside_pct": null,
+      "damodaran_verdict": null
+    },
+    "note": "FAVOK/Merton/Piotroski/Greenblatt bankalara UYGULANMAZ (farkli sermaye yapisi, bkz. rapor notu)"
+  },
+  "GARAN": {
+    "financial_group": "UFRS",
+    "company_name": "TÜRKİYE GARANTİ BANKASI A.Ş.",
+    "sector": "BANKALAR",
+    "price": "127.0",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "net_interest_margin_current": "17.99646445382270731728875282",
+    "net_interest_margin_prior_year": "18.95810316374669589948342153",
+    "return_on_assets_annualized": "2.735484554535913103527364561",
+    "roe_annualized": "24.77556674494219653179190751",
+    "equity_to_assets_current": "11.04105743653411314790300184",
+    "valuation_metrics": {
+      "price": "127.0",
+      "share_capital": "4200000000.0000",
+      "market_cap": "533400000000.00000",
+      "pe_ratio": "4.419271260512121955846840453",
+      "pb_ratio": "1.094899500788229111928533894"
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "4.419271260512121955846840453",
+      "own_pb": "1.094899500788229111928533894",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "4.838657896982490334440490135",
+      "graham_fair_value_price": "273.8624702359837804448487992",
+      "graham_upside_pct": "115.6397403432943153109045663",
+      "graham_verdict": "Graham Ölçütüne Göre Ucuz",
+      "peg_ratio": null,
+      "peg_verdict": null,
+      "damodaran_cost_of_equity_pct": null,
+      "damodaran_growth_used_pct": null,
+      "damodaran_fair_value_price": null,
+      "damodaran_upside_pct": null,
+      "damodaran_verdict": null
+    },
+    "note": "FAVOK/Merton/Piotroski/Greenblatt bankalara UYGULANMAZ (farkli sermaye yapisi, bkz. rapor notu)"
+  },
+  "AKBNK": {
+    "financial_group": "UFRS",
+    "company_name": "AKBANK T.A.Ş.",
+    "sector": "BANKALAR",
+    "price": "67.4",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "net_interest_margin_current": "18.23436032599364752339256589",
+    "net_interest_margin_prior_year": "20.11172093996370972090886251",
+    "return_on_assets_annualized": "1.791303464889690102154691390",
+    "roe_annualized": "20.56193486601836512228018205",
+    "equity_to_assets_current": "8.711745643402867198901193235",
+    "valuation_metrics": {
+      "price": "67.4",
+      "share_capital": "5200000000.0000",
+      "market_cap": "350480000000.00000",
+      "pe_ratio": "5.248744718401955513833433015",
+      "pb_ratio": "1.079243470281389147210435232"
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "5.248744718401955513833433015",
+      "own_pb": "1.079243470281389147210435232",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "5.664673464509239123771629527",
+      "graham_fair_value_price": "134.3271236857547498559476842",
+      "graham_upside_pct": "99.29840309459161699695502107",
+      "graham_verdict": "Graham Ölçütüne Göre Ucuz",
+      "peg_ratio": null,
+      "peg_verdict": null,
+      "damodaran_cost_of_equity_pct": null,
+      "damodaran_growth_used_pct": null,
+      "damodaran_fair_value_price": null,
+      "damodaran_upside_pct": null,
+      "damodaran_verdict": null
+    },
+    "note": "FAVOK/Merton/Piotroski/Greenblatt bankalara UYGULANMAZ (farkli sermaye yapisi, bkz. rapor notu)"
+  },
+  "YKBNK": {
+    "financial_group": "UFRS",
+    "company_name": "YAPI VE KREDİ BANKASI A.Ş.",
+    "sector": "BANKALAR",
+    "price": "34.02",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "net_interest_margin_current": "17.95038554021257477487060483",
+    "net_interest_margin_prior_year": "18.44948908177812020959658077",
+    "return_on_assets_annualized": "1.549443117912657912489957703",
+    "roe_annualized": "19.32093176677557175169640613",
+    "equity_to_assets_current": "8.019505149213831636523447888",
+    "valuation_metrics": {
+      "price": "34.02",
+      "share_capital": "8447000000.0000",
+      "market_cap": "287366940000.000000",
+      "pe_ratio": "5.191612878784060261723162303",
+      "pb_ratio": "1.003067981905001256597134959"
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "5.191612878784060261723162303",
+      "own_pb": "1.003067981905001256597134959",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "5.207540653153941240774427825",
+      "graham_fair_value_price": "70.71462356468181999520415296",
+      "graham_upside_pct": "107.8619152400994120964260816",
+      "graham_verdict": "Graham Ölçütüne Göre Ucuz",
+      "peg_ratio": null,
+      "peg_verdict": null,
+      "damodaran_cost_of_equity_pct": null,
+      "damodaran_growth_used_pct": null,
+      "damodaran_fair_value_price": null,
+      "damodaran_upside_pct": null,
+      "damodaran_verdict": null
+    },
+    "note": "FAVOK/Merton/Piotroski/Greenblatt bankalara UYGULANMAZ (farkli sermaye yapisi, bkz. rapor notu)"
+  },
+  "TURSG": {
+    "financial_group": "UFRS_K",
+    "company_name": "TÜRKİYE SİGORTA A.Ş.",
+    "sector": "SİGORTA ŞİRKETLERİ",
+    "price": "6.29",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "ratios": {
+      "technical_balance_margin_current": "34.36942307666458164563482872",
+      "technical_balance_margin_prior_year": "33.34469028285426559586321503",
+      "technical_balance_margin_change_points": "1.02473279381031604977161369",
+      "premium_growth_yoy_pct": "29.19107756659175754301957467",
+      "roe_annualized": "40.02398659956445768575855843",
+      "ttm_net_income": "23630243812.0000"
+    },
+    "valuation_metrics": {
+      "price": "6.29",
+      "share_capital": "20000000000.0000",
+      "market_cap": "125800000000.000000",
+      "pe_ratio": "5.323686077928479394904010566",
+      "pb_ratio": "2.130751402432973245053383138"
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "5.323686077928479394904010566",
+      "own_pb": "2.130751402432973245053383138",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "11.34345157665900236322604384",
+      "graham_fair_value_price": "8.858685705742832312871754609",
+      "graham_upside_pct": "40.83761058414677762912169490",
+      "graham_verdict": "Graham Ölçütüne Göre Ucuz",
+      "peg_ratio": null,
+      "peg_verdict": null,
+      "damodaran_cost_of_equity_pct": null,
+      "damodaran_growth_used_pct": null,
+      "damodaran_fair_value_price": null,
+      "damodaran_upside_pct": null,
+      "damodaran_verdict": null
+    },
+    "note": "FAVOK/Merton/Piotroski/Greenblatt sigortaya UYGULANMAZ (farkli sermaye yapisi, bkz. rapor notu)"
+  },
+  "ANSGR": {
+    "financial_group": "UFRS_K",
+    "company_name": "ANADOLU ANONİM TÜRK SİGORTA ŞİRKETİ",
+    "sector": "SİGORTA ŞİRKETLERİ",
+    "price": "28.6",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "ratios": {
+      "technical_balance_margin_current": "16.32581998451493447788209305",
+      "technical_balance_margin_prior_year": "18.07370665437055158415643351",
+      "technical_balance_margin_change_points": "-1.74788666985561710627434046",
+      "premium_growth_yoy_pct": "15.70866810402178736172126029",
+      "roe_annualized": "38.97430997411333900339551499",
+      "ttm_net_income": "15607535998.0000"
+    },
+    "valuation_metrics": {
+      "price": "28.6",
+      "share_capital": "2000000000.0000",
+      "market_cap": "57200000000.00000",
+      "pe_ratio": "3.664896240337346809943266741",
+      "pb_ratio": "1.428368020938703325868967480"
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "3.664896240337346809943266741",
+      "own_pb": "1.428368020938703325868967480",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "5.234820589756350484741322450",
+      "graham_fair_value_price": "59.29340503312039544947527812",
+      "graham_upside_pct": "107.3195980179034805925709025",
+      "graham_verdict": "Graham Ölçütüne Göre Ucuz",
+      "peg_ratio": null,
+      "peg_verdict": null,
+      "damodaran_cost_of_equity_pct": null,
+      "damodaran_growth_used_pct": null,
+      "damodaran_fair_value_price": null,
+      "damodaran_upside_pct": null,
+      "damodaran_verdict": null
+    },
+    "note": "FAVOK/Merton/Piotroski/Greenblatt sigortaya UYGULANMAZ (farkli sermaye yapisi, bkz. rapor notu)"
+  },
+  "AGESA": {
+    "financial_group": "UFRS_K",
+    "company_name": "AGESA HAYAT VE EMEKLİLİK A.Ş.",
+    "sector": "SİGORTA ŞİRKETLERİ",
+    "price": "236.0",
+    "latest_period": [
+      2026,
+      6
+    ],
+    "ratios": {
+      "technical_balance_margin_current": "12.59851477483784497528809806",
+      "technical_balance_margin_prior_year": "17.57900936427829454184247100",
+      "technical_balance_margin_change_points": "-4.98049458944044956655437294",
+      "premium_growth_yoy_pct": "50.31808456705286713186497371",
+      "roe_annualized": "54.63222341995887952937338393",
+      "ttm_net_income": "6947347549.0000"
+    },
+    "valuation_metrics": {
+      "price": "236.0",
+      "share_capital": "180000000.0000",
+      "market_cap": "42480000000.00000",
+      "pe_ratio": "6.114563824594404208926384316",
+      "pb_ratio": "3.340522169808397478817107829"
+    },
+    "damodaran": {
+      "has_data": true,
+      "peer_count": 0,
+      "own_pe": "6.114563824594404208926384316",
+      "own_pb": "3.340522169808397478817107829",
+      "sector_avg_pe": null,
+      "sector_avg_pb": null,
+      "pe_diff_pct": null,
+      "pb_diff_pct": null,
+      "verdict": null,
+      "verdict_reasoning": null,
+      "price_change_1m_pct": null,
+      "price_change_3m_pct": null,
+      "momentum_note": null,
+      "implied_target_price": null,
+      "implied_target_basis": null,
+      "implied_upside_pct": null,
+      "graham_multiple": "20.42583601476603267313390320",
+      "graham_fair_value_price": "247.6927766044892589158928753",
+      "graham_upside_pct": "4.954566357834431744022404788",
+      "graham_verdict": "Graham Ölçütüne Göre Ucuz",
+      "peg_ratio": null,
+      "peg_verdict": null,
+      "damodaran_cost_of_equity_pct": null,
+      "damodaran_growth_used_pct": null,
+      "damodaran_fair_value_price": null,
+      "damodaran_upside_pct": null,
+      "damodaran_verdict": null
+    },
+    "note": "FAVOK/Merton/Piotroski/Greenblatt sigortaya UYGULANMAZ (farkli sermaye yapisi, bkz. rapor notu)"
+  }
+}

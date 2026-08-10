@@ -155,6 +155,30 @@ CONFIG: dict = {
             "pddd_tavan": Decimal("3"),
         },
     },
+    # Tasarruf Finansman Sirketleri (XI_29K, orn. KTLEV) icin sablon --
+    # bkz. calculator.analyze_financing() docstring'i. "cari oran"/"kaldirac"
+    # gibi sanayi/banka rasyoları BURADA YOK (girdi kalemleri Kural 3 geregi
+    # haritaya eklenmedi) -- bunun yerine Net Kâr Marjı + ROE + ROA + Ozkaynak/
+    # Aktif Orani + Degerleme (banka sablonuyla AYNI ilke, F/K-PD/DD dar
+    # esikleri). Esikler HENUZ gercek veriyle KALIBRE EDILMEDI (yeni sirket
+    # tipi, sadece KTLEV ile canli dogrulandi) -- bkz. 06_BILINEN_SORUNLAR.md.
+    "finansman": {
+        "karlilik": {"agirlik": Decimal("20"), "guclu_esik": Decimal("15"), "orta_esik": Decimal("5"), "tavan": Decimal("30")},
+        "ozkaynak_karliligi": {"agirlik": Decimal("25"), "guclu_esik": Decimal("20"), "orta_esik": Decimal("10"), "tavan": Decimal("35")},
+        "aktif_karliligi": {"agirlik": Decimal("20"), "guclu_esik": Decimal("5"), "orta_esik": Decimal("2"), "tavan": Decimal("10"), "taban": Decimal("-5")},
+        "ozkaynak_aktif_orani": {"agirlik": Decimal("15"), "guclu_esik": Decimal("15"), "orta_esik": Decimal("8"), "tavan": Decimal("25")},
+        "degerleme": {
+            "agirlik": Decimal("20"),
+            "fk_ucuz": Decimal("5"),
+            "fk_makul": Decimal("9"),
+            "fk_pahali": Decimal("13"),
+            "fk_tavan": Decimal("20"),
+            "pddd_ucuz": Decimal("1"),
+            "pddd_makul": Decimal("1.8"),
+            "pddd_pahali": Decimal("3"),
+            "pddd_tavan": Decimal("5"),
+        },
+    },
     # NASDAQ/ABD (US_GAAP) sanayi sirketleri icin sablon -- Faz 10. "sanayi"
     # sablonunu TABAN ALIR (bkz. score_industrial_us()), sadece PIYASAYA OZGU
     # (para birimi/enflasyon/carpan seviyesi ile ilgili) esikler kalibre
@@ -864,3 +888,41 @@ def score_bank(
         ("Değerleme", cfg["degerleme"]["agirlik"], _skor_degerleme(valuation, cfg["degerleme"])),
     ]
     return _agirlik_dagit_ve_hesapla(analysis.ticker, analysis.latest_period, "banka", bilesenler)
+
+
+def score_financing(analysis: AnalysisResult, valuation: ValuationInput | None = None) -> ScoreResult:
+    """Tasarruf Finansman Şirketleri (XI_29K, orn. KTLEV) için score_bank()'in
+    karşılığı -- 5 bileşenli şablon: Net Kâr Marjı, Özkaynak Kârlılığı (ROE),
+    Aktif Kârlılığı (ROA), Özkaynak/Aktif Oranı, Değerleme.
+
+    Trend (YoY nokta-değişimi) parametreleri bilinçli olarak YOK -- bkz.
+    calculator.analyze_financing() docstring'i, bu şirket tipi için henüz
+    önceki yıla ait yeterli veri derinliği doğrulanmadı (yeni halka arz)."""
+    cfg = CONFIG["finansman"]
+
+    karlilik = _seviye_trend_skoru(
+        "Net kâr marjı", analysis.ratios.net_margin_current, None,
+        cfg["karlilik"]["guclu_esik"], cfg["karlilik"]["orta_esik"], cfg["karlilik"]["tavan"],
+    )
+    roe = _seviye_trend_skoru(
+        "Özkaynak kârlılığı", analysis.ratios.roe_annualized, None,
+        cfg["ozkaynak_karliligi"]["guclu_esik"], cfg["ozkaynak_karliligi"]["orta_esik"], cfg["ozkaynak_karliligi"]["tavan"],
+    )
+    roa = _seviye_trend_skoru(
+        "Aktif kârlılığı (ROA)", analysis.ratios.return_on_assets_annualized, None,
+        cfg["aktif_karliligi"]["guclu_esik"], cfg["aktif_karliligi"]["orta_esik"],
+        cfg["aktif_karliligi"]["tavan"], cfg["aktif_karliligi"]["taban"],
+    )
+    oao = _seviye_trend_skoru(
+        "Özkaynak/aktif oranı", analysis.ratios.equity_to_assets_current, None,
+        cfg["ozkaynak_aktif_orani"]["guclu_esik"], cfg["ozkaynak_aktif_orani"]["orta_esik"], cfg["ozkaynak_aktif_orani"]["tavan"],
+    )
+
+    bilesenler = [
+        ("Kârlılık", cfg["karlilik"]["agirlik"], karlilik),
+        ("Özkaynak Kârlılığı (ROE)", cfg["ozkaynak_karliligi"]["agirlik"], roe),
+        ("Aktif Kârlılığı (ROA)", cfg["aktif_karliligi"]["agirlik"], roa),
+        ("Özkaynak/Aktif Oranı", cfg["ozkaynak_aktif_orani"]["agirlik"], oao),
+        ("Değerleme", cfg["degerleme"]["agirlik"], _skor_degerleme(valuation, cfg["degerleme"])),
+    ]
+    return _agirlik_dagit_ve_hesapla(analysis.ticker, analysis.latest_period, "finansman", bilesenler)

@@ -1323,6 +1323,113 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       en uzun yorumla bile 2400x4632, Telegram sınırının (10000) belirgin
       altında). 1009 test, hepsi yeşil.
 
+- [x] **Faz 22** — (2026-08-08, kullanıcı isteği: 30 BİST hissesi için toplu
+      temel analiz + "ünlü finansçıların sistemleri") **İKİ YENİ, saf
+      matematik modül** eklendi (Faz 21'in Graham/Greenblatt/Carlisle/
+      Piotroski'sini KOPYALAMADAN tamamlar): **`src/analysis/merton.py`** —
+      Merton (1974) yapısal kredi riski modeli, özkaynağı bir call opsiyonu
+      gibi modelleyip (Black-Scholes) KMV/Vassalou-Xing iteratif çözümüyle
+      örtük varlık değeri/oynaklığını geri çıkarır, Mesafe-i Temerrüt (DD)
+      ve Beklenen Temerrüt Sıklığı (EDF) üretir. Borç noktası = kısa vadeli
+      yükümlülük + 0,5×uzun vadeli finansal borç (Moody's KMV standardı);
+      özkaynak oynaklığı ~1 yıllık günlük fiyat serisinden. **Kural 2'nin
+      BİLİNÇLİ, dar kapsamlı istisnası**: iteratif çözüm (normal dağılım
+      CDF'i + Newton-Raphson) `float`/`statistics.NormalDist` ile yapılır
+      (Decimal'de erf/kök-bulma desteği yok, standart kantitatif finans
+      pratiği budur), SADECE nihai DD/EDF/varlık değeri tekrar `Decimal`'e
+      yuvarlanarak döner — modül üst notunda gerekçesi tam açıklanmıştır.
+      Kullanıcının kendi elle çalıştığı örnekle (A0=100, σA=%25, D=80, r=%5
+      → DD=0,97, EDF=%17) hem ileri hem GERİ (E/σE'den A0/σA'yı iteratif
+      geri çıkarma) yönde doğrulandı (`tests/test_merton.py`, 5 test).
+      **`src/analysis/multi_scenario_valuation.py`** — kullanıcının
+      paylaştığı referans konsol aracıyla (ASUZU örneği) AYNI ilke: F/K,
+      PD/DD, FD/FAVÖK'ün her biri için Sektör Ortalaması + Kısa Dönem (şirketin
+      kendi son ~1 yıllık ort.) + Uzun Dönem (mevcut veri derinliği, en fazla
+      4 yıl/16 çeyrek) senaryoları IQR (k=1,5) ile aykırı değerden
+      arındırılıp ortalanır; üç çarpanın hedef fiyatlarının ortalaması "A"
+      fiyatını verir. **Bilinçli kapsam farkı**: kullanıcının aracı 8Ç/36Ç
+      pencere kullanıyordu, bu proje `isyatirim.DEFAULT_HISTORY_QUARTERS=16`
+      sınırı yüzünden 4Ç/16Ç kullanır — modül üst notunda açıkça belgelendi.
+      🚨 **CANLI HATA + DÜZELTME** (KORDS ile toplu raporda bulundu): TTM
+      bazda zarar eden bir şirkette F/K bazlı hedef fiyat negatif (-121 TL,
+      anlamsız) çıkıyordu — `own_fundamental` artık pozitif olmalı şartı
+      eklendi, zarar eden şirketlerde o çarpanın hedefi `None` kalır (Kural
+      3), diğer çarpanlar etkilenmez (`tests/test_multi_scenario_valuation.py`,
+      6 test, 1'i bu regresyon). **YENİ `scripts/batch_report_2026Q2.py`** —
+      30 hisseyi (23 XI_29 + 4 UFRS banka + 3 UFRS_K sigorta) tazeleyip
+      FAVÖK marjı/net borç-FAVÖK/ROE/büyüme (calculator.py, KOPYALANMADI) +
+      Graham/Greenblatt/Carlisle/Piotroski (fundamental_screens.py,
+      KOPYALANMADI) + Damodaran DCF (valuation.py, KOPYALANMADI) + Merton +
+      çoklu senaryo çarpan hedefini tek bir JSON'a yazar — LLM SADECE bu
+      hazır JSON'u sözel olarak yorumlar (Kural 1). CANLI doğrulandı: 30/30
+      hisse başarıyla işlendi (~50 dk, İş Yatırım/KAP nezaket beklemeleri
+      dahil — bkz. `06_BILINEN_SORUNLAR.md`). Rapor: `../temel/
+      30_Hisse_Temel_Analiz_Raporu_2026Q2.md` + Artifact tablo. 1140 test,
+      hepsi yeşil (10 yeni).
+
+- [x] **ACİL düzeltme** — (2026-08-10, kullanıcı raporu: AHSGY kartında
+      anlamsız "Değişim" yüzdeleri, "sistem genelinde büyük sorun olabilir"
+      endişesi) **KAP tazelik yaması ölçek (birim) hatası** bulundu ve
+      düzeltildi. Kök neden: `pipeline._kap_patch_records_for_xi29`, KAP
+      "Finansal Rapor" sayfasının "Sunum Para Birimi: 1.000.000 TL"
+      başlığına güvenip TÜM kalemleri ×1.000.000 ölçekliyordu — AHSGY'nin
+      bu SPESİFİK disclosure'ında (disclosure_index=1645956) gömülü ham
+      rakam ZATEN tam TL cinsindendi (KAP tarafındaki başlık/veri
+      tutarsızlığı, filer kaynaklı), Nakit "1 katrilyon TL" gibi gerçek dışı
+      bir değere sıçradı. 163 şirketlik DB'de CANLI tarama yapıldı — bu hata
+      SADECE AHSGY'de bulundu, sistem geneli DEĞİLDİ. **YENİ**
+      `pipeline._kap_patch_is_plausible()` — KAP'tan patchlenen
+      `total_assets`/`equity`, İş Yatırım'ın son bilinen dönemine göre 50
+      katını aşan/altına inen bir sıçrama gösterirse TÜM KAP yaması (XI_29/
+      UFRS/UFRS_K'nin üçünde de) reddedilir, İş Yatırım'ın eski ama TUTARLI
+      verisiyle devam edilir (Kural 3). AHSGY'nin DB'de zaten kirli duran
+      (2026,6) 24 satırı elle temizlendi. Canlı doğrulandı: kart artık 1Ç26'yı
+      tutarlı ölçekte gösteriyor. 1142 test, hepsi yeşil (2 yeni). Detay:
+      `06_BILINEN_SORUNLAR.md` #49.
+
+- [x] **Faz 23** — (2026-08-10, kullanıcı raporu: "KTLEV hissesini bilanço için
+      bulamadı") **Tasarruf Finansman Şirketleri (`XI_29K`) desteği** eklendi.
+      KTLEV (Katılımevim Tasarruf Finansman A.Ş.) BIST'te sanayi/banka/sigorta
+      değil, üyelerin aylık tasarrufuyla faizsiz konut/araç finansmanı sağlayan
+      YENİ bir BDDK-lisanslı şirket tipi — İş Yatırım bunu `XI_29` yerine
+      `XI_29K` ("Seri XI No:29 Konsolide") financialGroup'unda döndürüyor,
+      itemCode sıralaması sanayi/bankadan TAMAMEN FARKLI (canlı keşfedildi,
+      `data/exploration/KTLEV_XI_29K_raw_2026Q1.json`). **YENİ**
+      `isyatirim.STANDARD_ITEM_MAP_FINANSMAN` — Kural 3 gereği SADECE açıkça/
+      tek anlamlı etiketli kalemler eşlendi (Esas Faaliyet Gelirleri/Giderleri,
+      Net Faaliyet Kârı, Net Dönem Kârı, Nakit, Takipteki Alacaklar, Aktif
+      Toplamı, Özkaynaklar) — bileşik/yorum gerektiren kalemler (örn. "Gerçeğe
+      Uygun Değer Farkı K/Z'a Yansıtılan Finansal Varlıklar") BİLİNÇLİ OLARAK
+      haritaya EKLENMEDİ. **YENİ** `calculator.analyze_financing()`/
+      `FinancingAnalysisResult` (banka desenindeki AYNI ilke, ama "cari oran"/
+      "kaldıraç" gibi girdi kalemi olmayan rasyolar ÜRETİLMEZ),
+      `scorer.score_financing()` (5 bileşen: Kârlılık/ROE/ROA/Özkaynak-Aktif
+      Oranı/Değerleme, ağırlık toplamı 100, HENÜZ gerçek veriyle kalibre
+      edilmedi), `card.build_financing_card_context()` + `card.html`'e yeni
+      `sector_template: "finansman"` dalı, `ai/commentary.py`'ye
+      `generate_commentary_financing()`. `pipeline.py`: yeni `is_financing`
+      dalı + `_standardize_to_records_financing()`. Net kâr rakamı
+      (3.361.411.828, 2026/Ç1) KAP'ın kendi XBRL kaydıyla (disclosure_index=
+      1605385) birebir doğrulandı. Canlı doğrulandı: `demo_pipeline.py KTLEV`
+      uçtan uca çalışıyor (1Ç26, Skor 8,21/10, gerçek Gemini yorumuyla).
+      1165 test, hepsi yeşil (23 yeni). Detay: `01_MIMARI.md` §5.
+
+- [x] **Faz 23.1** — (2026-08-10, aynı gün, kullanıcı raporu: "KTLEV 2Ç
+      bilançosu geldi ama hâlâ 1Ç gösteriyor" + "Net Faaliyet Kârı veri
+      yok") **KAP tazelik yaması `XI_29K`'ya bağlandı.** Faz 23'te bilinçli
+      olarak ertelenmişti — KTLEV'in 2Ç26 KAP raporu zaten vardı ama İş
+      Yatırım işlememişti (TATGD/RAYSG deseni). **YENİ**
+      `kap_financials.STANDARD_ITEM_MAP_KAP_FINANSMAN_BALANCE`/`_INCOME` +
+      `fetch_latest_financing_financials()`/`standardized_record_values_financing()`,
+      `pipeline._kap_patch_records_for_financing()` (AHSGY'nin #49 ölçek-
+      koruması `_kap_patch_is_plausible()` otomatik bağlı). TÜM 5 bilanço
+      kalemi İş Yatırım'ın (2025,12) dönemiyle TL'ye kadar birebir eşleşti;
+      `net_operating_profit` için tek bir KAP tag'i (`kap-fr_OperatingProfitLoss`)
+      İş Yatırım'ın "I+II+III+IV+V+VI" formülünün hazır subtotal'ı olarak
+      Ç1(bilinen)+Ç2(KAP)=H1(KAP kümülatif) kesin toplama yöntemiyle
+      keşfedildi. Canlı doğrulandı. 1167 test, hepsi yeşil (2 yeni). Detay:
+      `06_BILINEN_SORUNLAR.md` #50.
+
 ## Dizin Yapisi
 
 ```

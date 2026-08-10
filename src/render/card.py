@@ -565,6 +565,19 @@ def _valuation_context_insurance(valuation: calculator.InsuranceValuationMetrics
     }
 
 
+def _valuation_context_financing(valuation: calculator.FinancingValuationMetrics | None) -> dict | None:
+    """_valuation_context()'in Tasarruf Finansman Sirketi karsiligi --
+    banka/sigortadaki gibi BILEREK sadece Piyasa Degeri/F-K/PD-DD icerir
+    (bkz. compute_valuation_financing docstring'i)."""
+    if valuation is None:
+        return None
+    return {
+        "piyasa_degeri": _money_or_na(valuation.market_cap),
+        "fk": _ratio_or_na(valuation.pe_ratio),
+        "pd_dd": _ratio_or_na(valuation.pb_ratio),
+    }
+
+
 def build_card_context(
     analysis: calculator.AnalysisResult,
     score: scorer.ScoreResult,
@@ -945,6 +958,83 @@ def build_insurance_card_context(
         "report_timestamp": now.strftime("%d.%m.%Y %H:%M"),
         "price_display": f"{format_number_tr(price, decimals=2)} ₺" if price is not None else None,
         "valuation": _valuation_context_insurance(valuation),
+        # bkz. build_bank_card_context() içindeki aynı notu -- bu faz
+        # kapsamına girmiyor ama anahtar şablon için HER ZAMAN gerekli.
+        "valuation_analysis": {"has_data": False},
+        "headline": commentary.headline,
+        "summary": commentary.summary,
+        "show_ebitda": False,
+        "income_rows": income_rows,
+        "balance_rows": balance_rows,
+        "charts": charts,
+        "positives": commentary.positives,
+        "negatives": commentary.negatives,
+        **_score_display_context(score),
+        "score_rows": [_score_row(c) for c in score.components],
+        "kap_note": commentary.kap_note,
+        "disclosure_rows": disclosure_rows,
+        "commentary_source": commentary.source,
+        "data_sources_note": data_sources_note,
+        "disclaimer": "Bu içerik yatırım tavsiyesi değildir; yatırım kararı için profesyonel danışmanlık alınmalıdır.",
+    }
+
+
+def build_financing_card_context(
+    analysis: calculator.FinancingAnalysisResult,
+    score: scorer.ScoreResult,
+    commentary: commentary_module.Commentary,
+    disclosures: list[kap.Disclosure] | None = None,
+    *,
+    company_name: str | None = None,
+    sector: str | None = None,
+    price: Decimal | None = None,
+    valuation: calculator.FinancingValuationMetrics | None = None,
+    data_sources_note: str = "İş Yatırım, KAP",
+    now: datetime | None = None,
+) -> dict:
+    """build_card_context()'in Tasarruf Finansman Sirketi (XI_29K, orn.
+    KTLEV) karsiligi -- bkz. calculator.analyze_financing() docstring'i.
+    Donen sozlukteki `sector_template: "finansman"` alani, card.html'in
+    hangi tablo/grafik bolumunu cizecegine karar vermesini saglar."""
+    disclosures = disclosures or []
+    now = now or datetime.now()
+
+    income_rows = {
+        "financing_revenue": _line_item_row(analysis.income_statement.financing_revenue),
+        "operating_expenses": _line_item_row(analysis.income_statement.operating_expenses),
+        "net_operating_profit": _line_item_row(analysis.income_statement.net_operating_profit),
+        "net_income": _line_item_row(analysis.income_statement.net_income),
+    }
+    balance_rows = {
+        "cash": _line_item_row(analysis.balance_sheet.cash),
+        "overdue_receivables": _line_item_row(analysis.balance_sheet.overdue_receivables),
+        "total_assets": _line_item_row(analysis.balance_sheet.total_assets),
+        "equity": _line_item_row(analysis.balance_sheet.equity),
+    }
+
+    period_labels = [_quarter_label(pt.period) for pt in analysis.quarterly_series]
+    charts = {
+        "financing_revenue": _build_chart(
+            "Esas Faaliyet Gelirleri", [pt.financing_revenue for pt in analysis.quarterly_series], period_labels
+        ),
+        "net_income": _build_chart("Net Kâr", [pt.net_income for pt in analysis.quarterly_series], period_labels),
+    }
+
+    onemli_bildirimler = [d for d in disclosures if d.importance == kap.IMPORTANCE_HIGH][:5]
+    disclosure_rows = [{"date": d.date.strftime("%d.%m.%Y"), "title": d.title} for d in onemli_bildirimler]
+
+    return {
+        "sector_template": "finansman",
+        "ticker": analysis.ticker,
+        "company_logo_data_uri": _company_logo_data_uri(analysis.ticker),
+        "company_name": company_name or analysis.ticker,
+        "sector": sector,
+        "period_label": _quarter_label(analysis.latest_period),
+        "period_badge": f"{analysis.latest_period[0]}/{analysis.latest_period[1]}",
+        "table_periods": _table_period_labels(analysis.latest_period),
+        "report_timestamp": now.strftime("%d.%m.%Y %H:%M"),
+        "price_display": f"{format_number_tr(price, decimals=2)} ₺" if price is not None else None,
+        "valuation": _valuation_context_financing(valuation),
         # bkz. build_bank_card_context() içindeki aynı notu -- bu faz
         # kapsamına girmiyor ama anahtar şablon için HER ZAMAN gerekli.
         "valuation_analysis": {"has_data": False},

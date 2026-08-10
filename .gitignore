@@ -16,3 +16,4 @@ data/exploration/*.json
 data/tessdata/
 .venv/
 venv/
+kitaplar/*.pdf

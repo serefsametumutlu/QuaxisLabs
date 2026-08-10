@@ -656,6 +656,84 @@ def test_build_bank_card_context_valuation_sadece_fk_pddd() -> None:
     assert set(context["valuation"]) == {"piyasa_degeri", "fk", "pd_dd"}
 
 
+# --- build_financing_card_context (Tasarruf Finansman Şirketi/XI_29K, orn. KTLEV) -----------------------------------------------------
+
+_FINANSMAN_LATEST = (2026, 3)
+_FINANSMAN_YOY_PRIOR = (2025, 3)
+
+
+def _financing_donem(financing_revenue, operating_expenses, net_operating_profit, net_income,
+                      cash, overdue_receivables, total_assets, equity) -> dict:
+    return {
+        "financing_revenue": Decimal(financing_revenue), "financing_revenue_cum": Decimal(financing_revenue),
+        "operating_expenses": Decimal(operating_expenses), "operating_expenses_cum": Decimal(operating_expenses),
+        "net_operating_profit": Decimal(net_operating_profit), "net_operating_profit_cum": Decimal(net_operating_profit),
+        "net_income": Decimal(net_income), "net_income_cum": Decimal(net_income),
+        "cash": Decimal(cash), "overdue_receivables": Decimal(overdue_receivables),
+        "total_assets": Decimal(total_assets), "equity": Decimal(equity),
+    }
+
+
+def _gercek_finansman_finansallari() -> calculator.FinancialsByPeriod:
+    return {
+        _FINANSMAN_LATEST: _financing_donem(4033, -1726, 4763, 3361, 5012, 131, 56679, 15819),
+        _FINANSMAN_YOY_PRIOR: _financing_donem(2884, -1200, 3300, 1109, 3600, 60, 25000, 6567),
+    }
+
+
+def test_build_financing_card_context_sector_template_finansman() -> None:
+    analiz = calculator.analyze_financing("KTLEV", _gercek_finansman_finansallari())
+    skor = scorer.score_financing(analiz)
+    context = card.build_financing_card_context(analiz, skor, _ornek_commentary())
+    assert context["sector_template"] == "finansman"
+    assert context["show_ebitda"] is False
+
+
+def test_build_financing_card_context_income_rows_finansman_alanlarini_icerir() -> None:
+    analiz = calculator.analyze_financing("KTLEV", _gercek_finansman_finansallari())
+    skor = scorer.score_financing(analiz)
+    context = card.build_financing_card_context(analiz, skor, _ornek_commentary())
+
+    for key in ("financing_revenue", "operating_expenses", "net_operating_profit", "net_income"):
+        assert context["income_rows"][key] is not None
+
+
+def test_build_financing_card_context_balance_rows_finansman_alanlarini_icerir() -> None:
+    analiz = calculator.analyze_financing("KTLEV", _gercek_finansman_finansallari())
+    skor = scorer.score_financing(analiz)
+    context = card.build_financing_card_context(analiz, skor, _ornek_commentary())
+
+    for key in ("cash", "overdue_receivables", "total_assets", "equity"):
+        assert context["balance_rows"][key] is not None
+
+
+def test_build_financing_card_context_charts_iki_seri_icerir() -> None:
+    analiz = calculator.analyze_financing("KTLEV", _gercek_finansman_finansallari())
+    skor = scorer.score_financing(analiz)
+    context = card.build_financing_card_context(analiz, skor, _ornek_commentary())
+
+    assert set(context["charts"]) == {"financing_revenue", "net_income"}
+
+
+def test_build_financing_card_context_valuation_sadece_fk_pddd() -> None:
+    analiz = calculator.analyze_financing("KTLEV", _gercek_finansman_finansallari())
+    skor = scorer.score_financing(analiz)
+    valuation = calculator.compute_valuation_financing(analiz, price=Decimal("46.01"), share_capital=Decimal("2070"))
+    context = card.build_financing_card_context(analiz, skor, _ornek_commentary(), valuation=valuation)
+
+    assert set(context["valuation"]) == {"piyasa_degeri", "fk", "pd_dd"}
+
+
+def test_build_financing_card_context_valuation_analysis_her_zaman_has_data_false() -> None:
+    """bkz. test_build_bank_card_context_valuation_analysis_her_zaman_has_data_false
+    ile AYNI regresyon sinifi -- sablon `valuation_analysis.has_data`'ya
+    KOSULSUZ bakiyor, anahtar EKSIK olursa Jinja UndefinedError firlatir."""
+    analiz = calculator.analyze_financing("KTLEV", _gercek_finansman_finansallari())
+    skor = scorer.score_financing(analiz)
+    context = card.build_financing_card_context(analiz, skor, _ornek_commentary())
+    assert context["valuation_analysis"] == {"has_data": False}
+
+
 # --- build_insurance_card_context (sigorta/UFRS_K) -----------------------------------------------------
 
 _INS_LATEST = (2026, 6)

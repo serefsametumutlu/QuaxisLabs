@@ -315,6 +315,47 @@ STANDARD_ITEM_MAP_KAP_UFRS_INCOME: dict[str, str] = {
 _DEPRECIATION_TAG = "ifrs-full_AdjustmentsForDepreciationAndAmortisationExpense"
 
 
+# --- Kalem esleme tablosu (SADECE XI_29K - Tasarruf Finansman Sirketi) --------
+#
+# KTLEV'in (Katilimevim Tasarruf Finansman A.S.) 2Ç26 Finansal Rapor'u
+# (disclosure_index=1645958, 10.08.2026 06:30, "Konsolide Olmayan") ile
+# CANLI dogrulandi -- kullanici raporu: "KTLEV 2Ç bilancosu geldi fakat
+# hala 1Ç bilanco geliyor" (Is Yatirim henuz islememisti, TATGD/RAYSG ile
+# AYNI gecikme deseni). Bilanco satirlari bankadaki gibi 6 kolonlu (TP/YP/
+# TOPLAM x cari/onceki) -- balance_column_count=6. TUM 4 bilanco kalemi
+# Is Yatirim'in (2025,12) donemiyle TL'YE KADAR BIREBIR eslesti (Nakit
+# 8.517.955.658, Ozkaynak 12.456.487.203, Takipteki Alacaklar 71.844.452,
+# Aktif Toplami 47.455.977.200 -- HEPSI ✅). Gelir tablosu kalemleri
+# (financing_revenue/operating_expenses/net_operating_profit) 4 kolonlu --
+# Q1(Is Yatirim'dan BILINEN) + KAP'in kendi Q2-ceyrek kolonu (indeks 2)
+# TOPLANINCA KAP'in H1 kumulatifiyle (indeks 0) BIREBIR eslesti (kesin
+# dogrulama, HER 3 gelir tablosu kalemi icin ayri ayri yapildi):
+#   - financing_revenue (I. Esas Faaliyet Gelirleri, A3A): 4.032.758.951 (Q1)
+#     + 5.172.465.863 (Q2) = 9.205.224.814 (H1) ✅
+#   - operating_expenses (II. Esas Faaliyet Giderleri, A3ACCA): -1.725.631.994
+#     + -2.060.209.377 = -3.785.841.371 ✅
+#   - net_operating_profit (VII. Net Faaliyet K/Z, A3AH = I+II+III+IV+V+VI):
+#     4.763.274.586 + 28.589.419.373 = 33.352.693.959, KAP'in TEK bir
+#     "kap-fr_OperatingProfitLoss" tag'i (I..VI'nin bilesik subtotal'i) ile
+#     BIREBIR eslesti ✅
+STANDARD_ITEM_MAP_KAP_FINANSMAN_BALANCE: dict[str, str] = {
+    "cash": "kap-fr_CashAndCashBalancesAtCentralBanks",
+    "overdue_receivables": "kap-fr_NonPerformingReceivables",
+    "total_assets": "ifrs-full_Assets",
+    "equity": "ifrs-full_Equity",
+    "share_capital": "ifrs-full_IssuedCapital",
+}
+
+STANDARD_ITEM_MAP_KAP_FINANSMAN_INCOME: dict[str, str] = {
+    "financing_revenue": "kap-fr_OperatingIncome",
+    "net_operating_profit": "kap-fr_OperatingProfitLoss",
+    "operating_expenses": "kap-fr_OperatingExpenses",
+    # "3Z" (Is Yatirim, azinlik payi DAHIL toplam) karsiligi -- "ProfitLossAttributableToOwnersOfParent"
+    # DEGIL (o "3ZA"nin karsiligidir).
+    "net_income": "ifrs-full_ProfitLoss",
+}
+
+
 # --- Kalem esleme tablosu (SADECE UFRS_K - sigorta) --------
 #
 # RAYSG'nin (Ray Sigorta) 2Ç26 Finansal Rapor'u (disclosure_index=1643198,
@@ -788,6 +829,24 @@ def fetch_latest_ufrs_financials(ticker: str) -> RawKapFinancials | None:
         return None
 
 
+def fetch_latest_financing_financials(ticker: str) -> RawKapFinancials | None:
+    """fetch_latest_xi29_financials()'in Tasarruf Finansman Sirketi (XI_29K,
+    orn. KTLEV) karsiligi -- SADECE XI_29K icin (bkz. STANDARD_ITEM_MAP_KAP_FINANSMAN_*
+    modul notu). Bilanco tablosu bankadaki gibi 6 kolonlu oldugu icin
+    parse_financial_report'a balance_column_count=6 gecirir. Uygun bir rapor
+    yoksa (veya ayristirma basarisiz olursa) None doner -- HICBIR ISTISNA
+    disariya SIZMAZ (bkz. fetch_latest_xi29_financials docstring'i, ayni ilke)."""
+    try:
+        ref = find_latest_financial_report(ticker)
+        if ref is None:
+            return None
+        html = fetch_disclosure_html(ref.disclosure_index)
+        return parse_financial_report(html, ticker, ref.disclosure_index, ref.period, balance_column_count=6)
+    except Exception as exc:  # noqa: BLE001 -- bkz. docstring: tazelik yamasi ASLA pipeline'i BLOKE ETMEMELI
+        logger.warning("%s icin KAP'tan (Tasarruf Finansman) tazelik yamasi cekilemedi (Is Yatirim verisiyle devam edilecek): %s", ticker, exc)
+        return None
+
+
 # --- Standart alan erisimi -----------------------------------------------------
 
 
@@ -843,6 +902,23 @@ def standardized_record_values_ufrs(raw: RawKapFinancials) -> dict[str, Decimal 
         out[field] = raw.balance_value(tag)
 
     for field, tag in STANDARD_ITEM_MAP_KAP_UFRS_INCOME.items():
+        out[f"{field}_cum"] = raw.income_cum_value(tag)
+        out[field] = raw.income_quarterly_value(tag)
+
+    return out
+
+
+def standardized_record_values_financing(raw: RawKapFinancials) -> dict[str, Decimal | None]:
+    """standardized_record_values()'in Tasarruf Finansman Sirketi (XI_29K)
+    karsiligi -- pipeline.py'nin _FINANSMAN_QUARTERLY_FIELDS/_FINANSMAN_STOCK_FIELDS
+    ile BIREBIR ayni alan adlarini uretir. SADECE financial_group=='XI_29K'
+    icin cagrilmali (bkz. STANDARD_ITEM_MAP_KAP_FINANSMAN_* modul notu)."""
+    out: dict[str, Decimal | None] = {}
+
+    for field, tag in STANDARD_ITEM_MAP_KAP_FINANSMAN_BALANCE.items():
+        out[field] = raw.balance_value(tag)
+
+    for field, tag in STANDARD_ITEM_MAP_KAP_FINANSMAN_INCOME.items():
         out[f"{field}_cum"] = raw.income_cum_value(tag)
         out[field] = raw.income_quarterly_value(tag)
 

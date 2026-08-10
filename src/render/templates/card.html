@@ -837,7 +837,7 @@
          tasindi (bkz. .header-stats ici not) -- ayri bir bolum/satir
          DEGIL, ince bir istatistik seridi. -->
     <div class="header-stats">
-      {% if sector_template in ["banka", "sigorta"] %}
+      {% if sector_template in ["banka", "sigorta", "finansman"] %}
       <div class="header-stat">
         <div class="header-stat-label">PİYASA DEĞERİ</div>
         <div class="header-stat-value">{{ valuation.piyasa_degeri }}</div>
@@ -893,6 +893,9 @@
   {% elif sector_template == "sigorta" %}
   {% set income_keys = ["gross_written_premiums", "net_premiums_earned", "technical_income", "technical_balance"] %}
   {% set balance_keys = ["cash_and_financial_assets", "receivables_from_operations", "technical_provisions", "payables_from_operations"] %}
+  {% elif sector_template == "finansman" %}
+  {% set income_keys = ["financing_revenue", "operating_expenses", "net_operating_profit"] %}
+  {% set balance_keys = ["cash", "overdue_receivables", "total_assets"] %}
   {% else %}
   {% set income_keys = ["revenue", "gross_profit", "operating_profit", "ebitda"] %}
   {% set balance_keys = ["current_assets", "non_current_assets", "total_assets", "net_debt"] %}
@@ -955,6 +958,8 @@
   {% set primary_chart = charts.net_interest_income %}
   {% elif sector_template == "sigorta" %}
   {% set primary_chart = charts.gross_written_premiums %}
+  {% elif sector_template == "finansman" %}
+  {% set primary_chart = charts.financing_revenue %}
   {% else %}
   {% set primary_chart = charts.revenue %}
   {% endif %}
@@ -1003,6 +1008,9 @@
       {% elif sector_template == "sigorta" %}
       {{ mini_chart(charts.gross_written_premiums) }}
       {{ mini_chart(charts.technical_balance) }}
+      {{ mini_chart(charts.net_income) }}
+      {% elif sector_template == "finansman" %}
+      {{ mini_chart(charts.financing_revenue) }}
       {{ mini_chart(charts.net_income) }}
       {% else %}
       {{ mini_chart(charts.revenue) }}

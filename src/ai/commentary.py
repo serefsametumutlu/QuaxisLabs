@@ -385,6 +385,58 @@ def _build_user_prompt_insurance(
     return "\n".join(parts)
 
 
+def _format_ratios_financing(r: calculator.FinancingRatios) -> list[str]:
+    def pct(v):
+        return format_percent_tr(v) if v is not None else "veri yok"
+
+    return [
+        f"- Net kâr marjı (net kâr / esas faaliyet geliri): {pct(r.net_margin_current)}",
+        f"- Özkaynak kârlılığı (yıllıklandırılmış): {pct(r.roe_annualized)}",
+        f"- Aktif kârlılığı (yıllıklandırılmış): {pct(r.return_on_assets_annualized)}",
+        f"- Özkaynak/aktif oranı: {pct(r.equity_to_assets_current)}",
+    ]
+
+
+def _format_quarterly_series_financing(series: list[calculator.FinancingQuarterlySeriesPoint]) -> list[str]:
+    if not series:
+        return []
+
+    def seri(getter):
+        return " -> ".join(format_currency_short(getter(p)) if getter(p) is not None else "-" for p in series)
+
+    return [
+        f"- Esas Faaliyet Gelirleri (son {len(series)} çeyrek, eskiden yeniye): {seri(lambda p: p.financing_revenue)}",
+        f"- Net Kâr (son {len(series)} çeyrek): {seri(lambda p: p.net_income)}",
+    ]
+
+
+def _build_user_prompt_financing(
+    analysis: calculator.FinancingAnalysisResult, score: scorer.ScoreResult, disclosures: list[kap.Disclosure]
+) -> str:
+    period_str = f"{analysis.latest_period[0]}/Ç{analysis.latest_period[1] // 3}"
+    parts = [
+        f"Hisse: {analysis.ticker} (TASARRUF FİNANSMAN ŞİRKETİ)  Dönem: {period_str}",
+        "", "## Hesaplanmış Değişim Bulguları (Yıllık/Çeyreklik)",
+    ]
+    parts += [_format_finding(f) for f in analysis.findings]
+
+    parts += ["", "## Rasyolar"]
+    parts += _format_ratios_financing(analysis.ratios)
+
+    seri_lines = _format_quarterly_series_financing(analysis.quarterly_series)
+    if seri_lines:
+        parts += ["", "## Çeyreklik Seri (Trend)"] + seri_lines
+
+    parts += ["", "## Puanlama"]
+    parts += _format_score(score)
+
+    disclosure_lines = _format_disclosures(disclosures)
+    parts += ["", "## Önemli KAP Bildirimleri (son dönem)"]
+    parts += disclosure_lines if disclosure_lines else ["(Önemli bildirim yok.)"]
+
+    return "\n".join(parts)
+
+
 def _build_user_prompt(analysis: calculator.AnalysisResult, score: scorer.ScoreResult, disclosures: list[kap.Disclosure]) -> str:
     # Faz 10 (NASDAQ/ABD): analysis.currency ("TRY"|"USD", bkz.
     # calculator.AnalysisResult.currency) LLM'e gonderilen ozet metnindeki
@@ -789,6 +841,27 @@ def generate_commentary_insurance(
         return _fallback_commentary(analysis, score, disclosures)
 
     user_prompt = _build_user_prompt_insurance(analysis, score, disclosures)
+    try:
+        return _call_llm_and_parse(user_prompt)
+    except Exception as exc:
+        logger.warning("LLM yorum üretimi başarısız (%s), LLM'siz yedek moda geçiliyor.", exc)
+        return _fallback_commentary(analysis, score, disclosures)
+
+
+def generate_commentary_financing(
+    analysis: calculator.FinancingAnalysisResult,
+    score: scorer.ScoreResult,
+    disclosures: list[kap.Disclosure],
+) -> Commentary:
+    """generate_commentary()'nin Tasarruf Finansman Şirketi (XI_29K, orn.
+    KTLEV) karşılığı -- aynı sağlamlık garantisi geçerlidir; _fallback_commentary
+    SADECE analysis.findings kullandığı için (sektörden BAĞIMSIZ) değiştirilmeden
+    yeniden kullanılır."""
+    if not config.GEMINI_API_KEY:
+        logger.warning("GEMINI_API_KEY tanımlı değil, LLM'siz yedek moda geçildi.")
+        return _fallback_commentary(analysis, score, disclosures)
+
+    user_prompt = _build_user_prompt_financing(analysis, score, disclosures)
     try:
         return _call_llm_and_parse(user_prompt)
     except Exception as exc:

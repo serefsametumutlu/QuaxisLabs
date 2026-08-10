@@ -54,8 +54,8 @@ ENDPOINT = "https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Da
 PRICE_ENDPOINT = "https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/HisseTekil"
 
 # Deneme sirasi onemli: once sanayi/ticaret (en yaygin), sonra banka/sigorta,
-# sonra araci kurum.
-FINANCIAL_GROUPS: tuple[str, ...] = ("XI_29", "UFRS", "UFRS_K")
+# sonra araci kurum, en son (nadir) Tasarruf Finansman Sirketleri.
+FINANCIAL_GROUPS: tuple[str, ...] = ("XI_29", "UFRS", "UFRS_K", "XI_29K")
 
 # CANLI KULLANICI RAPORU (2026-08-04, coklu farkli hisse -- KLKIM dahil):
 # bazi sirketler icin TUM financialGroup denemeleri AYNI ANDA bos "value": []
@@ -365,6 +365,57 @@ STANDARD_ITEM_MAP_UFRS_KATILIM: dict[str, str] = {
 
 CUMULATIVE_FIELDS_UFRS_KATILIM: frozenset[str] = frozenset(
     {"interest_income", "interest_expense", "net_fee_income", "net_operating_profit", "net_income", "net_income_total"}
+)
+
+
+# --- Kalem esleme tablosu (SADECE XI_29K - Tasarruf Finansman Sirketleri) --------
+#
+# CANLI KESIF (2026-08-10, KTLEV / Katilimevim Tasarruf Finansman A.S.):
+# İş Yatırım bu sirket tipini "XI_29" DEGIL, "XI_29K" ("Seri XI No:29
+# Konsolide") financialGroup'unda donduruyor -- itemCode SIRALAMASI
+# sanayi/ticaret sirketlerinden (STANDARD_ITEM_MAP_XI_29) TAMAMEN FARKLI
+# (orn. '1A' sanayide "Donen Varliklar" iken burada "I. Nakit Degerler"),
+# bu yuzden AYRI bir harita gerekir (UFRS_KATILIM ile AYNI ilke). SADECE
+# ACIKCA/TEK ANLAMLI etiketli "toplam" nitelikli kalemler eslendi (Kural 3:
+# "Gercege Uygun Deger Farki K/Z'a Yansitilan Finansal Varliklar" gibi
+# bilesik/yorum gerektiren kalemler BILINCLI OLARAK haritaya EKLENMEDI --
+# KAP'in kendi XBRL kaydiyla (disclosure_index=1605385) net kar
+# 3.361.411.828 TL rakami BIREBIR dogrulandi, bkz. data/exploration/
+# KTLEV_XI_29K_raw_2026Q1.json).
+STANDARD_ITEM_MAP_FINANSMAN: dict[str, str] = {
+    # --- Gelir tablosu (KUMULATIF) ---
+    # NOT: alan adi kasitli olarak 'revenue' DEGIL 'financing_revenue' --
+    # sanayinin (XI_29) 'revenue' -> 'Satislar' etiketiyle FIELD_LABELS_TR'de
+    # CAKISMASIN diye (banka/sigortanin kendi 'interest_income'/
+    # 'gross_written_premiums' deseniyle AYNI ilke).
+    "financing_revenue": "A3A",  # I. Esas Faaliyet Gelirleri
+    "operating_expenses": "A3ACCA",  # II. Esas Faaliyet Giderleri (-) -- ham veride ZATEN NEGATIF
+    "other_operating_income": "A3ACCG",  # III. Diger Faaliyet Gelirleri
+    "net_operating_profit": "A3AH",  # VII. Net Faaliyet K/Z
+    "financing_expenses": "A3AE",  # IV. Finansman Giderleri (-) -- ham veride ZATEN NEGATIF
+    "pretax_profit": "A3AK",  # X. Surdurulen Faaliyetler Vergi Oncesi K/Z
+    "tax_provision": "A3AL",  # XI. Surdurulen Faaliyetler Vergi Karsiligi (-) -- ham veride ZATEN NEGATIF
+    "net_income": "3Z",  # NET DONEM KARI (ZARARI) -- azinlik payi dahil TOPLAM
+    # --- Bilanco (STOK) ---
+    "cash": "1A",  # I. Nakit Degerler
+    "overdue_receivables": "A1AH",  # VII. Takipteki Alacaklar
+    "total_assets": "A1AK",  # AKTIF TOPLAMI
+    "equity": "2N",  # Ozkaynaklar (toplam, azinlik payi dahil)
+    "share_capital": "2OA",  # 13.1 Odenmis Sermaye
+}
+
+# Bu sablonda gelir tablosu kalemleri (XI_29/UFRS'deki gibi) kumulatiftir.
+CUMULATIVE_FIELDS_FINANSMAN: frozenset[str] = frozenset(
+    {
+        "financing_revenue",
+        "operating_expenses",
+        "other_operating_income",
+        "net_operating_profit",
+        "financing_expenses",
+        "pretax_profit",
+        "tax_provision",
+        "net_income",
+    }
 )
 
 
@@ -1031,6 +1082,46 @@ def technical_provisions_ufrs_k(raw: RawFinancials, period: Period) -> Decimal |
     if current is None and noncurrent is None:
         return None
     return (current or Decimal(0)) + (noncurrent or Decimal(0))
+
+
+# --- Standart alan erisimi (SADECE XI_29K - Tasarruf Finansman Sirketleri) -----------------------------------------------------
+
+
+def _require_financing(raw: RawFinancials) -> None:
+    if raw.financial_group != "XI_29K":
+        raise UnsupportedFinancialGroupError(
+            f"'{raw.financial_group}' financialGroup semasi icin Tasarruf Finansman Sirketi alan "
+            "eslemesi tanimlanmadi (su an sadece XI_29K icin dogrulandi -- KTLEV ile canli test edildi)."
+        )
+
+
+def standardized_value_financing(raw: RawFinancials, field_name: str, period: Period) -> Decimal | None:
+    """standardized_value()'nin Tasarruf Finansman Sirketi (XI_29K) karsiligi.
+    HAM (kumulatif olabilen) degeri doner -- gider/vergi kalemleri ham
+    veride ZATEN NEGATIF geldigi icin (sanayi/bankadaki 'interest_expense'
+    ozel donusumunun AKSINE) burada isaret cevrimi YAPILMAZ."""
+    _require_financing(raw)
+    item_code = STANDARD_ITEM_MAP_FINANSMAN.get(field_name)
+    if item_code is None:
+        raise KeyError(f"Bilinmeyen Tasarruf Finansman Sirketi alan adi: '{field_name}'")
+    return raw.value(item_code, period)
+
+
+def quarterly_standardized_value_financing(raw: RawFinancials, field_name: str, period: Period) -> Decimal | None:
+    """quarterly_standardized_value()'nin Tasarruf Finansman Sirketi (XI_29K) karsiligi."""
+    _require_financing(raw)
+    item_code = STANDARD_ITEM_MAP_FINANSMAN.get(field_name)
+    if item_code is None:
+        raise KeyError(f"Bilinmeyen Tasarruf Finansman Sirketi alan adi: '{field_name}'")
+
+    item = raw.items.get(item_code)
+    if item is None:
+        return None
+
+    if field_name not in CUMULATIVE_FIELDS_FINANSMAN:
+        return item.values_by_period.get(period)
+
+    return quarterly_value_from_cumulative(item.values_by_period, period)
 
 
 # --- Gunluk kapanis fiyati -----------------------------------------------------

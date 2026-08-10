@@ -747,6 +747,43 @@ def test_kap_patch_records_for_xi29_onceki_ceyrek_verisi_yoksa_turetmez(monkeypa
     assert by_field["depreciation_amortization_cum"] == Decimal("150")
 
 
+def test_kap_patch_records_for_xi29_olceksiz_hata_reddedilir(monkeypatch) -> None:
+    """CANLI hata (kullanici raporu, AHSGY, 2026-08-10 -- KRITIK): KAP
+    disclosure'inin 'Sunum Para Birimi' basligi (orn. '1.000.000 TL') ile
+    gomulu ham XBRL rakami TUTARSIZ olabiliyor -- total_assets Is Yatirim'in
+    son bilinen donemine gore 1.000.000x gibi gercek disi bir sicrama
+    gosterirse (AHSGY'de Nakit '1 katrilyon TL'ye sicramisti) TUM KAP yamasi
+    reddedilmeli, Is Yatirim'in eski ama TUTARLI verisiyle devam edilmeli
+    (bkz. 06_BILINEN_SORUNLAR.md #49)."""
+    from datetime import datetime as dt
+
+    ref = kap_financials.FinancialReportRef(
+        disclosure_index=1, year=2026, kap_period=2, publish_date=dt(2026, 8, 9, 21, 35)
+    )
+    raw_kap = kap_financials.RawKapFinancials(
+        ticker="AHSGY", disclosure_index=1, period=(2026, 6), balance_sheet_items={}, income_statement_items={},
+    )
+    monkeypatch.setattr(kap_financials, "find_latest_financial_report", lambda ticker, days=365: ref)
+    monkeypatch.setattr(kap_financials, "fetch_latest_xi29_financials", lambda ticker: raw_kap)
+    monkeypatch.setattr(
+        kap_financials, "standardized_record_values",
+        # gercek AHSGY hatasindaki gibi ~x1.000.000 olcek hatasi
+        lambda raw: {"total_assets": Decimal("13832643300000000"), "equity": Decimal("10704485200000")},
+    )
+
+    raw_isyatirim = isyatirim.RawFinancials(
+        ticker="AHSGY", company_code="AHSGY", financial_group="XI_29", periods=[(2026, 3)],
+        items={
+            "1BL": isyatirim.FinancialItem(item_code="1BL", description_tr="TOPLAM VARLIKLAR", values_by_period={(2026, 3): Decimal("12900000000")}),
+        },
+    )
+
+    records, patch_period = pipeline._kap_patch_records_for_xi29("AHSGY", (2026, 3), raw_isyatirim)
+
+    assert records == []
+    assert patch_period is None
+
+
 # --- _kap_patch_records_for_ufrs (banka) -----------------------------------------------------
 
 
@@ -767,7 +804,8 @@ def test_kap_patch_records_for_ufrs_daha_yeni_donem_bulunca_yamalar(monkeypatch)
         lambda raw: {"loans": Decimal("2182361000000"), "interest_income": None},
     )
 
-    records, patch_period = pipeline._kap_patch_records_for_ufrs("YKBNK", (2026, 3))
+    bos_raw_ufrs = isyatirim.RawFinancials(ticker="YKBNK", company_code="YKBNK", financial_group="UFRS", periods=[], items={})
+    records, patch_period = pipeline._kap_patch_records_for_ufrs("YKBNK", (2026, 3), bos_raw_ufrs)
 
     assert patch_period == (2026, 6)
     assert records == [(2026, 6, "loans", pipeline.calculator.FIELD_LABELS_TR["loans"], Decimal("2182361000000"))]
@@ -776,7 +814,8 @@ def test_kap_patch_records_for_ufrs_daha_yeni_donem_bulunca_yamalar(monkeypatch)
 def test_kap_patch_records_for_ufrs_daha_yeni_donem_yoksa_bos_doner(monkeypatch) -> None:
     monkeypatch.setattr(kap_financials, "find_latest_financial_report", lambda ticker, days=365: None)
 
-    records, patch_period = pipeline._kap_patch_records_for_ufrs("YKBNK", (2026, 3))
+    bos_raw_ufrs = isyatirim.RawFinancials(ticker="YKBNK", company_code="YKBNK", financial_group="UFRS", periods=[], items={})
+    records, patch_period = pipeline._kap_patch_records_for_ufrs("YKBNK", (2026, 3), bos_raw_ufrs)
 
     assert records == []
     assert patch_period is None
@@ -788,7 +827,100 @@ def test_kap_patch_records_for_ufrs_hata_pipeline_i_dusurmez(monkeypatch) -> Non
 
     monkeypatch.setattr(kap_financials, "find_latest_financial_report", raise_error)
 
-    records, patch_period = pipeline._kap_patch_records_for_ufrs("YKBNK", (2026, 3))
+    bos_raw_ufrs = isyatirim.RawFinancials(ticker="YKBNK", company_code="YKBNK", financial_group="UFRS", periods=[], items={})
+    records, patch_period = pipeline._kap_patch_records_for_ufrs("YKBNK", (2026, 3), bos_raw_ufrs)
+
+    assert records == []
+    assert patch_period is None
+
+
+def test_kap_patch_records_for_ufrs_olceksiz_hata_reddedilir(monkeypatch) -> None:
+    """CANLI hata (AHSGY, 06_BILINEN_SORUNLAR.md #49) ile AYNI sinif: KAP'tan
+    gelen total_assets, Is Yatirim'in bilinen son donemine gore olceksiz
+    (>50x) bir sicrama gosterirse yama reddedilmeli (banka yolu icin de)."""
+    from datetime import datetime as dt
+
+    ref = kap_financials.FinancialReportRef(
+        disclosure_index=1, year=2026, kap_period=2, publish_date=dt(2026, 7, 31, 8, 1)
+    )
+    raw_kap = kap_financials.RawKapFinancials(
+        ticker="YKBNK", disclosure_index=1, period=(2026, 6), balance_sheet_items={}, income_statement_items={},
+    )
+    monkeypatch.setattr(kap_financials, "find_latest_financial_report", lambda ticker, days=365: ref)
+    monkeypatch.setattr(kap_financials, "fetch_latest_ufrs_financials", lambda ticker: raw_kap)
+    monkeypatch.setattr(
+        kap_financials, "standardized_record_values_ufrs",
+        lambda raw: {"total_assets": Decimal("5000000000000000")},  # olcek hatasiyla sise (1000x)
+    )
+    raw_isyatirim = isyatirim.RawFinancials(
+        ticker="YKBNK", company_code="YKBNK", financial_group="UFRS", periods=[(2026, 3)],
+        items={"1Z": isyatirim.FinancialItem(item_code="1Z", description_tr="AKTIF TOPLAMI", values_by_period={(2026, 3): Decimal("5000000000000")})},
+    )
+
+    records, patch_period = pipeline._kap_patch_records_for_ufrs("YKBNK", (2026, 3), raw_isyatirim)
+
+    assert records == []
+    assert patch_period is None
+
+
+# --- _kap_patch_records_for_financing (Tasarruf Finansman Şirketi/XI_29K) -----------------------------------------------------
+
+
+def test_kap_patch_records_for_financing_daha_yeni_donem_bulunca_yamalar(monkeypatch) -> None:
+    """CANLI hata (kullanici raporu, KTLEV, 2026-08-10): "2Ç bilancosu geldi
+    fakat hala 1Ç bilanco geliyor" -- Is Yatirim henuz islememisti, KAP'ta
+    ZATEN vardi (TATGD/RAYSG ile AYNI gecikme deseni)."""
+    from datetime import datetime as dt
+
+    ref = kap_financials.FinancialReportRef(
+        disclosure_index=1645958, year=2026, kap_period=2, publish_date=dt(2026, 8, 10, 6, 30)
+    )
+    raw_kap = kap_financials.RawKapFinancials(
+        ticker="KTLEV", disclosure_index=1645958, period=(2026, 6),
+        balance_sheet_items={}, income_statement_items={},
+    )
+    monkeypatch.setattr(kap_financials, "find_latest_financial_report", lambda ticker, days=365: ref)
+    monkeypatch.setattr(kap_financials, "fetch_latest_financing_financials", lambda ticker: raw_kap)
+    monkeypatch.setattr(
+        kap_financials, "standardized_record_values_financing",
+        lambda raw: {"total_assets": Decimal("92864809644"), "equity": Decimal("34358266265")},
+    )
+
+    raw_isyatirim = isyatirim.RawFinancials(
+        ticker="KTLEV", company_code="KTLEV", financial_group="XI_29K", periods=[(2026, 3)],
+        items={"A1AK": isyatirim.FinancialItem(item_code="A1AK", description_tr="AKTIF TOPLAMI", values_by_period={(2026, 3): Decimal("56679474844")})},
+    )
+
+    records, patch_period = pipeline._kap_patch_records_for_financing("KTLEV", (2026, 3), raw_isyatirim)
+
+    assert patch_period == (2026, 6)
+    by_field = {code: value for (_y, _p, code, _n, value) in records}
+    assert by_field["total_assets"] == Decimal("92864809644")
+
+
+def test_kap_patch_records_for_financing_olceksiz_hata_reddedilir(monkeypatch) -> None:
+    """bkz. test_kap_patch_records_for_ufrs_olceksiz_hata_reddedilir ile AYNI
+    regresyon sinifi -- finansman yolu icin de."""
+    from datetime import datetime as dt
+
+    ref = kap_financials.FinancialReportRef(
+        disclosure_index=1, year=2026, kap_period=2, publish_date=dt(2026, 8, 10, 6, 30)
+    )
+    raw_kap = kap_financials.RawKapFinancials(
+        ticker="KTLEV", disclosure_index=1, period=(2026, 6), balance_sheet_items={}, income_statement_items={},
+    )
+    monkeypatch.setattr(kap_financials, "find_latest_financial_report", lambda ticker, days=365: ref)
+    monkeypatch.setattr(kap_financials, "fetch_latest_financing_financials", lambda ticker: raw_kap)
+    monkeypatch.setattr(
+        kap_financials, "standardized_record_values_financing",
+        lambda raw: {"total_assets": Decimal("56679474844000000")},  # olcek hatasiyla sise (1.000.000x)
+    )
+    raw_isyatirim = isyatirim.RawFinancials(
+        ticker="KTLEV", company_code="KTLEV", financial_group="XI_29K", periods=[(2026, 3)],
+        items={"A1AK": isyatirim.FinancialItem(item_code="A1AK", description_tr="AKTIF TOPLAMI", values_by_period={(2026, 3): Decimal("56679474844")})},
+    )
+
+    records, patch_period = pipeline._kap_patch_records_for_financing("KTLEV", (2026, 3), raw_isyatirim)
 
     assert records == []
     assert patch_period is None

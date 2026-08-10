@@ -509,6 +509,47 @@ def test_score_insurance_fiyat_verisiyle_cokmez(saglikli_analiz) -> None:
     assert Decimal("0") <= sonuc.total_score <= Decimal("10")
 
 
+# --- score_financing() (Tasarruf Finansman Şirketi/XI_29K, orn. KTLEV) -----------------------------------------------------
+
+
+def _saglikli_finansman_analiz() -> calculator.FinancingAnalysisResult:
+    financials = {
+        (2026, 3): {
+            "financing_revenue": Decimal("4033"), "financing_revenue_cum": Decimal("4033"),
+            "operating_expenses": Decimal("-1726"), "operating_expenses_cum": Decimal("-1726"),
+            "net_operating_profit": Decimal("4763"), "net_operating_profit_cum": Decimal("4763"),
+            "net_income": Decimal("3361"), "net_income_cum": Decimal("3361"),
+            "cash": Decimal("5012"), "overdue_receivables": Decimal("131"),
+            "total_assets": Decimal("56679"), "equity": Decimal("15819"),
+        },
+    }
+    return calculator.analyze_financing("KTLEV", financials)
+
+
+def test_score_financing_agirliklar_yuzde_yuze_tamamlanir() -> None:
+    cfg = scorer.CONFIG["finansman"]
+    toplam = sum(cfg[k]["agirlik"] for k in cfg)
+    assert toplam == Decimal("100")
+
+
+def test_score_financing_fiyat_verisiyle_cokmez() -> None:
+    """score_bank/score_insurance'daki KeyError sinifiyla AYNI risk --
+    CONFIG['finansman']['degerleme'] eksik esik icerirse fiyat verisiyle
+    cokerdi. Regresyon."""
+    sonuc = scorer.score_financing(
+        _saglikli_finansman_analiz(),
+        valuation=scorer.ValuationInput(pe_ratio=Decimal("8.3"), pb_ratio=Decimal("5.7")),
+    )
+    degerleme = next(c for c in sonuc.components if c.name == "Değerleme")
+    assert degerleme.score is not None
+    assert Decimal("0") <= sonuc.total_score <= Decimal("10")
+
+
+def test_score_financing_fiyatsiz_de_cokmez() -> None:
+    sonuc = scorer.score_financing(_saglikli_finansman_analiz())
+    assert Decimal("0") <= sonuc.total_score <= Decimal("10")
+
+
 def test_score_insurance_teknik_denge_marji_trend_verildiginde_yon_belirtilir(saglikli_analiz) -> None:
     """KULLANICI RAPORU (TURSG, 2026-08-03): skor kartinda 'Teknik Denge
     Marji' HER ZAMAN 'trend verisi yok' diyordu -- score_insurance()

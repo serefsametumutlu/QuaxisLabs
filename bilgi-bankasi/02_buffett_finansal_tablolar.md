@@ -2,7 +2,7 @@
 
 ## Meta
 - **Kaynak:** `kitaplar/WARREN BUFFETT AND THE INTERPRETATION OF FINANCIAL STATEMENTS.pdf` (224 sayfa, taranmış/image-only PDF, metin katmanı yok — OCR ile çıkarıldı: PyMuPDF `get_textpage_ocr`, Tesseract, dpi=300, `language='eng'`).
-- **Bu dosyanın kapsamı:** "GELİR TABLOSU" (Böl.7-20, s.45-88), "BİLANÇO" (Böl.21-42, s.89-146), "ÖZKAYNAKLAR" (Böl.43-49, s.147-165) VE "NAKİT AKIŞ TABLOSU" (Böl.50-52, s.168-179) ana kısımları. Değerleme (Böl.53-57) bölümü SONRAKİ turda bu dosyaya eklenecek.
+- **Bu dosyanın kapsamı: TAMAMLANDI.** "GELİR TABLOSU" (Böl.7-20, s.45-88), "BİLANÇO" (Böl.21-42, s.89-146), "ÖZKAYNAKLAR" (Böl.43-49, s.147-165), "NAKİT AKIŞ TABLOSU" (Böl.50-52, s.168-179) VE "DEĞERLEME" (Böl.53-57, s.182-196 + Appendix model şirket karşılaştırması s.198-201) — kitabın TÜM ana içerik bölümleri işlendi. Terimler Sözlüğü (s.201-210) bilinçli olarak ATLANDI (sadece tanım niteliğinde, orijinal kural/eşik kaynağı değil).
 - **ID numaralandırması dosya genelinde KESİNTİSİZDİR** (İLKE/FORMÜL/BAYRAK bölümler arası devam eder); Eşik tablosu ve Kontrol Listeleri her ana kısım için ayrı/yeni numaralanır (bunlar referans amaçlı, çapraz atıf gerektirmiyor).
 - **İşlenen bölümler:**
   - Böl.7 Gelir Tablosuna Giriş (s.45-47)
@@ -22,6 +22,10 @@
 - **OCR notu:** Bölüm gövde metinleri (rakam/eşik içeren cümleler) yüksek güvenilirlikte okundu. Sadece Bölüm 12'deki (SG&A) Ford örneği tam netleştirilemedi — aşağıda ilgili satırda işaretlendi. Bölüm 7'nin örnek gelir tablosu (hayali/didaktik sayılar) OCR'da bazı rakamları harfe çevirmiş (örn. "700"→"FOO"); bu tablo gerçek bir şirket verisi olmadığından ve iç toplamları da tutmadığından (muhtemelen orijinal baskıda bile sadeleştirilmiş öğretici örnek) eşik/formül kaynağı olarak KULLANILMADI, sadece yapısal referans (hangi kalem hangi sırada) olarak değerlendirildi.
 
 ---
+
+# GELİR TABLOSU (Bölüm 7-20, PDF s.45-88)
+
+*(Bu ilk ana kısmın "İşlenen bölümler" ve "OCR notu" listesi yukarıdaki Meta bölümünde yer alıyor — sonraki dört ana kısımdan farklı olarak ayrı bir alt başlık altında tekrarlanmadı, kitabın İLK işlenen kısmı olduğu için Meta ile birleşik yazıldı.)*
 
 ## İlkeler
 
@@ -468,3 +472,121 @@ Bölüm 49 sonunda (PDF s.166) "PART FOUR: THE CASH FLOW STATEMENT" bölüm-ayı
 4. `operating_cash_flow` (4C) ham verisi ZATEN mevcut olduğundan, capex verisi olmadan bile DÜŞÜK MALİYETLİ bir ara adım eklenebilir: "Faaliyetlerden Nakit Akışı Marjı" (=operating_cash_flow/revenue) veya "Nakit Kâr Kalitesi" (=operating_cash_flow/net_income, ideal ~1'e yakın veya üzerinde) — tam Buffett formülü değil ama düşük maliyetle nakit-kalite sinyali sağlar.
 5. OCR notu: Ch52'nin (s.179) "Issuance (Retirement) of Stock, Net kalemini bulmak için Yatırım Faaliyetleri'ne bakın" ifadesi, Ch50'nin (s.171) kendi tablosuyla ÇELİŞİYOR (orada aynı kalem Finansman Faaliyetleri altında) — muhasebe standardı da Finansman tarafını doğrular; bu OCR hatası olarak işaretlendi, dosyada Ch50'nin sınıflandırması esas alındı (bkz. yukarıdaki "OCR notu").
 6. Bu bölümdeki didaktik örnek nakit akış tablosu (Net Kâr $5.981mn, Toplam Faaliyet NA $7.269mn, Toplam Yatırım NA -$6.719mn, Toplam Finansman NA $973mn, Net Değişim $1.523mn) — Gelir Tablosu/Bilanço bölümlerindeki örnek tablolardan FARKLI OLARAK bu kez toplamlar birbirini TUTARLI şekilde doğruluyor (aritmetik kontrol edildi: 7.269-6.719+973=1.523 ✓) — yine de gerçek/isimlendirilmiş bir şirkete ait olmadığından eşik tablosuna KAYNAK YAPILMADI, sadece formül yapısını doğrulamak için kullanıldı.
+
+---
+---
+
+# DEĞERLEME (Bölüm 53-57, PDF s.182-196)
+
+## İşlenen bölümler (bu ana kısım)
+- Böl.53 Warren'ın Devrimci Fikri: Equity Bond ve Onu Nasıl Süper Zengin Ettiği (s.182-186)
+- Böl.54 Dayanıklı Rekabet Avantajının Yarattığı Sürekli Artan Getiri (s.187-188)
+- Böl.55 Dayanıklı Rekabet Avantajlı Şirketi Değerlemenin Diğer Yolları (s.189-191)
+- Böl.56 Warren Fantastik Bir İşi Almanın Doğru Zamanını Nasıl Belirler (s.192-193)
+- Böl.57 Warren Satış Zamanını Nasıl Belirler (s.194-196)
+
+**Sınır doğrulaması:** Bölüm 57 PDF s.196'da bitiyor; s.197 boş, Appendix PDF s.198'de başlıyor (Model Bilanço/Gelir Tablosu karşılaştırması, aşağıda ayrı ele alındı), Terimler Sözlüğü ~s.201'den itibaren başlıyor (OCR ile ayrıca doğrulanmadı, sadece TOC'tan biliniyor).
+
+**OCR notu / düzeltme:** Bu ana kısımdaki TÜM bölüm başlıkları OCR'da hatalı rakamlarla okundu — s.182 "CHAPTER 43" (doğrusu 53), s.187 "CHAPTER 454" (doğrusu 54), s.189 "CHAPTER 45" (doğrusu 55), s.192 "CHAPTER 456" (doğrusu 56), s.194 "CHAPTER 47" (doğrusu 57). İçindekiler tablosuyla (bu kitabın ilk turunda çıkarılan TOC) çapraz kontrol edilerek TÜMÜ düzeltildi — bu, kitap boyunca tekrarlayan bir OCR zaafı (küçük puntolu bölüm numaralarında rastgele fazladan/eksik rakam ekleme), gövde metninin GÜVENİLİRLİĞİNİ ETKİLEMİYOR. Sayısal eşiklerde (fiyat/HBK/getiri rakamları) OCR belirsizliği YOK — tüm rakamlar en az bir aritmetik çapraz kontrolden geçirildi (örn. Coca-Cola $3,96÷$6,50=%60,9 ≈ kitabın belirttiği "%60" ile tutarlı).
+
+---
+
+## İlkeler (devam)
+
+- **İLKE-52:** "Equity Bond" kavramı — dayanıklı rekabet avantajlı bir şirketin hisseleri, kuponu (vergi öncesi kâr, TEMETTÜ DEĞİL) her yıl ARTAN bir tahvil gibi düşünülebilir; Warren şirketleri "ucuz mu değil mi" diye değil, "bugün bana sunulan başlangıç getiri oranı nedir ve ne hızla büyüyecek" diye değerlendirir. (s.182-183)
+- **İLKE-53:** Bu model, Graham tarzı değer yatırımcılığından KÖKTEN FARKLIDIR — Graham'cılar sadece piyasa fiyatının "içsel değerin" altında olup olmadığına bakar ve birkaç yıldan fazla tutmayı düşünmez; Warren ise 20+ yıllık ufuklarla, kuponun (kazancın) ZAMAN İÇİNDE nasıl büyüyeceğine odaklanır. (s.183-184)
+- **İLKE-54:** Elde tutma süresi UZADIKÇA, orijinal maliyet üzerinden elde edilen getiri (yield on cost) matematiksel olarak ARTAR — bu, Warren'ın onlarca yıl elde tutma stratejisinin doğrudan gerekçesidir (Washington Post, Coca-Cola, Moody's, American Express, P&G, See's Candy vaka analizleriyle gösteriliyor). (s.184-188)
+- **İLKE-55:** Uzun vadede borsa, dayanıklı rekabet avantajlı şirketlerin hisselerini, kazançlarını GÜNCEL UZUN VADELİ TAHVİL FAİZ ORANIYLA kapitalize ederek fiyatlandırma eğilimindedir — kısa vadede aşırı iyimser veya kötümser olabilir ama uzun vadede "yerçekimi" gibi bu değere geri döner. (s.186, s.190-191)
+- **İLKE-56:** Faiz oranları DÜŞTÜĞÜNDE bir kazanç akışı DAHA FAZLA borcu destekleyebilir hale gelir, bu da şirketi (özellikle LBO hedefi olarak) DAHA DEĞERLİ kılar; faiz oranları YÜKSELDİĞİNDE ise tam tersi olur — bu mekanizma "equity bond" değerini uzun vadeli faiz oranlarına BAĞLAR. (s.186)
+- **İLKE-57:** Ödediğiniz FİYAT, başlangıç getirinizi VE dolayısıyla uzun vadeli bileşik getirinizi DOĞRUDAN belirler — aynı işin aynı ekonomik performansı için bile, DÜŞÜK fiyattan alım köklü şekilde daha yüksek uzun-vadeli getiri sağlar (Coca-Cola $6,50 vs varsayımsal $21 örneğiyle gösteriliyor). (s.192-193)
+- **İLKE-58:** Dayanıklı rekabet avantajlı şirketler NADİREN Graham tarzı "ucuz" fiyatlardan işlem görür — bu yüzden katı Graham disiplinini izleyen klasik değer yatırımcıları bu şirketleri NEREDEYSE HİÇ satın almaz (yapısal bir uyumsuzluk). (s.193)
+- **İLKE-59:** Varsayılan (default) kural: dayanıklı rekabet avantajını KORUDUĞU sürece bu tür bir işi SATMA — ne kadar uzun tutarsan o kadar iyi sonuç alırsın VE satış, ERTELENMİŞ sermaye kazancı vergisini TETİKLER (değer yıkıcı bir olay). (s.194)
+- **İLKE-60:** Satış için SADECE 3 meşru gerekçe vardır: (1) daha iyi bir fırsata sermaye aktarma ihtiyacı, (2) şirketin dayanıklı rekabet avantajını KAYBETMEKTE olduğuna dair kanıt (örn. internet nedeniyle gazete/TV yayıncıları), (3) boğa piyasası çılgınlığında fiyatın işin uzun-vadeli ekonomik gerçekliğini ÇOK AŞMASI. (s.194-195)
+- **İLKE-61:** Satış kararı, elde tutmaya devam etmenin BEKLENEN GETİRİSİ ile satış gelirini ALTERNATİF bir yatırımda yeniden yatırmanın BEKLENEN GETİRİSİ karşılaştırılarak verilmelidir — karar tamamen ULAŞILABİLİR yeniden-yatırım oranına bağlıdır. (s.195-196)
+
+---
+
+## Formüller (devam)
+
+| # | Formül | QuaxisLabs karşılığı |
+|---|---|---|
+| **FORMÜL-30** Başlangıç Equity Bond Getirisi = Alım/Güncel Fiyattaki Vergi Öncesi HBK / Fiyat (s.183-184) | **KISMEN MEVCUT.** `calculator.ValuationMetrics.pe_ratio` (`market_cap/ttm_net_income`, VERGİ SONRASI) zaten hesaplanıyor; bunun TERSİ (1/F-K) vergi SONRASI bir "kazanç getirisi" verir — kitabın istediği VERGİ ÖNCESİ versiyon için `income_before_tax` gerekir (Gelir Tablosu turunda tespit edilen FORMÜL-06 eksikliğinin TEKRARI). |
+| **FORMÜL-31** Maliyet Üzerinden Güncel Getiri (Yield on Cost) = Güncel HBK / Orijinal Alım Fiyatı (s.184-188) | **KAPSAM DIŞI.** Bu formül YATIRIMCIYA ÖZGÜ tarihsel alım fiyatını (portföy/maliyet verisi) gerektirir — şirket temel verisi DEĞİLDİR, QuaxisLabs'ın (temel analiz motoru, portföy takip aracı DEĞİL) fetcher katmanının doğal kapsamı dışındadır. Bu bir "eksiklik" değil, bilinçli bir kapsam sınırıdır. |
+| **FORMÜL-32** Tahvil-Kapitalizasyonu Yöntemiyle İçsel Değer = Vergi Öncesi HBK / Güncel Uzun Vadeli Kurumsal Tahvil Faiz Oranı (s.186, 190-191) | **KISMEN MEVCUT (dolaylı) — ÖNEMLİ BULGU.** `src/analysis/valuation.py` içinde `_RISK_FREE_RATE_PCT = {"TRY": 32, "USD": 4.3}` SABİT (hardcoded) risksiz faiz varsayımları ZATEN tanımlı ve Damodaran FCFE modelinde özkaynak maliyeti hesaplamasında kullanılıyor — kitabın "uzun vadeli tahvil oranı" kavramına en yakın MEVCUT veri noktası budur. Farklar: (a) bu CANLI/güncel piyasa tahvil verisi DEĞİL, statik bir varsayım; (b) `income_before_tax` (vergi öncesi HBK) eksikliği burada da geçerli. |
+| **FORMÜL-33** Projeksiyonlu/İskonto Edilmiş Büyüme Değerlemesi (s.189-191) | **MEVCUT (dolaylı, DAHA GELİŞMİŞ bir model ile) — POZİTİF BULGU.** `valuation.py`'nin **Aswath Damodaran "İstikrarlı Büyüme FCFE" modeli** (`compute_valuation_assessment()` → `damodaran_fair_value_price`) TAM OLARAK bu amaca hizmet ediyor: `Özkaynak Değeri = FCFE × (1+g) / (r−g)` (Gordon büyüme modeli), `r = risksiz_faiz + özkaynak_risk_primi` (CAPM), `g` = TTM hasılat büyümesi (ROE-tabanlı bir tavanla sınırlı). Bu, kitabın basit "büyümeyi projekte et, F/K ile ölçekle" yönteminden DAHA RİGÖRÖZDÜR. Aynı dosyada ayrıca **Benjamin Graham Sayısı** (`graham_fair_value_price`, F/K×PD/DD≤22,5 kuralı) ve **Peter Lynch PEG Oranı** (`peg_ratio`) da bağımsız/tamamlayıcı değerleme sinyalleri olarak MEVCUT. |
+| **FORMÜL-34** Satış Zamanı Eşiği = F/K ≥ ~40 (s.196) | **KISMEN MEVCUT.** `pe_ratio` zaten hesaplanıyor (`calculator.py`) ama kitabın MUTLAK "F/K≥40 ise sat" kuralı `valuation.py`'de UYGULANMAMIŞ — orada SADECE sektör-göreli ucuz/pahalı değerlendirmesi var (`_CHEAP_THRESHOLD_PCT`/`_EXPENSIVE_THRESHOLD_PCT`), mutlak bir tavan YOK. Ham veri hazır olduğundan, basit bir mutlak-eşik uyarısı ("F/K 40 üzerinde — Buffett'ın satış sinyali bölgesi") düşük maliyetle eklenebilir. |
+| **FORMÜL-35** Elde Tutma vs Satış Kararı = Satış Geliri × (1+Alternatif Yeniden Yatırım Oranı)^Yıl karşılaştırması (s.195-196) | **KAPSAM DIŞI.** FORMÜL-31 gibi, bu da yatırımcının KENDİ alternatif getiri varsayımına dayanır — şirket temel verisiyle hesaplanacak bir gösterge değildir. |
+
+---
+
+## Eşikler — Değerleme (tablo)
+
+| Gösterge | Değer | Yorum | Örnek şirketler | Sayfa |
+|---|---|---|---|---|
+| Equity Bond Başlangıç Getirisi (vergi öncesi) | %10,7 | Warren'ın 1980'ler sonu alımı | Coca-Cola: $6,50/hisse fiyat, $0,70/hisse vergi öncesi HBK | s.184 |
+| Maliyet Üzerinden Güncel Getiri (2007, ~20 yıl tutma) | %60 (vergi öncesi) / %40 (vergi sonrası) | Uzun tutmanın getirisi | Coca-Cola ($6,50 maliyet → 2007: $3,96/$2,57 HBK) | s.185, 190-191 |
+| Maliyet Üzerinden Güncel Getiri (2007, 34 yıl tutma) | %849 (vergi öncesi) / %534 (vergi sonrası) | ÇOK uzun tutmanın etkisi (en çarpıcı örnek) | Washington Post Co. ($6,36 maliyet → 2007: $54/$34 HBK) | s.184-185 |
+| Maliyet Üzerinden Güncel Getiri (~9 yıl tutma) | %25 (vergi sonrası) / %38 (vergi öncesi) | — | Moody's ($10,38 maliyet → $2,58 vergi sonrası HBK) | s.187 |
+| Maliyet Üzerinden Güncel Getiri (10 yıl tutma) | %40 (vergi sonrası) / %61 (vergi öncesi) | — | American Express ($8,48 maliyet → $3,39 vergi sonrası HBK) | s.187 |
+| Maliyet Üzerinden Güncel Getiri (~9 yıl tutma) | %32 (vergi sonrası) / %49 (vergi öncesi) | — | Procter & Gamble ($10,15 maliyet → $3,31 vergi sonrası HBK) | s.188 |
+| Maliyet Üzerinden Güncel Getiri (35 yıl tutma) | %328 (vergi öncesi) | Bütün şirket satın alma örneği | See's Candy ($25mn maliyet, 1972 → $82mn yıllık vergi öncesi kâr, 2007) | s.188 |
+| Tahvil-Kapitalizasyon Değeri vs Gerçek Piyasa Fiyatı | Model TUTARLI | Uzun vadede piyasa bu değere yakınsıyor | Washington Post: hesaplanan $830, gerçekleşen aralık $726-$885 (2007) | s.186 |
+| Tahvil-Kapitalizasyon Değeri vs Gerçek Piyasa Fiyatı | Model TUTARLI | — | Coca-Cola: hesaplanan ~$60, gerçekleşen aralık $45-$64 (2007) | s.186, 190-191 |
+| Alım Fiyatının Getiriye Etkisi | Düşük fiyat = köklü şekilde yüksek getiri | Aynı iş, aynı kazanç büyümesi, SADECE fiyat farklı | Coca-Cola: gerçek $6,50→%39,9 getiri (2007) vs varsayımsal $21→sadece %12 getiri (2007) | s.192-193 |
+| Satış Zamanı Eşiği (F/K) | ≥%40 (40x) | "Satmayı düşünmenin" tetikleyicisi | — | s.196 |
+| Satış Sonrası Yeniden Konumlanma Kuralı | Başka bir 40x hisseye GEÇME — ABD Hazine tahviline geç, bir sonraki ayı piyasasını bekle | — | — | s.196 |
+
+---
+
+## Kontrol Listesi — Değerleme (10 madde)
+
+1. Alım anındaki (veya güncel) vergi öncesi HBK/fiyat oranı (equity bond başlangıç getirisi) hesaplandı mı?
+2. Şirketin tarihsel kazanç büyüme oranı (5-10 yıl) net mi ve gelecek projeksiyonuna makul bir temel oluşturuyor mu?
+3. Güncel uzun vadeli kurumsal tahvil faiz oranıyla kapitalize edilmiş "tahvil değeri" güncel piyasa fiyatıyla ne kadar UYUMLU/UYUMSUZ?
+4. Şirket bir boğa piyasası zirvesinde mi (tarihsel yüksek F/K) yoksa bir ayı piyasasında/geçici çözülebilir bir sorun ortasında mı işlem görüyor?
+5. Fiyat düşüşünün nedeni GEÇİCİ VE ÇÖZÜLEBİLİR bir sorun mu (örn. "New Coke" tipi), yoksa rekabet avantajının KALICI erozyonuna mı işaret ediyor?
+6. F/K oranı ~40 veya üzerinde mi (potansiyel satış sinyali)?
+7. Satış düşünülüyorsa, elde edilecek nakit DAHA İYİ bir alternatife mi yönlendirilecek, yoksa aynı/benzer değerlemedeki başka bir hisseye mi?
+8. Şirketin rekabet avantajını YAPISAL OLARAK kaybettiğine dair somut kanıt var mı (sektörel yıkım, örn. internet/teknoloji değişimi)?
+9. Elde tutmaya devam etmenin vergi ERTELEME avantajı (satmamanın getirisi) hesaba katıldı mı?
+10. Alım fiyatı, aynı işin ALTERNATİF (daha yüksek) bir fiyattan alınması durumundaki getiriyle karşılaştırıldığında ne kadar avantajlı?
+
+---
+
+## Kırmızı Bayraklar (devam)
+
+- **BAYRAK-33:** Şirketin tarihsel olarak hiç veya nadiren Graham-tipi "ucuz" fiyattan işlem görmemiş olması YANLIŞLIKLA "bu hisse asla ucuz olmaz, hep pahalıdır" diye satın almaktan tamamen kaçınmaya yol açması — bu, dayanıklı rekabet avantajlı şirketleri gözden kaçırma riski taşır (Graham disiplinini KATI uygulayan yatırımcıların düştüğü yapısal tuzak). (s.193)
+- **BAYRAK-34:** Boğa piyasası zirvesinde, tarihsel olarak yüksek F/K'dan (örn. ≥40x) durable-advantage bir hisseyi SATIN ALMAK — iş kalitesi mükemmel olsa bile giriş fiyatı YATIRIMCI getirisini vasat seviyeye düşürebilir. (s.193, 196)
+- **BAYRAK-35:** Şirketin rekabet avantajının teknolojik/yapısal bir değişim nedeniyle (örn. internet) aşınmakta olduğuna dair somut belirtiler (gazete/TV örneği) — bu durumda "sonsuza dek tut" varsayılan kuralı GEÇERSİZLEŞİR, satış meşrulaşır. (s.195)
+- **BAYRAK-36:** Boğa piyasası çılgınlığında hisse fiyatının işin uzun-vadeli ekonomik gerçekliğinin ÇOK ÜZERİNE çıkması (F/K≥40 gibi) — "yerçekimi" er ya da geç fiyatı gerçek değere geri çeker, aşırı değerlenmiş pozisyonu elde tutmanın riski artar. (s.195-196)
+
+---
+
+## Ek — Appendix Model Şirket Karşılaştırması (PDF s.198-201)
+
+Kitabın Appendix'i, tüm Gelir Tablosu bölümünde öğretilen oranları TEK BİR yerde özetleyen "Dayanıklı Rekabet Avantajlı Model Şirket" ile "Vasat/Avantajsız Model Şirket" arasında tam bir bilanço + gelir tablosu karşılaştırması sunuyor. Bu şirketler İSİMSİZ/kurgusal (gerçek halka açık şirketler DEĞİL) olduğundan yukarıdaki ana eşik tablolarına dahil edilmedi, ama sayılar İÇSEL OLARAK TUTARLI (aritmetik çapraz kontrolden geçirildi — bkz. aşağıdaki not) ve kitabın tüm formüllerini TEK ÖRNEKTE doğrulayan değerli bir "kapsanış testi" sağlıyor:
+
+| Gösterge (Gelir Tablosu formülüne referans) | DCA'lı Model Şirket | DCA'sız Model Şirket |
+|---|---|---|
+| Hasılat | $28.857mn | $172.455mn |
+| Brüt Kâr Marjı (FORMÜL-01) | %63,9 | %17,3 |
+| SG&A / Brüt Kâr (FORMÜL-02) | %55,3 | %67,5 |
+| Ar-Ge / Brüt Kâr (FORMÜL-03) | %0 | %16,8 |
+| Amortisman / Brüt Kâr (FORMÜL-04) | %6,0 | %22,8 |
+| Faaliyet Kârı/(Zararı) | $7.144mn (kâr) | ($2.122mn) (ZARAR) |
+| Faiz Gideri / Faaliyet Kârı (FORMÜL-05) | %6,4 | Anlamsız — faiz gideri ($10.200mn) faaliyet zararının KENDİSİNİ bile kat kat aşıyor |
+| Net Kâr Marjı (FORMÜL-07) | %17,8 | %-6,9 (ZARAR) |
+| Toplam Yükümlülük / Özkaynak (FORMÜL-16) | ~1,0 | ~12,6 |
+
+**OCR notu (bu tabloya özel):** Bu iki tablonun ham OCR çıktısı (ilk dpi=300 turunda) rakamları bozmuştu (örn. Hasılat "$28.857" yerine "SIR B57" okundu); dpi=450'de YENİDEN OCR yapıldı VE her satır aritmetik olarak çapraz kontrol edildi (Hasılat−SMM=Brüt Kâr, Brüt Kâr−Faaliyet Giderleri=Faaliyet Kârı, vb. tutarlılığı doğrulandı — bkz. s.200-201). İki kalem HALA türetilerek (doğrudan okunamayarak) belirlendi: DCA'lı şirketin "Varlık Satış Kâr/Zararı" kalemi (aritmetikle ~$1.175mn olarak türetildi, OCR "Lays" okudu) ve DCA'sız şirketin "Diğer" kalemi (aritmetikle ~$35mn GİDER olarak türetildi, OCR "a3"/"a4" okudu) — **"(OCR belirsiz, s.200/s.201'de teyit edilmeli)"**. Bilanço tarafındaki (s.198-199) rakamlar bu turda ayrıca tam olarak ratio'lanmadı — DCA'lı model şirketin bilançosu zaten Bilanço ana kısmında (Böl.21-42) aynı rakamlarla incelenmişti; DCA'sız model şirketin bilançosu (Toplam Varlık ~$220.852mn, Toplam Yükümlülük $204.623mn, Özkaynak $16.229mn) sadece Toplam Yükümlülük/Özkaynak oranı (~12,6) için kullanıldı.
+
+---
+
+## Uygulama Notları — Değerleme
+
+1. **EN DEĞERLİ bulgu bu turda:** `src/analysis/valuation.py` dosyası, kitabın Böl.53-55'te anlattığı "equity bond" / tahvil-kapitalizasyonu / büyüme-projeksiyonu değerleme felsefesinin MODERN VE DAHA RİGÖRÖZ bir karşılığını ZATEN içeriyor — **Damodaran İstikrarlı Büyüme FCFE modeli** (Gordon büyüme formülü, CAPM tabanlı iskonto oranı), **Benjamin Graham Sayısı** ve **Peter Lynch PEG Oranı** üçü birden MEVCUT ve `compute_valuation_assessment()` fonksiyonunda birlikte çalışıyor. Bu, Özkaynaklar turundaki "ROE zaten mevcut" bulgusuna BENZER bir pozitif sürpriz — kitabın en kavramsal/soyut bölümü, QuaxisLabs'ın EN GELİŞMİŞ mevcut modülüyle örtüşüyor.
+2. Buna karşın, kitabın SPESİFİK "vergi öncesi kazancı uzun vadeli tahvil oranıyla kapitalize et" tekniği BİREBİR uygulanmamış — `valuation.py`'deki risksiz faiz oranları (`_RISK_FREE_RATE_PCT`) CANLI piyasa verisi değil, statik/hardcoded varsayımlar (TRY %32, USD %4,3) ve Damodaran modeli VERGİ SONRASI net kâr kullanıyor, kitabın istediği VERGİ ÖNCESİ kazanç değil (`income_before_tax` eksikliği — Gelir Tablosu turundan beri tekrar eden bir veri açığı, TOPLAM 3. kez farklı bir bölümde bu ihtiyacın ortaya çıkması, bu alanın EKLENMESİNİN önceliğini güçlendiriyor).
+3. Kitabın mutlak "F/K≥40 ise satış sinyali" kuralı `valuation.py`'de UYGULANMAMIŞ (orada SADECE sektöre göreli ucuz/pahalı değerlendirmesi var) — ham veri (`pe_ratio`) zaten hazır olduğundan, basit bir mutlak eşik uyarısı DÜŞÜK MALİYETLE eklenebilir; bu turun EN UCUZ kazanım önerisidir.
+4. FORMÜL-31 ve FORMÜL-35 (yatırımcının kendi maliyet/alternatif getiri varsayımına dayanan hesaplamalar) BİLİNÇLİ OLARAK "VERİ EKSİK" değil "KAPSAM DIŞI" olarak sınıflandırıldı — bunlar QuaxisLabs'ın (şirket-bazlı temel analiz motoru) doğal alanı dışında, kullanıcının KENDİ portföy/maliyet verisini gerektirir; bu ayrımın gelecekteki turlarda da (ör. Financial Shenanigans, Damodaran on Valuation kitaplarının işlenmesinde) tutarlı uygulanması önerilir.
+5. Appendix'teki model şirket karşılaştırması (yukarıdaki tablo), Gelir Tablosu bölümünde çıkarılan TÜM formülleri (FORMÜL-01…07) TEK bir örnekte doğrulayan iyi bir "entegrasyon testi" niteliğinde — ileride bu formüllerin QuaxisLabs'a eklenmesi durumunda, bu appendix tablosu birim-test senaryosu olarak da kullanılabilir (girdi: appendix rakamları, beklenen çıktı: yukarıdaki oranlar).
+6. Terimler Sözlüğü (PDF ~s.201-210) bu turda İŞLENMEDİ — TOC'tan (ilk turda çıkarılan) standart bir "Select Glossary of Terms" (finansal terimlerin tek satırlık tanımları) olduğu biliniyor; içerik orijinal/yaratıcı bir kural/formül/eşik KAYNAĞI değil, sözlük niteliğinde olduğundan görev talimatına uygun olarak ATLANDI (koordinatörün "sadece tanım niteliğindeyse atla" yönergesi gereği, OCR'lanmadı).

@@ -630,153 +630,311 @@
 7. **Faiz karşılama oranı (FORMÜL-18) sanayi/ticaret şirketleri için EN YÜKSEK eşiği (7x) taşıyor** — bu, Buffett turunda ZATEN en çok vurgulanan tekil veri açığı (faiz gideri, sanayi şirketleri için XI_29 şemasında YOK) olarak tespit edilen kalemin 3. kez farklı bir kitapta/bağlamda ortaya çıkışı — öncelik listesinde YUKARI taşınmalı.
 8. **OCR ile ilgili not:** Bu turda kalıcı bir sayısal belirsizlik YOK. Table 9-1, Table 9-2 (Manhattan Fund portföyü), Table 11-3 (kimya/petrol karşılaştırması), Table 13-1 (4 şirket özet) çok-sütunlu OKUNAMAZ tablolardı ama HİÇBİRİNDEN ham sayı kullanılmadı — sadece çevresindeki DÜZ METİNDE (Table 9-1 için "Manhattan Fund 1967 +%38,6 vs S&P +%11", Table 13-1/13-2 için Table 13-2'nin TAM okunabilen kısmı) AÇIKÇA tekrarlanan rakamlar alındı.
 
+--
+
 ---
 
 ## Kısım 4: Ch.14-15 + Commentary (s.347-446)
 
 **Chapter 14 — Stock Selection for the Defensive Investor (Graham):**
-- **İLKE-138:** Savunmacı yatırımcı için hisse seçimi, ağırlıklı olarak dışlama (exclusion) yöntemine dayanmalıdır; yetersiz kaliteye sahip hisseler ve kalitesi iyi olsa bile aşırı değerlenmiş hisseler portföye alınmamalıdır.
-- **İLKE-139:** Savunmacı portföyde yeterli ama aşırı olmayan çeşitlendirme sağlanmalıdır (minimum 10, maksimum 30 hisse senedi).
+
+- **İLKE-138:** Savunmacı yatırımcının hisse seçim yaklaşımı iki farklı yöntemin birini benimseyebilir: (1) maliyet ve çaba minimumlaştırılmış endeks portföyü (DJIA veya geniş endeks), ya da (2) Graham'ın 7 nicel kriteri uygulanarak özenle seçilmiş hisseler. Her iki yol da makul sonuçlar verir; ortadaki hiçbir yol veremez. (s.347)
+- **İLKE-139:** Graham'ın savunmacı yatırımcı için 7 kriterin “genel yorumu”: Bu kriterler iki karşıt yönde birden eleme yapar — küçük/zayıf/zararlı/temettüsüz şirketleri soldan, aşırı yüksek çarpanla işlem gören popüler şirketleri sağdan dışlar. Bu, eleman bir birim bırakmak için TASARLANMIŞ bir listedir. (s.349)
+- **İLKE-140:** Savunmacı portföyün kazanç/fiyat oranı (E/P = F/K'ın tersi) en az AA kaliteli tahvil faizine eşit veya yüksek olmalıdır. 1970 başı örneği: AA tahvil %7,5 → maksimum F/K = 13,3. (s.350; Zweig 2003 notu: AA tahvil %4,6 → maksimum F/K = 21,7)
+- **İLKE-141:** Bir portföyün ortalama çarpan hedefi: maksimum F/K sınırın yaklaşık %20 altı — Graham 15x sınırında ortalama 12-13x hedefler. Zweig 2003 güncellemesi: 17x sınırında ortalama 14x hedef. (s.350)
+- **İLKE-142:** Düşük çarpanlı hisseler (düşük F/K) kural olarak "süperşirketlerin" değil, az beğenilen/ıskalanmış ikincil şirketlerin özelliğidir; ancak bu şirketlerin hisseleri de 7-kritere göre sertifiye edilerek satın alınabilir — Graham bunu "ortalama bir F/K portföyü" hedefinin doğal sonuçu olarak görür. (s.350-351)
+- **İLKE-143:** Kamu hizmetleri (public utility) şirketleri için finansal güç kriteri farklıdır: borcuşen toplamı hisse senedişlerinin (defter değeriyle) iki katını AŞAMAMALIDIR. Sanayi şirketlerindeki "Borcu ≤ net cari varlıklar" kuralı burada geçerli değildir. (s.348)
+- **İLKE-144:** Savunmacı yatırımcı portföyü: minimum 10, maksimum 30 hisse. Alt sınır çeşitlilik gerektiriyor, üst sınır analiz kapasitesini aşıyor — her iki üst işletim serbest bırakılamaz. (s.351)
 
 **Commentary on Chapter 14 (Zweig):**
-- **İLKE-140:** Ev yanılgısı (Home bias) — İnsanlar tanıdıkları, bildikleri şirketlerin hisselerine (kendi çalıştıkları şirket veya oturdukları bölgedeki şirket) aşırı yatırım yapma eğilimindedirler. Bu "bildiğini al" mantığı portföy çeşitlendirmesini yok eder ve tehlikelidir.
+
+- **İLKE-145:** “Ev yanılması” (home bias) — Yatırımcılar tanıdıkları şirketleri (işyeri, yerel şirket, sık alınan ürlin üreticisi) fazla ağırlıklı tutarlar. Tanışıklık, kaliteyi veya ucuzluğu kanıtlamaz; çeşitlilikı yok eder. (s.382-383)
+- **İLKE-146:** Zweig'ın Graham kriterlerine 2003 güncellemesi: Büyüklük eşiği $100M satış yerine piyasa değeri ≥2 milyar dolar; P/E tavanı 3 yıllık ortalamaya dayalı 15x iken AA tahvil bazlı 17x'ın altı olarak güncellendi (2003 koşullarında). (s.376-377)
+- **İLKE-147:** Şerefiye (goodwill) muhasebesi: Büyük şerefiye bakıyesi iki kaynaktan doğar — (1) şirket satın almış ve varlık değerinin çok üstüne ödemiş, ya da (2) kendi hissesi defter değerinin çok üstünde işlem görüyor. Her iki durum da defter değerinin değerleme için güvenilirliğini azaltır. (s.388-390)
+- **İLKE-148:** “Sürekli alıcı” (serial acquirer) şirket: yılda birden fazla satın alma yapan şirket, organik büyyme yerine muhasebe konsolidasyon etkileriyle kazanç büyüyormuş gibi görünebilir — her satın alma değerleme çarpanlarının ve riskin arttığı anlamına gelir. (s.384-386)
+- **İLKE-149:** Hisse senedi opsiyon dağıtımı kabul edilebilir sınır: toplam hisselerin yaklaşık %3'ü (Zweig'in örnek aldığı en iyi uygulama). Bu eşiğin üstünde opsiyon dağıtımı mevcut hissedarları seyreltir. (s.400)
+- **İLKE-150:** Kazanç bastırılmış ya da piyasanın gözden düşürdüğü şirketlerde fiyat düşüklüğü, gelecekteki algı değişimi yüksek getiri potansiyeli yaratır. “52 hafta dibi listesi” ve aşırı gözden düşmüş sektörler bir başlangıç noktası olarak kullanılabilir. (s.381-382)
 
 **Chapter 15 — Stock Selection for the Enterprising Investor (Graham):**
-- **İLKE-141:** Girişimci yatırımcı, ikincil (secondary) şirketlerin hisselerini ancak defter değerinin veya gerçek değerinin belirgin şekilde altında satıldığında (bargain) almalıdır.
-- **İLKE-142:** Yüksek büyüme beklentileri olan "glamour" hisseleri, aşırı yüksek fiyat çarpanlarıyla işlem gördüklerinde girişimci yatırımcı için bile tatmin edici bir güvenlik marjı sunmazlar.
+
+- **İLKE-151:** Girişimci yatırımcının üstün getiri sağlayabileceği üç alan: (1) daha düşük F/K ile satılan ikincil/ünlenmemiş şirketler (bargain issues), (2) özel durumlar (special situations — birleşme, yeniden yapılandırma), (3) net cari varlık (net-net) fiyatlarının altındaki hisseler. Girişimci yatırımcı bu alanlara odaklanmalı, bu alanların dışında savunmacı gibi hareket etmelidir. (s.375-376)
+- **İLKE-152:** Büyüme hisselerine (growth stocks) girişimci yatırımcı bile dikkatli yaklaşmalıdır — çünkü geleceğe yönelik iyimser tahmin hatası iç değeri aşında kalmaz, aşırı ödenen prim nedeniyle kayba dönüşür. (s.375)
+- **İLKE-153:** Girişimci yatırımcının temel bargain testi: şirketin hissesi net cari varlıkların (işletme sermayesi) altında işlem görüyor mu? Eğer evet, ve şirket uzun vadeli borcu işletme sermayesini aşmıyorsa, bu hisse "kelepir” kategorisine girer — Graham'ın kendi portföyünde bu tür hisseler sürekli yer almıştır. (s.390-392)
+- **İLKE-154:** Girişimci yatırımcının kelepir kriterleri (bargain issue, Graham'dan): (1) cari oran ≥1,5; (2) toplam borcu ≤ net cari varlıkların %110'u; (3) son 5 yılda zarar yok; (4) bugün temettü ödeniyor; (5) kazanç 5 yıl öncekinden yüksek; (6) fiyat net maddi varlıkların %120'sinden az. (s.391-392)
+- **İLKE-155:** Özel durum (special situation) yatırımı: birleşme-satın alma arbitrajı, iflas reorganizasyonu, spin-off. Graham bu alanı girişimci yatırımcı için uygun görür; ancak her işlemin kendine özgü analizi gerektirir, sistematik bir tarama stratejisi yoktur. (s.393-394)
 
 **Commentary on Chapter 15 (Zweig):**
-- **İLKE-143:** ROIC (Return on Invested Capital), net kâr veya hisse başı kazanç (EPS) yerine, şirketin ürettiği nakdi operasyonlarında ne kadar verimli kullandığını ölçen daha iyi ve manipülasyona daha kapalı bir göstergedir.
+
+- **İLKE-156:** Girişimci yatırımcı bireysel hisse seçimini portföyünün en fazla %10'u ile sınırlandırmalıdır; geri kalanı düşük maliyetli endeks fonu olmalıdır. Hisse seçimi denemesi en az 1 yıl hayali alım-satım ile test edilmeli, sonra S&P 500 endeks fonu ile kıyaslanmalıdır. (s.396-397)
+- **İLKE-157:** Fiyat çöktüğünde ilgilenmek — profesyonel değer yatırımcıları (Tweedy Browne, Oakmark, FPA Capital, Torray Fund) 52 hafta dibindeki listeden başlar — modası geçmiş, sevilmeyen sektörler yüksek getiri potansiyeli taşır. (s.397)
+- **İLKE-158:** Finansal tabloların anlaşılabilirliği yönetim kalitesinin vekili: Tablolar sade ve anlaşılır mı? “Olağandışı”/“tekrarlanmayan” kalemler gerçekten tek seferlik mi yoksa tekrar tekrar mı çıkıyor? Yöneticiler şirket hakkında mı konuşuyor, yoksa hisse fiyatı hakkında mı? (s.400, Torray)
+- **İLKE-159:** “60 cent dollar” eşiği (Longleaf/Mason Hawkins): içsel değerin %60'ına veya daha altına işlem gören şirket hisseleri Güvenlik Marjı sağlar. Bu, “net-net” ile aynı felsefe, modern bir ölçüm pratikte farklı ölçeklidir. (s.399)
 
 ### Kısım 4 Formüller
 
-- **FORMÜL-25:** Savunmacı Şirket Büyüklüğü Kriteri
-  - Formül: Yıllık satışlar ≥ $100 milyon (Sanayi) veya Toplam Varlıklar ≥ $50 milyon (Kamu Hizmetleri). (Zweig'ın güncel yorumu: Piyasa değeri ≥ $2 milyar).
-  - QuaxisLabs karşılığı: `income_statement.sales` ve `market_cap` alanlarıyla eklenebilir.
-- **FORMÜL-26:** Savunmacı Cari Oran Kriteri
-  - Formül: Cari Oran (Dönen Varlıklar / Kısa Vadeli Yükümlülükler) ≥ 2.0 (Sanayi şirketleri için).
-  - QuaxisLabs karşılığı: Mevcut `calculator.Ratios.current_ratio`.
-- **FORMÜL-27:** Savunmacı Borç / İşletme Sermayesi Kriteri
-  - Formül: Uzun vadeli borç ≤ Net dönen varlıklar (İşletme sermayesi).
-  - QuaxisLabs karşılığı: `long_term_debt <= working_capital` (Hesaplanabilir).
-- **FORMÜL-28:** Savunmacı Kazanç İstikrarı Kriteri
-  - Formül: Son 10 yılın tamamında pozitif net kâr (sıfır zarar yılı).
-  - QuaxisLabs karşılığı: VERİ EKSİK (trends.py 10 yılı kapsamıyor, sadece 12 çeyrek var).
+- **FORMÜL-25:** Savunmacı Büyüklük Eşiği
+  - Formül: Yıllık satışlar ≥ $100 milyon (sanayi) veya Toplam Varlıklar ≥ $50 milyon (kamu hizmetleri)
+  - Zweig güncellemesi (2003): Piyasa değeri ≥ $2 milyar
+  - QuaxisLabs karşılığı: `income_statement.sales` var; `market_cap` var — eşik etiketi eklenebilir
+
+- **FORMÜL-26:** Savunmacı Cari Oran Kriteri (Sanayi)
+  - Formül: Dönen Varlıklar ÷ Kısa Vadeli Yükmlülükler ≥ 2,0
+  - QuaxisLabs karşılığı: `calculator.Ratios.current_ratio` MEVCUT
+
+- **FORMÜL-27:** Savunmacı Borcu Işletme Sermayesi Kriteri
+  - Formül: Uzun vadeli borcu ≤ Net cari varlıklar (Net working capital = Dönen varlıklar − Kısa vadeli yükmlülükler)
+  - Kamu hizmetleri alternatifi: Toplam borcu ≤ 2 × Hisse senedi özkaynağı (defter değeri)
+  - QuaxisLabs karşılığı: `long_term_debt` var, `working_capital` hesaplanabiliyor — oran eklenmeli
+
+- **FORMÜL-28:** Savunmacı Kazanç İstikrarı
+  - Formül: Son 10 yılın tamamında pozitif net kazanç (sıfır zarar yılı)
+  - QuaxisLabs karşılığı: VERİ EKSİK — `trends.py` 10 yıllık seri tutmuyor
+
 - **FORMÜL-29:** Savunmacı Temettü Kriteri
-  - Formül: Son 20 yıl boyunca kesintisiz temettü ödemesi.
-  - QuaxisLabs karşılığı: VERİ EKSİK (Temettü geçmişi verisi yok).
-- **FORMÜL-30:** Savunmacı Kazanç Büyümesi Kriteri
-  - Formül: Hisse başı kazanç (HBK), son 10 yılda en az %33 (üçte bir) oranında artmış olmalıdır. (Başlangıç ve sondaki 3 yıllık ortalamalar kullanılarak).
-  - QuaxisLabs karşılığı: VERİ EKSİK (10 yıllık veri yok).
-- **FORMÜL-31:** Savunmacı Fiyat/Kazanç (F/K) Sınırı
-  - Formül: Fiyat ≤ 15 × Son 3 yıllık ortalama kazanç.
-  - QuaxisLabs karşılığı: `pe_ratio` var, ancak 3 yıllık ortalama kazanç tabanlı olan versiyon özel bir oran olarak eklenebilir.
-- **FORMÜL-32:** Savunmacı Fiyat/Defter Değeri (PD/DD) Sınırı ve Graham Sayısı
-  - Formül: (F/K) × (PD/DD) ≤ 22.5.
-  - QuaxisLabs karşılığı: `src/analysis/valuation.py` içindeki `graham_number` olarak ZATEN MEVCUT.
+  - Formül: Son 20 yıl boyunca kesintisiz temettü ödemesi
+  - QuaxisLabs karşılığı: VERİ EKSİK — temettü geçmişi verisi yok
+
+- **FORMÜL-30:** Savunmacı Kazanç Büyüme Kriteri
+  - Formül: HBK (Hisse Başı Kazanç) son 10 yılda en az %33 (1/3) artmış olmalı (başlangıç ve son 3 yıllık ortalamalar kullanılarak)
+  - QuaxisLabs karşılığı: VERİ EKSİK — 10 yıllık EPS serisi yok
+
+- **FORMÜL-31:** Savunmacı F/K Tavanı
+  - Formül: Fiyat ≤ 15 × son 3 yıllık ortalama kazanç
+  - Geçerli AA tahvil bazlı güncel hesaplama: P/E_max = 100 ÷ AA_tahvil_faiz_yuzdesi (2003: 100/4,6 = 21,7)
+  - QuaxisLabs karşılığı: `pe_ratio` var; eşik etiketi eklenebilir
+
+- **FORMÜL-32:** Graham Çarpan Kuralı (Graham Number)
+  - Formül: F/K × PD/DD ≤ 22,5 (15×1,5 = 22,5; 9×2,5 = 22,5 — farklı kombinasyonlar geçerli)
+  - Bireysel PD/DD tavanı: ≤1,5× defter değeri (bu Ch.14'ın resmi kriteri; Ch.8'ın ≤1,33× genel kuralından farklı — bkz. Kısım 2/3 notu)
+  - QuaxisLabs karşılığı: `src/analysis/valuation.py` içinde `graham_number` ZATEN MEVCUT
+
 - **FORMÜL-33:** Girişimci Cari Oran Kriteri
-  - Formül: Cari varlıklar / Cari yükümlülükler ≥ 1.5.
-  - QuaxisLabs karşılığı: Mevcut `current_ratio` üzerinden eşik olarak eklenebilir.
-- **FORMÜL-34:** Girişimci Borç Kriteri
-  - Formül: Toplam borç ≤ %110 × Net dönen varlıklar (işletme sermayesi) (Sanayi şirketleri için).
-  - QuaxisLabs karşılığı: `total_debt <= 1.10 * working_capital`.
+  - Formül: Dönen Varlıklar ÷ Kısa Vadeli Yükmlülükler ≥ 1,5
+  - QuaxisLabs karşılığı: `current_ratio` var; savunmacı eşiğinden farklı etiketle eklenebilir
+
+- **FORMÜL-34:** Girişimci Borcu Kriteri
+  - Formül: Toplam borcu ≤ %110 × Net cari varlıklar (Net working capital)
+  - QuaxisLabs karşılığı: ham veri var, oran eklenmeli
+
 - **FORMÜL-35:** Girişimci Fiyat Kriteri
-  - Formül: Fiyat ≤ %120 × Net maddi varlıklar (Net tangible assets).
-  - QuaxisLabs karşılığı: Fiyat ≤ 1.2 * Maddi defter değeri (Hesaplanabilir).
+  - Formül: Hisse fiyatı ≤ %120 × Net maddi varlıklar (net tangible assets = Toplam varlıklar − maddi olmayan duran varlıklar − şerefiye)
+  - QuaxisLabs karşılığı: VERİ EKSİK — goodwill ve intangible ayrı alan yok (bkz. Kısım 3 veri eksik notu)
+
+- **FORMÜL-37:** ROIC (Yatırılan Sermaye Getirisi) — Davis/Zweig tanımı
+  - Formül: ROIC = Sahip Kazancı (Owner Earnings) ÷ Yatırılan Sermaye (Invested Capital)
+  - Sahip Kazancı = Faaliyet kârı + amortisman + şerefiye amortismanları − federal gelir vergi (ortalama oran) − hisse senedi opsiyonu maliyeti − zorunlu (maintenance) capex − sürdürülemez emeklilik fonu getirisi (2003’de >%6,5 olan kısım)
+  - Yatırılan Sermaye = Toplam varlıklar − nakit − kısa vadeli yatırımlar − faizsiz cari yükmlülükler + geçmiş muhasebe şarzları (yatırılan sermayeyi azaltan)
+  - Eşik: ROIC ≥ %10 çekici; %6-7 güçlü marka/geçici bulut varsa kabul edilebilir
+  - QuaxisLabs karşılığı: VERİ EKSİK — capex, opsiyon maliyeti, emeklilik varsayımı ve goodwill amortismanı eksik
+
+- **FORMÜL-38:** Kamu Hizmetleri Borcu Kriteri (savunmacı)
+  - Formül: Toplam borcu ≤ 2 × Hisse senedi özkaynağı (defter değeri)
+  - QuaxisLabs karşılığı: `equity` ve `total_debt` var; oran hesaplanabiliyor
 
 ### Kısım 4 Eşikler
-| Metrik | Eşik | Yorum | Kaynak bölüm |
+
+| Metrik | Eşik | Yorum | Kaynak Bölüm |
 |---|---|---|---|
-| Savunmacı Cari Oran | ≥ 2.0x | Sanayi şirketleri için muhafazakar likidite | Graham, Ch.14 |
-| Girişimci Cari Oran | ≥ 1.5x | Girişimci yatırımcı için esnetilmiş likidite | Graham, Ch.15 |
-| Savunmacı F/K Sınırı | ≤ 15x | Son 3 yıllık ortalama kazanca göre | Graham, Ch.14 |
-| Graham Çarpanı (F/K × PD/DD) | ≤ 22.5 | Fiyatın kazanç ve defter değerine göre üst sınırı | Graham, Ch.14 |
-| ROIC (Yatırılan Sermaye Getirisi) | ≥ %10 | Cazip bir ROIC eşiği (en az %6-%7 olmalı) | Zweig, Comm.15 |
+| Sanayi satış büyüklüğü (savunmacı) | ≥$100M | Mutlak minimum; Zweig 2003: piyasa değeri ≥2B$ | Graham, Ch.14 |
+| Kamu hizmetleri varlık büyüklüğü (savunmacı) | ≥$50M toplam varlık | Sanayi büyüklükeşiğinden farklı ölçüt | Graham, Ch.14 |
+| Sanayi cari oran (savunmacı) | ≥2,0 | En yaygın Graham eşiği | Graham, Ch.14 |
+| Kamu hizmetleri borcu/özkaynak (savunmacı) | ≤2,0× | Sanayi’nin net cari varlık kuralının alternatifi | Graham, Ch.14 |
+| Cari oran (girişimci) | ≥1,5 | Savunmacıdan esnek | Graham, Ch.15 |
+| Girişimci borcu/net cari varlıklar | ≤%110 | Savunmacının (%100) esnetilmiş hali | Graham, Ch.15 |
+| F/K tavanı (savunmacı — sabit) | ≤15× 3yıl ort. | Graham'ın temel eşiği | Graham, Ch.14 |
+| F/K tavanı (AA tahvil bazlı) | 100 ÷ AA_faiz_% | Dinamik eşik; 1970: 13,3×; 2003: 21,7× | Graham Ch.14, Zweig notu |
+| Graham Çarpanı (F/K × PD/DD) | ≤22,5 | Her ikisi de eşik içindeyse tamam; biri içinde diğeri eşiği aşırsa toplam ≤22,5 aranır | Graham, Ch.14 |
+| PD/DD tavanı (savunmacı — 6. kriter) | ≤1,5× | Ch.14'ın resmi kriteri (Ch.8'ın ≤1,33× genel kuralından farklı) | Graham, Ch.14 |
+| Girişimci fiyat / net maddi varlıklar | ≤%120 | 1,2× maddi defter değeri | Graham, Ch.15 |
+| ROIC (Zweig) | ≥%10 çekici; %6-7 kabul | Güçlü marka/geçici bulut var ise | Zweig, Comm.15 |
+| Hisse opsiyon seyreltmesi | ≤%3 toplam hisse | Davis Funds en iyi uygulama eşiği | Zweig, Comm.15 |
+| Bireysel hisse seçim oranı (girişimci) | ≤%10 portföy | Geri kalanı endeks fonu | Zweig, Comm.15 |
+| Portföy hisse adedi (savunmacı) | 10-30 hisse | Alt: çeşitlilik; üst: analiz kapasitesi | Graham, Ch.14 |
+| “60-cent dollar” eşiği (girişimci) | Fiyat ≤ içsel değerin %60’ı | Longleaf/Hawkins Güvenlik Marjı testi | Zweig, Comm.15 |
 
 ### Kontrol Listeleri (Kısım 4)
 
-**KONTROL N — Graham'ın 7 Savunmacı Yatırımcı Kriteri (Nihai Liste - Ch.14, 7 madde):**
-1. Yeterli Büyüklük: Yıllık satışlar ≥ $100 milyon (veya güncel eşik).
-2. Yeterince Güçlü Mali Durum: Cari oran ≥ 2 ve Borç ≤ İşletme Sermayesi.
-3. Kazanç İstikrarı: Son 10 yılda zarar edilmemiş olması.
-4. Temettü Geçmişi: Son 20 yıldır kesintisiz temettü ödemesi.
-5. Kazanç Büyümesi: 10 yılda en az %33 (1/3) büyüme.
-6. Ilımlı F/K Oranı: Fiyat, son 3 yıl ortalama kazancın 15 katından fazla olmamalı.
-7. Ilımlı PD/DD Oranı: Fiyat, defter değerinin 1.5 katından fazla olmamalı (veya F/K × PD/DD ≤ 22.5).
+**KONTROL N — Graham'ın 7 Savunmacı Yatırımcı Kriteri (Ch.14 — NiHai Liste):**
+1. Büyüklük: Yıllık satışlar ≥ $100M (sanayi) veya toplam varlıklar ≥ $50M (kamu hizmetleri)
+2. Finansal Güç: Cari oran ≥2,0 (sanayi) VE uzun vadeli borcu ≤ net cari varlıklar; kamu hizmetleri: borcu ≤2× özkaynak
+3. Kazanç İstikrarı: Son 10 yılın tamamında pozitif EPS (sıfır zarar yılı)
+4. Temettü Geçmişi: Son 20 yıl boyunca kesintisiz temettü ödemesi
+5. Kazanç Büyümesi: HBK son 10 yılda en az %33 artmış (3yıllık ortalama baş/son)
+6. Ilimli F/K: Fiyat ≤ 15 × son 3 yıl ortalama kazanç (veya E/P ≥ AA tahvil faizi)
+7. Ilimli PD/DD: PD/DD ≤1,5× VE F/K × PD/DD ≤22,5
 
-**KONTROL O — Graham'ın Girişimci Yatırımcı Kriterleri (Ch.15, 5 madde):**
-1. Mali Durum: Cari oran ≥ 1.5 ve Borç ≤ %110 İşletme Sermayesi.
-2. Kazanç İstikrarı: Son 5 yılda açık (zarar) yok.
-3. Temettü Geçmişi: Mevcut durumda bir temettü ödemesi var.
-4. Kazanç Büyümesi: Geçen yılın kazancı, 5 yıl önceki kazançtan yüksek.
-5. Fiyat: Net maddi varlıkların %120'sinden az.
+**KONTROL O — Graham'ın Girişimci Yatırımcı Kriterleri (Ch.15 — 5 madde):**
+1. Finansal Durum: Cari oran ≥1,5 VE toplam borcu ≤ %110 net cari varlıklar
+2. Kazanç İstikrarı: Son 5 yılda zarar yok
+3. Temettü: Bugün aktif temettü ödemesi var
+4. Kazanç Trendi: Bugünkü kazanç, 5 yıl önceki kazancın üstünde
+5. Fiyat: Net maddi varlıkların %120'sinden az (1,2× maddi defter değeri altı)
+
+**KONTROL P — Yönetim Kalitesi Kontrolü (Zweig, Comm.15 — 4 test):**
+1. Finansal tablolar anlaşılır ve sade mi (opasifikasyon yok)?
+2. "Tekrarlanmayan" kalemler gerçekten tek seferlik mi (birden fazla çeyrek/yıl tekrarlamıyor mu)?
+3. Yöneticiler şirket hakkında mı konuşuyor, yoksa hisse fiyatı hakkında mı?
+4. Yöneticiler şirkette anlamlı miktarda hisse sahibi mi (opsiyon değil, nakit alım)?
 
 ### Kırmızı Bayraklar (Kısım 4)
-- **BAYRAK-39:** "Gelecek yılın kazançları" (forward earnings) veya Wall Street analistlerinin tahminleri üzerinden hisse değerlemesi yapmak. Analist tahminleri sistematik olarak aşırı iyimserdir. (Comm.14)
-- **BAYRAK-40:** Bir şirketin "Seri Alıcı" (Serial Acquirer) olması. Yılda birden fazla başka şirketi satın alan firmalar, organik büyümek yerine muhasebe illüzyonlarıyla büyüyor gibi görünürler. (Comm.15)
-- **BAYRAK-41:** CEO'ya hisse senedi opsiyonu dağıtımının, toplam hisselerin %3'ünü aşması (hisse senedi seyreltmesi / dilution yoluyla diğer yatırımcıların değerini aşındırır). (Comm.15)
+
+- **BAYRAK-39:** Analist konsensüsü “iforward kazanç” tahmini üzerinden değerleme — Wall Street analisti tahminleri sistematik olarak aşırı iyimserdir; Graham'ın tüm kriterleri gerçekleşmiş/görülmüş kazanç üzerinden çalışır. (Zweig, Comm.14)
+- **BAYRAK-40:** Bir şirketin şerefiyesinin (goodwill) defter değerinin önemli bir kısmını oluşturması — bu, ya varlık değerinin çok üstüne alım yapıldığının ya da hissenin uzun süredir aşırı primli işlem gördüğünün işareti; her ikisi de defter değerini değerterleme aracı olarak saptırır. (Zweig, Comm.14)
+- **BAYRAK-41:** Seri alıcı (serial acquirer) şirket — yılda birden fazla şirket satın alma organik büyüme değil konsolidasyon etkileriyle büyüme anlamına gelir; her satın alma riskleri ve değierlemesi ayrı analiz ister. (Zweig, Comm.14)
+- **BAYRAK-42:** Hisse senedi opsiyonu seyreltmesi >%3 — yönetim mevcut hissedarların aleyhine opsiyon dağıtıyor demektir; hisse başı kazanç hesaplamaları seyreltilmiş (diluted) bazında değerlendirilmeli. (Zweig, Comm.15)
+- **BAYRAK-43:** EPS/net karda düşme olmaksızın opsiyonların artması — opsiyon maliyeti hesaba katılmadan raporlanan kazanç şişirilmiş görünüyor olabilir; ROIC hesabında opsiyonların nakit maliyeti düşlmeli. (Zweig, Comm.15)
 
 ---
 
-## Kısım 5: Ch.16-18 + Commentary (s.447-517)
+## Kısım 5: Ch.16-18 + Commentary (s.447-541)
 
 **Chapter 16 — Convertible Issues and Warrants (Graham):**
-- **İLKE-144:** Hisse senedi opsiyon varantları (warrants) yatırımcılar için bir tuzaktır. Varantlar ince havadan yaratılmış illüzyonlardır; yalnızca spekülatif heveslerden beslenirler.
-- **İLKE-145:** "Dönüştürülebilir tahvili asla dönüştürmeyin" (Never convert a convertible bond). Dönüştürülebilir bir tahvili, hisse senedine dönüştürerek elde tutmak, tahvilin sunduğu aşağı yönlü korumayı kaybedip tamamen hisse riskini üstlenmek demektir.
+
+- **İLKE-160:** Dönüştürülebilir tahvil/imtiyazlı hisse hem için her iki taraf için de mükemmel yönünde pazarlanır (yatırımcıya koruma + yukarı yön katılım, ihraccıya düşük faizle finansman). Ancak bu dengeli görünüş kural olarak bir tarafın diğerini subsıdize etmesi anlamına gelir — yatırımcı dönüştürme hakkı karşılığında kalite veya getiriden fedakarlık eder. (s.447-448)
+- **İLKE-161:** Dönüştürülebilir tahvil kuralları: (1) Dönüştürme fiyatı, ihracında hisse fiyatının tipik olarak %15-20 üstünde belirlenir; (2) Dönüştürme priminin çok yüksek olması hisse senedinin yükseliş potansiyelini azaltır; (3) Dönüştürme hakkı zaten vade bitimindeş değimine de tutunulabilir. (s.449-451)
+- **İLKE-162:** “Dönüştürülebilir tahvili asla dönüştürme” (Graham'dan pratik kural): Tahvili hisse senedine dönüştürmek, aşağı yönlü korumayı tamamen kaybedip salt hisse riskine geçmek anlamına gelir; hisse senedi isteniyorsa doğrudan alınmalıdır. (s.454-455)
+- **İLKE-163:** Hisse senedi alım varantları (stock-option warrants) ince havadan yaratılmış finansal araçlardır; içsel ekonomik değerleri yoktur. Varant sahipleri ne faiz/temettü alır ne de oy hakkına sahiptir; sadece speklatif değer taşırlar ve bunu da şirketin hissesi yükselmeli varsayımıyla. (s.457-458)
+- **İLKE-164:** Dönüştürülebilir menkul kıymet ihracı boomları, boğa piyasalarının zirvesine yakın dönemlerde yoğunlaşır — bu, piyasanın üst seviyelerine işaret eden önemli bir kontrerian göstergedir. (s.460)
 
 **Commentary on Chapter 16 (Zweig):**
-- **BAYRAK-42:** Dönüştürülebilir tahvillerin büyük çoğunluğu boğa piyasalarının en coşkulu zamanlarında ihraç edilir, bu da genellikle piyasanın zirvesine yaklaşıldığının iyi bir işaretidir.
+
+- **İLKE-165:** Dönüştürülebilir tahvil yatırımında temel test: Tahvil özelliklerine göre (faiz + kalite) cazip mı? Evet ise ön planda düzenleyici tahvil olarak, dönüştürme hakkı bonus olarak düşün. "Dönüştürme cazip olduğunda tahvilin kalitesi daha kötü olur" Zweig'ın pratik özeti. (s.469-470)
 
 **Chapter 17 — Four Extremely Instructive Cases (Graham):**
-- **İLKE-146:** Bir şirketin fiyatının, şirketin nakit veya dönen varlıklarının yarısına bile denk gelmediği "kötü" zamanlarda bile, dikkatli yatırımcı aşırı kötümserliğin yarattığı kelepir (bargain) fırsatlarını değerlendirmelidir.
-- **BAYRAK-43:** "Big Bath" veya "Kitchen Sink" muhasebesi: Şirketlerin kötü geçen bir yılda gelecekteki olası tüm zararları ve maliyetleri tek bir yıla yığarak, sonraki yıllarda suni bir kârlılık illüzyonu yaratması. (s.428)
+
+- **İLKE-166:** Ling-Temco-Vought (LTV) vakası: Aşırı agresif finansal kaldıraç ve konglomera yapısıyla hızlı büyen bir şirket, dış koyu kötüleşince çökebilir. Kaldıraç büyüklüğü, çökün de hızını ve derinliğini artırır. (s.480-485)
+- **İLKE-167:** NVF Corp./Sharon Steel vakası: Satın alma ödemelerini kamufle etmek için muhasebe uygulamalarının istismarı (prim üzerinde satın alınan tahvillerin iskontosunun “kazanç” olarak raporlanması) ciddi kırmızı bayrak oluşturur. (s.485-490)
+- **İLKE-168:** Penn Central vakası: Tüm zararların ve maliyetlerin aynı yıla yığılması (“Big Bath” muhasebesi), ardından gelen yıllarda suni kârlılık illüzyonu yaratır. Kamu kuruluşu olması düzenleyici korumanın var olduğu algısı oluşturursa, yatırımcı temel analizi atlar. (s.459-462)
+- **İLKE-169:** Halka arz edilen şirketlerde fiyat/defter değeri oranı ilk günden itibaren kritik bir değerleme ölçüttür; IPO fıyatları çoğunlukla aşırı yüksektir. (s.463-466, AAA Enterprises vakası)
+
+**Commentary on Chapter 17 (Zweig):**
+
+- **İLKE-170:** "Büyüme” hikayesi anlatılırken şirketin mevcut işinin kalitesi ve sürdürülebilirliği incelenmezse, o büyüme ya varlık tahrip eden yatırımlarla ya da muhasebe maharetleriyle geliyordur. Şirketin neden para kazandığına, nasıl yenilemeye devam edeceğine odaklan. (s.494-497)
+- **İLKE-171:** Karmaşık finansal yapı (holding şirketi altında çok katmanlı şirket) analiş zorluğunu artırır; şeffaflık eksikliği kural olarak yatırımcı için dezavantajdır. (s.494-497)
 
 **Chapter 18 — A Comparison of Eight Pairs of Companies (Graham):**
-- **İLKE-147:** Hisse seçimi, popülariteye (örneğin yüksek F/K çarpanlarıyla işlem gören "glamour" hisseleri) değil, ölçülebilir değere dayanmalıdır. Düşük çarpanlı (low-multiplier), gözden düşmüş ama mali yapısı sağlam şirketler genellikle daha iyi performans gösterir.
+
+- **İLKE-172:** Graham'ın 8 şirket çifti analizi genel dersi: Aynı sektörden iki şirket arasında buyuk fiyat-değer farkı neredeyse her zaman yatay piyasada sürülemez. Ucuz taraf ortalamaya dönerken pahalı taraf aşağı düçer. (s.509-521)
+- **İLKE-173:** Şirketin kazanç getirisi (earnings yield = 1/PE) her zaman tahvil faizleriyle kıyaslanmalı; eğer kazanç getirisi tahvil faizinden düşük ise hisse senedi (risk primi hesaba katıldığında) yeterli güvenlik marjı taşımıyor demektir. (s.521-529)
+
+**Commentary on Chapter 18 (Zweig):**
+
+- **İLKE-174:** CMGI vs CGI vakası (1999-2002): CMGI çök yüksek F/K ile yyıldız; CGI <10 F/K ve %4+ temettü getirisıyle gözden düşmüştü. 2001-2002'de CMGI $28'dan $0,74'e, CGI ise $20'dan $11'e düştü. Fiyat/değer ayrımı korundu. (s.530-535)
+- **İLKE-175:** Fazla nakit biriktiren ve bunu hissedarlara iade etmeyen şirket (Microsoft 2003: $43 milyar nakit rezervi) özkaynak verimliliğini düşürüyor demektir. Graham'a göre:“Bu fazla nakit dış hissedarına nadiren fayda sağlar.” (s.532-535)
 
 ### Kısım 5 Formüller
-- Yeni matematiksel formül bulunmadı; önceki eşiklerin çeşitli şirket eşleşmelerindeki (pairs) vaka analizleriyle sağlaması yapıldı.
+
+- **FORMÜL-39:** Dönüştürülebilir Tahvil Kazanç Getirisi Testi
+  - Formül: Dönüştürülebilir tahvilin kazanç getirisi (YTM) ≥ Benzer kalite düz tahvil getirisi + Değer marjı. Aksi halde dönüştürme hakkı için çok fazla ödeniyor demektir.
+  - QuaxisLabs karşılığı: KAPSAM DIŞI — QuaxisLabs tahvil analizi yapmıyor
+
+### Kısım 5 Eşikler
+
+| Metrik | Eşik | Yorum | Kaynak Bölüm |
+|---|---|---|---|
+| Dönüştürme premi (konvertibl tahvil) | Tipik %15-20 üstünde belirlenir | Bu primin çok yüksek olması hisse senedi katilimini azaltır | Graham, Ch.16 |
+| Kazanç getirisi (E/P) vs tahvil faizi | E/P ≥ tahvil faizi | Aksi halde hisse yeterli Güvenlik Marjı taşımıyor | Graham, Ch.18 |
+
+### Kırmızı Bayraklar (Kısım 5)
+
+- **BAYRAK-44:** Dönüştürülebilir menkul kıymet ihracında patlama — bu, boğa piyasası zirvesine yakınılıyor işareti; böyle dönemlerde ihracı yapılan dönüştürülebilir tahviller genellikle kalite ve getiri olarak yetersizdir. (Ch.16, s.460)
+- **BAYRAK-45:** “Big Bath” muhasebesi — şirketin kötü bir yılda gelecekteki olası tüm zararları ve maliyetleri tek yıla yığması; ardından gelen yıllarda suni kârlılık yarattığı için analistler onu "temizlendi, düzeldi" olarak görür. (Ch.17, s.462)
+- **BAYRAK-46:** Muhasebe kazancını şişiren satın alma: İskontoyla geri alınan tahvillerin prim kısmını “kazanç” olarak raporlamak (NVF/Sharon Steel), veya konsolidasyonun yarattığı çift sayımın örtübas edilmesi. (Ch.17, s.485-490)
+- **BAYRAK-47:** Aşırı nakit birikimini dağıtmayan yönetim: fazla nakit özkaynak verimliliğini (ROE) düşürür ve çoğu zaman düşük getirili projelere harcanır. (Zweig, Comm.18)
+- **BAYRAK-48:** Çok katmanlı konglomera/holding yapısı — yönetimin kendi yönetimini denetlediği, dış hissedara şeffaflığın en aşından olduğu yapı (LTV vakası). (Ch.17, s.480-485)
 
 ---
 
-## Kısım 6: Ch.19-20 + Postscript + Commentary (s.518-570)
+## Kısım 6: Ch.19-20 + Postscript + Commentary (s.542-596)
 
 **Chapter 19 — Shareholders and Managements: Dividend Policy (Graham):**
-- **İLKE-148:** Hissedarlar, şirketin kârını işletme içinde yeniden yatırıma (reinvestment) dönüştüren yönetimlerden, bu yatırımların şirketin hisse başına kazancını net ve tatmin edici bir şekilde artırmasını talep etmelidir. Eğer bu gerçekleşmiyorsa, şirket kârın büyük kısmını (örneğin %60-75'ini) temettü olarak dağıtmalıdır.
-- **İLKE-149:** Hisse geri alımları (stock repurchases), ancak hisse fiyatı şirketin gerçek değerinden *ucuz* olduğunda anlamlıdır. Hisse senetleri zirvedeyken yapılan geri alımlar şirket sermayesinin israfıdır.
+
+- **İLKE-176:** Hissedarlar aktif/sorgulayan bir rol üstlenmelidir — şirket yönetiminin performansını sorgulamak ve düşük getiri dönemlerinde temettü artırımı veya karsam hisse geri alımı talep etmek hakları arasındadır. (s.542-544)
+- **İLKE-177:** Yeniden yatırım (retained earnings) haklı gösterilmesi için: Yeniden yatırılan her birim kazanç gelecekte en az bir birim piyasa değeri yaratmalıdır; bu koşul sağlanmazsa kazanç dağıtılmalıdır. (s.544-546)
+- **İLKE-178:** Graham'ın temettü dağıtım politikası: Kazancının %60-75'ini temettü olarak ödeyen şirket, yöneticilerin akılsızca harcama riski taşıyan nakitı azaltır; bu oran tercih edilmelidir. (s.545-546)
+- **İLKE-179:** Hisse geri alımı (buyback) yalnizca hisse fiyatı gerçek değerinden UCUZ olduğunda hissedara değer katar; zirve fıyatlarında geri alım yapmak şirket sermayesinin israfıdır. (s.546-548)
+- **İLKE-180:** Arnott & Asness araştırması (Zweig): Düşük temettü ödeyen şirketlerde gelecek 10 yıllık kazanç büyümesi ortalama 3,9 puan daha düşük çıkmıştır — yüksek temettü düşük temettüden ortalama 3,9 puan fazla kazanç büyümesi üretiyor. Temettü ödemek, yöneticilerin elinden nakitı çıkarıp israfı engeller. (Zweig, Comm.19)
+- **İLKE-181:** Nissim & Ziv (Columbia) araştırması: Temettü artırımı yapan şirketler, sonraki 4 yılda hem daha iyi hisse performansı hem de daha yüksek kârlılık gösteriyor. Temettü artırımı, yönetimin geleceğe güven işareti olarak değerlendirilebilir. (Zweig, Comm.19)
 
 **Commentary on Chapter 19 (Zweig):**
-- **BAYRAK-44:** Şirket yöneticilerinin "Hissedar değerini artırmak için" diyerek şirketin hisselerini rekor yüksek seviyelerden geri alması. Bu, genellikle yöneticilerin kendi hisse senedi opsiyonlarının değerini korumak için yapılan şüpheli bir eylemdir.
 
-**Chapter 20 — "Margin of Safety" as the Central Concept (Graham):**
-- **İLKE-150 (KİTABIN MERKEZİ KAVRAMI):** GÜVENLİK MARJI (Margin of Safety). Tüm başarılı yatırımların sırrı bu üç kelimede yatar. Güvenlik marjı, ödenen fiyat ile varlığın hesaplanan gerçek değeri (veya kazanç gücü) arasındaki olumlu farktır.
-- **FORMÜL-36:** Hisse Senetleri için Güvenlik Marjı
-  - Formül: Şirketin "Kazanç Getirisi" (Earnings Yield = EPS / Fiyat), yüksek kaliteli tahvil getirisinden belirgin ölçüde yüksek olmalıdır.
-  - QuaxisLabs karşılığı: `(1 / pe_ratio) - risk_free_rate > margin` şeklinde uygulanabilir (Değerleme modülünde dolaylı olarak var).
-  - Not: FORMÜL-36 (Ch.20 Güvenlik Marjı) — FORMÜL-25-35 Kısım 4 kriterlerinden sonra gelen Kısım 6 formülü; FORMÜL-37-40 numaraları (Kısım 5-7 kapsamı) bilinçli olarak boş bırakıldı — bu bölümlerde ayrı bir hesap gerektiren özgün formül bulunmadı.
+- **İLKE-182:** Hisse geri alım programında kırmızı bayrak: Hisse fiyatı historik yükseklerdeyken “hissedar değeri artırıyoruz” söylemiyle buyback yapan yönetim — bu kararlar sıklıkla CEO'ıların kendi opsiyonlarının değerini korumak için yapılır. (s.559-562)
+- **İLKE-183:** Hissedarın şirket yönetimiyle ilgili kaldıraçları: (1) Düşük performanslı yöneticileri oy hakkını kullanarak reddetmek; (2) birikim fonlarında shareholder-friendly yönetim talep etmek; (3) düşük gider oranlı fonları tercih ederek elini güçlendirmek. (s.557-568)
+
+**Chapter 20 — “Margin of Safety” as the Central Concept (Graham):**
+
+- **İLKE-184 (KİTABIN MERKEZİ KAVRAMI):** GÜVENLİK MARJI = ödenen fiyat ile hissenin gerçek değeri (intrinsic value) arasındaki olumlu fark. Bu fark büyük olduğunda: (a) tahmin hatalarına karşı tampon var, (b) aşağı risk sınırlı, (c) yukarı potansiyel orantısız büyük. (s.512-514)
+- **İLKE-185:** Büyüme hisselerinde Güvenlik Marjı çok daha zordur: Tahmin hatası yüksek büyüme varsayımını çürttüğünde hisse aşırı değerlidir hem de güvenlik tampon unu yitirmiştir — çift olumsuz etki. Sabit varlık değerli şirketlerde marj daha kolay sağlanabilir. (s.513-515)
+- **İLKE-186:** Güvenlik Marjı ve çeşitlilik: Bireysel bir hissede marj yanlış hesaplanabilir, ama 20-30 hisseden oluşan istatistiksel olarak yeterli bir portföyde bu hataların telafisi güvenlik marjını daha güvenilir kılar — sigorta poliesi analy mantigi. (s.515-516)
+- **İLKE-187:** Matematiksel karmaşıklık uyarısı — Graham'dan: “44 yıllık Wall Street deneyimimde hisse değerlemelerinde basit aritmetik veya en temel cebir ötesine geçen güvenilir bir hesaplama hiç görmedim. Kalkülüs veya yüksek cebir devreye girince, bu spekülasyona teöri görünümü verme girisimi olarak değerlendir.” (s.570-571)
+- **İLKE-188:** Güvenlik marjı her tür hisse için farklı uygulanır: (1) Kalkınmış/tahvil benzeri hisseler için: kazanç getirisi > tahvil faizi, (2) Büyüme hisseleri için: tahmin edilen büyüme gerçekleşmese bile makul değer olan fiyat ödenmeli, (3) Bargain hisseleri için: net-net veya defter değerinin altı doğrudan önemli bir güvenlik marjı sağlar. (s.516-518)
+
+**Commentary on Chapter 20 (Zweig):**
+
+- **İLKE-189:** Güvenlik Marjı ile yönetim kalitesi arasındaki ilişki: Kötü yönetim bile düşük fiyatta alınabilir (yeter ki fiyat kötü yönetimi de fiyatlamış olsun); ama Graham tercihan iyi yönetimli ve ucuz şirkette hem fiyat hem kalite avantajını bir arada istedi. (s.521-524)
+- **İLKE-190:** Nasıl daha zenginleşiyorsunuz? Kural bir, asla para kaybetme. Kural iki, kural bir'i unutma (Buffett). Güvenlik Marjı bu ikinci kuralı uygulamanın önündeki disiplindir. (s.524-526)
+
+### Kısım 6 Formüller
+
+- **FORMÜL-36:** Güvenlik Marjı Kazanç Getirisi Testi (hisse senedi)
+  - Formül: Kazanç Getirisi (EPS / Fiyat = 1/F/K) >> Yüksek kaliteli tahvil getirisi
+  - Aşırı minimal sınır: E/P ≥ AA tahvil faizi (bu şart sağlanmadan hisse satın alma)
+  - Tercihli hedef: E/P tahvil faizinden anlamlı ölçüde yüksek (örneğin %2-3 prim)
+  - QuaxisLabs karşılığı: `1/pe_ratio − risk_free_rate` hesaplanabilir; `_RISK_FREE_RATE_PCT` mevcut ama canli veri değil
+
+### Kısım 6 Eşikler
+
+| Metrik | Eşik | Yorum | Kaynak Bölüm |
+|---|---|---|---|
+| Kazanç dağıtım oranı (payout ratio) | %60-75 önerilen | Yöneticilerin elinden nakiti çıkarır | Graham, Ch.19 |
+| Arnott & Asness temettü etkisi | Yüksek temettü → +3,9 puan 10y kazanç büyümesi | Akademik destek | Zweig, Comm.19 |
+| Buyback kıstası | Sadece hisse gerçek değerden ucuzsa | Piyasa zirvesinde geri alım israf | Graham/Zweig, Ch.19 |
+| Güvenlik Marjı testi | E/P ≥ AA tahvil faizi | Minimum; tercihen anlamlı prim | Graham, Ch.20 |
 
 ### Kırmızı Bayraklar (Kısım 6)
-- **BAYRAK-45:** Kötü yönetilen, verimsiz şirketlerin aşırı yüksek fiyatlarla işlem görmesi. Mr. Market mantıksız davrandığında yatırımcı kendi bağımsız güvenlik marjı hesabına güvenmelidir.
+
+- **BAYRAK-49:** Hisse fiyatı zirvedeyken “hissedar değeri yaratıyoruz” söylemiyle buyback programı açıklanması — genellikle CEO'ıların kendi opsiyonlarının değerini korumak için yapılır. (Zweig, Comm.19)
+- **BAYRAK-50:** Yönetime yüksek kazanç büyümesi vadeden ama özkaynak getirisini (ROE) ve temettü ödemelerini azaltan şirket — “yeniden yatırım” aslında varlık tahribi olabilir. (Graham, Ch.19)
+- **BAYRAK-51:** Valasyonda yüksek matematik (diferansiyel denklem, kompleks stokastik model) kullanılması — Graham'ın uyarısı: karmaşıklık, spekülasyona bilimsel görünüm verir ama kesinlik yaratmaz; basit aritmetik ile bulunamayan Güvenlik Marjı spekülasyona dönüşmüştür. (Graham, Ch.20)
 
 ---
 
-## Kısım 7: Appendix 1-7 (s.571-638)
+## Kısım 7: Appendix 1-7 + Final Kontrol (s.571-638)
 
-**Appendix 1 — The Superinvestors of Graham-and-Doddsville (Warren Buffett):**
-- **İLKE-151:** Piyasalar her zaman verimli (efficient) değildir. Değer ve fiyat arasındaki farkları istismar eden ve aynı entelektüel temelden (Graham-ve-Doddsville) gelen yatırımcıların uzun vadede piyasayı sürekli yenmesi tesadüf (şans) olamaz.
-- **İLKE-152:** Yatırım yapmak, hisse senedi almak değil, bir işin (business) bir parçasına ortak olmaktır. Fiyat ile işin değeri arasındaki güvenlik marjını korumak riskleri minimize eder.
+**Appendix 1 — The Superinvestors of Graham-and-Doddsville (Warren Buffett, 1984):**
 
-### Eşikler (Kısım 4-7 Toplam)
-| Metrik | Eşik | Yorum | Kaynak bölüm |
-|---|---|---|---|
-| Earnings Yield (1 / P/E) | > Tahvil Faizi + Marj | Hisse senedi güvenlik marjı hesabı | Graham, Ch.20 |
+- **İLKE-191:** Piyasa etkinliği (EMH) teorisi, Graham-ve-Doddsville'ın değer yatırımcılarının uzun vadeli sistemli başarısıyla çürutülmüştür: Buffett, Munger, Ruane, Schloss, Knapp ve diğer Graham okul mezunları 20+ yıl süreyle S&P 500'ü geçti. Aynı entelektel kaynaktan gelen 9 farklı portföy bir arada anlamlı bir örntü oluşturuyor, bu tesadüf olamaz. (Appendix 1, s.537-558)
+- **İLKE-192:** Buffett'in özeti: Değer yatırımının özü = bir işin değerinin çok altında ödemek. “Fiyat nedir biliyorsunuz, değer ne olduğunu araştırmanız gerekiyor.” (Appendix 1, s.537)
+- **İLKE-193:** Graham-Newman Corp. 1936-1956 arası yıllık ortalama %20+ getiri sağladı (piyasa verisi ile örtlü). Buffett Partnership 1957-1969 yıllık ortalama ~%29,5 (Dow vs ~%7,4). Walter Schloss 1955-1983 28 yıl yıllık %21,3 (S&P: %8,4). Bu veriler tek seferlik değil; yatay, kükmlü ve tekrar eden bir performans süreklemesidir. (Appendix 1, Tablolar)
+- **İLKE-194:** Sektörel çeşitlilik olmaksızın (kimi deniz taşımacılığında, kimi sigortada, kimi tekstilde) çok farklı alanlarda bu aynı metodolojinin işlemesi, sonucun sektöre özel olmadığını gösteriyor. Yatırım metodolojisinin üstünlüğü kalıcı ve genel. (Appendix 1)
+
+**Appendix 2-7 (Notlar ve Istatistiksel veriler):**
+
+- **İLKE-195:** Appendix 2 (S&P hisse geçmiş verileri 1871-1970): Uzun dönemde reel hisse getirisi çok değişken; tek bir 20 yıllık dönem bile çok düşük ya da çok yüksek getiri üretebilir. Uzun vadeli ortalama güvenilirliği, kısa vadeli tahmin gücünden çok daha yüksek. (s.559-565)
+
+### Kısım 7 Eşikler (Appendix 1 — Graham mezunları performansı)
+
+| Yatırımcı | Dönem | Yıllık Getiri | Referans endeks | Kaynak |
+|---|---|---|---|---|
+| Walter Schloss | 1955-1983 (28 yıl) | %21,3 | S&P %8,4 | Appendix 1 |
+| Tom Knapp (Tweedy Browne) | 1968-1983 | %20,0 | S&P %7 | Appendix 1 |
+| Warren Buffett Partnership | 1957-1969 | ~%29,5 | Dow ~%7,4 | Appendix 1 |
+| Bill Ruane (Sequoia Fund) | 1970-1984 | %18,2 | S&P %10,0 | Appendix 1 |
+| Charlie Munger | 1962-1975 | %19,8 | Dow %5,0 | Appendix 1 |
+| Rick Guerin | 1965-1983 | %32,9 | S&P %7,8 | Appendix 1 |
+
+### Kırmızı Bayraklar (Kısım 7)
+
+- **BAYRAK-52:** Uzun vadeli değer yatırımcılarının performansını “tesadüf” ile açıklamaya çalışmak — 9 bağımsız yatırımcı, aynı metodoloji, 20+ yıl, farklı sektörler: bu istatistiksel tesadüf olamaz. (Buffett, Appendix 1)
 
 ---
 
 ## Kısım 4-7 Uygulama Notları
-1. **Güvenlik Marjı Kavramı:** Kitabın 20. bölümü yatırımcılığın temel felsefesini tek bir cümleye ("Margin of Safety") indirgemiştir. Bu felsefe, QuaxisLabs'ın tüm değerleme modüllerinin temelini oluşturan P/E, P/B ve indirgenmiş nakit akışı marjlarının teorik altyapısıdır.
-2. **Kapsamlı Seçim Kriterleri:** Graham'ın 14. ve 15. bölümlerde ortaya koyduğu 7 maddelik Savunmacı (Defensive) ve 5 maddelik Girişimci (Enterprising) yatırımcı listesi, kitabın en sayısal ve net kodlanabilir filtreleridir. Mevcut veri eksikleri (10 yıllık veri, temettü geçmişi) nedeniyle tamamı uygulanamasa da, mevcut metrikler (`current_ratio`, `working_capital`, `total_debt`, `pe_ratio`, `graham_number`) üzerinden büyük ölçüde uyarlanabilir.
-3. **Muhasebe Manipülasyonları ve Nitel Analiz:** Bölüm 12 ve ilgili vaka analizlerinde (Ch.17) bahsedilen "pro forma" kazançlar, Big Bath muhasebesi ve hisse senedi opsiyonlarının yarattığı seyreltme (dilution) gibi kavramlar, salt bilanço rakamlarıyla tespit edilemez. Dipnotların incelenmesini gerektirir.
-4. **Shiller P/E:** Zweig'ın yorumlarında sıklıkla atıfta bulunulan Robert Shiller'in 10 yıllık enflasyona göre düzeltilmiş F/K oranı, QuaxisLabs `trends.py` 10 yılı kapsamadığı sürece uygulanamaz. Bu, veri eksikliğinin yapısal etkisini bir kez daha vurgular.
+
+1. **Ch.14'ın 7 Kriteri KiTABIN nİHAI SAVUNMACI SÉÇİM LİSTESİDİR** (KONTROL N) — Ch.5'ın 4 kuralı ve Ch.13'ın 7 kriteri ile büyük örtüşme var ama Ch.14 en olgun, en nicel ve en çapraz referanslı versiyondur. QuaxisLabs'ın açık veri boşlukları: (1) 10+ yıllık EPS serisi, (2) temettü geçmişi, (3) net maddi varlıklar (şerefiye/maddi olmayan eksik). Bu üç boşluk 7 kriterin 3'ünün uygulanmasını engeller.
+2. **ROIC (FORMÜL-37 — Zweig/Davis) QuaxisLabs'ın en önemli eksik ratio’su**: Capex (zorunlu), opsiyon maliyeti, emeklilik varsayımı düzeltmeleri gerektiriyor — bunların hiçbiri mevcut veri modelinde yok. Kısa vadeli alternatif: mevcut `roe_annualized` + `operating_cash_flow` kombinasyonu kaba bir vekil olarak kullanılabilir.
+3. **Graham'ın ÜS SÜRECİ KAVRAMSAL UYARISI**: Değerleme ne kadar matematik-yoğun olursa, sonuç o kadar spekülatiftir. Basit aritmetik (F/K, PD/DD, E/P vs tahvil faizi) 44 yıllık Wall Street deneyiminde tek güvenilir araç olarak kanıtlanmıştır — bu, QuaxisLabs'ın oran-tabana dayalı basit skoring yaklaşımının kitap felsefesiyle uyumlu olduğunun teyididir.
+4. **Appendix 1 (Superinvestors) Graham yatırım felsefesinin en güçlü ampirik kanıtıdır**: EMH'ye karşı en kuvvetli argüman, teorik değil, gerçek portföy performans verileridir. Bu veriler (Schloss: 28y/+21,3%, Buffett Partnership: 13y/+29,5%, vb.) QuaxisLabs'in değer-odaklı skoring mimarisi için teorik meşruiyet sağlar.
+5. **Temettü politikası (Ch.19): %60-75 payout eşiği ve buyback krit** QuaxisLabs kapsamındadır (payout_ratio hesaplanabilir) ama buyback analizi için hisse geri alım miktarı verisi eksik.
 
 **BİLGİ ÇIKARMA SÜRECİ TAMAMLANDI.** (01_graham_akilli_yatirimci.md tüm bölümleriyle işlenmiştir.)

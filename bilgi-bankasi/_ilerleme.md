@@ -27,10 +27,12 @@
 | **Kısım 1** | Introduction + Comm. + Ch.1-4 + Comm.1-4 | s.1-111 | 01-38 (38) | 01-07 (7) | 17 | 20 (A/B/C/D) | 01-11 (11) | TAMAMLANDI, commit edildi (123e162) |
 | **Kısım 2** | Ch.5-8 + Comm.5-8 | s.112-224 | 39-92 (54) | 08-17 (10) | 24 | 21 (E/F/G/H) | 12-23 (12) | TAMAMLANDI, commit edildi (5e40c43) |
 | **Kısım 3** | Ch.9-13 + Comm.9-13 | s.226-346 | 93-137 (45) | 18-24 (7) | 27 | 29 (I/J/K/L/M) | 24-38 (15) | TAMAMLANDI, henüz commit edilmedi |
-| **Kısım 4** | Ch.14-15 (savunmacı/girişimci seçim kriterleri) | s.347-446 | 138-143 (6) | 25-35 (11) | 5 | 12 (N/O) | 39-41 (3) | TAMAMLANDI |
-| **Kısım 5** | Ch.16-18 | s.447-517 | 144-147 (4) | — | — | — | 42-43 (2) | TAMAMLANDI |
-| **Kısım 6** | Ch.19-20 + Postscript (Güvenlik Marjı) | s.518-570 | 148-150 (3) | 36 (1) | 1 | — | 44-45 (2) | TAMAMLANDI |
-| **Kısım 7** | Appendix 1-7 (Buffett'ın Superinvestors makalesi dahil) | s.571-638 | 151-152 (2) | — | — | — | — | TAMAMLANDI |
+| **Kısım 4** | Ch.14-15 (savunmacı/girişimci seçim kriterleri) | s.347-446 | 138-159 (22) | 25-35,37-38 (13) | 16 | 15 (N/O/P) | 39-43 (5) | TAMAMLANDI, commit edildi (6a6b8e4, zenginleştirme sonrası ayrı commit) |
+| **Kısım 5** | Ch.16-18 | s.447-541 | 160-175 (16) | 39 (1) | 2 | — | 44-48 (5) | TAMAMLANDI, commit edildi (6a6b8e4, zenginleştirme sonrası ayrı commit) |
+| **Kısım 6** | Ch.19-20 + Postscript (Güvenlik Marjı) | s.542-596 | 176-190 (15) | 36 (1) | 4 | — | 49-51 (3) | TAMAMLANDI, commit edildi (6a6b8e4, zenginleştirme sonrası ayrı commit) |
+| **Kısım 7** | Appendix 1-7 (Buffett'ın Superinvestors makalesi dahil) | s.571-638 | 191-195 (5) | — | 7 | — | 52 (1) | TAMAMLANDI, commit edildi (6a6b8e4, zenginleştirme sonrası ayrı commit) |
+
+**Not (zenginleştirme turu):** Kısım 4-7 ilk turda (6a6b8e4) daha özet biçimde çıkarılmıştı (İLKE-138-152, 15 ilke). Aynı oturumda ham OCR metnine (`_tmp/ch14-20_raw.txt`) dönülerek "hiçbir eşiği atlama" talimatına daha sıkı uyan, çok daha ayrıntılı bir 2. tur yapıldı (İLKE-138-195, 58 ilke) — bu, kitabın en yoğun formül bölümü olduğu için gerekçelendirildi. 2. turun ham metin→markdown dönüşümünde bir dizi Türkçe karakter bozulması (kazanc→kazanç, büyme→büyüme, birkaç anlamsız kelime türü gibi) oluştu; bunlar sonraki oturumda tek tek tespit edilip düzeltildi. **Ders:** Bu tür yeniden-yazma turları TOKEN MALİYETİ YÜKSEK — bir kısmı zaten TAMAMLANDI işaretliyken tekrar işlemek zorunlu değilse YAPILMAMALI; ileride "zaten var, sadece eksik parçayı tamamla" yaklaşımı tercih edilmeli.
 
 ### Graham Kısım 2 — özel notlar
 - Bu kısım kitabın İLK somut sayısal seçim kriterleri bloğu (Ch.5'in 4 kuralı: çeşitlendirme/büyüklük/temettü/fiyat tavanı; Ch.7'nin bargain/net-net testleri) — Ch.14-15'te (Kısım 4) muhtemelen genişletilip çapraz referans verilecek.

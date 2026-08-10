@@ -21,7 +21,7 @@ quaxis-mimari skill'ini oku ve projeyi hızlıca gezerek skill'deki mimari harit
 PDF'ler `kitaplar/` içinde olmalı. Her kitap için ayrı oturum aç (bağlam taze kalır) ve şu promptu kitap numarasını değiştirerek kullan:
 
 ```
-kitap-okuyucu agent'ını kullanarak kitaplar/WARREN BUFFETT AND THE INTERPRETATION OF FINANCIAL STATEMENTS.pdf dosyasını işle. kitap-bilgi-cikarma skill'indeki prosedürü ve çıktı şablonunu birebir uygula: önce içindekileri çıkar ve bölüm planını bana göster, onayımdan sonra bölüm bölüm ilerle, her bölüm sonunda _ilerleme.md'yi güncelle. Hiçbir sayısal eşiği, formülü, kontrol listesi maddesini veya kırmızı bayrağı atlama; tablolardaki ve vaka örneklerindeki sayılar da eşik kaynağıdır. Her formül için QuaxisLabs veri karşılığını (calculator.py / fetcher katmanı) mutlaka doldur. Kitap metnini kopyalama — damıt. Bittiğinde bilgi-bankasi/01_graham_akilli_yatirimci.md dosyasının İlkeler/Formüller/Eşikler/Kırmızı bayraklar sayılarını özetle.
+kitap-okuyucu agent'ını kullanarak kitaplar/damodaran-on-valuation.pdf dosyasını işle. kitap-bilgi-cikarma skill'indeki prosedürü ve çıktı şablonunu birebir uygula: önce içindekileri çıkar ve bölüm planını bana göster, onayımdan sonra bölüm bölüm ilerle, her bölüm sonunda _ilerleme.md'yi güncelle. Hiçbir sayısal eşiği, formülü, kontrol listesi maddesini veya kırmızı bayrağı atlama; tablolardaki ve vaka örneklerindeki sayılar da eşik kaynağıdır. Her formül için QuaxisLabs veri karşılığını (calculator.py / fetcher katmanı) mutlaka doldur. Kitap metnini kopyalama — damıt. Bittiğinde bilgi-bankasi/ dosyasının İlkeler/Formüller/Eşikler/Kırmızı bayraklar sayılarını özetle.
 ```
 
 6 kitap bitince, yeni oturumda:

@@ -3,7 +3,7 @@
 ## Genel durum
 | # | Kitap | Durum | Hedef dosya |
 |---|---|---|---|
-| 01 | The Intelligent Investor (Benjamin Graham, Rev. Ed. — Jason Zweig commentary) | DEVAM EDİYOR — Kısım 1-3/7 TAMAMLANDI (Introduction + Ch.1-13 + ilgili 14 Commentary, s.1-346). Kısım 4-7 (Ch.14-20 + Postscript + Appendix) HENÜZ İŞLENMEDİ. | `bilgi-bankasi/01_graham_akilli_yatirimci.md` |
+| 01 | The Intelligent Investor (Benjamin Graham, Rev. Ed. — Jason Zweig commentary) | **TAMAMLANDI** — Tüm kısımlar (Introduction + Ch.1-20 + Postscript + Appendix) işlendi. | `bilgi-bankasi/01_graham_akilli_yatirimci.md` |
 | 02 | Warren Buffett and the Interpretation of Financial Statements | **TAMAMLANDI** — 5 ana kısım (Gelir Tablosu, Bilanço, Özkaynaklar, Nakit Akış Tablosu, Değerleme) + Appendix model şirket karşılaştırması işlendi. Terimler Sözlüğü bilinçli olarak atlandı (sadece tanım niteliğinde). | `bilgi-bankasi/02_buffett_finansal_tablolar.md` |
 
 ## Kitap geneli TOPLAM sayılar — 02 Buffett (dosya üzerinde script ile doğrulandı)
@@ -13,13 +13,13 @@
 - KONTROL LİSTESİ maddesi: **54** (10+14+10+10+10)
 - KIRMIZI BAYRAK: **36** (BAYRAK-01…36, kesintisiz, tekrarsız)
 
-## Kitap geneli TOPLAM sayılar — 01 Graham (Kısım 1-3/7, script ile doğrulandı)
-- İLKE: **137** (İLKE-01…137, kesintisiz, tekrarsız)
-- FORMÜL: **24** (FORMÜL-01…24, kesintisiz, tekrarsız)
-- EŞİK tablosu satırı: **68** (Kısım1: 17 + Kısım2: 24 + Kısım3: 27)
-- KONTROL LİSTESİ maddesi: **70** (Kısım1: 20 [A:6+B:6+C:4+D:4] + Kısım2: 21 [E:5+F:5+G:5+H:6] + Kısım3: 29 [I:6+J:5+K:4+L:7+M:7])
-- KIRMIZI BAYRAK: **38** (BAYRAK-01…38, kesintisiz, tekrarsız)
-- Bu sayılar KİTABIN 3/7'sine (Introduction + Ch.1-13 + 14 Commentary, s.1-346) aittir — kalan 4 kısım işlendikçe kesintisiz devam edecek, bu bölüm güncellenecek.
+## Kitap geneli TOPLAM sayılar — 01 Graham (TÜMÜ TAMAMLANDI, script ile doğrulandı)
+- İLKE: **152** (İLKE-01…152, kesintisiz, tekrarsız)
+- FORMÜL: **36** (FORMÜL-01…36; FORMÜL-37-40 numaraları bilinçli boş — Kısım 5-7 bölümlerinde ayrı hesap gerektiren özgün formül bulunmadı)
+- EŞİK tablosu satırı: **73** (Kısım1: 17 + Kısım2: 24 + Kısım3: 27 + Kısım4: 5)
+- KONTROL LİSTESİ maddesi: **82** (Kısım1: 20 [A:6+B:6+C:4+D:4] + Kısım2: 21 [E:5+F:5+G:5+H:6] + Kısım3: 29 [I:6+J:5+K:4+L:7+M:7] + Kısım4: 12 [N:7+O:5])
+- KIRMIZI BAYRAK: **45** (BAYRAK-01…45, kesintisiz, tekrarsız)
+- Bu sayılar KİTABIN TÜMÜNE aittir. İçerik çıkarma tamamlanmıştır.
 
 ## Bölüm bazlı durum (01 — Graham Akıllı Yatırımcı) — Kısım 1-3/7 TAMAMLANDI
 | Kısım | Bölümler | Kitap sayfa | İLKE | FORMÜL | Eşik satırı | Kontrol maddesi | BAYRAK | Durum |
@@ -27,10 +27,10 @@
 | **Kısım 1** | Introduction + Comm. + Ch.1-4 + Comm.1-4 | s.1-111 | 01-38 (38) | 01-07 (7) | 17 | 20 (A/B/C/D) | 01-11 (11) | TAMAMLANDI, commit edildi (123e162) |
 | **Kısım 2** | Ch.5-8 + Comm.5-8 | s.112-224 | 39-92 (54) | 08-17 (10) | 24 | 21 (E/F/G/H) | 12-23 (12) | TAMAMLANDI, commit edildi (5e40c43) |
 | **Kısım 3** | Ch.9-13 + Comm.9-13 | s.226-346 | 93-137 (45) | 18-24 (7) | 27 | 29 (I/J/K/L/M) | 24-38 (15) | TAMAMLANDI, henüz commit edilmedi |
-| Kısım 4 | Ch.14-15 (savunmacı/girişimci seçim kriterleri — kitabın en yoğun eşik kaynağı) | — | — | — | — | — | — | İşlenmedi |
-| Kısım 5 | Ch.16-18 (?) | — | — | — | — | — | — | İşlenmedi |
-| Kısım 6 | Ch.19-20 + Postscript (Güvenlik Marjı — kitabın merkezi kavramı) | — | — | — | — | — | — | İşlenmedi |
-| Kısım 7 | Appendix 1-7 (Buffett'ın Superinvestors makalesi dahil) | — | — | — | — | — | — | İşlenmedi |
+| **Kısım 4** | Ch.14-15 (savunmacı/girişimci seçim kriterleri) | s.347-446 | 138-143 (6) | 25-35 (11) | 5 | 12 (N/O) | 39-41 (3) | TAMAMLANDI |
+| **Kısım 5** | Ch.16-18 | s.447-517 | 144-147 (4) | — | — | — | 42-43 (2) | TAMAMLANDI |
+| **Kısım 6** | Ch.19-20 + Postscript (Güvenlik Marjı) | s.518-570 | 148-150 (3) | 36 (1) | 1 | — | 44-45 (2) | TAMAMLANDI |
+| **Kısım 7** | Appendix 1-7 (Buffett'ın Superinvestors makalesi dahil) | s.571-638 | 151-152 (2) | — | — | — | — | TAMAMLANDI |
 
 ### Graham Kısım 2 — özel notlar
 - Bu kısım kitabın İLK somut sayısal seçim kriterleri bloğu (Ch.5'in 4 kuralı: çeşitlendirme/büyüklük/temettü/fiyat tavanı; Ch.7'nin bargain/net-net testleri) — Ch.14-15'te (Kısım 4) muhtemelen genişletilip çapraz referans verilecek.

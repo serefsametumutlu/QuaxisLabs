@@ -629,3 +629,154 @@
 6. **Kazanç kalitesi/muhasebe manipülasyonu teması (Ch.12+Comm.12) bu kitapta İLK KEZ bu YOĞUNLUKTA ortaya çıktı** — pro forma kazanç, agresif gelir kaydı, sermaye-harcaması-olarak-yeniden-sınıflandırma, pensiyon varsayımı manipülasyonu gibi kalemler QuaxisLabs'ın MEVCUT veri modelinde (isyatirim.py/kap_financials.py standart alan haritaları) DOĞRUDAN taranamaz — bunlar NİTEL/dipnot-okuma gerektiren analiz türleridir, sayısal alan eklemekle ÇÖZÜLEMEZ; ileride bir "kazanç kalitesi kontrol listesi" (bu turdaki KONTROL L) QuaxisLabs raporlarına METİN/checklist formatında eklenebilir (kod değil, kullanıcı rehberliği olarak).
 7. **Faiz karşılama oranı (FORMÜL-18) sanayi/ticaret şirketleri için EN YÜKSEK eşiği (7x) taşıyor** — bu, Buffett turunda ZATEN en çok vurgulanan tekil veri açığı (faiz gideri, sanayi şirketleri için XI_29 şemasında YOK) olarak tespit edilen kalemin 3. kez farklı bir kitapta/bağlamda ortaya çıkışı — öncelik listesinde YUKARI taşınmalı.
 8. **OCR ile ilgili not:** Bu turda kalıcı bir sayısal belirsizlik YOK. Table 9-1, Table 9-2 (Manhattan Fund portföyü), Table 11-3 (kimya/petrol karşılaştırması), Table 13-1 (4 şirket özet) çok-sütunlu OKUNAMAZ tablolardı ama HİÇBİRİNDEN ham sayı kullanılmadı — sadece çevresindeki DÜZ METİNDE (Table 9-1 için "Manhattan Fund 1967 +%38,6 vs S&P +%11", Table 13-1/13-2 için Table 13-2'nin TAM okunabilen kısmı) AÇIKÇA tekrarlanan rakamlar alındı.
+
+---
+
+## Kısım 4: Ch.14-15 + Commentary (s.347-446)
+
+**Chapter 14 — Stock Selection for the Defensive Investor (Graham):**
+- **İLKE-138:** Savunmacı yatırımcı için hisse seçimi, ağırlıklı olarak dışlama (exclusion) yöntemine dayanmalıdır; yetersiz kaliteye sahip hisseler ve kalitesi iyi olsa bile aşırı değerlenmiş hisseler portföye alınmamalıdır.
+- **İLKE-139:** Savunmacı portföyde yeterli ama aşırı olmayan çeşitlendirme sağlanmalıdır (minimum 10, maksimum 30 hisse senedi).
+
+**Commentary on Chapter 14 (Zweig):**
+- **İLKE-140:** Ev yanılgısı (Home bias) — İnsanlar tanıdıkları, bildikleri şirketlerin hisselerine (kendi çalıştıkları şirket veya oturdukları bölgedeki şirket) aşırı yatırım yapma eğilimindedirler. Bu "bildiğini al" mantığı portföy çeşitlendirmesini yok eder ve tehlikelidir.
+
+**Chapter 15 — Stock Selection for the Enterprising Investor (Graham):**
+- **İLKE-141:** Girişimci yatırımcı, ikincil (secondary) şirketlerin hisselerini ancak defter değerinin veya gerçek değerinin belirgin şekilde altında satıldığında (bargain) almalıdır.
+- **İLKE-142:** Yüksek büyüme beklentileri olan "glamour" hisseleri, aşırı yüksek fiyat çarpanlarıyla işlem gördüklerinde girişimci yatırımcı için bile tatmin edici bir güvenlik marjı sunmazlar.
+
+**Commentary on Chapter 15 (Zweig):**
+- **İLKE-143:** ROIC (Return on Invested Capital), net kâr veya hisse başı kazanç (EPS) yerine, şirketin ürettiği nakdi operasyonlarında ne kadar verimli kullandığını ölçen daha iyi ve manipülasyona daha kapalı bir göstergedir.
+
+### Kısım 4 Formüller
+
+- **FORMÜL-25:** Savunmacı Şirket Büyüklüğü Kriteri
+  - Formül: Yıllık satışlar ≥ $100 milyon (Sanayi) veya Toplam Varlıklar ≥ $50 milyon (Kamu Hizmetleri). (Zweig'ın güncel yorumu: Piyasa değeri ≥ $2 milyar).
+  - QuaxisLabs karşılığı: `income_statement.sales` ve `market_cap` alanlarıyla eklenebilir.
+- **FORMÜL-26:** Savunmacı Cari Oran Kriteri
+  - Formül: Cari Oran (Dönen Varlıklar / Kısa Vadeli Yükümlülükler) ≥ 2.0 (Sanayi şirketleri için).
+  - QuaxisLabs karşılığı: Mevcut `calculator.Ratios.current_ratio`.
+- **FORMÜL-27:** Savunmacı Borç / İşletme Sermayesi Kriteri
+  - Formül: Uzun vadeli borç ≤ Net dönen varlıklar (İşletme sermayesi).
+  - QuaxisLabs karşılığı: `long_term_debt <= working_capital` (Hesaplanabilir).
+- **FORMÜL-28:** Savunmacı Kazanç İstikrarı Kriteri
+  - Formül: Son 10 yılın tamamında pozitif net kâr (sıfır zarar yılı).
+  - QuaxisLabs karşılığı: VERİ EKSİK (trends.py 10 yılı kapsamıyor, sadece 12 çeyrek var).
+- **FORMÜL-29:** Savunmacı Temettü Kriteri
+  - Formül: Son 20 yıl boyunca kesintisiz temettü ödemesi.
+  - QuaxisLabs karşılığı: VERİ EKSİK (Temettü geçmişi verisi yok).
+- **FORMÜL-30:** Savunmacı Kazanç Büyümesi Kriteri
+  - Formül: Hisse başı kazanç (HBK), son 10 yılda en az %33 (üçte bir) oranında artmış olmalıdır. (Başlangıç ve sondaki 3 yıllık ortalamalar kullanılarak).
+  - QuaxisLabs karşılığı: VERİ EKSİK (10 yıllık veri yok).
+- **FORMÜL-31:** Savunmacı Fiyat/Kazanç (F/K) Sınırı
+  - Formül: Fiyat ≤ 15 × Son 3 yıllık ortalama kazanç.
+  - QuaxisLabs karşılığı: `pe_ratio` var, ancak 3 yıllık ortalama kazanç tabanlı olan versiyon özel bir oran olarak eklenebilir.
+- **FORMÜL-32:** Savunmacı Fiyat/Defter Değeri (PD/DD) Sınırı ve Graham Sayısı
+  - Formül: (F/K) × (PD/DD) ≤ 22.5.
+  - QuaxisLabs karşılığı: `src/analysis/valuation.py` içindeki `graham_number` olarak ZATEN MEVCUT.
+- **FORMÜL-33:** Girişimci Cari Oran Kriteri
+  - Formül: Cari varlıklar / Cari yükümlülükler ≥ 1.5.
+  - QuaxisLabs karşılığı: Mevcut `current_ratio` üzerinden eşik olarak eklenebilir.
+- **FORMÜL-34:** Girişimci Borç Kriteri
+  - Formül: Toplam borç ≤ %110 × Net dönen varlıklar (işletme sermayesi) (Sanayi şirketleri için).
+  - QuaxisLabs karşılığı: `total_debt <= 1.10 * working_capital`.
+- **FORMÜL-35:** Girişimci Fiyat Kriteri
+  - Formül: Fiyat ≤ %120 × Net maddi varlıklar (Net tangible assets).
+  - QuaxisLabs karşılığı: Fiyat ≤ 1.2 * Maddi defter değeri (Hesaplanabilir).
+
+### Kısım 4 Eşikler
+| Metrik | Eşik | Yorum | Kaynak bölüm |
+|---|---|---|---|
+| Savunmacı Cari Oran | ≥ 2.0x | Sanayi şirketleri için muhafazakar likidite | Graham, Ch.14 |
+| Girişimci Cari Oran | ≥ 1.5x | Girişimci yatırımcı için esnetilmiş likidite | Graham, Ch.15 |
+| Savunmacı F/K Sınırı | ≤ 15x | Son 3 yıllık ortalama kazanca göre | Graham, Ch.14 |
+| Graham Çarpanı (F/K × PD/DD) | ≤ 22.5 | Fiyatın kazanç ve defter değerine göre üst sınırı | Graham, Ch.14 |
+| ROIC (Yatırılan Sermaye Getirisi) | ≥ %10 | Cazip bir ROIC eşiği (en az %6-%7 olmalı) | Zweig, Comm.15 |
+
+### Kontrol Listeleri (Kısım 4)
+
+**KONTROL N — Graham'ın 7 Savunmacı Yatırımcı Kriteri (Nihai Liste - Ch.14, 7 madde):**
+1. Yeterli Büyüklük: Yıllık satışlar ≥ $100 milyon (veya güncel eşik).
+2. Yeterince Güçlü Mali Durum: Cari oran ≥ 2 ve Borç ≤ İşletme Sermayesi.
+3. Kazanç İstikrarı: Son 10 yılda zarar edilmemiş olması.
+4. Temettü Geçmişi: Son 20 yıldır kesintisiz temettü ödemesi.
+5. Kazanç Büyümesi: 10 yılda en az %33 (1/3) büyüme.
+6. Ilımlı F/K Oranı: Fiyat, son 3 yıl ortalama kazancın 15 katından fazla olmamalı.
+7. Ilımlı PD/DD Oranı: Fiyat, defter değerinin 1.5 katından fazla olmamalı (veya F/K × PD/DD ≤ 22.5).
+
+**KONTROL O — Graham'ın Girişimci Yatırımcı Kriterleri (Ch.15, 5 madde):**
+1. Mali Durum: Cari oran ≥ 1.5 ve Borç ≤ %110 İşletme Sermayesi.
+2. Kazanç İstikrarı: Son 5 yılda açık (zarar) yok.
+3. Temettü Geçmişi: Mevcut durumda bir temettü ödemesi var.
+4. Kazanç Büyümesi: Geçen yılın kazancı, 5 yıl önceki kazançtan yüksek.
+5. Fiyat: Net maddi varlıkların %120'sinden az.
+
+### Kırmızı Bayraklar (Kısım 4)
+- **BAYRAK-39:** "Gelecek yılın kazançları" (forward earnings) veya Wall Street analistlerinin tahminleri üzerinden hisse değerlemesi yapmak. Analist tahminleri sistematik olarak aşırı iyimserdir. (Comm.14)
+- **BAYRAK-40:** Bir şirketin "Seri Alıcı" (Serial Acquirer) olması. Yılda birden fazla başka şirketi satın alan firmalar, organik büyümek yerine muhasebe illüzyonlarıyla büyüyor gibi görünürler. (Comm.15)
+- **BAYRAK-41:** CEO'ya hisse senedi opsiyonu dağıtımının, toplam hisselerin %3'ünü aşması (hisse senedi seyreltmesi / dilution yoluyla diğer yatırımcıların değerini aşındırır). (Comm.15)
+
+---
+
+## Kısım 5: Ch.16-18 + Commentary (s.447-517)
+
+**Chapter 16 — Convertible Issues and Warrants (Graham):**
+- **İLKE-144:** Hisse senedi opsiyon varantları (warrants) yatırımcılar için bir tuzaktır. Varantlar ince havadan yaratılmış illüzyonlardır; yalnızca spekülatif heveslerden beslenirler.
+- **İLKE-145:** "Dönüştürülebilir tahvili asla dönüştürmeyin" (Never convert a convertible bond). Dönüştürülebilir bir tahvili, hisse senedine dönüştürerek elde tutmak, tahvilin sunduğu aşağı yönlü korumayı kaybedip tamamen hisse riskini üstlenmek demektir.
+
+**Commentary on Chapter 16 (Zweig):**
+- **BAYRAK-42:** Dönüştürülebilir tahvillerin büyük çoğunluğu boğa piyasalarının en coşkulu zamanlarında ihraç edilir, bu da genellikle piyasanın zirvesine yaklaşıldığının iyi bir işaretidir.
+
+**Chapter 17 — Four Extremely Instructive Cases (Graham):**
+- **İLKE-146:** Bir şirketin fiyatının, şirketin nakit veya dönen varlıklarının yarısına bile denk gelmediği "kötü" zamanlarda bile, dikkatli yatırımcı aşırı kötümserliğin yarattığı kelepir (bargain) fırsatlarını değerlendirmelidir.
+- **BAYRAK-43:** "Big Bath" veya "Kitchen Sink" muhasebesi: Şirketlerin kötü geçen bir yılda gelecekteki olası tüm zararları ve maliyetleri tek bir yıla yığarak, sonraki yıllarda suni bir kârlılık illüzyonu yaratması. (s.428)
+
+**Chapter 18 — A Comparison of Eight Pairs of Companies (Graham):**
+- **İLKE-147:** Hisse seçimi, popülariteye (örneğin yüksek F/K çarpanlarıyla işlem gören "glamour" hisseleri) değil, ölçülebilir değere dayanmalıdır. Düşük çarpanlı (low-multiplier), gözden düşmüş ama mali yapısı sağlam şirketler genellikle daha iyi performans gösterir.
+
+### Kısım 5 Formüller
+- Yeni matematiksel formül bulunmadı; önceki eşiklerin çeşitli şirket eşleşmelerindeki (pairs) vaka analizleriyle sağlaması yapıldı.
+
+---
+
+## Kısım 6: Ch.19-20 + Postscript + Commentary (s.518-570)
+
+**Chapter 19 — Shareholders and Managements: Dividend Policy (Graham):**
+- **İLKE-148:** Hissedarlar, şirketin kârını işletme içinde yeniden yatırıma (reinvestment) dönüştüren yönetimlerden, bu yatırımların şirketin hisse başına kazancını net ve tatmin edici bir şekilde artırmasını talep etmelidir. Eğer bu gerçekleşmiyorsa, şirket kârın büyük kısmını (örneğin %60-75'ini) temettü olarak dağıtmalıdır.
+- **İLKE-149:** Hisse geri alımları (stock repurchases), ancak hisse fiyatı şirketin gerçek değerinden *ucuz* olduğunda anlamlıdır. Hisse senetleri zirvedeyken yapılan geri alımlar şirket sermayesinin israfıdır.
+
+**Commentary on Chapter 19 (Zweig):**
+- **BAYRAK-44:** Şirket yöneticilerinin "Hissedar değerini artırmak için" diyerek şirketin hisselerini rekor yüksek seviyelerden geri alması. Bu, genellikle yöneticilerin kendi hisse senedi opsiyonlarının değerini korumak için yapılan şüpheli bir eylemdir.
+
+**Chapter 20 — "Margin of Safety" as the Central Concept (Graham):**
+- **İLKE-150 (KİTABIN MERKEZİ KAVRAMI):** GÜVENLİK MARJI (Margin of Safety). Tüm başarılı yatırımların sırrı bu üç kelimede yatar. Güvenlik marjı, ödenen fiyat ile varlığın hesaplanan gerçek değeri (veya kazanç gücü) arasındaki olumlu farktır.
+- **FORMÜL-36:** Hisse Senetleri için Güvenlik Marjı
+  - Formül: Şirketin "Kazanç Getirisi" (Earnings Yield = EPS / Fiyat), yüksek kaliteli tahvil getirisinden belirgin ölçüde yüksek olmalıdır.
+  - QuaxisLabs karşılığı: `(1 / pe_ratio) - risk_free_rate > margin` şeklinde uygulanabilir (Değerleme modülünde dolaylı olarak var).
+  - Not: FORMÜL-36 (Ch.20 Güvenlik Marjı) — FORMÜL-25-35 Kısım 4 kriterlerinden sonra gelen Kısım 6 formülü; FORMÜL-37-40 numaraları (Kısım 5-7 kapsamı) bilinçli olarak boş bırakıldı — bu bölümlerde ayrı bir hesap gerektiren özgün formül bulunmadı.
+
+### Kırmızı Bayraklar (Kısım 6)
+- **BAYRAK-45:** Kötü yönetilen, verimsiz şirketlerin aşırı yüksek fiyatlarla işlem görmesi. Mr. Market mantıksız davrandığında yatırımcı kendi bağımsız güvenlik marjı hesabına güvenmelidir.
+
+---
+
+## Kısım 7: Appendix 1-7 (s.571-638)
+
+**Appendix 1 — The Superinvestors of Graham-and-Doddsville (Warren Buffett):**
+- **İLKE-151:** Piyasalar her zaman verimli (efficient) değildir. Değer ve fiyat arasındaki farkları istismar eden ve aynı entelektüel temelden (Graham-ve-Doddsville) gelen yatırımcıların uzun vadede piyasayı sürekli yenmesi tesadüf (şans) olamaz.
+- **İLKE-152:** Yatırım yapmak, hisse senedi almak değil, bir işin (business) bir parçasına ortak olmaktır. Fiyat ile işin değeri arasındaki güvenlik marjını korumak riskleri minimize eder.
+
+### Eşikler (Kısım 4-7 Toplam)
+| Metrik | Eşik | Yorum | Kaynak bölüm |
+|---|---|---|---|
+| Earnings Yield (1 / P/E) | > Tahvil Faizi + Marj | Hisse senedi güvenlik marjı hesabı | Graham, Ch.20 |
+
+---
+
+## Kısım 4-7 Uygulama Notları
+1. **Güvenlik Marjı Kavramı:** Kitabın 20. bölümü yatırımcılığın temel felsefesini tek bir cümleye ("Margin of Safety") indirgemiştir. Bu felsefe, QuaxisLabs'ın tüm değerleme modüllerinin temelini oluşturan P/E, P/B ve indirgenmiş nakit akışı marjlarının teorik altyapısıdır.
+2. **Kapsamlı Seçim Kriterleri:** Graham'ın 14. ve 15. bölümlerde ortaya koyduğu 7 maddelik Savunmacı (Defensive) ve 5 maddelik Girişimci (Enterprising) yatırımcı listesi, kitabın en sayısal ve net kodlanabilir filtreleridir. Mevcut veri eksikleri (10 yıllık veri, temettü geçmişi) nedeniyle tamamı uygulanamasa da, mevcut metrikler (`current_ratio`, `working_capital`, `total_debt`, `pe_ratio`, `graham_number`) üzerinden büyük ölçüde uyarlanabilir.
+3. **Muhasebe Manipülasyonları ve Nitel Analiz:** Bölüm 12 ve ilgili vaka analizlerinde (Ch.17) bahsedilen "pro forma" kazançlar, Big Bath muhasebesi ve hisse senedi opsiyonlarının yarattığı seyreltme (dilution) gibi kavramlar, salt bilanço rakamlarıyla tespit edilemez. Dipnotların incelenmesini gerektirir.
+4. **Shiller P/E:** Zweig'ın yorumlarında sıklıkla atıfta bulunulan Robert Shiller'in 10 yıllık enflasyona göre düzeltilmiş F/K oranı, QuaxisLabs `trends.py` 10 yılı kapsamadığı sürece uygulanamaz. Bu, veri eksikliğinin yapısal etkisini bir kez daha vurgular.
+
+**BİLGİ ÇIKARMA SÜRECİ TAMAMLANDI.** (01_graham_akilli_yatirimci.md tüm bölümleriyle işlenmiştir.)

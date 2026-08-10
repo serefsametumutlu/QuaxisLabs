@@ -1011,3 +1011,225 @@ Her seçimin EŞLEŞEN bir kazanç/defter değeri ölçüsü VARDIR (Tablo 8.1/8
 - **Sektör/piyasa regresyonu (FORMÜL-82/83/85) — YENİ TÜR eksiklik:** Bu Kısımda İLK KEZ netleşen bulgu, önceki "tekil veri EKSİK" örüntüsünden FARKLIDIR — QuaxisLabs'ın TEKİL varlık analiz mimarisi, ÇOK-FİRMA cross-sectional karşılaştırma/regresyon/persentil ALTYAPISINI hiç İÇERMİYOR. Beta/DPS gibi veri açıkları giderilse BİLE, bu formül grubu (sektör regresyonu, agregatif P/E, evren-çapında persentil) YENİ bir MİMARİ bileşen (çoklu-şirket istatistik motoru) gerektirir — bu, ürünün BIST/NASDAQ/Crypto evrenini TOPLU analiz eden bir modül eklemesi durumunda değerlendirilebilecek, uzun vadeli bir ÖZELLİK boşluğudur.
 - **İki aşamalı çarpan modelleri (FORMÜL-81)** — DPS/çok-yıllı büyüme eksikliğine bağlı.
 - **Opsiyon-katkılı özkaynak (FORMÜL-87)** — çalışan opsiyon verisi YOK; bu konu Kısım 6'da (Ch.11 Employee Equity Options) GENİŞLEYECEK.
+
+---
+
+# KISIM 5 — Chapter 9-10: Value Multiples + Cash, Cross Holdings, and Other Assets
+
+**Kapsam:** Chapter 9: Value Multiples (PDF s.386-421), Chapter 10: Cash, Cross Holdings, and Other Assets + Appendix 10.1 (PDF s.422-477). Bu Kısımla **Part Two: Relative Valuation** BİTER ve **Part Three: Loose Ends in Valuation**'ın İLK bölümü işlenir. ID numaralandırması Kısım 1-4'ün devamı (İLKE-187'den, FORMÜL-88'den, BAYRAK-28'den, Kontrol Listesi U'dan başlar; kesintisiz).
+
+## İlkeler (devam)
+
+**Chapter 9 — Value Multiples:**
+
+- **İLKE-187:** DCF'te özkaynaktan firmaya geçişte kaldıraç esnekliği kazanıldığı gibi, FİRMA DEĞERİ çarpanları da farklı borç oranlı şirketleri kıyaslarken ÖZKAYNAK çarpanlarından DAHA KOLAY çalışılır — bu Kısmın temel gerekçesidir. (s.386)
+- **İLKE-188 (Firma değeri ölçümünde ek kararlar):** Özkaynak değerindeki 2 karara (nakit, opsiyon — Kısım 4 İLKE-167) EK olarak firma değerinde 2 YENİ karar gerekir: ÇAPRAZ İŞTİRAKLERİN NASIL ele alınacağı VE BORCA NELERİN dahil edileceği. (s.386-387)
+- **İLKE-189 (İsraf edilen/edilmeyen nakit ayrımı):** Enterprise Value = Firma Değeri − Nakit; ama "hangi nakdin" netleştirileceği tartışmalıdır — bazı analistler faaliyet/fazla (excess) nakit AYRIMI yapar, DAHA DOĞRUSU İSE İSRAF EDİLEN (piyasa-altı getirili) İLE İSRAF EDİLMEYEN (adil piyasa getirili) nakit ayrımıdır; SADECE israf edilmeyen nakit netleştirilmelidir kavramsal olarak (Ch.10'da detaylanır). (s.387)
+- **İLKE-190 (Çapraz iştiraklerde 2 yaygın hata):** (1) azınlık payının SADECE özkaynak kısmını sayıp borç/nakdini SAYMAMAK — TUTARSIZLIK (iştirakin özkaynağının %5'i sayılıyorsa borç/nakdinin de %5'i sayılmalı VEYA HİÇ sayılmamalı); (2) çoğunluk iştiraklerinde bilanço "azınlık payı" (DEFTER değeri) kalemini doğrudan FD'ye eklemek — azınlık payının PİYASA değeri defter değerinden GENELDE FARKLIDIR, bu yüzden defter-değeri-eklemek YANLIŞTIR. [→ BAYRAK-28] (s.387-389)
+- **İLKE-191 (Konsolide değer, iki eşdeğer yol):** (a) TAM formül — azınlık payların net borç PAYINI + çoğunluk payların TAM özkaynak değerini ana şirket FD'sine eklemek; (b) DAHA KOLAY yöntem — İŞTİRAKSİZ (parent-only) firma değerini hesaplamak (konsolide FD'den azınlık holding'lerin piyasa değerini VE çoğunluk holding'lerin hem piyasa değerini hem konsolide borç/nakdini ÇIKARARAK). (s.389)
+- **İLKE-192 (Borç tanımı — FD hesabında):** Cost of capital hesabındaki DAR tanımdan (sadece faizli borç+kira) FARKLI olarak, firma değeri hesabında diğer potansiyel yükümlülükler (fonsuz emeklilik/sağlık vb.) de dahil edilmelidir; PİYASA değeri (tahmini olsa bile) DEFTER değerinden HER ZAMAN TERCİH EDİLİR. (s.389-390)
+- **İLKE-193 (Ölçek değişkeni tutarlılığı, Tablo 9.1):** Kazanç ölçüsü FAVÖK, FVÖK VEYA vergi-sonrası FVÖK olabilir — HEPSİ nakit/azınlık gelirinden ÖNCEKİ ölçülerdir; SADECE ana şirket (konsolide OLMAYAN) kazancı kullanılıyorsa değer ölçüsü de SADECE ana şirketi yansıtmalı (nakit+TÜM çapraz iştirakler netleştirilmeli); KONSOLİDE kazançla çalışılıyorsa nakit+azınlık netleştirilir ama TAM çoğunluk payı DAHİL edilir. (s.391-392)
+- **İLKE-194 (Defter değeri tutarlılığı, Tablo 9.2):** Piyasa değeri ölçüsüne (firma değeri/enterprise value) EŞLEŞEN defter değeri ölçüsü kullanılmalıdır — TOPLAM VARLIK defter değeri HİÇBİR firma/FD ölçüsüyle EŞLEŞMEZ, sadece TAHMİNİ PİYASA DEĞERİ TOPLAM VARLIKLA eşleştirilebilir. (s.392-393)
+- **İLKE-195 (Gelir çarpanı tutarlılığı):** P/S TUTARSIZ olduğundan (Kısım 4 İLKE-171), FD/Satış DAHA TUTARLI versiyondur; çapraz iştirakler BURADA da bozucu etki yapar — azınlık geliri NETLEŞTİRİLMELİ ama azınlık PAYI da firma değerinden ÇIKARILMALI (TUTARLI kalması için). (s.393)
+- **İLKE-196:** Aktivite değişkenleri (abone başına, ziyaretçi başına vb.) İÇİN en mantıklı pay ölçüsü Enterprise Value'dur (Kısım 4'teki sektöre özgü çarpan uyarısı — İLKE-150 — BURADA da geçerlidir). (s.393-394)
+- **İLKE-197 ("FD/FAVÖK<7x=ucuz" kuralının çürütülmesi):** FD/FAVÖK, FD/FVÖK, FD/vergi-sonrası-FVÖK dağılımları da (Kısım 4'teki gibi) pozitif çarpıktır (ortalama>medyan); yaygın "FD/FAVÖK 7x'in altındaysa ucuz" pratik kuralı, ABD'de yaklaşık **1.500** firmanın bu eşiğin ALTINDA işlem görmesiyle ÇÜRÜTÜLÜR — sabit sayısal eşiklerin dağılımın ZAMAN/SEKTÖRE göre kaymasını göz ardı ettiğinin somut kanıtı. [→ BAYRAK-30] (s.394-396)
+- **İLKE-198 (FAVÖK çarpanlarının örneklem avantajı):** Negatif FAVÖK'lü firma SAYISI, negatif HBK'lı firma sayısından ÇOK DAHA AZDIR (özellikle amortismanın büyük gider kalemi olduğu telekom/kablo/hücresel sektörlerde) — bu yüzden FAVÖK çarpanları P/E'den DAHA AZ örneklem-dışı-bırakma yanlılığı (Kısım 4 İLKE-156) taşır. (s.396)
+- **İLKE-199 (Değer/Defter Sermayesi'nin P/BV'ye üstünlüğü):** Defter sermayesi (borç+özkaynak) NEGATİF ÖZKAYNAKLI firmalarda BİLE genelde POZİTİFTİR — Değer/Defter Sermayesi P/BV'nin aksine örneklem KAYBI yaşamaz; TEK İSTİSNA: nakit defter sermayesini AŞARSA "yatırılan sermaye" (nakit netleştirilmiş) NEGATİF olabilir. (s.396-397)
+- **İLKE-200 (FD/Satış vs P/S yapısal farkı):** FD/Satış çoğu firmada P/S'DEN YAPISAL OLARAK YÜKSEKTİR (borç nakitten fazla olduğunda); teknoloji gibi nakit-ağır/düşük-borçlu sektörlerde İSE TERSİ (FD/Satış<P/S) görülür. Piyasa geneli medyan FD/Satış Ocak 2006'da **1,58**'dir. (s.397-398)
+- **İLKE-201 (FD çarpanlarının belirleyicileri):** DCF'in temel değişkenleriyle (büyüme, sermaye maliyeti, yeniden yatırım oranı) AYNI mantıkla türetilir; EV/EBIT VE EV/EBIT(1-t) büyüme ARTTIKÇA / sermaye maliyeti AZALDIKÇA / yeniden yatırım oranı AZALDIKÇA (=sermaye getirisi ARTTIKÇA) ARTAR. [→ FORMÜL-92] (s.398-399)
+- **İLKE-202 (Amortisman/vergi etkisi — FAVÖK çarpanına):** AYNI büyüme/risk/yeniden-yatırım koşullarında YÜKSEK amortismanlı firmalar DAHA DÜŞÜK FAVÖK çarpanında işlem GÖRMELİDİR; YÜKSEK vergi oranlı firmalar da DAHA DÜŞÜK FAVÖK/FVÖK (VERGİ ÖNCESİ ölçü) çarpanında işlem GÖRMELİDİR — bu etki VERGİ SONRASI ölçülerden (EV/EBIT(1-t)) DAHA BÜYÜKTÜR. [→ BAYRAK-31] (s.399-400)
+- **İLKE-203 (FD/Defter Sermayesi'nin belirleyicisi):** FAZLA GETİRİ (ROC − sermaye maliyeti) VE büyüme; fazla getiri POZİTİFSE çarpan 1'İN ÜSTÜNDE, NEGATİFSE 1'İN ALTINDA olmalıdır — P/BV'deki ROE-ke ilişkisiyle (Kısım 4 İLKE-180) BİREBİR PARALEL. (s.400-401)
+- **İLKE-204:** FD/Satış'ın belirleyicisi büyüme + sermaye maliyeti (TERS yönlü) + VERGİ SONRASI faaliyet marjıdır — P/S'nin net marj belirleyicisiyle (Kısım 4 İLKE-181) PARALELDİR. (s.401)
+- **İLKE-205:** Yüksek büyüme (iki aşamalı) firma değeri çarpanları AYNI belirleyicilere sahiptir, SADECE girdiler İKİ dönem (yüksek büyüme+istikrarlı) için AYRI tahmin edilir — Kısım 4'teki (Ch.8) yaklaşımla PARALEL. (s.401-403)
+- **İLKE-206 (Büyüme etkisi, somut örnek):** TÜM FD çarpanları büyümeyle ARTAR (İllüstrasyon 9.2: FD/FAVÖK, g=%0'da **4,7**'den g=%20'de **11,13**'e çıkar); büyüme farkını KONTROL ETMEDEN sektör-içi FD çarpanı kıyası DÜŞÜK-büyüme firmaları "ucuz", YÜKSEK-büyüme firmaları "pahalı" gösterme yanlılığı taşır — büyüme SÜRESİ etkisi de (Kısım 4 İLKE-178'deki gibi) AYNI yönde çalışır. (s.403-404)
+- **İLKE-207 (Risk etkisi, 2 kanaldan):** Risk hem cost of equity HEM cost of debt ÜZERİNDEN cost of capital'ı etkiler; olgun/düşük-riskli firmalar DÜŞÜK maliyetle borçlanıp DÜŞÜK cost of capital elde eder, riskli firmalar HEM yüksek cost of equity HEM yüksek cost of debt taşır (İllüstrasyon 9.2: kc=%6'da FD/FAVÖK=**23x**, kc=%15'te=**3,5x**). 3 sonuç: (1) riskli işkolundaki firmalar (AYNI sektörde bile) DAHA DÜŞÜK FD çarpanında işlem görmeli; (2) optimal kaldıraçtan SAPMA cost of capital'ı DOLAYLI etkiler; (3) gelişmekte olan piyasa firmaları gelişmiş piyasa emsallerine göre DAHA YÜKSEK cost of capital nedeniyle DAHA DÜŞÜK FD çarpanında işlem görmelidir (OTOMATİK "ucuz" DEĞİLDİR). (s.404-405)
+- **İLKE-208 (Yatırım kalitesi etkisi):** Sermaye getirisi (ROC) ARTTIKÇA (aynı büyüme için gereken yeniden yatırım AZALDIĞINDAN) TÜM FD çarpanları ARTAR; FD/Yatırılan-Sermaye ÖZELLİKLE FAZLA GETİRİYE (ROC-kc) duyarlıdır — fazla getiri pozitifse çarpan>1, negatifse çarpan<1. (s.405-408)
+- **İLKE-209 (Vergi oranı etkisi, orantısız büyüklük):** Vergi oranı ARTTIKÇA TÜM FD çarpanları AZALIR, ama VERGİ-ÖNCESİ ölçülerdeki (FAVÖK, FVÖK) etki VERGİ-SONRASI ölçüden (EBIT(1-t)) ORANTISIZ BÜYÜKTÜR (somut örnek: vergi %20→%40 iken FD/FAVÖK **11,52→7,04** [-%39], FD/EBIT(1-t) **17,29→14,09** [-%18,5]) — yüksek vergi oranlı ülkelerdeki firmalar (Almanya >%38 vs İrlanda %12) VERGİ-ÖNCESİ çarpanlarda SİSTEMATİK OLARAK ucuz görünür, bu YANILTICIDIR. [→ BAYRAK-31] (s.408-409)
+- **İLKE-210 (Sektör içi kıyasın 3 yolu — Ch.7 ile paralel):** Sübjektif değerlendirme; MATRİS yaklaşımı (çarpanı companion değişkene karşı ÇİZEREK dört bölgeye ayırma — sağ-alt=ucuz [yüksek fazla getiri+düşük çarpan], sol-üst=pahalı); regresyon. (s.410-411)
+- **İLKE-211 (FD regresyonlarının R² üstünlüğü):** FD/faaliyet-kârı regresyonlarının R²'si, GENELDE özkaynak kazanç çarpanı (P/E) regresyonlarından DAHA YÜKSEKTİR — faaliyet temellerinin (kazanç kalitesi/muhasebe farklılıklarından bağımsız) çarpanları açıklama gücü DAHA BÜYÜKTÜR. (s.416)
+- **İLKE-212 (FD/Sermaye vs P/BV seçim kriteri):** YÜKSEK/DEĞİŞKEN kaldıraçlı firmalarda FD/Sermaye (+eşlik eden ROC) DAHA İSTİKRARLI VE GÜVENİLİR bir görece değer ölçüsü sunar (P/BV'nin ROE'si kaldıraçla YAPAY OLARAK ŞİŞER/ÇÖKER); FD/Sermaye AYRICA negatif özkaynaklı firmalarda BİLE hesaplanabilir (İLKE-199 ile bağlantılı). (s.417)
+- **İLKE-213 (İleri/forward çarpanlar):** GENÇ (bugün az gelir, hızlı büyüyen) VE SIKINTILI (bugün zarar eden) firmalarda BUGÜNKÜ rakamlar yerine GELECEKTEKİ (örn. 5 yıl sonraki) rakamlara dayalı çarpan kullanmak DAHA ANLAMLI OLABİLİR — 3 yöntem: (a) karşılaştırılabilir firmaların BUGÜNKÜ ortalama çarpanını gelecekteki değere uygulayıp BUGÜNE İskonto etmek; (b) karşılaştırılabilir firmaların KENDİ gelecekteki gelirine göre hesaplanmış BUGÜNKÜ-değer/gelecek-gelir çarpanını kullanmak; (c) regresyonla marj/büyüme/risk FARKLARINI da düzeltmek. (s.418-420)
+- **İLKE-214 (İleri çarpan kullanımının 3 tuzağı):** (1) BEKLENEN (olasılıkla ağırlıklı) değerler kullanılmalı, EN İYİ SENARYO DEĞİL (başarısızlık olasılığı hesaba katılmalı); (2) ÇİFTE BÜYÜME SAYIMINDAN KAÇINILMALI (gelecekteki değer ZATEN büyümeyi yansıtıyorsa, AYRICA yüksek-büyüme gerekçesiyle şişirilmiş bir çarpan kullanmak çifte sayımdır); (3) BUGÜNE İNDİRGENMELİ (gelecek değer UYGUN bir iskonto oranıyla bugüne çevrilmeli) — girişim sermayecilerinin "çıkış çarpanı" yöntemi (tipik hedef getiri %25-35, başarısızlık olasılığını YANSITAN) bu 3 kuralın BİR VARYANTIDIR. [→ FORMÜL-99] (s.420)
+
+**Chapter 10 — Cash, Cross Holdings, and Other Assets:**
+
+- **İLKE-215 (Nakit tutma nedenleri):** Keynes'in 3 bireysel motifinin (işlem, ihtiyat, spekülasyon) kurumsal genişletmesi + 1 ek: İŞLEM/OPERASYONEL motif (nakit-yoğun vs kredi-yoğun iş, küçük-çok/büyük-az işlem, bankacılık sistemi gelişmişliği); İHTİYAT motifi (ekonomi/faaliyet oynaklığı, rekabet yoğunluğu, finansal kaldıraç); GELECEKTEKİ SERMAYE YATIRIMI motifi (yatırım ihtiyacının büyüklüğü/belirsizliği, sermaye piyasasına erişim, yatırımlar hakkında bilgi asimetrisi — Ar-Ge yoğun firmalar DAHA FAZLA nakit tutar); STRATEJİK motif (fırsatçı kullanım, özellikle sermaye piyasası KAPALI gelişmekte olan piyasalarda DEĞERLİ); YÖNETİM ÇIKARLARI (zayıf kurumsal yönetim/yüksek içeriden pay sahipliği → "imparatorluk kurma" güdüsüyle nakit biriktirme — nakit biriktiren firmalar ORTALAMADA daha ZAYIF faaliyet performansı raporlar). (s.425-429)
+- **İLKE-216 (Nakit tutarının 3 ölçeği):** Firma değerinin yüzdesi, defter varlık değerinin yüzdesi, hasılatın yüzdesi olarak ölçülebilir — HER ÜÇÜ de sektörler arası BÜYÜK farklılık gösterir. (s.429-431)
+- **İLKE-217 (Nakit sınıflandırmasının 2 çerçevesi):** (a) YAYGIN ama ZAYIF çerçeve — FAALİYET nakdi vs FAZLA (excess) nakit (3 tahmin yöntemi: kural-of-thumb [%2 hasılat], sektör ortalaması, cross-sectional regresyon); (b) DAHA DOĞRU çerçeve — İSRAF EDİLEN (piyasa-altı getirili) vs İSRAF EDİLMEYEN (adil piyasa getirili) nakit — DEĞERLEME açısından anlamlı olan ayrım BUDUR, çünkü adil getirili nakit SIFIR NPV yatırımıdır (değeri etkilemez); faaliyet/fazla ayrımı DEĞER açısından ANLAMSIZDIR. (s.431-433)
+- **İLKE-218 (DCF'te nakdin ele alınışı — konsolide vs ayrı):** KONSOLİDE (nakit dahil TEK model) yaklaşım 2 ZORLUK taşır: (1) sermaye maliyeti/beta SÜREKLİ nakit AĞIRLIĞINA göre yeniden ayarlanmalı (nakdin betası SIFIR kabul edilir, ağırlıklı ortalama unlevered beta gerekir); (2) firma büyüdükçe faaliyet/nakit gelir oranı DEĞİŞTİĞİNDEN girdiler SÜREKLİ güncellenmeli. AYRI değerleme (nakdi faaliyet varlıklarından AYIRIP AYRI değerlemek, SONRA toplamak) DAHA GÜVENİLİRDİR — İKİ hata riskini azaltır: ÇİFTE SAYIM (nakit gelirini nakit akışına dahil edip AYRICA nakdi geri eklemek) ve YANLIŞ SAYIM (nakit gelirine YANLIŞ [riskli] iskonto oranı uygulamak). [→ KONTROL LİSTESİ W] (s.433-436)
+- **İLKE-219 (Konsolide yaklaşımın somut hata büyüklüğü):** Riskiz nakit gelirini faaliyet varlıklarına uygun YÜKSEK bir iskonto oranıyla (örn. %11) iskonto etmek 1 milyar dolarlık nakdi 800 milyon dolara İNDİRGER — İllüstrasyon 10.1'de DOĞRU değer $1.400mn iken HATALI konsolide yaklaşım $1.290mn verir ($110mn KAYIP; nakit $200mn yerine $90mn değerlenir). (s.436-437)
+- **İLKE-220 (Brüt borç vs net borç yaklaşımı):** İKİ yaklaşım FARKLI özkaynak değeri ÜRETEBİLİR çünkü nakdi finanse eden VARSAYILAN kaynak farklıdır (brüt: nakit+borç AYNI oranda finanse edilir; net: nakit TAMAMEN riskiz borçla finanse edilmiş SAYILIR) — bu, sermaye maliyetinde kullanılan vergi-öncesi borç maliyetini VE vergi avantajını FARKLI etkiler; fark VERGİ ORANI VE TEMERRÜT RİSKİ arttıkça BÜYÜR. Yazarın TERCİHİ: BRÜT borç yaklaşımı + nakdi AYRI varlık olarak tutmak. [→ FORMÜL-101] (s.437-443)
+- **İLKE-221 (Nakdin iskontolandığı 2 durum):** Genel kural: nakit 1 dolar=1 dolar değerindedir, prim/iskonto uygulanmaz. İSTİSNA 2 durumda: (1) nakit PİYASA-ALTI getiriyle yatırılmışsa (küçük işletme/bazı gelişmekte olan piyasa erişim kısıtları); (2) YÖNETİME GÜVENSİZLİK varsa (geçmişte kötü yatırım/satın alma kaydı olan yönetim, büyük nakit bakiyesini KÖTÜ yatırımlara/devralmalara HARCAMA olasılığını ARTIRIR — piyasa BUNU ÖNCEDEN İskontolar; iskonto en BÜYÜK, az yatırım fırsatı+kötü yönetimli firmalarda, en KÜÇÜK/YOK, çok fırsat+iyi yönetimli firmalarda GÖRÜLÜR). [→ KONTROL LİSTESİ X] (s.443-445)
+- **İLKE-222 (Ampirik nakit değerleme kanıtı):** Piyasanın nakde biçtiği değer FARKLI ÇALIŞMALARDA farklı bulunmuştur — Pinkowitz&Williamson (2002): ~yüzdeğerinde (büyük std hatayla, büyüme firmalarında DAHA YÜKSEK); zayıf-pay-sahibi-korumalı gelişmekte olan piyasalarda $0,65/$1; Schwetzler&Reimund (2004, Almanya): medyan-üstü nakit tutan firmalar DAHA YÜKSEK değerlenir; Faulkender&Wang (2004): marjinal nakit değeri $0,96 (nakit VE borç ARTTIKÇA marjinal değer AZALIR; temettü-ödeyen firmalarda DAHA DÜŞÜK [vergi dezavantajı]; sermaye-kısıtlı/yüksek-yatırım-fırsatlı firmalarda DAHA YÜKSEK). Japonya'da medyan nakit tutarı Almanya/ABD medyanının **2,5 katı** (banka gücü hipotezi). (s.449-451)
+- **İLKE-223 (Göreli değerlemede nakit sorunu — özkaynak çarpanları):** Nakit VE faaliyet varlıkları FARKLI getiri/risk profiline sahip olduğundan, P/E ORANI nakit bakiyesinin BÜYÜKLÜĞÜNÜN bir FONKSİYONU haline gelir; DÜŞÜK/ORTA büyümeli sektörlerde YÜKSEK nakitli firmalar DAHA YÜKSEK P/E'de işlem görür (nakit RİSKSİZ olduğundan DAHA YÜKSEK çarpanı hak eder) ama bu OTOMATİK "pahalı" DEMEK DEĞİLDİR; YÜKSEK büyümeli sektörlerde İSE faaliyet varlığının çarpanı nakit çarpanını AŞTIĞINDA, yüksek nakit DÜŞÜK P/E'ye yol açar. ÇÖZÜM: nakit-hariç özkaynak/nakit-hariç kazançla hesaplanan P/E kullanmak. [→ BAYRAK-34] (s.446-447)
+- **İLKE-224 (P/BV'de paralel sorun):** Nakit genelde DEFTER değerine YAKIN işlem görür (P/BV≈1), faaliyet varlıkları İSE DEFTER değerinden ÖNEMLİ ÖLÇÜDE SAPABİLİR; nakit AĞIRLIĞI arttıkça firma P/BV'si "1"E doğru ÇEKİLİR — ÇÖZÜM AYNIDIR: hem piyasa hem defter değerinden nakdi NETLEŞTİRMEK. (s.447-448)
+- **İLKE-225 (FD çarpanlarında nakit — 2 dikkat noktası):** FD çarpanlarında nakit sorunu DAHA AZ (analistler genelde nakdi ZATEN netleştiriyor) ama 2 dikkat noktası VAR: (1) MEVSİMSEL nakit dalgalanması — yıl-sonu bakiyesi yerine YIL ORTALAMASI kullanılmalı, aksi halde YAPAY OLARAK düşük FD çarpanı ("ucuz" yanılgısı) oluşabilir; (2) FD/Sermaye hesabında nakit HEM piyasa HEM defter tarafında netleştirilmeli. [→ BAYRAK-33] (s.448-449)
+- **İLKE-226 (Elden çıkarma/divestiture tuzağı):** Yıl SONUNDA yapılan bir varlık satışı, faaliyet varlıklarını BÜYÜK bir nakit bakiyesiyle DEĞİŞTİRİR ama geçmiş dönem FAVÖK/faaliyet kârı HALA satılan varlığın kazancını İÇERİR — bu, çarpanı YAPAY OLARAK DÜŞÜK gösterir; çözüm: satılan varlığın kazanç KATKISINI ÇIKARMAK VEYA bu katkıyı İÇERMEYEN ileriye dönük bir rakam kullanmak. [→ BAYRAK-33] (s.449)
+- **İLKE-227 (Finansal yatırım tutma nedenleri):** DAHA YÜKSEK GETİRİ arayışı (ama ADİL-riskli getiri DEĞER-NÖTRDÜR, DAHA DEĞERLİ YAPMAZ); DEĞERSİZ (undervalued) menkul kıymet ARAYIŞI (POZİTİF NPV — Berkshire Hathaway örneği: 1999 2Ç'de $69 milyar finansal yatırım, $12,4mlr Coca-Cola dahil); STRATEJİK yatırım (Microsoft'un 1990'larda 14+ firmaya yaptığı stratejik yatırımlar — ürün/servis etkisi + rakip ittifaklarını ÖNLEME); İŞ GEREĞİ yatırımlar (banka/sigorta şirketlerinde HAMMADDE niteliğinde, DİĞER kategorilerle KIYASLANAMAZ). (s.451-454)
+- **İLKE-228 (Menkul kıymet değerleme yöntemleri):** 3 seçenek: (a) GÜNCEL piyasa değerini DOĞRUDAN eklemek (BASİT, ÇOK sayıda holding'de PRATİK — Microsoft örneği: $23,798mlr nakit+kısa vadeli yatırım + $17,726mlr riskli menkul kıymet TOPLAM operasyonel varlık değerine EKLENİR); (b) sermaye kazancı vergisini NETLEŞTİRİLMİŞ piyasa değeri (TASFİYE bazlı değerleme için EN UYGUN); (c) ihraç eden firmanın KENDİSİNİ değerleyip payı türetmek (EN ZOR, AZ ama BÜYÜK holding'lerde EN UYGUN). (s.454-457)
+- **İLKE-229 (Menkul kıymet primi/iskontosu):** GENEL KURAL: prim/iskonto EKLENMEMELİDİR (piyasa değeri OLDUĞU GİBİ eklenir). İSTİSNA: kapalı-uçlu YATIRIM FONLARI gibi "finansal varlık alıp satmayı İŞ MODELİ" edinen firmalar — bunlarda TUTARLI FAZLA/EKSİK GETİRİ varsa (net varlık değerine göre) prim/iskonto UYGULANABİLİR (İllüstrasyon 10.6: Pierce Regan Asia fonu, beklenen yıllık -%2 az-performans → net varlıklara göre **%16,67** İSKONTO, sonsuza dek devam varsayımıyla). [→ FORMÜL-103] (s.456-457)
+- **İLKE-230 (Çapraz iştirak muhasebe kategorileri):** AZINLIK PASİF (<%20 sahiplik): defter DEĞERİ (elde-tutulacak), PİYASA değeri (satışa hazır — kazanç/kayıp ÖZKAYNAKTA, gelir tablosunda DEĞİL), PİYASA değeri (ticaret amaçlı — kazanç/kayıp GELİR TABLOSUNDA); AZINLIK AKTİF (%20-50): ÖZKAYNAK YÖNTEMİ (orantılı net kâr/zararla MALİYET ayarlanır, temettü MALİYETİ AZALTIR, piyasa değeri SADECE elden çıkarmada dikkate alınır); ÇOĞUNLUK AKTİF (>%50): TAM KONSOLİDASYON (iştirakin TÜM varlık/yükümlülükleri birleştirilir, dışarıdaki payın DEFTER değeri "azınlık payı" olarak pasifte GÖSTERİLİR). (s.457-459)
+- **İLKE-231 (DCF'te çapraz iştirak):** EN DOĞRU yöntem HER holding'i AYRI değerleyip ORANTISAL payı ANA ŞİRKETİN özkaynağına EKLEMEKTİR (konsolide gelir tablosu kullanılıyorsa ÖNCE iştirakin gelir/varlık/borcu ANA ŞİRKETTEN AYRIŞTIRILMALI, aksi halde ÇİFT SAYIM oluşur); konsolide FİRMAYI TEK MODEL olarak değerlemek YANLIŞ SONUÇ verebilir çünkü ana şirket ve iştirakler FARKLI sermaye maliyeti/büyüme/yeniden yatırım PROFİLİNE sahip olabilir. (s.459-460)
+- **İLKE-232 (Tam bilgi ortamında 3 adım):** (1) çoğunluk iştirak varsa ANA ŞİRKETİ AYRIŞTIRIP standalone değerle; (2) HER iştiraki BAĞIMSIZ firma gibi (kendi risk/büyüme/nakit akışı VARSAYIMLARIYLA) değerle; (3) HER iştirakin ORANTISAL özkaynak payını ANA ŞİRKETİN özkaynağına EKLE. [→ KONTROL LİSTESİ V] (s.460-461)
+- **İLKE-233 (Kısmi bilgi ortamında pratik alternatifler):** Halka açık iştirakler için PİYASA DEĞERİNİ KULLAN (piyasa hatasını DEVRALMA riski taşır ama zaman-verimlidir); özel iştirakler için SEKTÖR DEFTER-DEĞERİ ÇARPANINI iştirakin defter değerine UYGULA (SON ÇARE olarak SADECE muhasebesel maliyet DEĞERİNİ kullanmaktan İYİDİR). (s.464-465)
+- **İLKE-234 (Göreli değerlemede çapraz iştirak — özkaynak çarpanları):** AZINLIK PASİF holding'lerde SADECE temettü gelir tablosuna GİRDİĞİNDEN (çoğu firma kazancından AZ temettü dağıttığından) P/E SİSTEMATİK OLARAK YUKARI YANLAR (piyasa değeri holding'i YANSITIR ama net kâr YANSITMAZ); AZINLIK AKTİF/ÇOĞUNLUK holding'lerde İSE net kâr orantısal payı YANSITTIĞINDAN sorun AZDIR ama KARŞILAŞTIRILABİLİR FİRMA bulma ZORLAŞIR (iştirak BÜYÜK VE farklı temellere sahipse). (s.465)
+- **İLKE-235 (Göreli değerlemede çapraz iştirak — FD çarpanları):** AZINLIK holding'lerde faaliyet ölçüleri (hasılat/FVÖK/FAVÖK) İŞTİRAKİ YANSITMAZ ama piyasa değeri (özkaynak fiyatı ÜZERİNDEN) YANSITIR → FD çarpanları YUKARI YANLAR; ÇOĞUNLUK holding'lerde (TAM konsolidasyon) TERS problem oluşur — payda (FAVÖK) İŞTİRAKİN %100'ÜNÜ İÇERİR ama pay (özkaynak değeri) SADECE sahip olunan %'Yİ yansıtır; "AZINLIK PAYINI (defter değeri) FD'ye EKLEMEK" YAYGIN ama YANLIŞ düzeltmedir (defter değeri≠piyasa değeri) — DOĞRU düzeltme azınlığın PİYASA DEĞERİNİ eklemek VEYA (DAHA temiz) SADECE ana şirketin (iştiraksiz) FD/FAVÖK'ünü hesaplamaktır. [→ BAYRAK-28] (s.465-467)
+- **İLKE-236 (Diğer faaliyet-dışı varlıklar):** KULLANILMAYAN varlıklar (nakit akışı ÜRETMEYEN ama piyasa değeri OLAN, örn. gelişmemiş arazi) DCF'TE SİSTEMATİK OLARAK GÖZ ARDI EDİLİR (bilinçli envanter+ayrı değerleme gerektirir, bilgi AÇIĞI en büyük ENGELDİR); FAZLA FONLU EMEKLİLİK PLANLARI için muhafazakâr kural: geri alım maliyeti/vergisi ÇOK YÜKSEK varsayılır (dokunulmaz); ALTERNATİF: vergi-sonrası fazlayı EKLEMEK (örn. %50 vergi→fazlanın YARISINI ekle) VEYA GELECEKTEKİ katkı payı AZALIŞINI nakit akışına YANSITMAK (DAHA PRATİK); ORTAK GİRİŞİM yatırımları muhasebe yöntemine (özkaynak/orantısal-konsolidasyon/tam-konsolidasyon) göre çapraz-iştirak MANTIĞIYLA AYNI şekilde ele alınmalıdır. (s.467-469)
+
+---
+
+## Formüller (devam)
+
+- **FORMÜL-88 — Firma Değeri / Enterprise Value (Temel Tanım)**
+  - Formül: `Firma Değeri = Piyasa Değeri Özkaynak + Piyasa Değeri Borç`; `Enterprise Value = Firma Değeri - Nakit ve Benzerleri (İsraf Edilmeyen)`
+  - QuaxisLabs karşılığı: `calculator.ValuationMetrics.enterprise_value` (`market_cap + net_debt`) MEVCUT — israf edilen/edilmeyen nakit AYRIMI yapılmıyor (TÜM nakit netleştiriliyor, kabul edilebilir bir basitleştirme).
+
+- **FORMÜL-89 — Azınlık Paylı Konsolide Değer (Tam Formül)**
+  - Formül: `Konsolide Değer = Ana Şirket FD + Σ πj×(Net Borç_j) [azınlık payları] + Σ (Özkaynak Değeri_k) [çoğunluk payları]`
+  - Değişkenler: `πj`=azınlık holding'deki sahiplik oranı, `j`=azınlık holdingler, `k`=çoğunluk (tam konsolide) holdingler.
+  - QuaxisLabs karşılığı: **UYGULANMIYOR** — bkz. BAYRAK-28, en önemli kod-seviyesi bulgu bu Kısımda.
+
+- **FORMÜL-90 — İştiraksiz (Parent-Only) Firma Değeri**
+  - Formül: `İştiraksiz FD = Konsolide FD - Σ(Azınlık Holding Piyasa Değeri) - Σ(Çoğunluk Holding Piyasa Değeri + Konsolide Borç_k - Konsolide Nakit_k)`
+  - QuaxisLabs karşılığı: **VERİ EKSİK** — çapraz iştirak (bağlı ortaklık/iştirak) listesi VE her birinin piyasa değeri hiçbir fetcher'da YOK; bu, BIST holding yapılarının (Koç, Sabancı, Doğuş gibi çok-iştirakli gruplar) DOĞRU değerlenmesi için YAPISAL bir eksikliktir.
+
+- **FORMÜL-91 — Değer/Defter Sermayesi (Nakit Dahil/Hariç)**
+  - Formül: `Değer/Defter Sermayesi = Firma Değeri / (Özkaynak Defter Değeri + Borç Defter Değeri)`; `Enterprise Value/Yatırılan Sermaye = Enterprise Value / (Özkaynak+Borç Defter Değeri - Nakit)`
+  - QuaxisLabs karşılığı: `equity` VE `financial_debt` MEVCUT (basit toplamla Değer/Defter Sermayesi TÜRETİLEBİLİR, DÜŞÜK maliyetli); "Yatırılan Sermaye" (nakit netleştirilmiş) standalone alan olarak `calculator.py`'de YOK ama `net_debt()` mantığıyla PARALEL türetilebilir.
+
+- **FORMÜL-92 — EV/EBIT ve EV/EBIT(1-t), Sabit Büyüme**
+  - Formül: `EV/EBIT = (1-RIR)×(1+g)/(kc-g)`; `EV/[EBIT×(1-t)] = (1-RIR)×(1+g)/(kc-g)` (RIR=yeniden yatırım oranı, t=vergi oranı)
+  - QuaxisLabs karşılığı: `ttm_operating_profit` MEVCUT; `RIR` (Capex eksikliğine bağlı) VE `kc` (WACC, Kısım 1 FORMÜL-21) **VERİ EKSİK**.
+
+- **FORMÜL-93 — EV/FAVÖK, Sabit Büyüme (Amortisman Düzeltmeli)**
+  - Formül: `EV/FAVÖK = [(1-RIR)×(1+g) - (Amortisman/FVÖK)×((1+g)-RIR×(1+g))] / (kc-g)` (basitleştirilmiş form; amortisman payı çarpanı AŞAĞI çeker)
+  - QuaxisLabs karşılığı: `ttm_ebitda` MEVCUT; RIR/kc AYNI eksiklikler.
+
+- **FORMÜL-94 — FD/Defter Sermayesi = f(Fazla Getiri, Büyüme)**
+  - Formül: `FD/Defter Sermayesi = 1 + [(ROC-kc)×(1+g)] / [(kc-g)×(kc bazlı katsayı)]` (fazla getiri pozitifse çarpan>1)
+  - QuaxisLabs karşılığı: `fundamental_screens.py::return_on_capital_pct` (Greenblatt ROC) YAKLAŞIK bir başlangıç noktası; `kc` **VERİ EKSİK**.
+
+- **FORMÜL-95 — FD/Satış, Sabit Büyüme**
+  - Formül: `FD/Satış = [Vergi-Sonrası Faaliyet Marjı × (1-RIR) × (1+g)] / (kc-g)`
+  - QuaxisLabs karşılığı: `net_margin_current` (net kâr marjı) ANALOG olarak var ama VERGİ-SONRASI FAALİYET marjı (`ttm_operating_profit×(1-t)/revenue`) standalone HESAPLANMIYOR — `ttm_operating_profit` ve `ttm_revenue` MEVCUT, `t` (efektif vergi oranı) **VERİ EKSİK** (`income_before_tax`/`tax_provision`, kitaplar arası tekrar eden açık).
+
+- **FORMÜL-96 — Yüksek Büyüme (2 Aşamalı) FD Çarpanları**
+  - Formül: yüksek büyüme dönemi (RIR_hg, g_hg, kc_hg) + istikrarlı dönem (RIR_st, gn, kc_st) parametreleriyle EV/FAVÖK, EV/FVÖK, FD/Sermaye, FD/Satış TÜRETİLİR (İllüstrasyon 9.2 somut örneği: ROC %15, ilk-5-yıl reinvestment %60→g=%9, istikrarlı reinvestment %26,67→g=%4, kc=%10).
+  - QuaxisLabs karşılığı: **VERİ EKSİK** — çok dönemli büyüme/yeniden yatırım projeksiyonu YOK (Kısım 1-4'te tekrar tespit edilen AYNI yapısal eksiklik).
+
+- **FORMÜL-97 — Sektör/Piyasa Regresyonu (FD Çarpanları)**
+  - Formül: `FD Çarpanı = a + b1×büyüme + b2×vergi oranı + b3×yeniden yatırım oranı (+ROC/faiz karşılama oranı)`
+  - QuaxisLabs karşılığı: **YAPISAL OLARAK UYGULANAMAZ** — Kısım 4 FORMÜL-82'deki AYNI mimari eksiklik (çok-firma cross-sectional istatistik altyapısı YOK).
+
+- **FORMÜL-98 — İleri (Forward) Çarpan, 3 Yöntem**
+  - Formül: (a) `Değer_bugün = [Ortalama Çarpan_bugün × Gelecek-Yıl-n Rakamı] / (1+r)^n`; (b) benzer ama karşılaştırılabilir firmaların KENDİ gelecek rakamına göre hesaplanmış çarpan; (c) regresyon-düzeltilmiş versiyon.
+  - QuaxisLabs karşılığı: **VERİ EKSİK** — çok yıllı ileri projeksiyon (gelir/kâr tahmini) YOK.
+
+- **FORMÜL-99 — Girişim Sermayesi Çıkış Çarpanı Yöntemi**
+  - Formül: `Bugünkü Değer = [Çıkış Yılı Kazancı × Çıkış Çarpanı] / (1+Hedef Getiri)^n` (Hedef Getiri tipik %25-35)
+  - QuaxisLabs karşılığı: **KAPSAM DIŞI** — QuaxisLabs halka açık BIST/NASDAQ/Crypto varlıklarını analiz eder; girişim sermayesi/özel şirket değerleme senaryosu ürün kapsamı DIŞINDA.
+
+- **FORMÜL-100 — Nakit-Hariç (Net Operating) P/E ve P/BV**
+  - Formül: `Nakit-Hariç P/E = (Piyasa Değeri Özkaynak - Nakit) / (Net Kâr - Nakit-Sonrası Faiz Geliri)`; `Nakit-Hariç P/BV = (Piyasa Değeri - Nakit) / (Defter Değeri - Nakit)`
+  - QuaxisLabs karşılığı: Kısım 4 FORMÜL-86 ile AYNI (tekrar referans) — `cash`, `market_cap`, `equity` MEVCUT, DÜŞÜK maliyetli.
+
+- **FORMÜL-101 — Brüt Borç vs Net Borç Yaklaşımı (Sermaye Maliyeti Ayrışması)**
+  - Formül: net borç yaklaşımında nakti finanse eden borç RİSKİZ kabul edilir, KALAN borcun (operasyonel varlıkları finanse eden) vergi-öncesi maliyeti YUKARI AYARLANIR: `Kalan Borç Maliyeti = (Toplam Faiz - Nakit×Riskiz Oran) / (Toplam Borç - Nakit)`
+  - QuaxisLabs karşılığı: `calculator._net_debt()` (`financial_debt - cash - financial_investments`) NET BORÇ yaklaşımını KULLANIYOR — kitap yazarının TERCİHİ (BRÜT borç + ayrı nakit) İLE FARKLI metodolojik seçim; WACC hiç hesaplanmadığından bu fark şu an PRATİK SONUÇ DOĞURMUYOR ama WACC eklenirse (Kısım 1 FORMÜL-21) BELGELENMELİDİR.
+
+- **FORMÜL-102 — Nakit İskonto (Piyasa-Altı Getiri)**
+  - Formül: `Nakit Değeri = Nakit Geliri / Piyasa Faiz Oranı` (gerçekleşen düşük getiri, adil getiri yerine kullanılır)
+  - QuaxisLabs karşılığı: **VERİ EKSİK** — nakit faiz geliri standalone alan olarak YOK (gelir tablosunda ayrıştırılmamış); piyasa faiz oranı proxy'si (`valuation.py::_RISK_FREE_RATE_PCT`) MEVCUT.
+
+- **FORMÜL-103 — Kapalı-Uçlu Fon İskonto/Primi**
+  - Formül: `İskonto% ≈ (Piyasa Getirisi - Beklenen Fon Getirisi) / (Sermaye Maliyeti - Piyasa Getirisi)` (sonsuz devam varsayımlı basitleştirilmiş form)
+  - QuaxisLabs karşılığı: **KAPSAM DIŞI** — QuaxisLabs hisse senedi analiz motorudur; `src/fetchers/tefas.py` (TEFAS fon verisi) fetcher'ı VAR ama bu formülle DOĞRUDAN entegre DEĞİL — kapalı-uçlu fon/yatırım ortaklığı değerlemesi ayrı bir ürün kapsamı sorusu olarak İŞARETLENDİ.
+
+- **FORMÜL-104 — Fazla Fonlu Emeklilik Planı Değer Katkısı**
+  - Formül: `Değer Katkısı = (1 - Vergi Oranı) × (Emeklilik Varlığı - Emeklilik Yükümlülüğü)`
+  - QuaxisLabs karşılığı: **VERİ EKSİK/DÜŞÜK ÖNCELİK** — Türkiye'de ABD-tarzı tanımlı-fayda emeklilik planı verisi hiçbir fetcher'da YOK (kıdem tazminatı karşılığı benzer ama farklı bir muhasebe kavramıdır); BIST evreninde pratik önemi DÜŞÜK.
+
+---
+
+## Eşikler (devam)
+
+| Metrik | Eşik / Değer | Yorum | Kaynak bölüm |
+|---|---|---|---|
+| "FD/FAVÖK<7x=ucuz" kuralı, ABD evreni | **~1.500 firma** bu eşiğin ALTINDA (Ocak 2006) | Sabit eşik kuralının anlamsızlığının somut kanıtı | Ch.9, s.395-396 |
+| Değer/Defter Sermayesi vs EV/Yatırılan Sermaye medyanı (Ocak 2006) | **1,83** vs **2,06** | İkisi de aynı dönemki P/BV medyanından (Kısım 4: 2,32) DÜŞÜK | Ch.9, s.396-397 |
+| EV/Satış medyanı, piyasa geneli (Ocak 2006) | **1,58** (üst desil >15, alt desil <0,25) | FD/Satış'ın P/S'den yapısal olarak YÜKSEK olma eğilimi | Ch.9, s.397-398 |
+| Büyümenin FD/FAVÖK'e etkisi (İllüstrasyon 9.2, g:%0→%20) | **4,7x → 11,13x** | Büyüme etkisinin büyüklüğü | Ch.9, Tablo 9.4 |
+| Sermaye maliyetinin FD/FAVÖK'e etkisi (aynı örnek, kc:%6→%15) | **23x → 3,5x** | Risk etkisinin büyüklüğü, büyüme etkisiyle KIYASLANABİLİR | Ch.9, Tablo 9.5 |
+| Vergi oranının FD çarpanlarına ORANTISIZ etkisi (%20→%40) | FD/FAVÖK **11,52→7,04** (-%39) vs FD/EBIT(1-t) **17,29→14,09** (-%18,5) | Vergi-öncesi çarpanların vergi farkına DAHA DUYARLI olduğunun kanıtı | Ch.9, Tablo 9.8 |
+| Ülkeler arası kurumlar vergisi farkı örneği | Almanya **>%38** vs İrlanda **%12** | Çapraz ülke FD/FAVÖK kıyasının vergi kontrolü olmadan YANILTICI olacağının somut örneği | Ch.9, s.409 |
+| Avrupa kozmetik sektörü — EV/Sermaye~ROC eşiği | Sektör ort. EV/Sermaye **3,52**, ort. ROC **%15,02** | Basit tarama testi: düşük EV/Sermaye + yüksek ROC = ucuz | Ch.9, İllüstrasyon 9.4 |
+| Kozmetik sektörü — en yüksek/en düşük ROC | Beiersdorf ROC **%31,17** (EV/Sermaye 8,96) / Jacques Bogart ROC **%2,19** (EV/Sermaye 0,93) | ROC-çarpan ilişkisinin uç noktaları | Ch.9, s.413-414 |
+| Kozmetik sektörü — regresyon tahmini sapma | Sarantis **~-%55** (ucuz), Christian Dior **~-%43** (ucuz) | Marj regresyonuyla düzeltilmiş görece değer örneği | Ch.9, s.414 |
+| Özel kimyasal sektörü — Yule Catto, basit vs kaldıraç-düzeltmeli regresyon | Basit: **-%12,1** (ucuz) → kaldıraç eklenince: **+%20,5** (pahalı) | Kaldıracı ihmal etmenin sonucu TERSİNE ÇEVİREBİLECEĞİNİN somut kanıtı | Ch.9, İllüstrasyon 9.5 |
+| Kaldıraç-düzeltmeli regresyonun R²'si | **%84,68** | Faiz karşılama oranı eklenince açıklama gücünün BÜYÜK artışı | Ch.9, s.416 |
+| Piyasa geneli EV/FAVÖK regresyonu (Ocak 2006) | R² **%50,9** | EV/EBIT regresyonlarıyla KIYASLANABİLİR | Ch.9, s.416-417 |
+| Piyasa geneli EV/Sermaye~ROC regresyonu | R² **%57,3** | P/BV~ROE (Kısım 4: %55,6) ile KIYASLANABİLİR seviyede | Ch.9, s.417 |
+| Piyasa geneli EV/Satış regresyonu | Marj katsayısı **+0,855**/1% | | Ch.9, s.417-418 |
+| Nakit/firma değeri medyanı, ABD (Ocak 2005) | **%6,07** (>300 firma >%50) | Nakit yoğunluğunun büyük çeşitliliği | Ch.10, s.429 |
+| Nakit/defter varlık medyanı | **%7,14** | | Ch.10, s.429 |
+| Nakit/hasılat medyanı | **%3,38** (bazı genç firmalarda >%100) | | Ch.10, s.429 |
+| Operasyonel nakit "kural of thumb" | Hasılatın **%2**'si (kaynağı belirsiz) | Kaba/farklılaştırmayan bir kural örneği | Ch.10, s.432 |
+| Konsolide yaklaşımda hatalı iskonto (İllüstrasyon 10.1) | Doğru değer **$1.400mn** vs hatalı konsolide **$1.290mn** (-$110mn) | Nakde yanlış iskonto oranı uygulamanın somut zarar büyüklüğü | Ch.10, s.436-437 |
+| Piyasa-altı getirili nakit iskontosu (İllüstrasyon 10.3) | Nakit getirisi **%3** vs riskiz **%4,5** → değer **$200mn→$133,33mn** | | Ch.10, s.443-444 |
+| Kötü-yönetim iskontosu (İllüstrasyon 10.4) | %30 olasılıkla $50mn fazla ödeme riski → nakit **$200mn→$185mn** | | Ch.10, s.444-445 |
+| Ampirik nakit değeri (Faulkender&Wang 2004) | Marjinal **$0,96** / $1 | | Ch.10, s.450 |
+| Ampirik nakit değeri, zayıf pay sahibi korumalı gelişmekte olan piyasa | **$0,65** / $1 | | Ch.10, s.450 |
+| Japonya vs Almanya/ABD medyan nakit tutarı | **~2,5x** daha fazla | Banka gücü hipotezinin somut kanıtı | Ch.10, s.450 |
+| Kapalı-uçlu fon iskonto örneği (Pierce Regan Asia, İllüstrasyon 10.6) | Beklenen -%2/yıl az-performans → **%16,67** iskonto | | Ch.10, s.456-457 |
+| Microsoft nakit+menkul kıymet toplamı (Haziran 2000) | Nakit/kısa vadeli **$23,798mlr** + riskli menkul kıymet **$17,726mlr** | Büyük ölçekli finansal yatırım örneği | Ch.10, İllüstrasyon 10.5 |
+
+## Kontrol listeleri (devam)
+
+**Kontrol Listesi U — Firma/FD Değeri Ölçüm Kararları (Ch.9, s.386-390, Kısım 4 Kontrol Listesi S'e 2 EK karar):**
+1. Nakit-dahil mi nakit-hariç mi? (`Enterprise Value = Firma Değeri - Nakit`)
+2. Çapraz iştirakler nasıl ele alınacak? (azınlık: piyasa değeri payı eklenmeli/borç-nakit orantısal dahil edilmeli VEYA TAMAMEN netleştirilmeli; çoğunluk: azınlık payının PİYASA değeri — DEFTER değeri DEĞİL — dikkate alınmalı)
+3. Borca ne dahil edilecek? (faizli borç+kira taahhütleri+diğer potansiyel yükümlülükler; piyasa değeri defter değerine TERCİH edilir)
+4. Opsiyonlar dahil mi? (Kısım 4 Kontrol Listesi S ile PARALEL)
+
+**Kontrol Listesi V — Çapraz İştirak Değerlemesinin 3 Adımı, Tam Bilgi Ortamı (Ch.10, s.460-461):**
+1. Çoğunluk iştirak varsa ANA ŞİRKETİ AYRIŞTIR, standalone değerle.
+2. HER iştiraki (azınlık dahil) BAĞIMSIZ firma gibi kendi varsayımlarıyla değerle.
+3. Her iştirakin ORANTISAL özkaynak payını ANA ŞİRKETİN özkaynak değerine EKLE.
+
+**Kontrol Listesi W — Nakit Değerlemesinde Kaçınılması Gereken 2 Hata (Ch.10, Tablo 10.1, s.445-446):**
+1. **ÇİFTE SAYIM** — nakit gelirini nakit akışlarına dahil edip AYRICA nakdi sona geri eklemek.
+2. **YANLIŞ SAYIM** — nakit gelirine (riskiz) faaliyet varlıklarına uygun (riskli) bir iskonto oranı uygulamak; brüt/net borç yaklaşımlarında borç maliyetini nakit-finansman varsayımına göre AYARLAMAMAK.
+
+**Kontrol Listesi X — Nakdin İskontolanacağı 2 Koşul (Ch.10, s.443-445):**
+1. Nakit PİYASA-ALTI getiriyle yatırılmış (küçük işletme/bazı gelişmekte olan piyasa kısıtları).
+2. Yönetime GÜVENSİZLİK (geçmiş kötü yatırım/satın alma kaydı → piyasa gelecekteki kötü kullanım olasılığını İskontolar).
+
+## Kırmızı bayraklar (devam)
+
+- **BAYRAK-28 — Azınlık Payı Defter Değerinin Firma Değerine Eklenmesi (Yaygın ama Yanlış Düzeltme):** Çoğunluk iştiraki TAM konsolide eden firmalarda, dışarıdaki payın (azınlık payı) SADECE DEFTER değerini FD'ye eklemek YANLIŞTIR — azınlık payının PİYASA değeri defter değerinden GENELDE FARKLIDIR. Nasıl tespit edilir: FD hesabında "azınlık payı" kalemi kullanılıyorsa DEFTER mi PİYASA değeri mi olduğu kontrol edilmeli. **QuaxisLabs bağlamında EN ÖNEMLİ somut bulgu:** `calculator.compute_valuation()` HİÇBİR azınlık payı düzeltmesi YAPMIYOR — `enterprise_value = market_cap + net_debt` formülünde `market_cap` SADECE ana şirketin (parent-only) piyasa değerini yansıtırken `net_debt` KONSOLİDE bilançodan (çoğunluk iştiraklerin borç/nakdinin %100'ü dahil) geliyor — azınlığın hiçbir piyasa/defter katkısı EKLENMİYOR. Bu, önemli-azınlık-paylı konsolide BIST holding şirketlerinde `enterprise_value`, `ev_ebitda`, `ev_revenue`'yu SİSTEMATİK OLARAK DÜŞÜK gösterir (yapay "ucuz" görünüm). Gereken veri: iştirak listesi + sahiplik oranı + iştirak piyasa değeri (**VERİ EKSİK**). (Ch.9-10, s.387-389, 465-467)
+- **BAYRAK-29 — Özkaynak Piyasa/Defter Değeri Kapsam Uyuşmazlığı (P/BV'de Azınlık Kirliliği):** Pay (piyasa değeri) SADECE ana şirket hissedarlarının payını yansıtırken payda (defter değeri) AZINLIK PAYINI DA içeren "toplam özkaynak" olduğunda P/BV YAPAY OLARAK DÜŞÜK çıkar. Nasıl tespit edilir: P/BV'nin payı/paydası AYNI sahiplik KAPSAMINI mı yansıtıyor kontrol et. **QuaxisLabs bağlamında somut bulgu:** `calculator.ValuationMetrics.pb_ratio = market_cap / equity_current` — `equity` alanı `isyatirim.py`'de AÇIKÇA "Özkaynaklar (toplam, **azınlık payı dahil**)" olarak tanımlı (kod "2N") — TAM OLARAK bu bayrağın tarif ettiği kapsam uyuşmazlığı. Önemli azınlık paylı şirketlerde `pb_ratio` SİSTEMATİK OLARAK DÜŞÜK (yanıltıcı ucuz) çıkar. **Kıyaslama notu (pozitif):** `pe_ratio` BU sorunu TAŞIMIYOR çünkü hem `market_cap` HEM `net_income` (kod "3Z", "Ana Ortaklığa Ait Net Dönem Kârı") parent-only'dir — tutarlı. Gereken veri: azınlık payı (defter VE piyasa değeri) standalone alan olarak XI_29'da YOK; en azından bu tutarsızlık dokümante edilmeli. (Ch.9, s.388-389)
+- **BAYRAK-30 — "FD/FAVÖK<7x=Ucuz" Kuralının Anlamsızlığı:** ABD evreninde ~1.500 firma bu eşiğin ALTINDA işlem görüyor — sabit sayısal eşik kurallarının çarpan DAĞILIMININ zaman/sektöre göre KAYDIĞINI göz ardı ettiğinin somut kanıtı. Nasıl tespit edilir: kullanılan "ucuz" eşiğinin GÜNCEL piyasa/sektör dağılımına göre ne kadar TİPİK/ATİPİK olduğu kontrol edilmeli. Gereken veri: evren-çapında EV/FAVÖK dağılımı (Kısım 4'teki AYNI mimari eksiklik — evren-çapında persentil altyapısı YOK). (Ch.9, s.395-396)
+- **BAYRAK-31 — Vergi Oranı Farkını Kontrol Etmeden FD/FAVÖK Kıyası:** Vergi-ÖNCESİ çarpanlar vergi oranı FARKLARINDAN vergi-SONRASI çarpanlardan ORANTISIZ BÜYÜK etkilenir (somut örnek: vergi %20→%40'ta FD/FAVÖK %39 düşer, FD/EBIT(1-t) SADECE %18,5 düşer) — yüksek vergi oranlı ülke/şirketler FD/FAVÖK bazında SİSTEMATİK OLARAK "ucuz" görünür. Nasıl tespit edilir: karşılaştırılan firmaların efektif vergi oranı farkı kontrol edilmeli. Gereken veri: efektif vergi oranı (`income_before_tax`/`tax_provision` eksikliği, kitaplar arası tekrarlanan aynı açık). (Ch.9, s.408-409)
+- **BAYRAK-32 — Kaldıracı Kontrol Etmeden FD/Satış Kıyası:** İllüstrasyon 9.5'te (Yule Catto) faiz karşılama oranı regresyona EKLENMEDEN "az değerli (%12,1)" sonucu, EKLENDİKTEN SONRA "aşırı değerli (%20,5)" sonucuna DÖNÜŞMÜŞTÜR — ihmal edilen TEK bir (kaldıraç) değişkenin sonucu TERS ÇEVİREBİLECEĞİNİN somut kanıtı. Nasıl tespit edilir: sektör içi FD çarpanı kıyaslarında finansal kaldıraç/faiz karşılama farkı KONTROL EDİLDİ Mİ kontrol et. Gereken veri: faiz karşılama oranı (`interest_expense` eksikliği, Kısım 1/3'ten beri tekrarlanan açık). (Ch.9, s.415-416)
+- **BAYRAK-33 — Mevsimsel/Elden-Çıkarma Kaynaklı Nakit-FD Bozulması:** Yıl-sonu nakit ŞİŞKİNLİĞİ (mevsimsel) VEYA yıl-sonu varlık satışı (divestiture) sonrası nakit artışı, EN GÜNCEL bilanço nakdiyle hesaplanan FD'yi YAPAY OLARAK DÜŞÜRÜR (geçmiş FAVÖK hâlâ satılan/mevsimsel varlığın katkısını İÇERDİĞİNDEN) — "ucuz" görünümü YARATABİLİR. Nasıl tespit edilir: kullanılan nakit bakiyesinin YILLIK ORTALAMA mı yoksa dönem-sonu ANLIK değer mi olduğu VE son dönemde büyük bir elden çıkarma OLUP OLMADIĞI kontrol edilmeli. Gereken veri: METODOLOJİK kontrol + çeyreklik nakit serisi (KISMEN mevcut, `trends.py` sınırlı pencere). (Ch.10, s.448-449)
+- **BAYRAK-34 — Nakit-Zengin Firmalarda Ham P/E veya P/BV Kıyası:** Nakit ve faaliyet varlıkları FARKLI risk/getiri profiline sahip olduğundan, ham (nakit-arındırılmamış) P/E veya P/BV kıyası nakit AĞIRLIĞI farklı firmaları YANLIŞ sıralar. Nasıl tespit edilir: karşılaştırılan firmaların nakit/piyasa değeri oranları BENZER Mİ kontrol edilmeli; benzer değilse nakit-hariç (net) çarpanlar TERCİH EDİLMELİ. Gereken veri: `cash`, `market_cap`, `equity` MEVCUT — bu bayrak DÜŞÜK maliyetle tespit EDİLEBİLİR (Kısım 4 FORMÜL-86 ile bağlantılı). (Ch.10, s.446-448)
+
+## Uygulama notları (devam)
+
+**Nicel (skorlanabilir):**
+- **BAYRAK-29 (pb_ratio azınlık kirliliği) — bu Kısmın EN somut, EN kolay doğrulanabilir bulgusu:** `pb_ratio`'nun tutarsızlığı en azından DOKÜMANTASYON/uyarı notu olarak EKLENEBİLİR (düşük maliyetli); TAM düzeltme (azınlık payı ayrıştırma) VERİ EKSİKLİĞİNE bağlı (yüksek maliyetli).
+- **Nakit-hariç P/E, P/BV (FORMÜL-100, Kısım 4 FORMÜL-86 tekrarı)** — `cash`, `market_cap`, `equity` MEVCUT, tek satır kod.
+- **BAYRAK-34 nakit-ağırlık farkı rozeti** — `cash/market_cap` oranı tek satır kod, sektör-içi kıyas için bir "nakit ağırlığı farkı" UYARISI üretebilir; DÜŞÜK maliyetli.
+
+**Nitel (LLM yorumuna uygun):**
+- Mevsimsel/divestiture nakit bozulması uyarısı (BAYRAK-33) — LLM'e "son çeyrekte olağandışı büyük bir varlık satışı/nakit artışı var mı" diye SORULABİLECEK bir kontrol.
+- Yönetime güvensizlik/kötü nakit kullanımı riski (İLKE-221) — LLM'e "bu yönetimin geçmiş sermaye tahsis (satın alma/yatırım) kaydı nasıl" diye SORULABİLECEK NİTEL bir değerlendirme; büyük/artan nakit bakiyesi + zayıf yatırım geçmişi kombinasyonu bir UYARI sinyali olabilir.
+- Vergi oranı/kaldıraç farkını kontrol etme uyarıları (BAYRAK-31/32) — rapor şablonuna eklenebilecek dikkat notları, özellikle YABANCI (NASDAQ) emsal kıyaslarında.
+
+**Veri eksikliği / mimari eksiklik nedeniyle UYGULANAMAZ:**
+- **Çapraz iştirak tam değerlemesi (FORMÜL-89/90, İLKE-230-235) — bu Kısmın EN BÜYÜK yapısal boşluğu:** iştirak listesi/sahiplik oranı/piyasa değeri verisi TAMAMEN YOK; bu, BIST'te YAYGIN olan holding yapıları (birçok BIST30 şirketi çok sayıda iştirake sahiptir) için ÖZELLİKLE ÖNEMLİ — hem BAYRAK-28 hem BAYRAK-29'un KÖK NEDENİ.
+- **WACC/yeniden-yatırım-oranına bağlı FD çarpan formülleri (FORMÜL-92-96)** — Kısım 1-4'teki AYNI kök eksiklik (WACC, Capex).
+- **Sektör/piyasa regresyonu (FORMÜL-97)** — Kısım 4'teki AYNI mimari eksiklik (çok-firma karşılaştırma altyapısı YOK).
+- **Girişim sermayesi çıkış çarpanı (FORMÜL-99)** — KAPSAM DIŞI (QuaxisLabs özel şirket/girişim sermayesi değerlemesi yapmaz).
+- **Fazla fonlu emeklilik planı (FORMÜL-104)** — Türkiye bağlamında düşük ilgi/veri yok.
+- **Kapalı-uçlu fon iskonto (FORMÜL-103)** — ürün kapsamı sorusu (TEFAS fonları QuaxisLabs'ın hisse-senedi-odaklı kapsamının DIŞINDA, `tefas.py` fetcher'ı VAR ama bu formülle ENTEGRE DEĞİL).

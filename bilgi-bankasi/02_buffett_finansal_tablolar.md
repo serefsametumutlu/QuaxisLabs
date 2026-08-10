@@ -2,7 +2,7 @@
 
 ## Meta
 - **Kaynak:** `kitaplar/WARREN BUFFETT AND THE INTERPRETATION OF FINANCIAL STATEMENTS.pdf` (224 sayfa, taranmış/image-only PDF, metin katmanı yok — OCR ile çıkarıldı: PyMuPDF `get_textpage_ocr`, Tesseract, dpi=300, `language='eng'`).
-- **Bu dosyanın kapsamı:** "GELİR TABLOSU" (Böl.7-20, s.45-88) VE "BİLANÇO" (Böl.21-42, s.89-146) ana kısımları. Özkaynaklar (Böl.43-49), Nakit Akış (Böl.50-52) ve Değerleme (Böl.53-57) bölümleri SONRAKİ turlarda bu dosyaya eklenecek.
+- **Bu dosyanın kapsamı:** "GELİR TABLOSU" (Böl.7-20, s.45-88), "BİLANÇO" (Böl.21-42, s.89-146) VE "ÖZKAYNAKLAR" (Böl.43-49, s.147-165) ana kısımları. Nakit Akış (Böl.50-52) ve Değerleme (Böl.53-57) bölümleri SONRAKİ turlarda bu dosyaya eklenecek.
 - **ID numaralandırması dosya genelinde KESİNTİSİZDİR** (İLKE/FORMÜL/BAYRAK bölümler arası devam eder); Eşik tablosu ve Kontrol Listeleri her ana kısım için ayrı/yeni numaralanır (bunlar referans amaçlı, çapraz atıf gerektirmiyor).
 - **İşlenen bölümler:**
   - Böl.7 Gelir Tablosuna Giriş (s.45-47)
@@ -276,3 +276,106 @@
 4. `debt_to_equity` alanı ETRAFINDA net bir isimlendirme/dokümantasyon riski var: kod içi yorumlarda veya render katmanında bu alan "Borç/Özkaynak" olarak Türkçeye çevrilip kullanıcıya gösteriliyorsa, bunun kitaptaki (ve genel finans literatüründeki) "Toplam Yükümlülük/Özkaynak" ile AYNI ŞEY olmadığı açıkça belirtilmeli (bu SADECE finansal/faizli borcu kapsıyor) — karışıklık riski yüksek, bu nedenle §2(c)'deki ayrı alan önerisi önemlidir.
 5. Bankalar (UFRS şeması) için bu bölümün Ch37/Ch42 önerdiği "kısa/uzun vadeli borç" ve "borç/özkaynak" analizleri MEVCUT VERİ MODELİNDE YAPILAMAZ (STANDARD_ITEM_MAP_UFRS'de bu kalemler yok) — bankalar zaten ayrı bir `analyze_bank()`/`BankRatios` şeması kullanıyor (equity_to_assets_current gibi farklı bir kaldıraç yaklaşımı var, calculator.py ~satır 914-922), bu MEVCUT yaklaşım kitabın ruhuna (sektör-içi/İSTİSNAİ değerlendirme) zaten uygun — ek geliştirme gerekmiyor, sadece not düşüldü.
 6. OCR belirsizliği bu turda TEK noktada: Ford'un hazine-hissesi-düzeltmeli oranındaki mutlak borç tutarı ("$275 milyar", s.146) ikinci bir kaynakla teyit edilemedi; oranın kendisi (38,0) net okundu, sadece dolar tutarı belirsiz — eşik tablosunda işaretlendi.
+
+---
+---
+
+# ÖZKAYNAKLAR (Bölüm 43-49, PDF s.147-165)
+
+## İşlenen bölümler (bu ana kısım)
+- Böl.43 Özkaynak/Defter Değeri (s.147-148)
+- Böl.44 İmtiyazlı ve Adi Hisse; Ödenmiş Sermaye Fazlası (s.149-151)
+- Böl.45 Dağıtılmamış Kârlar: Warren'ın Zenginleşme Sırrı (s.152-156)
+- Böl.46 Hazine Hissesi (Treasury Stock) (s.157-159)
+- Böl.47 Özkaynak Kârlılığı (ROE): Bölüm Bir (s.160-161)
+- Böl.48 Özkaynak Kârlılığı (ROE): Bölüm İki (s.162-163)
+- Böl.49 Kaldıraç Sorunu ve Oynayabileceği Oyunlar (s.164-165)
+
+**OCR notu / düzeltme:** Kitabın gövde metninde Bölüm 48 ("ROE: Part Two") ve Bölüm 49 ("Problem with Leverage") başlık sayfalarının İKİSİ DE OCR ile "CHAPTER 49" olarak okundu (s.162 ve s.164) — bu iki ardışık bölümün AYNI numarayı taşıması mantıksal olarak imkânsız olduğundan, İÇİNDEKİLER tablosundaki (bu kitabın ilk turunda çıkarılan TOC) doğru sıralama esas alınarak s.162'deki bölüm 48, s.164'teki bölüm 49 olarak DÜZELTİLDİ. Bunun dışında gövde metni yüksek güvenilirlikte okundu, sayısal eşiklerde belirsiz kalan bir rakam YOK.
+
+Bölüm 49 sonunda (PDF s.166) "PART FOUR: THE CASH FLOW STATEMENT" bölüm-ayırıcı sayfası (Buffett alıntısı) var — Nakit Akış Tablosu ana kısmı PDF s.168'de ("CHAPTER 50") başlıyor, bu turda doğrulandı.
+
+---
+
+## İlkeler (devam)
+
+- **İLKE-32:** Özkaynak = Toplam Varlıklar − Toplam Yükümlülükler = (İmtiyazlı + Adi Hisse Sermayesi) + Ödenmiş Sermaye Fazlası + Dağıtılmamış Kârlar − Hazine Hissesi. (s.147-148, s.160)
+- **İLKE-33:** Dayanıklı rekabet avantajlı şirketler tipik olarak İMTİYAZLI HİSSE (preferred stock) TAŞIMAZLAR — hem borçsuz/öz-finansmanlı olduklarından hem de imtiyazlı hisse temettüsünün (borç faizinin aksine) vergiden düşülemediği için "pahalı para" sayılmasından. (s.151)
+- **İLKE-34:** Dağıtılmamış kârların BÜYÜME HIZI, yönetimin sermayeyi kârlı şekilde büyütme becerisinin ve dolayısıyla dayanıklı rekabet avantajının GÜÇLÜ bir göstergesidir. (s.152-154)
+- **İLKE-35:** Dağıtılmamış kâr büyümesi SADECE organik satış artışından değil, BİRLEŞME/SATIN ALMALARDAN da (havuzların birleşmesiyle) gelebilir — büyümenin KAYNAĞI (organik mi, inorganik mi) ayırt edilmelidir. (s.154)
+- **İLKE-36 (KRİTİK AYRIM):** NEGATİF dağıtılmamış kâr İKİ ÇOK FARKLI durumu gösterebilir: (a) zayıf ekonomiler nedeniyle sürekli zarar eden bir şirket (KÖTÜ, örn. GM), ya da (b) ekonomik motoru o kadar güçlü olan, sermaye tutmaya ihtiyacı olmayan ve bilerek tüm kârını dağıtan bir şirket (potansiyel İYİ, örn. Microsoft). Ayrımı yapan kriter: şirketin GÜÇLÜ/TUTARLI net kâr geçmişine sahip olup olmadığıdır. (s.154-155; aynı ayrım ROE bağlamında Böl.48'de TEKRARLANIYOR)
+- **İLKE-37:** Hazine hissesi (treasury stock) varlığı ve hisse geri alım geçmişi, dayanıklı rekabet avantajının İYİ göstergeleridir — güçlü ekonomiye sahip şirketler bol serbest nakit üretir ve bunu geri alıma yönlendirebilir. (s.158-159)
+- **İLKE-38:** Hazine hissesi özkaynağı azalttığı için ham ROE'yi YAPAY OLARAK ŞİŞİRİR ("finansal mühendislik" etkisi) — yüksek ROE'nin GERÇEK iş ekonomisinden mi yoksa geri alım muhasebesinden mi geldiğini ayırt etmek gerekir. (s.158-159)
+- **İLKE-39:** Özkaynağın 3 kaynağı vardır: (1) ilk halka arz sermayesi, (2) sonraki hisse satışları, (3) dağıtılmamış kârların birikimi — Warren'ın en çok önemsediği kaynak ÜÇÜNCÜSÜDÜR (yönetimin kâr yeniden-yatırım becerisi). (s.161)
+- **İLKE-40:** Dayanıklı/uzun vadeli rekabet avantajına sahip şirketler ORTALAMANIN ÜZERİNDE Özkaynak Kârlılığı (ROE) gösterir; yüksek ROE, yönetimin tuttuğu kârı iyi kullandığının işaretidir ve zamanla piyasa fiyatına yansır. (s.162-163)
+- **İLKE-41 (KRİTİK AYRIM):** NEGATİF özkaynak/anormal ROE de İKİ farklı nedenden kaynaklanabilir: (a) çok kârlı bir şirketin kârının TAMAMINI dağıtması (GÜÇLÜ net kâr geçmişiyle birlikteyse OLUMLU — dayanıklı avantaj işareti), ya da (b) iflasa sürüklenen, ZAYIF net kâr geçmişine sahip bir şirket (OLUMSUZ). Kural (kitabın kendi ifadesiyle): "Yüksek ROE 'gel oyna' demektir; düşük ROE 'uzak dur' demektir." (s.163)
+- **İLKE-42:** Kaldıraç (borçla kazanç artırma), bir şirketi sahip OLMADIĞI bir rekabet avantajı varmış GİBİ gösterebilir — borçlanma maliyeti ile yatırım getirisi arasındaki SPREAD'den kâr üretmek GERÇEK bir ürün/marka avantajı DEĞİLDİR; bu gelir akışının GERÇEK dayanıklılığı, faiz ödeyen tarafın (borçlunun) kendi gelir kaynağının dayanıklılığına bağımlıdır. (s.164-165; 2008 subprime kriz vaka analizi)
+- **İLKE-43:** Warren, kazanç üretmek için yoğun kaldıraç kullanan şirketlerden KAÇINIR — kısa vadede tutarlı/istikrarlı görünseler de (yatırım bankaları örneği), bu istikrar GERÇEK bir rekabet avantajından değil kaldıraçtan kaynaklanır ve altta yatan kaynak (borçlu) sarsıldığında ÇÖKER. (s.165)
+
+---
+
+## Formüller (devam)
+
+| # | Formül | QuaxisLabs karşılığı |
+|---|---|---|
+| **FORMÜL-18** Özkaynak = Toplam Varlıklar − Toplam Yükümlülükler = (İmtiyazlı+Adi Sermaye) + Ödenmiş Sermaye Fazlası + Dağıtılmamış Kârlar − Hazine Hissesi (s.147-148, 160) | **KISMEN MEVCUT.** Toplam `equity` alanı zaten çekiliyor (`isyatirim.py` `STANDARD_ITEM_MAP_XI_29["equity"]="2N"`), ama alt bileşenler (imtiyazlı hisse, adi hisse, ödenmiş sermaye fazlası, dağıtılmamış kârlar, hazine hissesi) STANDALONE alan olarak ne `isyatirim.py`'de ne `kap_financials.py`'de mevcut — sadece toplam rakam var, kırılım YOK. |
+| **FORMÜL-19** Yıllık Dağıtılmamış Kâr Eklentisi = Vergi Sonrası Net Kâr − (Ödenen Temettü + Hisse Geri Alım Harcaması) (s.153) | **VERİ EKSİK.** `retained_earnings` alanı standalone olarak YOK; ödenen temettü ve hisse geri alım harcaması tutarları da ne gelir tablosu ne bilanço şemasında (`STANDARD_ITEM_MAP_XI_29`) mevcut — bu kalemler normalde NAKİT AKIŞ TABLOSUNDA (finansman faaliyetleri) raporlanır; bir sonraki ana kısımda (Böl.50-52, henüz işlenmedi) bu alanların oradaki karşılığı ayrıca kontrol edilmeli. |
+| **FORMÜL-20** Dağıtılmamış Kâr Büyüme Oranı (çok-yıllı, yıllık %) (s.154) | **VERİ EKSİK.** FORMÜL-19'un ham verisi eksik olduğu için türetilemez. |
+| **FORMÜL-21** Finansal-Mühendislik-Arındırılmış ROE = Net Kâr / (Özkaynak + Hazine Hissesi [pozitife çevrilmiş]) (s.158-159) | **VERİ EKSİK.** `roe_annualized` zaten mevcut (bkz. FORMÜL-22) ama düzeltme için gereken `treasury_stock` alanı YOK (Bilanço turunda da aynı eksiklik tespit edilmişti — FORMÜL-17) — bu formül o eksikliğin DOĞRUDAN bir uzantısı. |
+| **FORMÜL-22** Özkaynak Kârlılığı (ROE) = Net Kâr / Özkaynak (s.162) | **MEVCUT.** `calculator.py` `Ratios.roe_annualized = _margin_pct(ttm_net_income, current.get("equity"))` — kitabın Böl.47-48'de en çok vurguladığı formül QuaxisLabs'ta ZATEN hesaplanıyor. Bankalar için de paralel bir alan var: `BankRatios.roe_annualized`. |
+| **FORMÜL-23** Kaldıraç Marjı (spread) = Yatırım/Kredi Getiri Oranı − Borçlanma Maliyeti Oranı (s.164) | **VERİ EKSİK (sanayi şirketleri için kavramsal olarak uygulanamaz; bankalar için KISMEN benzer bir alan var).** Sanayi/ticaret şirketlerinde bu spread'i hesaplayacak ayrı "borçlanma maliyeti" / "yatırım getirisi" alanları yok. Bankalar için `BankRatios.net_interest_margin_current` (TTM net faiz geliri / güncel toplam varlık) KAVRAMSAL olarak BENZER bir fikri (faiz geliri-gideri marjı) ölçüyor, ama kitaptaki "spread" tanımıyla BİREBİR AYNI formül değil — yaklaşık bir karşılık olarak not edildi. |
+
+---
+
+## Eşikler — Özkaynaklar (tablo)
+
+| Gösterge | Eşik / Aralık | Yorum | Örnek şirketler | Sayfa |
+|---|---|---|---|---|
+| İmtiyazlı Hisse Varlığı | YOK (0) | Dayanıklı rekabet avantajı işareti | — | s.151 |
+| Dağıtılmamış Kâr Büyüme Oranı (5 yıllık) | Yüksek ve TUTARLI | Dayanıklı rekabet avantajı göstergesi | Coca-Cola %7,9, Wrigley %10,9, Burlington Northern Santa Fe %15,6, Anheuser-Busch %6,4, Wells Fargo %14,2, Berkshire Hathaway %23 | s.154 |
+| Dağıtılmamış Kâr (uzun vadeli) | NEGATİF + GÜÇLÜ net kâr geçmişi | Dayanıklı avantaj (bilinçli tam-dağıtım politikası) | Microsoft | s.154-155 |
+| Dağıtılmamış Kâr (uzun vadeli) | NEGATİF + ZAYIF net kâr geçmişi | Dayanıklı avantaj YOK (zarar birikmiş) | General Motors | s.154 |
+| Hazine Hissesi (Treasury Stock) | VAR + geri alım geçmişi | Dayanıklı rekabet avantajı işareti | — | s.159 |
+| Özkaynak Kârlılığı (ROE) | Ortalamanın ÜZERİNDE (~%24-34 bandı örneklerde) | Dayanıklı rekabet avantajı göstergesi | Coca-Cola %30, Wrigley %24, Hershey's %33, Pepsi %34 | s.162 |
+| Özkaynak Kârlılığı (ROE) | Düşük (~%0-15 bandı örneklerde) | Rekabetçi sektör, sürdürülebilir avantaj YOK | United Airlines %15 (kâr ettiği yıl), American Airlines %4, Delta/Northwest ~%0 | s.162 |
+| ROE / Özkaynak (uzun vadeli) | NEGATİF + GÜÇLÜ net kâr geçmişi | Dayanıklı avantaj (bilinçli tam-dağıtım) | — | s.163 |
+| ROE / Özkaynak (uzun vadeli) | NEGATİF + ZAYIF net kâr geçmişi | İflasa sürüklenen, vasat şirket | — | s.163 |
+| Kaldıraç Spread'i (borç maliyeti vs getiri) | Yıldan yıla TUTARLI görünse de | Dikkat: bu GERÇEK rekabet avantajı DEĞİL, kaldıraç yanılsaması olabilir | Yatırım bankaları (~%6 borçlan/%7 kredi ver = ~%1 spread); 2008 subprime kriz (~%6/%8 spread, borçlu temerrüdüyle çöktü) | s.164-165 |
+
+---
+
+## Kontrol Listesi — Özkaynaklar (10 madde)
+
+1. Bilançoda imtiyazlı hisse (preferred stock) var mı — yoksa bu olumlu bir işaret.
+2. Dağıtılmamış kârlar son 5-10 yılda TUTARLI ve YÜKSEK oranda mı büyüyor?
+3. Dağıtılmamış kâr büyümesi organik mi (satış artışı) yoksa birleşme/satın alma kaynaklı mı?
+4. Dağıtılmamış kâr/özkaynak NEGATİFSE, bu güçlü bir net kâr geçmişiyle mi (Microsoft tipi) yoksa zayıf bir net kâr geçmişiyle mi (GM tipi) birlikte görülüyor?
+5. Bilançoda hazine hissesi (treasury stock) var mı ve şirketin bir geri alım geçmişi var mı?
+6. ROE hesaplanırken hazine hissesi etkisi ayıklanmış "finansal mühendislikten arındırılmış" ROE de kontrol edildi mi?
+7. ROE ortalamanın (sektör/piyasa) üzerinde ve TUTARLI mı?
+8. ROE/özkaynak NEGATİFSE veya anormal yüksekse, altta yatan neden güçlü kâr tutma politikası mı yoksa iflas riski mi?
+9. Şirketin kazançları büyük ölçüde KALDIRAÇTAN (borç-getiri spread'inden) mi geliyor, yoksa gerçek ürün/marka avantajından mı?
+10. Kaldıraç kaynaklı kazanç varsa, bu kazancı sağlayan ALTTA YATAN gelir kaynağının (örn. kredi borçlularının) kendisi dayanıklı mı?
+
+---
+
+## Kırmızı Bayraklar (devam)
+
+- **BAYRAK-21:** Bilançoda imtiyazlı hisse (preferred stock) bulunması — genelde borca ihtiyaç duyan, öz-finansmanı yetersiz bir şirket işareti (dayanıklı avantajlı şirketlerde nadir görülür). (s.151)
+- **BAYRAK-22:** Dağıtılmamış kârların ZAYIF net kâr geçmişiyle BİRLİKTE negatif olması — sürekli zarar eden, vasat bir iş modeli (GM tipi). (s.154)
+- **BAYRAK-23:** Dağıtılmamış kâr büyümesinin BÜYÜK ÖLÇÜDE birleşme/satın almalardan geldiği halde ORGANİK büyüme gibi sunulması/yorumlanması — yanıltıcı analiz riski. (s.154)
+- **BAYRAK-24:** Hazine hissesi/geri alım etkisi AYIKLANMADAN raporlanan yüksek ROE'nin, gerçek iş ekonomisiyle mi yoksa "finansal mühendislikle" mi şişirildiğinin ayırt edilmemesi. (s.158-159)
+- **BAYRAK-25:** Düşük/dağınık/sıfıra yakın ROE gösteren, yoğun rekabetli bir sektörde faaliyet gösteren şirket — dayanıklı rekabet avantajı YOK işareti. (s.162)
+- **BAYRAK-26:** NEGATİF özkaynak/ROE'nin ZAYIF net kâr geçmişiyle BİRLİKTE görülmesi — iflasa sürüklenen, rekabetin ezdiği vasat şirket. (s.163)
+- **BAYRAK-27:** Kazancın büyük kısmının borç-getiri SPREAD'İNDEN gelmesi (özellikle finansal kuruluşlarda) — gerçek bir rekabet avantajı YANILSAMASI olabilir, altta yatan gelir kaynağının dayanıklılığı sorgulanmalı. (s.164-165)
+
+---
+
+## Uygulama Notları — Özkaynaklar
+
+1. Bu ana kısmın EN DEĞERLİ bulgusu: kitabın Böl.47-48'de en çok vurguladığı formül olan **ROE (Özkaynak Kârlılığı) QuaxisLabs'ta ZATEN MEVCUT** (`calculator.Ratios.roe_annualized`, bankalar için `BankRatios.roe_annualized`) — ek geliştirme gerekmiyor, doğrudan skorlamada/kartlarda kullanılabilir.
+2. Buna karşılık, ROE'yi YORUMLARKEN kitabın önerdiği İKİ nüans mevcut skorlama mantığında muhtemelen EKSİK: (a) hazine hissesi etkisinden arındırılmış "gerçek" ROE hesaplanamıyor (`treasury_stock` verisi yok — Bilanço turundaki FORMÜL-17 eksikliğiyle AYNI kök neden), (b) negatif özkaynak/anormal ROE durumunda "güçlü net kâr geçmişi VAR MI" kontrolü yapılmadan otomatik "kötü" etiketlenmesi riski (İLKE-36/41'deki Microsoft-tipi istisna gözden kaçabilir) — `scorer.py`'nin bu durumu nasıl ele aldığı incelenmedi, ayrı bir görev olarak önerilir.
+3. Dağıtılmamış Kârlar (retained earnings) alt kalem olarak TAMAMEN EKSİK — bu, kitabın "Warren'ın zenginleşme sırrı" olarak nitelendirdiği en önemli tek gösterge olmasına rağmen, ne ham veri ne türetilmiş oran mevcut. Öncelik önerisi: `isyatirim.py`'de İş Yatırım'ın bilanço şemasında (muhtemelen "2N" özkaynak kaleminin altında) bir "retained_earnings" alt kalemi olup olmadığı araştırılmalı; KAP XBRL tarafında da `ifrs-full_RetainedEarnings` taksonomi etiketi standart bir IFRS alanı olduğundan `kap_financials.py`'ye eklenmesi görece kolay olabilir.
+4. Ödenen Temettü ve Hisse Geri Alım Harcaması tutarları da bilanço/gelir tablosu şemalarında YOK — bunlar tipik olarak Nakit Akış Tablosu'nun "Finansman Faaliyetleri" bölümünde raporlanır. SONRAKİ ana kısım (Böl.50-52, Nakit Akış Tablosu) işlenirken bu iki alanın oradaki karşılığı ÖZELLİKLE kontrol edilmeli — hem bu bölümün (Dağıtılmamış Kâr büyüme oranı) hem de sonraki bölümün (Böl.52, Hisse Geri Alımları) formülleri bu veriye bağımlı.
+5. Kaldıraç/spread kavramı (Böl.49) sanayi şirketleri için doğrudan uygulanabilir bir QuaxisLabs formülü değil — daha çok NİTEL bir uyarı ilkesi (kazancın kaynağını sorgulama) olarak ele alınmalı; bankalar için en yakın kavramsal karşılık olan `net_interest_margin_current` zaten mevcut ve kullanılabilir.
+6. OCR notu: Bu turda sayısal eşiklerde belirsizlik YOK; tek düzeltme İÇİNDEKİLER tablosuyla çapraz kontrol edilerek yapılan bölüm numarası düzeltmesiydi (s.162/s.164'teki "CHAPTER 49" ikili tekrarının 48/49 olarak ayrıştırılması) — bkz. yukarıdaki "OCR notu / düzeltme".

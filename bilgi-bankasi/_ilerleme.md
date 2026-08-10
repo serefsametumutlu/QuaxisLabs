@@ -3,14 +3,40 @@
 ## Genel durum
 | # | Kitap | Durum | Hedef dosya |
 |---|---|---|---|
+| 01 | The Intelligent Investor (Benjamin Graham, Rev. Ed. — Jason Zweig commentary) | DEVAM EDİYOR — Kısım 1/7 TAMAMLANDI (Introduction + Ch.1-4 + ilgili 5 Commentary, s.1-111). Kısım 2-7 (Ch.5-20 + Postscript + Appendix) HENÜZ İŞLENMEDİ. | `bilgi-bankasi/01_graham_akilli_yatirimci.md` |
 | 02 | Warren Buffett and the Interpretation of Financial Statements | **TAMAMLANDI** — 5 ana kısım (Gelir Tablosu, Bilanço, Özkaynaklar, Nakit Akış Tablosu, Değerleme) + Appendix model şirket karşılaştırması işlendi. Terimler Sözlüğü bilinçli olarak atlandı (sadece tanım niteliğinde). | `bilgi-bankasi/02_buffett_finansal_tablolar.md` |
 
-## Kitap geneli TOPLAM sayılar (dosya üzerinde script ile doğrulandı)
+## Kitap geneli TOPLAM sayılar — 02 Buffett (dosya üzerinde script ile doğrulandı)
 - İLKE: **61** (İLKE-01…61, kesintisiz, tekrarsız)
 - FORMÜL: **35** (FORMÜL-01…35, kesintisiz, tekrarsız)
 - EŞİK tablosu satırı: **67** (5 ana kısım toplamı: 22+17+10+6+12) + **9** appendix model şirket karşılaştırma satırı (ayrı, referans amaçlı) = **76** toplam
 - KONTROL LİSTESİ maddesi: **54** (10+14+10+10+10)
 - KIRMIZI BAYRAK: **36** (BAYRAK-01…36, kesintisiz, tekrarsız)
+
+## Kitap geneli TOPLAM sayılar — 01 Graham (SADECE Kısım 1/7, script ile doğrulandı)
+- İLKE: **38** (İLKE-01…38, kesintisiz, tekrarsız)
+- FORMÜL: **7** (FORMÜL-01…07, kesintisiz, tekrarsız)
+- EŞİK tablosu satırı: **17**
+- KONTROL LİSTESİ maddesi: **20** (A:6 + B:6 + C:4 + D:4)
+- KIRMIZI BAYRAK: **11** (BAYRAK-01…11, kesintisiz, tekrarsız)
+- Bu sayılar KİTABIN SADECE 1/7'sine (Introduction + Ch.1-4 + 5 Commentary, s.1-111) aittir — kalan 6 kısım işlendikçe kesintisiz devam edecek, bu bölüm güncellenecek.
+
+## Bölüm bazlı durum (01 — Graham Akıllı Yatırımcı) — Kısım 1/7 TAMAMLANDI
+| Kısım | Bölümler | Kitap sayfa | İLKE | FORMÜL | Eşik satırı | Kontrol maddesi | BAYRAK | Durum |
+|---|---|---|---|---|---|---|---|---|
+| **Kısım 1** | Introduction + Comm. + Ch.1-4 + Comm.1-4 | s.1-111 | 01-38 (38) | 01-07 (7) | 17 | 20 (A/B/C/D) | 01-11 (11) | TAMAMLANDI, henüz commit edilmedi |
+| Kısım 2 | Ch.5-9 (?) | — | — | — | — | — | — | İşlenmedi |
+| Kısım 3 | Ch.10-13 (?) | — | — | — | — | — | — | İşlenmedi |
+| Kısım 4 | Ch.14-15 (savunmacı/girişimci seçim kriterleri — kitabın en yoğun eşik kaynağı) | — | — | — | — | — | — | İşlenmedi |
+| Kısım 5 | Ch.16-18 (?) | — | — | — | — | — | — | İşlenmedi |
+| Kısım 6 | Ch.19-20 + Postscript (Güvenlik Marjı — kitabın merkezi kavramı) | — | — | — | — | — | — | İşlenmedi |
+| Kısım 7 | Appendix 1-7 (Buffett'ın Superinvestors makalesi dahil) | — | — | — | — | — | — | İşlenmedi |
+
+### Graham Kısım 1 — özel notlar
+- QuaxisLabs kapsam tespiti: FORMÜL-06 (%50-%50 portföy dengeleme) gibi PORTFÖY-SEVİYESİ (çok varlık sınıflı hisse/tahvil/nakit tahsis) formülleri BİLİNÇLİ olarak KAPSAM DIŞI sayıldı — QuaxisLabs tekil BIST/NASDAQ/Crypto varlık analiz motorudur, portföy yönetimi yapmaz (Buffett turundaki "maliyet-üzerinden-getiri kapsam dışı" tespitiyle aynı mantık kategorisi).
+- Tekrar eden veri açığı (3. kez tespit, artık kitap-ötesi bir örüntü): "10+ yıllık trend serisi" eksikliği — Buffett turunda HBK/net kâr trendi ve borç/kâr trendi için, bu turda Shiller CAPE (FORMÜL-05) ve kurumsal kaldıraç uyarısı (FORMÜL-07) için AYNI `trends.py` 12-çeyrek sınırı engel oluşturuyor.
+- Temettü verisi eksikliği (Buffett turunda tespit edilmişti) bu turda FORMÜL-04 (beklenen getiri ayrıştırması) için de doğrulandı — iki kitap boyunca EN SIK tekrarlanan veri açığı.
+- Zweig'in Graham'la AÇIKÇA ayrıştığı nadir nokta: altın/değerli maden enflasyon koruması olarak (İLKE-23 vs Uygulama Notu 8) — ileride `00_sentez.md` için not düşüldü.
 
 ## Bölüm bazlı durum (02 — Buffett Finansal Tablolar) — TÜMÜ TAMAMLANDI
 | Ana kısım | Bölümler | PDF sayfa | İLKE | FORMÜL | Eşik satırı | Kontrol maddesi | BAYRAK | Commit |

@@ -38,14 +38,14 @@ QuaxisLabs tekil hisse/kripto analiz motorudur.
 | Greenblatt Kazanç Getirisi (EBIT/FD) | `fundamental_screens.GreenblattResult.earnings_yield_pct` | MEVCUT (SADECE BIST XI_29 sanayi) |
 | Carlisle Acquirer's Multiple (FD/EBIT) | `fundamental_screens.AcquirersMultipleResult` | MEVCUT (SADECE BIST XI_29 sanayi) |
 | Graham Çarpanı/Sayısı (F/K×PD/DD≤22,5) | `valuation.py::compute_valuation_assessment` (graham_*) VE `fundamental_screens._compute_graham` | MEVCUT — **İKİ modülde AYNI formül, TEK kaynaktan besleniyor gibi görünmeli (bkz. Uygulama notu)** |
-| Peter Lynch PEG oranı | `valuation.py::compute_valuation_assessment` (peg_ratio) | MEVCUT — **büyüme bazı revenue, TANIM SAPMASI (bkz. Kenar Durumlar); kanonik ev sahibi BÜYÜME merceğidir, bkz. `spec_mercek_buyume.md`** |
+| Peter Lynch PEG oranı | `valuation.py::compute_valuation_assessment` (peg_ratio) | MEVCUT — **büyüme bazı revenue (kitaba göre net kâr/HBK olmalı), TANIM SAPMASI (bkz. Kenar Durumlar); kanonik ev sahibi BÜYÜME merceğidir, bkz. `spec_mercek_buyume.md`** |
 | Damodaran İstikrarlı Büyüme FCFE | `valuation.py::compute_valuation_assessment` (damodaran_*) | MEVCUT (β=1, statik risksiz faiz/prim) |
 | Sektöre göreli F/K, PD/DD konumu | `valuation.py::compute_valuation_assessment` (sector_avg_*, verdict) | MEVCUT — n≥3 kuralı `sektor-siniflandirma` skill'in n≥5 kuralıyla ÇAKIŞIYOR, YÜKSELTİLMELİ (bkz. Sektör Ayarlaması) |
-| Kazanç Getirisi (E/P) | YOK, `1/pe_ratio` ile TÜRETİLEBİLİR | **YENİ (ucuz)** |
+| Kazanç Getirisi (E/P) | YOK, `1/pe_ratio` ile TÜRETİLEBİLİR | **YENİ (ucuz)** — kod ile DOĞRULANDI (`pe_ratio` mevcut, tek satır türetim) |
 | NCAV / Net-Net testi | `current_assets`, `total_assets`, `equity` (ham veri MEVCUT) | **YENİ (orta maliyet)** |
 | Nakit-arındırılmış F/K, PD/DD | `cash`, `market_cap`, `equity` (ham veri MEVCUT) | **YENİ (ucuz)** |
-| DPS / temettü verimi | YOK | VERİ EKSİK (bkz. 00_sentez.md §4 öncelik #1) |
-| Risksiz faiz oranı (canlı) | `valuation._RISK_FREE_RATE_PCT` (statik) | KISMEN — elle güncellenen sabit |
+| DPS / temettü verimi | YOK | VERİ EKSİK — **BİST:** KAP XBRL `ifrs-full_DividendsPaid`/`ifrs-full_DividendPerShare` ile Faz sonrası araştırma+fetcher gerekir, ORTA maliyet (00_sentez.md §4 öncelik #1). **NASDAQ:** `us-gaap:CommonStockDividendsPerShareDeclared`/`us-gaap:PaymentsOfDividends` standart US GAAP taksonomi tag'leridir — `sec_edgar.py`'nin mevcut `STANDARD_ITEM_MAP_US_GAAP` desenine (aday-tag listesi) DÜŞÜK maliyetle eklenebilir (bkz. `docs/spec/veri_tamlik_notu.md` D2). |
+| Risksiz faiz oranı (canlı) | `valuation._RISK_FREE_RATE_PCT` (statik) | KISMEN — elle güncellenen sabit (`{"TRY": 32, "USD": 4.3}`, kod ile doğrulandı) |
 
 ---
 
@@ -63,6 +63,22 @@ mutlak_ucuzluk_skoru = ortalama(pe_skor varsa, pb_skor varsa)
 # F/K negatifse (zarar) VE PD/DD tek başına katkı veriyorsa: "değer tuzağı
 # tavanı" 7,5'e kırpma KORUNUR (scorer.py satır 634-641, AYNEN taşınır).
 ```
+
+> **KOD-GELİŞTİRİCİ DEVİR NOTU (quant_denetim_01.md K1):** `kademeli_
+> enterpolasyon`, mevcut `_seviye_trend_skoru`/`_lerp_score` ailesinin AYNI
+> "bozuluyor" dalı mantığını miras alıyorsa, trend işareti sıfırı geçtiği
+> an ~5+ puanlık sert bir skor uçurumu (cliff) oluşabilir — somut kanıt
+> (kalibrasyon scripti + kod okumasıyla doğrulandı): FAVÖK marjı %40 iken
+> `trend_puan=-0,01`→`+0,00` arası skor **4,00→9,33** sıçrıyor. Ayrıca
+> bant sınırları `[0,4]-[5,7]-[8,10]` şeklinde ARALARINDA BOŞLUK bırakacak
+> tanımlı (4→5 ve 7→8 arası atlanıyor, süreklilik YOK). **Düzeltme:**
+> "bozuluyor" dalı sert eşik yerine trend büyüklüğüne göre SÜREKLİ bir
+> ceza-çarpanına çevrilmeli (örn. `ceza_carpani = _lerp_score(trend_puan,
+> -X, 0, 0.5, 1.0)`, normal skorla ÇARPILARAK uygulanır), bant sınırları
+> UÇLARI ÇAKIŞACAK şekilde `[0,4]-[4,7]-[7,10]` olarak yeniden tanımlanmalı.
+> Bu motor DEĞER/KALİTE/BÜYÜME/GÜVENLİK'in DÖRDÜNDE de kullanıldığı için
+> düzeltme `scorer.py` çekirdeğinde TEK yerde yapılmalı, spec'ler sadece bu
+> devir notunu taşır (tam kanıt/kalibrasyon detayı: `quant_denetim_01.md` K1).
 
 ### 2. Kazanç Getirisi vs Risksiz Oran (YENİ)
 
@@ -85,9 +101,18 @@ graham_adil_fiyat = current_price * sqrt(22.5 / graham_carpani)   # own_pe,own_p
 ```
 net_isletme_sermayesi = current_assets - total_liabilities
   # total_liabilities = total_assets - equity (TÜRETİLİR)
-ncav_hisse_basi = net_isletme_sermayesi / share_capital
-net_net_iskonto_pct = (market_cap - net_isletme_sermayesi) / net_isletme_sermayesi * 100
-  # negatifse: piyasa değeri NCAV'ın ALTINDA -- Graham "bargain" sinyali
+if net_isletme_sermayesi <= 0:
+    net_net_iskonto_pct = None   # bonus TETİKLENMEZ, 0 katkı (ceza YOK)
+    # DÜZELTME (quant_denetim_01.md K2 — KALİBRASYONLA DOĞRULANDI):
+    # BİST sanayi örnekleminde %52,1 (86/165), NASDAQ sanayi'de %71,4
+    # (15/21) şirkette bu KOŞUL tetiklenir -- "nadir bir kenar durum"
+    # DEĞİL, örneklemin YARISINDAN FAZLASINI etkileyen SİSTEMİK bir
+    # guard'dır; bu yüzden kod YORUMU değil, formülün AYRILMAZ bir DALI
+    # olarak (aşağıdaki gibi) yazılmalıdır.
+else:
+    ncav_hisse_basi = net_isletme_sermayesi / share_capital
+    net_net_iskonto_pct = (market_cap - net_isletme_sermayesi) / net_isletme_sermayesi * 100
+      # negatifse: piyasa değeri NCAV'ın ALTINDA -- Graham "bargain" sinyali
 ```
 
 ### 5. Greenblatt Kazanç Getirisi + Carlisle Acquirer's Multiple (MEVCUT, taşınır)
@@ -102,6 +127,15 @@ acquirers_multiple = enterprise_value / ebit             # zaten fundamental_scr
 ```
 # Mevcut basit ortalama YERİNE (bkz. Sektör Ayarlaması):
 sektor_medyan_fk, sektor_mad_fk = robust_istatistik(ust_sektor, sirket_turu, "pe_ratio")
+# DÜZELTME (quant_denetim_01.md Y2): "Robust istatistik" başlığı MAD-
+# normalize edilmiş bir z-skor VAAT EDİYOR ama önceki taslakta
+# sektor_mad_fk hesaplanıp SKORLAMA formülünde HİÇ KULLANILMIYORDU (sadece
+# düz yüzde sapma). Skorlama İÇİN gerçek robust z-skor kullanılır (BİST
+# FAVÖK marjı gibi geniş varyanslı metriklerde düz yüzde-sapma GÜRÜLTÜLÜ
+# bir sinyaldir — kalibrasyon kanıtı: p10=-6,44/p90=42,51):
+sektor_z_skoru = (own_pe - sektor_medyan_fk) / (1.4826 * sektor_mad_fk)   # sektor_mad_fk>0 ZORUNLU, aksi halde None
+# Kart GÖRÜNÜMÜ için insan-okunur yüzde sapma AYRICA hesaplanır (SKORLAMAYA
+# GİRMEZ, sadece açıklama metninde kullanılır):
 sapma_pct = (own_pe - sektor_medyan_fk) / sektor_medyan_fk * 100
 ```
 
@@ -136,6 +170,19 @@ ucuz<1/makul<2,5/pahalı<5/tavan8; abd_sanayi: F/K ucuz<12/makul<20/pahalı
 finansman kendi CONFIG'leri) — gerekçe zaten SCORING_METHODOLOGY.md'de
 belgeli, TEKRAR YAZILMAZ.
 
+> **GÜNCELLİK UYARISI (quant_denetim_01.md GÖREV 2, kalibrasyonla
+> doğrulandı):** `scripts/kalibrasyon_v2.py`'nin 165/167 BİST sanayi
+> şirketi için CANLI fiyatla çalıştırılan koşusu, mevcut `fk_ucuz=8`
+> eşiğinin örneklemin **%59,7'sini** (95/159), `pddd_ucuz=1` eşiğinin
+> **%42,4'ünü** (70/165) ve Graham Çarpanı ≤22,5 eşiğinin **%54,4'ünü**
+> (49/90) "ucuz" bandına düşürdüğünü gösterdi — bu, 00_sentez §2.1'in
+> Damodaran uyarısının ("sabit eşikler zaman/piyasaya göre kayar, 'ucuz'
+> etiketi sistematik olarak ÇOK FAZLA firmayı kapsayabilir") BU GÜNKÜ
+> BİST rejiminde SOMUT/CANLI kanıtıdır. **Bu turda eşik DEĞİŞTİRİLMİYOR**
+> (v1 kalibrasyonu AYNEN taşınır, persona kural 8) — sadece gelecekte
+> GÜNCEL bir medyan/persentil bazlı kalibrasyon turunun (winsorize edilmiş
+> uç değerlerle) gerekli olduğu belgelenir.
+
 **Kazanç Getirisi eşikleri:**
 
 | Durum | Yorum | Kaynak |
@@ -160,7 +207,12 @@ belgeli, TEKRAR YAZILMAZ.
    "sektör karşılaştırması için yetersiz örneklem (n=4)" notu ZORUNLU.
 2. **Robust istatistik:** Ortalama YERİNE MEDYAN + MAD (%5-%95 winsorize) —
    03/BAYRAK-20 (pozitif çarpıklık, ortalama HER ZAMAN medyandan yüksek,
-   Ocak 2005 örneği: medyan P/E 23 vs ortalama 48).
+   Ocak 2005 örneği: medyan P/E 23 vs ortalama 48). **Küçük n uyarısı
+   (quant_denetim_01.md Y3, kalibrasyonla doğrulandı):** gerçek DB
+   dağılımında n<10 olan gruplar (BİST sigorta n=4, BİST bankalar n=8 gibi)
+   ÇOĞUNLUKTA — bu gruplarda %5-%95 winsorizasyonu PRATİKTE en fazla 0-1
+   gözlemi etkiler, fiilen ETKİSİZDİR. Bu bir hata değil, kod yorumunda
+   AÇIKÇA belgelenmesi gereken bilinen bir SINIRDIR.
 3. **Mutlak taban/tavan harmanı:** Sektöre göreli "ucuz" (medyan altı) skoru
    TEK BAŞINA kullanılmaz — Mutlak Ucuzluk bileşeniyle HARMANLANIR (ağırlık
    tablosunda %35 vs %20). Gerekçe: "kötü sektörün en iyisi" (tüm sektör
@@ -208,6 +260,16 @@ belgeli, TEKRAR YAZILMAZ.
   (opsiyon-katkılı özkaynak) VERİ EKSİK (çalışan opsiyon verisi yok) —
   NCAV ve Graham Sayısı hesaplarında seyreltme DÜZELTMESİ YAPILMAZ, kart
   "tam seyreltilmiş olmayan pay sayısına göre" notuyla İŞARETLENİR.
+  **NÜANS (bkz. `docs/spec/veri_tamlik_notu.md` D3):** bu TAM bir bloker
+  DEĞİL — `sec_edgar.py` satır 395'te `us-gaap:WeightedAverageNumberOf
+  DilutedSharesOutstanding` ZATEN pay-sayısı YEDEK tag'i olarak kullanılıyor;
+  `us-gaap:WeightedAverageNumberOfSharesOutstandingBasic` (temel pay sayısı)
+  eklenip bu ikisinin FARKI alınarak KABA bir opsiyon-seyreltme yüzdesi
+  (SADECE NASDAQ) türetilebilir, dipnot/metin okuma GEREKTİRMEZ. Bu, 00_
+  sentez §4'ün 13 maddesine henüz GİRMEMİŞ bir kalemdir — gelecek turda
+  §4'e 14. madde olarak eklenmesi önerilir. BİST tarafında (opsiyon bazlı
+  ücretlendirme KAP'ta standart bir XBRL etiketiyle raporlanmıyor) TAM
+  bloker olarak KALIR.
 - **Azınlık payı kirliliği (BAYRAK-28/29):** Konsolide holding şirketlerinde
   `pb_ratio`'nun paydası (`equity`, azınlık payı DAHİL) ile payı
   (`market_cap`, ana ortaklık-only) AYNI kapsamı YANSITMAZ — bu YAPISAL

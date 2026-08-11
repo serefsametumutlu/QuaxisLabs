@@ -52,6 +52,12 @@ BİR ARADA sunulabilir (v1 rozeti + v2 4-mercek profili).
 #    üretir).
 
 bilesik_skor = Σ (mercek_skoru_i * mercek_agirlik_i) / Σ (mercek_agirlik_i, sadece veri_yeterli merceklerde)
+# GUARD (quant_denetim_01.md Y4): Σ(mercek_agirlik_i)=0 ise (TÜM mercekler
+# veri-yetersiz) formül SIFIRA BÖLÜNÜR -- bu HER ZAMAN adım 3'teki "TÜM
+# mercekler yetersiz" dalına DÜŞMELİDİR; guard mevcut `_agirlik_dagit_ve_
+# hesapla`'dan İTHAL edilir (SIFIRDAN implementasyonda AYRICA yazılması
+# gereken bir kontroldür, formülün DOĞRUDAN yanında belgelenir ki
+# kod-geliştirici bunu unutmasın).
 
 # 2. Mercek-seviyesi "veri yeterliliği" kontrolü (scorer.py'nin mevcut
 #    min_veri_agirlik_yuzdesi=%50 ilkesinin MERCEK SEVİYESİNE taşınmış hali):
@@ -120,10 +126,16 @@ GEREKSİZDİR, mercek katmanı bunu ZATEN garanti eder).
 - **Banka/sigorta/finansman şirketleri:** Değer/Kalite/Güvenlik merceklerinin
   İÇ bileşen kümesi KÜÇÜLÜR (bkz. ilgili spec'lerin "Sektör ayarlaması"
   bölümleri) ama 4-mercek ÜST ağırlıkları AYNI KALIR — Büyüme merceği
-  sigortada Prim Büyümesine, bankada VERİ EKSİK bir yer tutucuya
-  İNDİRGENİR (banka için bu mercek şimdilik SIK SIK "YETERSİZ VERİ"
-  döner, ağırlığı diğer 3'e dağıtılır — bu KABUL EDİLEBİLİR bir sonuçtur,
-  UYDURMA yapılmaz).
+  sigortada Prim Büyümesine, bankada **DÜZELTME (veri_tamlik_notu.md S1
+  — "VERİ EKSİK" etiketi YANLIŞTI):** `calculator.BankBalanceSheetSummary.
+  loans`/`.deposits` VE çok-dönemli `BankQuarterlySeriesPoint.loans`
+  ZATEN MEVCUT — ham veri EKSİK DEĞİL, sadece `BankRatios`'a henüz bir
+  YoY kredi/mevduat büyüme alanı EKLENMEMİŞ (mevcut `classify_change()`
+  ile tek satırla türetilebilir, YENİ-ucuz, bkz. `spec_mercek_buyume.md`
+  §Sektör ayarlaması madde 3). Banka Büyüme merceği bu yüzden "YETERSİZ
+  VERİ" yerine GERÇEK bir skor üretebilmelidir; kodlama fazına kadar
+  (bu alan henüz eklenmemişken) mercek geçici olarak "YETERSİZ VERİ"
+  dönebilir — bu KABUL EDİLEBİLİR bir GEÇİŞ durumudur, UYDURMA yapılmaz.
 - **Çift-sayma kayıt defteri (BU spec'in MERKEZİ sorumluluğu):** Aşağıdaki
   tablo, dört mercek spec'inde işaretlenen TÜM çapraz-mercek ham veri
   kullanımlarını TEK yerde toplar (izlenebilirlik):
@@ -159,10 +171,12 @@ GEREKSİZDİR, mercek katmanı bunu ZATEN garanti eder).
    bu, Buffett'ın Graham'dan KÖKTEN FARKLI felsefesinin (00_sentez.md
    §2.5) SOMUT bir örneğidir" diye YORUMLANABİLMELİDİR (metin/gerekçe
    katmanında, Gemini yorum katmanına BESLENECEK ham bulgu olarak).
-3. **Banka şirketi (AKBNK):** Büyüme merceği "YETERSİZ VERİ" (prim/kredi
-   büyümesi banka için henüz YOK) → ağırlığı Değer/Kalite/Güvenlik'e
-   dağıtılır, Bileşik SKORU YİNE de üretilir, 3 mercek gösterilir + "Bu
-   şirket türünde Büyüme merceği için yeterli veri yok" notu.
+3. **Banka şirketi (AKBNK):** Büyüme merceği (kredi/mevduat YoY büyümesi
+   `BankRatios`'a eklenene kadar) "YETERSİZ VERİ" → ağırlığı Değer/Kalite/
+   Güvenlik'e dağıtılır, Bileşik SKORU YİNE de üretilir, 3 mercek
+   gösterilir + "Bu şirket türünde Büyüme merceği için yeterli veri yok"
+   notu (bkz. yukarıdaki Kenar durumlar düzeltmesi — bu GEÇİCİ bir
+   kodlama-öncesi durumdur, ham veri EKSİK DEĞİLDİR).
 4. **Halka arzın 1. çeyreği:** Büyüme (YoY veri yok) VE Piotroski'nin
    çoğu kriteri (önceki dönem karşılaştırması gerektirir) `None` →
    Güvenlik merceği KISMİ (sadece Kaldıraç/Bilanço Kalitesi çalışır),
@@ -172,7 +186,8 @@ GEREKSİZDİR, mercek katmanı bunu ZATEN garanti eder).
    çekilebilen yeni bir NASDAQ tickerı):** Bileşik rozet "YETERSİZ VERİ"
    döner — mevcut `ASTS/AST SpaceMobile` canlı hatasının (scorer.py CONFIG
    yorumunda belgeli) 4-mercek seviyesindeki KARŞILIĞI, AYNI disiplinle
-   (Kural 3: yanlış rakamdan iyidir) önlenmiş olur.
+   (Kural 3: yanlış rakamdan iyidir) önlenmiş olur. Σ(mercek_agirlik_i)=0
+   guard'ı (bkz. Formüller-1) burada TETİKLENİR, sıfıra bölme OLUŞMAZ.
 
 ---
 
@@ -192,4 +207,9 @@ GEREKSİZDİR, mercek katmanı bunu ZATEN garanti eder).
    `_asymptote_to`, `_agirlik_dagit_ve_hesapla` gibi MEVCUT yardımcı
    fonksiyonlar (scorer.py) 4 mercek modülü TARAFINDAN DA kullanılır
    (import edilir, KOPYALANMAZ) — bu, kodlama fazının UYMASI gereken bir
-   MİMARİ kısıttır, bu spec seviyesinde İŞARETLENİR.
+   MİMARİ kısıttır, bu spec seviyesinde İŞARETLENİR. **quant_denetim_01.md
+   K1 devir notu:** `_seviye_trend_skoru`'nun "bozuluyor" dalındaki skor
+   uçurumu (cliff) düzeltmesi de TEK yerde (bu çekirdek fonksiyonda)
+   yapılmalı — 4 mercek modülünün HİÇBİRİ kendi lokal kopyasını YAZMAMALI,
+   aksi halde düzeltme SADECE bir modülde uygulanıp diğerlerinde
+   UNUTULABİLİR.

@@ -41,11 +41,11 @@ fiyatı ÇEKMİYOR, hisse-odaklı mimari).
 | Özkaynak/Toplam Varlık | `equity/total_assets` (türetilmiş) | MEVCUT (scorer.py'nin "Bilanço Kalitesi" bileşeninin YARISI) |
 | Borç/Özkaynak (dar, sadece finansal borç) | `calculator.Ratios.debt_to_equity` | MEVCUT |
 | Piotroski F-Skoru (9 kriter) | `fundamental_screens.PiotroskiResult` | MEVCUT (SADECE BIST XI_29 sanayi) |
-| Merton Distance-to-Default / EDF | `src/analysis/merton.py::compute_merton_dd_edf()` | MEVCUT ama **HİÇBİR modüle BAĞLI DEĞİL** (BAYRAK-79/80, en düşük maliyetli mimari bulgu) |
+| Merton Distance-to-Default / EDF | `src/analysis/merton.py::compute_merton_dd_edf()` | MEVCUT ama **HİÇBİR modüle BAĞLI DEĞİL** (BAYRAK-79/80, en düşük maliyetli mimari bulgu — `src/` ağacının TAMAMI grep ile TEKRAR tarandı, bu turda da doğrulandı: fonksiyon SADECE kendi tanım satırında geçiyor) |
 | Nakit Yakma Oranı (negatif FAVÖK'te) | `cash`, `ebitda()` (ham veri MEVCUT) | **YENİ (ucuz)** — Damodaran FORMÜL-164 |
 | Toplam Yükümlülük/Özkaynak (geniş tanım) | `short_term_liabilities+long_term_liabilities`/`equity` (ham veri MEVCUT) | **YENİ (ucuz)** — Buffett FORMÜL-16 |
-| Faiz Karşılama Oranı (FVÖK/Faiz Gideri) | `interest_expense` (sanayi/XI_29) YOK | VERİ EKSİK — kitaplar arası EN SIK tekrarlanan açık (6+ kez, bkz. Kenar Durumlar Merton köprüsü ile KISMİ telafi) |
-| Kredi Notu / Temerrüt Olasılığı (harici) | YOK | VERİ EKSİK — Merton EDF sentetik bir vekil sunar (bkz. aşağı) |
+| Faiz Karşılama Oranı (FVÖK/Faiz Gideri) | `interest_expense` (sanayi/XI_29) YOK | VERİ EKSİK — kitaplar arası EN SIK tekrarlanan açık (6+ kez, bkz. Kenar Durumlar Merton köprüsü ile KISMİ telafi). **BİST:** `interest_expense` SADECE banka şemasında (isyatirim.py `STANDARD_ITEM_MAP_UFRS`/kap_financials.py `STANDARD_ITEM_MAP_KAP_UFRS_INCOME`) mevcut, sanayi (XI_29) haritasında DOĞRULANDI ki YOK — araştırma gerekli (00_sentez §4 öncelik #3), YÜKSEK maliyet. **NASDAQ:** `us-gaap:InterestExpense` standart tag, ORTA-DÜŞÜK maliyetle `sec_edgar.py`'ye eklenebilir (bkz. `docs/spec/veri_tamlik_notu.md` G1/K5) |
+| Kredi Notu / Temerrüt Olasılığı (harici) | YOK | VERİ EKSİK (bkz. 00_sentez.md §4 öncelik #12 — harici derecelendirme API'si, gerçek bloker) — Merton EDF sentetik bir vekil sunar (bkz. aşağı) |
 | Sıkıntı sinyali (F/K yok ama FD/FAVÖK var) | `pe_ratio`, `pb_ratio`, `ev_ebitda`, `ev_revenue` (HEPSİ MEVCUT) | **YENİ (sıfır yeni veri)** — Damodaran BAYRAK-76 |
 | Negatif özkaynak / derin sıkıntı etiketi | `equity` (MEVCUT) | **YENİ (sıfır yeni veri)** — Damodaran BAYRAK-83 |
 
@@ -57,6 +57,13 @@ fiyatı ÇEKMİYOR, hisse-odaklı mimari).
 # 1. Kaldıraç + Bilanço Kalitesi (MEVCUT motor, AYNEN taşınır):
 kaldirac_skoru = skor_kaldirac(net_debt_to_ebitda, cfg)   # scorer.py'den birebir
 bilanco_kalitesi_skoru = skor_bilanco_kalitesi(current_ratio, equity/assets, cfg)
+# KOD-GELİŞTİRİCİ DEVİR NOTU (quant_denetim_01.md K1): Bilanço Kalitesi
+# bileşeni (Cari Oran/Özkaynak-Varlık) `_seviye_trend_skoru` ailesini
+# kullanıyorsa, trend işareti sıfırı geçtiği an ~5+ puanlık sert bir skor
+# uçurumu (cliff) riski TAŞIR (tam kanıt: spec_mercek_deger.md §Formüller-1
+# notu / quant_denetim_01.md K1) — düzeltme scorer.py çekirdeğinde TEK
+# yerde yapılmalı, bu spec sadece devir notunu taşır. `skor_kaldirac`
+# AİLESİ bu sorunu TAŞIMAZ (zaten x-katı-özel, süreksiz bant kullanmıyor).
 
 # 2. Piotroski F-Skoru (MEVCUT, taşınır -- SÜREKLİ skora dönüştürülür):
 f_skoru_pct = (piotroski.score / piotroski.criteria_evaluated) * 100  # criteria_evaluated>=5 sartiyla
@@ -68,8 +75,21 @@ if ebitda < 0:
     nakit_yakma_orani = cash / abs(ebitda)   # kaç DÖNEMDE nakit tükenir (kaba)
 
 # 4. Toplam Yükümlülük/Özkaynak (geniş tanım, YENİ):
-toplam_yukumluluk_ozkaynak = (short_term_liabilities + long_term_liabilities) / equity
-  # MEVCUT dar debt_to_equity'nin YANINA eklenir, YERİNE GEÇMEZ (bkz. Kenar Durumlar)
+if equity is None or equity <= 0:
+    toplam_yukumluluk_ozkaynak = None   # DÜZELTME (quant_denetim_01.md K3a,
+    # KALİBRASYONLA DOĞRULANDI): BİST sanayi'de 4/167 şirket negatif
+    # özkaynağa sahip, guard OLMADAN oran min=-39,70 gibi BÜYÜK NEGATİF
+    # değerler üretiyor ve "<1 güçlü" bandına YANLIŞLIKLA düşüyor (derin
+    # sıkıntıdaki şirket en YÜKSEK puanı alıyor) -- diğer negatif-özkaynak
+    # guard'larıyla (bkz. spec_mercek_deger.md Kenar Durumlar) TUTARLI
+    # olması için None döner, bileşen ATLANIR, ağırlığı yeniden dağıtılır.
+else:
+    toplam_yukumluluk_ozkaynak = (short_term_liabilities + long_term_liabilities) / equity
+      # MEVCUT dar debt_to_equity'nin YANINA eklenir, YERİNE GEÇMEZ (bkz. Kenar Durumlar)
+# BİRİM UYARISI (quant_denetim_01.md K4): Bu bir ORAN'dır (x-katı), YÜZDE
+# DEĞİLDİR -- `_seviye_trend_skoru`/`format_percent_tr`'ye DOĞRUDAN
+# BESLENMEMELİDİR, `_skor_kaldirac` ailesindeki gibi ÖZEL (ham sayı + "x")
+# formatlanmalıdır (aksi halde "0,8" ekranda YANLIŞLIKLA "%0,8" gösterilir).
 
 # 5. Sıkıntı Sinyali (YENİ, sıfır yeni veri, BAYRAK-76):
 if (pe_ratio is None or pb_ratio is None) and (ev_ebitda is not None or ev_revenue is not None):
@@ -95,8 +115,8 @@ temerrut_olasiligi_pct = merton_sonucu.default_probability_pct
 | Kaldıraç (Net Borç/FAVÖK) | %30 | Mevcut scorer.py `kaldirac` cfg AYNEN taşınır (çok iyi<1, iyi<2,5, orta<4, tavan8) | Kalibre edilmiş, canlı doğrulanmış çekirdek KORUNUR. Moody's/S&P kaldıraç bantlarıyla UYUMLU (evrensel kredi analizi pratiği, SCORING_METHODOLOGY.md). |
 | Bilanço Kalitesi (Cari Oran + Özkaynak/Varlık) | %20 | Mevcut scorer.py `bilanco_kalitesi` cfg AYNEN taşınır (cari oran iyi≥1,5/orta≥1; özkaynak/varlık iyi≥%40/orta≥%25) | 01/FORMÜL-26 (cari oran≥2,0 SANAYİ, Ch.14), 01/İLKE-154 (girişimci≥1,5, Ch.15) — mevcut eşikler Buffett'ın istisna bulgusuyla (İLKE-20) GERİLİM İÇİNDEDİR, bu GERİLİM ÇÖZÜLMEZ, BİLİNÇLİ olarak burada TUTULUR (bkz. Kenar Durumlar). |
 | Piotroski F-Skoru (finansal sağlık) | %25 | 9 kriterden ≥5'i değerlendirilebiliyorsa: oran≥%78 güçlü, %44-78 orta, <%44 zayıf | Joseph Piotroski (2000) — mevcut `fundamental_screens.py` çekirdeği, KALDIRAÇ ve KALİTE'yi (tahakkuk/nakit ayrışması dahil) TEK bir sayıda BİRLEŞTİRİR, bu yüzden GÜVENLİK merceğinde AĞIRLIKLI bir bileşen. |
-| Toplam Yükümlülük/Özkaynak (geniş tanım) | %15 | İKİNCİL/tamamlayıcı gösterge — mevcut dar `debt_to_equity` ile BİRLİKTE gösterilir, AYRI eşiklendirilmez (kaba: <1 güçlü, 1-2 orta, >2 zayıf — Buffett'ın hazine-hissesi-düzeltmesiz "ham" versiyonu, ~0,80 altı finansal kuruluş-dışı şirketlerde "dayanıklı avantaj olasılığı yüksek" [FORMÜL-17] EŞİĞİNE YAKLAŞTIRILMIŞ kaba bant) | 02/FORMÜL-16, İLKE-30 — "Toplam Yükümlülük/Özkaynak" (ticari borç+tahakkuk+ertelenmiş vergi DAHİL) mevcut dar `debt_to_equity`'den (SADECE finansal borç) YAPISAL OLARAK FARKLI bir soruya cevap verir (00_sentez.md §2.3: üç farklı "borç/özkaynak" kavramı var, hepsi meşru). |
-| Merton Temerrüt Olasılığı (EDF) | %10 | Düşük EDF (≤%1-2) güçlü, orta (%2-10) izlenmeli, yüksek (>%10) risk sinyali (kaba bant, Damodaran Tablo 17.1 kredi notu-temerrüt eşleşmesiyle KABACA hizalı: BBB 10y kümülatif %4,27, B 10y %32,75) | 03/İLKE-441-444, FORMÜL-171/172 — Merton'un opsiyon-teorik özkaynak çerçevesi; **mevcut `merton.py` modülü ZATEN kodda var, sadece skorlama motoruna BAĞLANMASI gerekiyor** (BAYRAK-79, kitap genelinde tespit edilen en düşük maliyetli/en yüksek etkili bulgu). Veri yoksa (Merton hesaplanamıyorsa — fiyat oynaklığı serisi eksikse) bileşen ATLANIR, ağırlığı diğerlerine dağıtılır. |
+| Toplam Yükümlülük/Özkaynak (geniş tanım) | %15 | **DÜZELTME (quant_denetim_01.md K3b — spec içi çelişki ÇÖZÜLDÜ):** bu bileşen GERÇEKTEN 0-10 skora dönüştürülüp `_agirlik_dagit_ve_hesapla`'nın %15'lik payına DAHİL edilir (önceki taslaktaki "AYRI eşiklendirilmez" ifadesi KALDIRILDI — o ifade ile AYNI satırdaki %15 ağırlık/bant tablosu birbirini dışlıyordu). Somut dönüşüm: kaba bant (<1 güçlü, 1-2 orta, >2 zayıf — Buffett'ın hazine-hissesi-düzeltmesiz "ham" versiyonu, ~0,80 altı finansal kuruluş-dışı şirketlerde "dayanıklı avantaj olasılığı yüksek" [FORMÜL-17] EŞİĞİNE YAKLAŞTIRILMIŞ) `_lerp_score`/eşdeğer bir sürekli fonksiyonla 0-10'a çevrilir; `equity<=0` iken (bkz. Formüller-4) `None` döner, ağırlık diğer 4 bileşene yeniden dağıtılır. | 02/FORMÜL-16, İLKE-30 — "Toplam Yükümlülük/Özkaynak" (ticari borç+tahakkuk+ertelenmiş vergi DAHİL) mevcut dar `debt_to_equity`'den (SADECE finansal borç) YAPISAL OLARAK FARKLI bir soruya cevap verir (00_sentez.md §2.3: üç farklı "borç/özkaynak" kavramı var, hepsi meşru). |
+| Merton Temerrüt Olasılığı (EDF) | %10 | Düşük EDF (≤%1-2) güçlü, orta (%2-10) izlenmeli, yüksek (>%10) risk sinyali (kaba bant, Damodaran Tablo 17.1 kredi notu-temerrüt eşleşmesiyle KABACA hizalı: BBB 10y kümülatif %4,27, B 10y %32,75) | 03/İLKE-441-444, FORMÜL-171/172 — Merton'un opsiyon-teorik özkaynak çerçevesi; **mevcut `merton.py` modülü ZATEN kodda var, sadece skorlama motoruna BAĞLANMASI gerekiyor** (BAYRAK-79, kitap genelinde tespit edilen en düşük maliyetli/en yüksek etkili bulgu, bu turda TEKRAR doğrulandı — bkz. Girdiler tablosu). Veri yoksa (Merton hesaplanamıyorsa — fiyat oynaklığı serisi eksikse) bileşen ATLANIR, ağırlığı diğerlerine dağıtılır. |
 
 **Toplam: %100.**
 
@@ -208,7 +228,9 @@ sadece belgelenir):**
 2. **Negatif özkaynaklı bir BIST/NASDAQ şirketi:** `pb_ratio=None`, BAYRAK-
    83 etiketi ("derin sıkıntı/opsiyon karakteri") GÖRÜNÜR; Kaldıraç ve
    Bilanço Kalitesi bileşenleri (özkaynak/varlık negatif) YAPISAL OLARAK
-   çok DÜŞÜK puan üretir — GÜVENLİK skoru muhtemelen RİSKLİ bandında.
+   çok DÜŞÜK puan üretir; Toplam Yükümlülük/Özkaynak bileşeni `None`
+   döner (K3a guard) — GÜVENLİK skoru muhtemelen RİSKLİ bandında, hiçbir
+   bileşen negatif özkaynağı "GÜÇLÜ" olarak YANLIŞ etiketlemez.
 3. **F/K ve PD/DD hesaplanamayan ama FD/FAVÖK geçerli bir şirket:**
    BAYRAK-76 notu TETİKLENİR, kart "sınırlı çarpan seti, sıkıntı sinyali
    olabilir" der; GÜVENLİK bileşenleri (Kaldıraç, Piotroski) bu durumu

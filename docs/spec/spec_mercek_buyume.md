@@ -49,10 +49,10 @@ projeksiyon motoru DEĞİLDİR, bu spec bu sınırı DEĞİŞTİRMEZ).
 | Marjinal ROE | `net_income`, `equity` (çok-dönemli, MEVCUT ham veri) | **YENİ (ucuz)** — Damodaran FORMÜL-42 |
 | Verimlilik Kaynaklı Ek Büyüme | `roe_annualized` YoY serisi (MEVCUT) | **YENİ (ucuz)** — Damodaran FORMÜL-43 |
 | Damodaran temel büyüme (g=tutma oranı×ROE) | `valuation.py` Damodaran bloğunda DOLAYLI kullanılıyor | MEVCUT (metodoloji notu olarak, doğrudan skorlanmaz) |
-| 10+ yıllık kazanç/hasılat serisi | YOK | VERİ EKSİK — `trends.py` 12 çeyrek (~3 yıl) sınırlı, kitaplar arası EN SIK tekrarlanan (6+ kez) yapısal kısıt |
-| DPS/payout oranı | YOK | VERİ EKSİK — büyüme SÜRDÜRÜLEBİLİRLİĞİNİN (tutma oranı) girdisi |
-| Capex/Ar-Ge (yeniden yatırım kalitesi) | YOK | VERİ EKSİK |
-| Satış/Sermaye oranı | `total_assets`/`equity`/`financial_debt` (KISMEN türetilebilir) | VERİ EKSİK (tam invested capital tanımı yok) |
+| 10+ yıllık kazanç/hasılat serisi | YOK | VERİ EKSİK — `trends.py` 12 çeyrek (~3 yıl) sınırlı (`MAX_TREND_PERIODS=12`, kod ile doğrulandı), kitaplar arası EN SIK tekrarlanan (6+ kez) yapısal kısıt (00_sentez §4 öncelik #2 — mimari değişiklik, YÜKSEK maliyet/EN YÜKSEK ETKİ, gerçek bloker) |
+| DPS/payout oranı | YOK | VERİ EKSİK — büyüme SÜRDÜRÜLEBİLİRLİĞİNİN (tutma oranı) girdisi. **BİST:** KAP XBRL `ifrs-full_DividendsPaid`/`ifrs-full_DividendPerShare`, ORTA maliyet (00_sentez §4 öncelik #1). **NASDAQ:** `us-gaap:CommonStockDividendsPerShareDeclared`, DÜŞÜK maliyet (bkz. `docs/spec/veri_tamlik_notu.md` D2) |
+| Capex/Ar-Ge (yeniden yatırım kalitesi) | YOK | VERİ EKSİK — **Capex:** BİST `ifrs-full_PurchaseOfPropertyPlantAndEquipment` (00_sentez §4 öncelik #4, ORTA maliyet), NASDAQ `us-gaap:PaymentsToAcquirePropertyPlantAndEquipment` (ORTA-DÜŞÜK maliyet) — İKİSİ de somut kaynaklı. **Ar-Ge:** BİST araştırma gerekli (YÜKSEK, gerçek bloker), NASDAQ `us-gaap:ResearchAndDevelopmentExpense` (DÜŞÜK maliyet, bkz. `docs/spec/veri_tamlik_notu.md` K4) |
+| Satış/Sermaye oranı | `total_assets`/`equity`/`financial_debt` (TÜMÜ MEVCUT, kod ile doğrulandı) | **DÜZELTME (veri_tamlik_notu.md B4 — önceki "VERİ EKSİK" etiketi YANLIŞTI):** ham veri EKSİK DEĞİL — `(equity+financial_debt)` ile KABA bir yatırılmış-sermaye vekili HEMEN türetilebilir (00_sentez §1.10'daki ROIC kaba-vekil mantığıyla AYNI ilke); tam Damodaran-tanımlı invested capital (opsiyon maliyeti/kira taahhüdü dahil) İÇİN ek veri gerekir ama BAŞLANGIÇ vekili **YENİ (ucuz, yaklaşık tanımla)** kategorisindedir |
 
 ---
 
@@ -62,6 +62,11 @@ projeksiyon motoru DEĞİLDİR, bu spec bu sınırı DEĞİŞTİRMEZ).
 # 1. Hasılat Büyümesi (seviye+trend, MEVCUT motor, sadece mercek değişir):
 reel_buyume_pct = hasilat_yoy_pct - enflasyon_yoy_pct   (enflasyon verilmişse)
 buyume_skoru = seviye_trend_skoru(reel_buyume_pct, None, guclu_esik, orta_esik, tavan, taban)
+# KOD-GELİŞTİRİCİ DEVİR NOTU (quant_denetim_01.md K1): _seviye_trend_skoru
+# ailesinin "bozuluyor" dalı trend işareti sıfırı geçtiği an ~5+ puanlık
+# sert bir skor uçurumu üretebilir (tam kanıt: spec_mercek_deger.md
+# §Formüller-1 notu) — bu mercek de dahil TÜM 4 mercekte AYNI motor
+# kullanıldığı için düzeltme scorer.py çekirdeğinde TEK yerde yapılmalı.
 
 # 2. PEG Oranı (MEVCUT, taşınır — BÜYÜME merceğinin kanonik ev sahipliği):
 peg_ratio = own_pe / buyume_orani_pct
@@ -69,8 +74,31 @@ peg_ratio = own_pe / buyume_orani_pct
 # _PEG_CHEAP_CEILING/_PEG_EXPENSIVE_FLOOR AYNEN korunur)
 
 # 3. Marjinal ROE (Damodaran FORMÜL-42, YENİ):
-marjinal_roe_pct = (net_income_t - net_income_t-1) / equity_t-1 * 100
+if equity_t_minus_1 is None or equity_t_minus_1 <= 0:
+    marjinal_roe_pct = None   # DÜZELTME (quant_denetim_01.md K5a) -- payda
+    # negatif/sıfırken oran işaretsiz/anlamsız (K3 ile AYNI kanıt kümesi:
+    # BİST sanayi'de 4/167 şirket negatif özkaynaklı; standart ROE'nin
+    # KENDİSİ bile bu şirketlerde min=-222,78/max=694,23 gibi uç değerler
+    # alıyor, Marjinal ROE ek fark alma işlemiyle DAHA oynak olur)
+else:
+    marjinal_roe_pct = (net_income_t - net_income_t-1) / equity_t_minus_1 * 100
 # "yeni yatırımların kalitesi" sinyali -- standart ROE'den DAHA DOĞRUDAN
+
+# 3b. Marjinal ROE SKORU (DÜZELTME, quant_denetim_01.md K5b — "mutlak eşik
+#     henüz kalibre edilmedi" ifadesi GİDERİLDİ, somut SÜREKLİ formül):
+if marjinal_roe_pct is None or standart_roe_pct is None:
+    marjinal_roe_skoru = None
+else:
+    fark_puan = marjinal_roe_pct - standart_roe_pct   # standart ROE'ye GÖRELİ fark
+    marjinal_roe_skoru = _lerp_score(fark_puan, -15, +15, 0, 10)
+    # X=15 puan: Damodaran'ın Goldman Sachs 2005 örneğindeki (standart ROE
+    # %18,49 vs marjinal ROE ÇOK DAHA DÜŞÜK) sapma büyüklüğüne KABACA
+    # denk bir bant (03/İLKE-85,86) -- ±15 puanlık fark "standart ROE'nin
+    # KENDİSİ kadar büyük bir yön değişimi" sayılır, ötesi 0/10'a asimptot.
+    # Bu X, kalibrasyon scripti Marjinal ROE'yi hesaplayınca (bkz. quant_
+    # denetim_01.md K5 Doğrulama yöntemi) YENİDEN gözden geçirilmelidir --
+    # şimdilik LİTERATÜR-kaynaklı bir başlangıç değeri, "uydurma" DEĞİL
+    # ama "nihai kalibre" de DEĞİL, bu spec bunu AÇIKÇA böyle etiketler.
 
 # 4. Verimlilik Kaynaklı Ek Büyüme (Damodaran FORMÜL-43, YENİ):
 verimlilik_buyume_pct = (roe_t - roe_t-1) / roe_t-1 * 100
@@ -93,7 +121,7 @@ if buyume_orani_pct > 25..30:  # Zweig, İLKE-72
 |---|---|---|---|
 | Hasılat Büyümesi (reel, seviye+trend) | %55 | Mevcut scorer.py `buyume` cfg AYNEN taşınır (sanayi: güçlü≥15/orta≥0/tavan30/taban-20; abd_sanayi: güçlü≥10/orta≥0/tavan25/taban-15) | Kalibre edilmiş, canlı doğrulanmış çekirdek KORUNUR (persona kural 8). ÇOĞUNLUK ağırlığı BU bileşende toplanır çünkü Fisher/Lynch eksikliği nedeniyle MERCEĞİN geri kalanı ZAYIF temellenmiştir — sağlam olan TEK bileşene fazla ağırlık vermek, zayıf-temellenmiş bileşenlere YAPAY otorite VERMEKTEN daha DÜRÜST bir tasarım. |
 | PEG Oranı (Lynch, büyümeye göre değerleme) | %25 | Mevcut valuation.py bantları AYNEN (PEG<0,9 ucuz/0,9-1,1 makul/>1,1 pahalı) | Lynch'in GARP (Growth At a Reasonable Price) felsefesinin ÖZÜ — büyümeyi FİYATLA BİRLİKTE değerlendirir (03/İLKE-159,175: PEG'in doğrusallık varsayımı İHLAL edilir, U-şekli %24-26 büyümede diplenir — bu NÜANS kart açıklamasında BELİRTİLİR, bkz. Kenar Durumlar). **BİLİNEN TANIM SAPMASI:** büyüme bazı revenue (net kâr/HBK OLMALI, 03/FORMÜL-74) — düzeltme çok-yıllı net kâr serisi GEREKTİRİR, şimdilik AÇIKÇA belgelenir. |
-| Marjinal ROE + Verimlilik Kaynaklı Büyüme | %20 | Marjinal ROE: güçlü≥standart ROE'nin ÜSTÜNDE, zayıf≥standart ROE'nin ALTINDA (kaba, standart ROE'ye GÖRELİ bir kıyas — mutlak eşik henüz kalibre edilmedi). Verimlilik büyüme: pozitifse EK puan, negatifse (ROE kötüleşiyor) "büyüme miktarı yüksek olsa bile KALİTESİ sorgulanmalı" notu. | 03/İLKE-85,86 (Damodaran) — Goldman Sachs 2005 örneği: standart ROE %18,49 iken marjinal ROE ÇOK DAHA DÜŞÜK, "yeni yatırımların GETİRİSİNİN düştüğüne dair UYARI". Bu, Fisher'ın "büyüme kalitesi" sorusuna Damodaran'ın SAYISAL yaklaşımıdır — Fisher'ın kendisi eklenene kadar GEÇİCİ vekil. |
+| Marjinal ROE + Verimlilik Kaynaklı Büyüme | %20 | **DÜZELTME (quant_denetim_01.md K5b):** Marjinal ROE artık somut bir sürekli formülle skorlanır — `fark_puan = marjinal_roe_pct - standart_roe_pct`, `_lerp_score(fark_puan, -15, +15, 0, 10)` (bkz. Formüller-3b; X=±15 puan literatür-kaynaklı başlangıç değeri, kalibrasyon scriptiyle YENİDEN gözden geçirilecek). `equity_t-1<=0` iken `None` döner (K5a guard). Verimlilik büyüme: pozitifse EK puan, negatifse (ROE kötüleşiyor) "büyüme miktarı yüksek olsa bile KALİTESİ sorgulanmalı" notu. | 03/İLKE-85,86 (Damodaran) — Goldman Sachs 2005 örneği: standart ROE %18,49 iken marjinal ROE ÇOK DAHA DÜŞÜK, "yeni yatırımların GETİRİSİNİN düştüğüne dair UYARI". Bu, Fisher'ın "büyüme kalitesi" sorusuna Damodaran'ın SAYISAL yaklaşımıdır — Fisher'ın kendisi eklenene kadar GEÇİCİ vekil. |
 
 **Toplam: %100.**
 
@@ -114,6 +142,12 @@ kart notu/uyarı olarak eklenir):**
    `enflasyon_yoy_pct` parametresi) BİREBİR korunur — bu, "sahte büyüme"
    görüntüsünü (TL değer kaybından kaynaklanan) engelleyen ZATEN VAR OLAN
    bir TMS-29 farkındalığıdır (SCORING_METHODOLOGY.md'de belgeli).
+   **Kalibrasyonla ilgili gözlem (quant_denetim_01.md GÖREV 2):** reel
+   düzeltme OLMADAN BİST sanayi örnekleminin %68,2'si (nominal hasılat
+   büyümesi ≥%15) "güçlü" bandına düşüyor — bu, spec'in kendi uyardığı
+   "yüksek enflasyon nominal büyümeyi YAPAY yüksek gösterir" riskinin
+   SOMUT KANITIDIR, reel düzeltmenin (`enflasyon_yoy_pct`) NEDEN ZORUNLU
+   olduğunu güçlendirir.
 2. **Sektöre göreli büyüme konumu (n≥5):** Ham büyüme oranının YANINDA,
    `(ust_sektor, sirket_turu)` grubu içinde n≥5 varsa "bu büyüme oranı
    sektör medyanının ÜSTÜNDE/ALTINDA" bağlam notu EKLENEBİLİR — Damodaran'ın
@@ -124,9 +158,14 @@ kart notu/uyarı olarak eklenir):**
    (ör. sektör geneli daralıyorsa) yüksek BÜYÜME puanı ALAMAZ.
 3. **Banka/sigorta:** Hasılat Büyümesi bileşeni Prim Büyümesi (sigorta,
    zaten `scorer.CONFIG["sigorta"]["prim_buyumesi"]` mevcut) veya kredi/
-   mevduat büyümesi (banka, VERİ EKSİK) ile DEĞİŞTİRİLİR; diğer 2 bileşen
-   (PEG, Marjinal ROE) bu şablonlarda da KAVRAMSAL OLARAK geçerlidir (ROE
-   zaten banka CONFIG'inde MEVCUT).
+   mevduat büyümesi ile DEĞİŞTİRİLİR — **DÜZELTME (veri_tamlik_notu.md S1
+   / spec_bilesik_skor.md §Kenar durumlar):** bu bileşen "VERİ EKSİK"
+   OLARAK ETİKETLENMİŞTİ ama YANLIŞTI — `calculator.BankBalanceSheetSummary.
+   loans`/`.deposits` VE çok-dönemli `BankQuarterlySeriesPoint.loans` ZATEN
+   MEVCUT, sadece `BankRatios`'a bir YoY büyüme alanı eklenmesi (YENİ-ucuz,
+   mevcut `classify_change()` ile) yeterlidir; diğer 2 bileşen (PEG,
+   Marjinal ROE) bu şablonlarda da KAVRAMSAL OLARAK geçerlidir (ROE zaten
+   banka CONFIG'inde MEVCUT).
 
 ---
 
@@ -148,7 +187,9 @@ kart notu/uyarı olarak eklenir):**
   özkaynak` küçük özkaynak değişimlerinde AŞIRI OYNAK olabilir (payda
   küçükse oran patlayabilir) — bu bileşen bir "en az 4 çeyreklik TTM
   bazlı" pencereyle hesaplanır (Piotroski/scorer.py'nin geri kalanıyla
-  AYNI TTM ilkesi), tek çeyrek kullanılmaz.
+  AYNI TTM ilkesi), tek çeyrek kullanılmaz. `equity_t-1<=0` guard'ı
+  (bkz. Formüller-3) bu volatilitenin EN UÇ (işaretsiz) durumunu ayrıca
+  ele alır — TTM penceresi TEK BAŞINA yeterli DEĞİLDİR.
 - **Halka arz sonrası kısa geçmiş:** YoY büyüme (Hasılat) ilk 4 çeyrekte
   `None` — bileşen ATLANIR; PEG de `own_pe` yeni şirkette genelde MEVCUT
   olduğundan çalışabilir (kazanç varsa).
@@ -175,13 +216,19 @@ kart notu/uyarı olarak eklenir):**
 3. **Goldman Sachs tipi finans şirketi (yüksek standart ROE ama düşen
    marjinal ROE):** Standart ROE bileşeni (KALİTE merceğinde) YÜKSEK,
    ama BU mercekte Marjinal ROE/Verimlilik bileşeni DÜŞÜK/NEGATİF →
-   BÜYÜME toplamı MODERE edilir, "kâr büyük ama yeni yatırımların
-   getirisi düşüyor" mesajı ÜRETİLMELİDİR.
+   `fark_puan` büyük negatif → `marjinal_roe_skoru` 0'a yakın → BÜYÜME
+   toplamı MODERE edilir, "kâr büyük ama yeni yatırımların getirisi
+   düşüyor" mesajı ÜRETİLMELİDİR.
 4. **F/K=90, büyüme %8 iddialı bir NASDAQ şirketi:** Büyüme İstikrarı
    çekincesi TETİKLENMEZ (büyüme oranı kendisi %25 eşiğinin ALTINDA),
    AMA DEĞER merceğiyle çapraz okunduğunda F/K aşırılığı zaten oradaki
    Mutlak Ucuzluk bileşeninde YAKALANIR (mercekler arası ÇAPRAZ tutarlılık
    testi, çift skorlama DEĞİL, iki farklı SORUYA iki farklı CEVAP).
+5. **Negatif özkaynaklı (`equity_t-1<=0`) bir BIST şirketi:** Marjinal
+   ROE bileşeni `None` döner (K5a guard), ağırlığı PEG/Verimlilik büyüme
+   bileşenlerine yeniden dağıtılır — standart ROE'nin KENDİSİ zaten
+   `spec_mercek_kalite.md`'de `None` döndüğü için (negatif özkaynak
+   kenar durumu) bu iki guard TUTARLI çalışır, çelişkili sinyal ÜRETMEZ.
 
 ---
 

@@ -264,6 +264,13 @@ def test_agirlik_dagit_hicbir_bilesen_yoksa_sifir_donmez_hata_vermez() -> None:
     # olurdu (hicbir sey OLCULEMEDI, "riskli" OLDUGU anlamina gelmez).
     assert sonuc.data_sufficient is False
     assert sonuc.badge == scorer.YETERSIZ_VERI_ROZETI
+    # DUZELTME (bu tur -- v2 banka/sigorta guvenlik merceginde CANLI
+    # tetiklendi, ANSGR): data_coverage_pct her zaman Decimal olmali --
+    # HICBIR bilesen skor uretmediginde eski `sum()` cagrisi (start
+    # parametresi olmadan) Python'in yerlesik int(0)'ini donduruyordu,
+    # `.quantize()` gibi Decimal-ozel metodlar AttributeError firlatiyordu.
+    assert isinstance(sonuc.data_coverage_pct, Decimal)
+    assert sonuc.data_coverage_pct.quantize(Decimal("0.1")) == Decimal("0.0")
 
 
 def test_agirlik_dagit_asts_benzeri_tek_kucuk_bilesen_yeterli_veri_degil() -> None:

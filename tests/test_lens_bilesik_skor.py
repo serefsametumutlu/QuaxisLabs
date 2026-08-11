@@ -64,3 +64,22 @@ def test_bilesik_skor_rozet_esikleri_v1_ile_tutarli() -> None:
     guvenlik = _lens_sonucu(Decimal(9), "güvenlik")
     sonuc = hesapla_bilesik_skor("TEST", (2026, 3), deger, kalite, buyume, guvenlik)
     assert sonuc.badge == "SAĞLAM"
+
+
+def test_bilesik_skor_banka_sigorta_finansman_ust_agirliklar_sabit_kalir() -> None:
+    """spec_bilesik_skor.md §Kenar durumlar: "banka/sigorta/finansman
+    şirketleri: mercek İÇ bileşen kümesi KÜÇÜLÜR ama 4-mercek ÜST
+    ağırlıkları AYNI KALIR" -- hesapla_bilesik_skor() bu turda banka/
+    sigorta/finansman için AYRI bir dallanma İÇERMEZ (ince orkestrasyon
+    katmanı, kendi hesap mantığı taşımaz -- spec §Amaç), bu yüzden
+    template etiketi "kalite_banka"/"güvenlik_finans" gibi olsa bile
+    ağırlıklandırma (%30/%30/%25/%15) DEĞİŞMEZ."""
+    deger = _lens_sonucu(Decimal(8), "değer")
+    kalite = _lens_sonucu(Decimal(6), "kalite_banka")  # sadece ROE+ROA'dan olusan mercek
+    guvenlik = _lens_sonucu(Decimal(7), "güvenlik_finans")  # sadece ozkaynak/aktif oranindan olusan mercek
+    buyume = None  # banka Buyume merceği bazen "YETERSİZ VERİ" (spec'in kabul ettiği geçiş durumu)
+    sonuc = hesapla_bilesik_skor("AKBNK", (2026, 3), deger, kalite, buyume, guvenlik)
+    toplam_agirlik = Decimal(30 + 30 + 25)
+    beklenen = (Decimal(8) * 30 + Decimal(6) * 30 + Decimal(7) * 25) / toplam_agirlik
+    assert abs(sonuc.total_score - beklenen) < Decimal("0.0000001")
+    assert set(sonuc.dahil_edilen_mercekler) == {"değer", "kalite", "güvenlik"}

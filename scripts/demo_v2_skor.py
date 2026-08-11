@@ -1,5 +1,5 @@
-"""Faz 3c: v2 çok-mercekli (Değer/Kalite/Büyüme/Güvenlik) skorlamanın uçtan
-uca demo scripti -- `src.bot.pipeline.compute_multi_lens_score_for_ticker()`
+"""Faz 3c/3.1: v2 çok-mercekli (Değer/Kalite/Büyüme/Güvenlik) skorlamanın
+uçtan uca demo scripti -- `src.bot.pipeline.compute_multi_lens_score_for_ticker()`
 BAĞIMSIZ giriş noktasını çalıştırır (v1'in `run_pipeline()`/kart üretimi
 akışına HİÇ DOKUNMAZ, bkz. pipeline.py modül notu).
 
@@ -7,9 +7,16 @@ Gerçek ağ isteklerini kullanır (İş Yatırım/SEC EDGAR/KAP) -- internet
 bağlantısı gerektirir, ~10-30 saniye sürebilir.
 
 Kullanım:
-    python scripts/demo_v2_skor.py                # THYAO (BIST) + AAPL (NASDAQ)
+    python scripts/demo_v2_skor.py                # varsayılan sepet (asağı bkz.)
     python scripts/demo_v2_skor.py THYAO BIST      # tek ticker/piyasa
     python scripts/demo_v2_skor.py AAPL NASDAQ
+
+Varsayılan sepet (Faz 3.1 -- banka/sigorta/finansman v2 desteği eklendi):
+THYAO (BIST sanayi), AAPL (NASDAQ abd_sanayi), AKBNK (BIST banka/UFRS),
+ANSGR (BIST sigorta/UFRS_K), KTLEV (BIST finansman/XI_29K) -- bu 3 yeni
+ticker DB'de `repository.get_financials()` ile 8 dönem TAM veri
+içerdiği DOĞRULANARAK seçildi (`financial_group` sırasıyla UFRS/UFRS_K/
+XI_29K, bkz. compute_multi_lens_score_for_ticker() docstring'i).
 """
 
 from __future__ import annotations
@@ -84,7 +91,13 @@ def demo_ticker(ticker: str, market: str) -> int:
 def main() -> int:
     args = sys.argv[1:]
     if not args:
-        hedefler = [("THYAO", "BIST"), ("AAPL", "NASDAQ")]
+        hedefler = [
+            ("THYAO", "BIST"),
+            ("AAPL", "NASDAQ"),
+            ("AKBNK", "BIST"),  # banka (UFRS)
+            ("ANSGR", "BIST"),  # sigorta (UFRS_K)
+            ("KTLEV", "BIST"),  # finansman (XI_29K)
+        ]
     elif len(args) == 2:
         hedefler = [(args[0], args[1])]
     else:

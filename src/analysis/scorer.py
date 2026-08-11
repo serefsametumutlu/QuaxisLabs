@@ -460,7 +460,17 @@ def _agirlik_dagit_ve_hesapla(
     yeniden dagitilir. Hicbir bilesen hesaplanamazsa toplam skor 0 doner
     (RISKLI rozeti ile) -- sifira bolme olmaz.
     """
-    mevcut_nominal_toplam = sum(agirlik for _, agirlik, (skor, _gerekce) in bilesenler if skor is not None)
+    # DUZELTME (bu tur -- v2 banka/sigorta guvenlik merceginde CANLI tetiklendi,
+    # ANSGR: HICBIR bilesen skor uretmedigi durum): `sum()`'un ustunlestirilmis
+    # (start) parametresi verilmezse, BOS bir generator icin Python'in yerlesik
+    # int(0) donduruyordu (Decimal DEGIL) -- `ScoreResult.data_coverage_pct`
+    # tipik olarak `.quantize()` gibi Decimal-ozel metodlarla kullanildigi icin
+    # bu durumda AttributeError firlatiyordu. Deger DEGISMEDI (Decimal(0)==0),
+    # SADECE tip tutarliligi duzeltildi -- v1'in mevcut davranisi/testleri
+    # (== karsilastirmasi kullanirlar) ETKILENMEZ.
+    mevcut_nominal_toplam = sum(
+        (agirlik for _, agirlik, (skor, _gerekce) in bilesenler if skor is not None), Decimal(0)
+    )
 
     components: list[ComponentScore] = []
     toplam_puan = Decimal(0)

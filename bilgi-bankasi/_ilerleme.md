@@ -5,7 +5,15 @@
 |---|---|---|---|
 | 01 | The Intelligent Investor (Benjamin Graham, Rev. Ed. — Jason Zweig commentary) | **TAMAMLANDI** — Tüm kısımlar (Introduction + Ch.1-20 + Postscript + Appendix) işlendi. | `bilgi-bankasi/01_graham_akilli_yatirimci.md` |
 | 02 | Warren Buffett and the Interpretation of Financial Statements | **TAMAMLANDI** — 5 ana kısım (Gelir Tablosu, Bilanço, Özkaynaklar, Nakit Akış Tablosu, Değerleme) + Appendix model şirket karşılaştırması işlendi. Terimler Sözlüğü bilinçli olarak atlandı (sadece tanım niteliğinde). | `bilgi-bankasi/02_buffett_finansal_tablolar.md` |
-| 03 | Damodaran on Valuation, 2nd Ed. (Aswath Damodaran) | **DEVAM EDİYOR** — Kısım 1-7 + 8a (Ch.15) + 8b (Ch.16) TAMAMLANDI, bu turda commit edilecek. Sadece Kısım 9 (Ch.17-18 + appendix, ~69 sayfa) kaldı — kitabın SONU. | `bilgi-bankasi/03_damodaran_degerleme.md` |
+| 03 | Damodaran on Valuation, 2nd Ed. (Aswath Damodaran) | **TAMAMLANDI** — Tüm 9 kısım (Ch.1-18 + appendix'ler) işlendi; Kısım 9 (Ch.17 The Cost of Distress + Ch.18 Closing Thoughts, s.796-864) bu turda tamamlandı. İLKE-01…469, FORMÜL-01…178, BAYRAK-01…83 (script ile kesintisiz/tekrarsız doğrulandı). | `bilgi-bankasi/03_damodaran_degerleme.md` |
+
+## Kitap geneli TOPLAM sayılar — 03 Damodaran (TÜMÜ TAMAMLANDI, script ile doğrulandı)
+- İLKE: **469** (İLKE-01…469, kesintisiz, tekrarsız)
+- FORMÜL: **178** (FORMÜL-01…178, kesintisiz, tekrarsız)
+- EŞİK tablosu satırı: **272** (10 "Eşikler" bölümündeki 14 tablo bloğunun toplamı — 4 ek illüstrasyon/referans tablosu dahil: Tablo 2.4 kredi notu bandı 15, Tablo 6.2 kredi notu/temerrüt oranı 14, Tablo 17.1 kredi notu/temerrüt olasılığı 15, Tablo 18.1 sektör-çarpan eşlemesi 7)
+- KONTROL LİSTESİ maddesi: **186** (A'dan NN'ye, 40 liste — 175 numaralı + 11 madde-işaretli/DAHİL-HARİÇ tipi öğe)
+- KIRMIZI BAYRAK: **83** (BAYRAK-01…83, kesintisiz, tekrarsız)
+- Bu sayılar KİTABIN TÜMÜNE aittir. İçerik çıkarma TAMAMLANMIŞTIR.
 
 ## Kitap geneli TOPLAM sayılar — 02 Buffett (dosya üzerinde script ile doğrulandı)
 - İLKE: **61** (İLKE-01…61, kesintisiz, tekrarsız)
@@ -130,7 +138,7 @@ Bu kitap (02) için ana içerik çıkarımı TAMAMLANDI. Olası sonraki adımlar
 
 ---
 
-## 03 — Damodaran on Valuation (Aswath Damodaran, 2nd Ed., 2006) — TOC çıkarıldı, PLAN AŞAMASINDA
+## 03 — Damodaran on Valuation (Aswath Damodaran, 2nd Ed., 2006) — TAMAMLANDI (tüm 9 kısım)
 
 ### Kaynak
 - `kitaplar/damodaran-on-valuation.pdf` — toplam **929 PDF sayfası**, metin katmanı VAR (OCR gerekmedi, `get_text()` doğrudan çalıştı).
@@ -159,7 +167,7 @@ Kitap büyük ölçüde NİCEL/formül ağırlıklı (Graham/Buffett'a göre dah
 ### Durum
 TOC ve bölüm sınırları PyMuPDF `get_text()` ile doğrudan (OCR'sız) çıkarıldı, tüm 18 bölüm başlığı + Part sınırları + appendix'ler PDF içinde regex ile bulunup sayfa numaralarıyla doğrulandı. Kullanıcı 9 kısımlık planı onayladı.
 
-### Bölüm bazlı durum — Kısım 1-7/9 TAMAMLANDI
+### Bölüm bazlı durum — TÜMÜ (Kısım 1-9) TAMAMLANDI
 | Kısım | Bölümler | PDF sayfa | İLKE | FORMÜL | Eşik satırı | Kontrol maddesi | BAYRAK | Durum |
 |---|---|---|---|---|---|---|---|---|
 | **Kısım 1** | Ch.1 Introduction to Valuation + Ch.2 Estimating Discount Rates | s.15-117 | 01-57 (57) | 01-24 (24) | 15 + Tablo 2.4 (15 satır kredi notu bandı) | 13 (A:5+B:5+C:3) | 01-07 (7) | TAMAMLANDI, commit `2cbf155` |
@@ -171,9 +179,9 @@ TOC ve bölüm sınırları PyMuPDF `get_text()` ile doğrudan (OCR'sız) çıka
 | **Kısım 7** | Ch.13 The Value of Control + Ch.14 The Value of Liquidity | s.591-705 | 285-341 (57) | 124-137 (14) | 44 | 4 (CC-FF, 20 madde) | 42-53 (12) | TAMAMLANDI, bu turda commit edilecek |
 | **Kısım 8a** | Ch.15 The Value of Synergy | s.706-748 | 342-374 (33) | 138-151 (14) | 21 | 17 (GG:7+HH:10, 2 liste) | 54-62 (9) | TAMAMLANDI, commit `0653c3e` |
 | **Kısım 8b** | Ch.16 The Value of Transparency (+App.16.1, 16.2) | s.749-795 | 375-407 (33) | 152-159 (8) | 12 | 18 (II:9+JJ:4+KK:5, 3 liste) | 63-71 (9) | TAMAMLANDI, bu turda commit edilecek |
-| **Kısım 9** | Ch.17 Cost of Distress + Ch.18 Closing Thoughts | s.796-864 | — | — | — | — | — | **İŞLENMEDİ — sıradaki oturumda başlanacak. İLKE-408'den, FORMÜL-160'tan, BAYRAK-72'den, Kontrol Listesi LL'den devam edilecek.** |
+| **Kısım 9** | Ch.17 Cost of Distress + Ch.18 Closing Thoughts | s.796-864 | 408-469 (62) | 160-178 (19) | 41 (19 + Tablo 17.1: 15 + Tablo 18.1: 7) | 28 (LL:10+MM:8+NN:10) | 72-83 (12) | **TAMAMLANDI, bu turda commit edilecek — kitabın SON kısmı.** |
 
-**Kitap geneli TOPLAM sayılar (Kısım 1-8b, script ile doğrulanmadı — bu turda manuel sayıldı):** İLKE **407** (01-407), FORMÜL **159** (01-159), BAYRAK **71** (01-71), EŞİK toplam **195** satır (15+15+12+25+26+25+44+21+12) + 2 ayrı kredi-notu-bandı tablosu (Tablo 2.4: 15 satır, Tablo 6.2: 14 satır), KONTROL LİSTESİ **93** madde (A-KK, 37 liste).
+**Kitap geneli TOPLAM sayılar (Kısım 1-9, TÜMÜ TAMAMLANDI, script ile doğrulandı):** İLKE **469** (01-469), FORMÜL **178** (01-178), BAYRAK **83** (01-83), EŞİK toplam **272** satır (10 "Eşikler" bölümündeki 14 tablo bloğu — 4 ek illüstrasyon/referans tablosu dahil: Tablo 2.4 15 satır, Tablo 6.2 14 satır, Tablo 17.1 15 satır, Tablo 18.1 7 satır), KONTROL LİSTESİ **186** madde (A-NN, 40 liste — 175 numaralı + 11 madde-işaretli öğe).
 
 ### Kısım 7 — özel notlar
 - **En düşük maliyetli somut bulgu bu turda:** Devir hızı (turnover ratio = günlük TL işlem hacmi / piyasa değeri) HİÇBİR YENİ FETCHER GEREKTİRMEDEN eklenebilir — `src/fetchers/isyatirim.py` günlük TL hacmini ZATEN çekiyor, `src/analysis/calculator.py::market_cap` (satır 838) ZATEN hesaplıyor; sadece `src/analysis/technical.py` (hacim verisinin bugün yaşadığı modül) ile `calculator.py` (temel analiz skorlaması) ARASINDA hiç köprü YOK. Amihud illikidite oranı da AYNI mevcut fiyat+hacim serisinden (technical.py::TechnicalSnapshot) türetilebilir.
@@ -243,5 +251,14 @@ Kısım 1-6 TAMAMLANDI ve commit edildi (bkz. yukarı "Kısım 4/5/6 — özel n
 - Sahiplik yapısı/yönetişim/çapraz-sahiplik açığı (Kısım 7'de Ch.13 için ilk tespit edilmişti) bu bölümde (BAYRAK-67/69) 2. kez doğrulandı — artık Damodaran kitabı İÇİNDE tekrarlanan, netleşmiş bir yapısal eksiklik.
 - Kod tabanında `minority_interest`/`related_party`/`operating_lease`/`cross_holding`/`off_balance`/`bond_rating` alanlarının HİÇBİRİ bulunamadı (grep ile doğrulandı) — bu bölümün governance/opaklık formüllerinin tamamının VERİ EKSİK olduğunu teyit ediyor.
 
-### Sıradaki oturumda başlanacak yer (GÜNCEL — Kısım 8b tamamlandıktan SONRA)
-Kısım 1-7 + 8a + 8b TAMAMLANDI, bu turda commit edilecek. Kısım 9 (Ch.17-18) HENÜZ İŞLENMEDİ — bu, Damodaran kitabının SON kısmı. Sıradaki oturumda başlanacak yer: **Kısım 9 = Ch.17 The Cost of Distress + Ch.18 Closing Thoughts ("Ten Steps to Better Valuations"), PDF s.796-864 (~69 sayfa)** — ID numaralandırması İLKE-408'den, FORMÜL-160'tan, BAYRAK-72'den, Kontrol Listesi LL'den DEVAM edecek (kesintisiz). Ch.18'in kontrol-listesi-ağırlıklı olması beklenir ("10 Adım" formatı). Kısım 9 sonunda tüm kitap için tutarlılık taraması (script ile İLKE/FORMÜL/BAYRAK numaralarının kesintisiz/tekrarsız doğrulanması) + `_ilerleme.md`'ye kitap geneli TOPLAM sayılar bloğu + final rapor yapılmalı — bu, Damodaran kitabının TAMAMLANMASI anlamına gelecek (kalan 5 kitaptan biri bitmiş olacak: Graham, Buffett, Damodaran tamamlanmış; Fisher/Lynch/Schilit henüz işlenmemiş).
+### Kısım 9 — özel notlar (Ch.17 The Cost of Distress + Ch.18 Closing Thoughts)
+- **Kitap genelinde en yüksek-etki/en-düşük-maliyetli mimari bulgu:** `src/analysis/merton.py::compute_merton_dd_edf()` (Kısım 6'da FORMÜL-121 için ilk tespit edilen Black-Scholes/Merton çekirdeği) Ch.17'nin "özkaynak bir opsiyondur" merkezi tezinin NEREDEYSE BİREBİR kod karşılığı — ama grep ile doğrulandı ki bu fonksiyon PROJENİN HİÇBİR YERİNDE (`merton.py` dışında, ne `card.py` ne `valuation.py` ne `scorer.py`) çağrılmıyor. Sıfır yeni veri/fetcher gerektirmeyen, sadece iki MEVCUT modülü birbirine bağlayan bir orkestrasyon değişikliği yeterli (bkz. 03_damodaran_degerleme.md BAYRAK-79/80).
+- **interest_expense açığı 6. kez doğrulandı — YENİ fetcher'da (`kap_financials.py`, bu turda İLK incelenen) BİLE çözülmemiş:** `STANDARD_ITEM_MAP_KAP_XI_29_INCOME` (sanayi/ticaret) haritasında yok, sadece `STANDARD_ITEM_MAP_KAP_UFRS_INCOME` (banka) haritasında var — `isyatirim.py`'deki AYNI açığın XBRL-tabanlı yeni fetcher'da da TEKRARLANMASI, sorunun kaynağın opaklığından değil muhtemelen TFRS interim raporlama pratiğinin kendisinden geldiğini düşündürüyor.
+- WACC/APV/kaldıraçsız-beta eksikliği (Kısım 3'ten sonra) Ch.17'nin APV-bazlı iflas-maliyeti formüllerinde (FORMÜL-165-168) 2. kez bloke edici bulundu — artık kitap genelinde (Kısım 1/3/5/6/7/9) 6. kez doğrulanan EN SIK TEKRARLANAN tekil açık.
+- **Yeni (dördüncü) eksiklik KATEGORİSİ netleşti:** önceki 3 kategoriden (tekil veri eksikliği, çok-firma karşılaştırma eksikliği, tek-proje-derinlik eksikliği) farklı olarak — (4) VERİ VE HESAPLAMA MANTIĞI ZATEN MEVCUT ama iki modül birbirine BAĞLANMAMIŞ (merton.py ↔ valuation.py). Muhtemelen kitap genelindeki EN UCUZ tek somut geliştirme fırsatı.
+- Ch.17 formül yoğunluğu YÜKSEK kaldı (19 formül/47 sayfa, DCF ailesi seviyesinde); Ch.18 beklendiği gibi TAMAMEN kontrol-listesi ağırlıklı (LL/MM/NN, 28 madde, SIFIR yeni formül) — kitabın kapanışı sayısal hesaptan çok metodolojik yargı üzerine.
+- Global Crossing (Illustration 17.1-17.7, 2001 telekom çöküşü) ve Eurotunnel (Illustration 17.12, 1997) GERÇEK/tarihsel şirket örnekleri — Graham/Buffett turlarındaki "gerçek şirket vs didaktik örnek" ayrımıyla tutarlı olarak doğrudan eşik kaynağı sayıldı.
+- Ownership/governance açığı (Kısım 7-8b'de yoğun) bu turda TEKRAR karşımıza çıkmadı — Ch.17-18'in konusuyla doğrudan kesişmiyor; bu açığın en yoğun olduğu bölümler Ch.13 (Kısım 7) ve Ch.16 (Kısım 8b) olarak kaldı.
+
+### Damodaran kitabı TAMAMLANDI (2026-08-11)
+Kısım 1-9 (Ch.1-18 + appendix'ler) TAMAMEN işlendi. `bilgi-bankasi/03_damodaran_degerleme.md` dosyasının başındaki "Bölüm bazlı durum" tablosu ve "Kitap geneli TOPLAM sayılar" bloğu güncellendi (İLKE 469, FORMÜL 178, BAYRAK 83, EŞİK 272 satır, KONTROL LİSTESİ 186 madde — tümü script/grep ile doğrulandı). **Kullanıcı kararı: Fisher (`04_fisher_siradan_hisseler.md`), Lynch (`05_lynch_borsada_tek_basina.md`) ve Schilit (`06_schilit_finansal_aldatmacalar.md`) kitapları ŞİMDİLİK ERTELENDİ** — kullanıcı Graham + Buffett + Damodaran (3 tamamlanmış kitap) ile kalıp projenin DİĞER FAZLARINA geçecek. Bu bilinçli bir DURAKLAMA kararıdır, "kaldığımız yer" karışıklığı olmaması için: bu üç kitabın PDF'leri (`kitaplar/common-stocks-and-uncommon-profits.pdf`, `kitaplar/One_Up_On_Wall_Street.pdf`, `kitaplar/Financial Shenanigans.pdf`) hâlâ mevcut ve `kitap-okuyucu` prosedürü aynı şekilde geçerli — sadece kullanıcı henüz talep ETMEDİ. İleride bu kitaplara dönülürse, ID numaralandırması HER kitap için BAĞIMSIZ olduğundan (SKILL.md kural 3) sıfırdan (İLKE-01/FORMÜL-01/BAYRAK-01) başlanacak, Damodaran'ın numaralarıyla ÇAKIŞMA riski YOKTUR.

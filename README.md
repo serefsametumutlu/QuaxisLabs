@@ -1541,6 +1541,67 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       `test_lens_guvenlik.py`, `test_lens_bilesik_skor.py`,
       `test_sector_metric_cache.py`, `test_pipeline_multi_lens.py`).
       Detay: `docs/spec/quant_denetim_01.md`, `docs/spec/veri_tamlik_notu.md`.
+- [x] **Faz 3.1 (Temel Analiz v2 — banka/sigorta/finansman desteği)** —
+      önceki turda bilinçli olarak `UnsupportedCompanyTypeError` ile
+      ertelenen banka (`UFRS`+`UFRS_KATILIM` katılım bankası)/sigorta
+      (`UFRS_K`)/finansman (`XI_29K`) v2 desteği bitirildi — 4 spec'in
+      "Sektör ayarlaması" bölümleri AYNEN uygulandı, v1 (`scorer.score_bank()`
+      vb.) DOKUNULMADI.
+      *Kalite*: bu şablonlarda SADECE ROE+ROA (`lens_kalite.
+      hesapla_kalite_mercegi_banka()` artık `template` parametresiyle
+      DOĞRU CONFIG eşiklerini okuyor — ÖNCEKİ sürüm banka eşiklerini
+      sigorta/finansman için de SESSİZCE kullanıyordu, `CONFIG["sigorta"]
+      ["ozkaynak_karliligi"]` güçlü=%25 vs banka güçlü=%20 gibi somut
+      farklar CANLI doğrulandı).
+      *Değer*: NCAV/Net-Net Bonus bu şablonlarda "YAPISAL OLARAK
+      UYGULANAMAZ" (bilanço şeması `current_assets` taşımıyor), diğer 6
+      bileşen (Mutlak Ucuzluk kendi `CONFIG["banka"/"sigorta"/"finansman"]
+      ["degerleme"]` eşikleriyle zaten v1'de MEVCUTTU) DEĞİŞMEDEN çalışır.
+      *Büyüme*: Hasılat Büyümesi bileşeni Prim Büyümesi (sigorta, zaten
+      `InsuranceRatios.premium_growth_yoy_pct`) / Kredi Büyümesi (banka) /
+      Finansman Geliri Büyümesi (finansman) ile DEĞİŞTİRİLİR — kredi/
+      finansman geliri büyümesi `BankRatios`/`FinancingRatios` HİÇ
+      DEĞİŞTİRİLMEDEN, ham `financials_by_period` + `calculator.
+      classify_change()` ile pipeline.py'de türetilir (`lens_guvenlik`'in
+      Toplam Yükümlülük/Özkaynak bileşeniyle AYNI "ham dict + aritmetik"
+      deseni).
+      *Güvenlik*: Kaldıraç/Toplam Yükümlülük-Özkaynak KAVRAMSAL OLARAK
+      UYGULANAMAZ — `lens_guvenlik.hesapla_guvenlik_mercegi_finans()`
+      SADECE özkaynak/aktif oranı (CAMELS sermaye yeterliliği proxy'si,
+      `scorer.CONFIG["banka"]["ozkaynak_aktif_orani"]`) + (henüz
+      kodlanmamış, spec'in kendi "iskelet" notuyla tutarlı) Piotroski-
+      benzeri bir sağlık taramasından oluşur; sigorta (`UFRS_K` şemasında
+      `total_assets` HİÇ YOK) bu bileşenin KENDİSİ de None döndüğü için
+      dürüstçe "YETERSİZ VERİ" döner (CANLI ANSGR ile doğrulandı) —
+      Bileşik Skor ağırlığı diğer 3 merceğe otomatik devreder.
+      **CANLI HATA DÜZELTMESİ** (bu turda ANSGR ile tetiklendi):
+      `scorer._agirlik_dagit_ve_hesapla()`'nın hiçbir bileşen skor
+      üretmediği durumda `sum()` çağrısı `start` parametresi olmadan
+      Python'un yerleşik `int(0)`'ını (Decimal DEĞİL) döndürüyordu —
+      `data_coverage_pct.quantize(...)` çağrıları bu durumda
+      `AttributeError` fırlatıyordu; değer değişmedi (`Decimal(0)==0`),
+      sadece tip tutarlılığı düzeltildi (v1 testleri `==` kullandığı için
+      etkilenmedi).
+      **Ayrıca giderilen iki "nominal ağırlık toplamı %100 değil" hatası**
+      (`min_veri_agirlik_yuzdesi=%50` kontrolü nominal ağırlıkların
+      TOPLAMDA %100'e tamamlandığı varsayımıyla çalışır): `hesapla_kalite_
+      mercegi_banka()`'nin nominal ağırlıkları (20,5) → (80,20) ve
+      `hesapla_guvenlik_mercegi_finans()`'in Piotroski-benzeri bileşeni
+      (henüz hep `None`) artık `None` iken bileşen LİSTESİNDEN TAMAMEN
+      ÇIKARILIYOR (nominal ağırlık %100 tek bileşende) — aksi halde her
+      iki mercek de veri TAM olsa BİLE hep "YETERSİZ VERİ" dönüyordu.
+      Canlı doğrulandı: `python scripts/demo_v2_skor.py AKBNK BIST` (Kalite
+      SADECE ROE %20,6/ROA %1,8'den, Güvenlik SADECE özkaynak/aktif oranı
+      %8,7'den oluşuyor, Bileşik 6,0 KARIŞIK), `ANSGR BIST` (sigorta,
+      Güvenlik dürüstçe YETERSİZ VERİ, Bileşik 7,5 DENGELİ — 3 mercek
+      üzerinden), `KTLEV BIST` (finansman, Bileşik 8,1 SAĞLAM) — üçü de
+      gerçek İş Yatırım/KAP verisiyle, DB'de dolu veri `repository.
+      get_financials()` ile doğrulanarak seçildi.
+      1287 test, hepsi yeşil (17 yeni —
+      `test_lens_kalite.py`/`test_lens_buyume.py`/`test_lens_guvenlik.py`/
+      `test_lens_bilesik_skor.py`/`test_scorer.py` genişletildi,
+      `test_pipeline_multi_lens.py`'ye banka/sigorta/finansman/katılım
+      bankası uçtan uca testleri eklendi).
 
 ## Dizin Yapisi
 

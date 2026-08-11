@@ -63,6 +63,8 @@ from sqlalchemy.orm import Session
 import config
 from src.ai import commentary as commentary_module
 from src.analysis import calculator, fundamental_screens, scorer, valuation
+from src.analysis import lens_bilesik_skor, lens_buyume, lens_deger, lens_guvenlik, lens_kalite
+from src.analysis import merton as merton_module
 from src.db import models, repository
 from src.fetchers import earnings_calendar, isyatirim, kap, kap_financials, price_history, sec_edgar, stockanalysis
 from src.render import card
@@ -88,6 +90,9 @@ _STOCK_FIELDS: tuple[str, ...] = (
     "cash",
     "financial_investments",
     "short_term_liabilities",
+    "long_term_liabilities",  # Faz 3c (v2 skorlama, spec_mercek_guvenlik.md) -- Toplam Yukumluluk/Ozkaynak (genis
+    # tanim) bileseninin girdisi. isyatirim.STANDARD_ITEM_MAP_XI_29'da ZATEN eslenmisti ("2B"), sadece bu
+    # whitelist'e EKSIKTI -- YENI bir fetcher/kesif GEREKTIRMEDI, SIFIR maliyetli bir "quick win".
     "share_capital",
     "tangible_fixed_assets",  # Faz 21 (Degerleme ekrani) -- Greenblatt "Net Fixed Assets" bileseni
     "long_term_financial_debt",  # Faz 21 -- Piotroski "uzun vadeli kaldirac degisimi" kriteri (2BA zaten esleniyordu, sadece _STOCK_FIELDS'e eklendi)
@@ -1527,6 +1532,146 @@ def compute_fundamental_screens_for_ticker(ticker: str) -> FundamentalScreensRes
     )
     return FundamentalScreensResult(
         ticker=ticker, company_name=company_name, price=current_price, applicable=True, screens=screens
+    )
+
+
+@dataclass(frozen=True)
+class MultiLensScoreResult:
+    """`compute_multi_lens_score_for_ticker()` çıktısı -- v2 çok-mercekli
+    (Değer/Kalite/Büyüme/Güvenlik) skorlamanın TAMAMI (4 mercek + bileşik)
+    burada taşınır. `bilesik.mercekler` (`lens_bilesik_skor.MercekProfili`)
+    üzerinden 4 merceğin HER BİRİ ayrı ayrı de erişilebilir (spec_bilesik_
+    skor.md: "kullanıcıya tek skor değil profil gösterilir")."""
+
+    ticker: str
+    market: str
+    period: Period
+    company_name: str | None
+    price: Decimal | None
+    bilesik: lens_bilesik_skor.BilesikSkorSonucu
+
+
+def compute_multi_lens_score_for_ticker(ticker: str, market: str = "BIST") -> MultiLensScoreResult:
+    """v2 çok-mercekli skorlamayı (`docs/spec/spec_bilesik_skor.md`) BAĞIMSIZ
+    bir giriş noktası olarak orkestre eder -- v1'in `run_pipeline()`/
+    `scorer.score_industrial()` akışını HİÇ ÇAĞIRMAZ/ETKİLEMEZ (persona
+    kural 8: "v1 davranışı ASLA değişmeyecek"). `src/bot/telegram_bot.py`
+    henüz bu fonksiyonu ÇAĞIRMAZ (geçiş bayrağı `config`/çağıran taraf
+    kararına bırakıldı, bkz. `scripts/demo_v2_skor.py`) -- bu fonksiyonun
+    KENDİSİ zaten "bayrak" rolü görür: v1 ayrı, v2 ayrı, hiçbiri diğerini
+    bozmaz.
+
+    Bu turda SADECE `sanayi` (BİST XI_29) ve `abd_sanayi` (NASDAQ US_GAAP)
+    şablonları desteklenir (spec'lerin 4'ünün de birincil kapsamı) --
+    banka/sigorta/finansman v2 desteği (kendi özel bileşen kümeleri
+    spec'lerde TANIMLI ama BU TURDA KODLANMADI) `UnsupportedCompanyTypeError`
+    ile AÇIKÇA işaretlenir, sessizce yanlış bir şablona DÜŞÜLMEZ (Kural 3)."""
+    ticker = ticker.strip().upper()
+    _ensure_financials_cached(ticker, market, periods=None)
+
+    with repository.get_session() as session:
+        company_row = session.get(models.Company, ticker)
+        financials_by_period = repository.get_financials(session, ticker, n_periods=8)
+        company_name = company_row.name if company_row and company_row.name else None
+        financial_group = company_row.financial_group if company_row else None
+
+    if not financials_by_period:
+        raise TickerNotFoundError(f"'{ticker}' icin veritabaninda finansal veri bulunamadi.")
+
+    is_us = market == "NASDAQ"
+    if is_us:
+        analysis = calculator.analyze_us(ticker, financials_by_period)
+        template = "abd_sanayi"
+        share_field = "shares_outstanding"
+        currency = "USD"
+    else:
+        if financial_group not in (None, "XI_29"):
+            raise UnsupportedCompanyTypeError(
+                f"'{ticker}' (financial_group={financial_group}) -- v2 çok-mercekli skorlama bu turda SADECE "
+                "sanayi/ticaret (XI_29) şirketleri için kodlandı, banka/sigorta/finansman desteği sonraki bir "
+                "tura bırakıldı (spec'lerde tanımlı, henüz kodlanmadı)."
+            )
+        analysis = calculator.analyze(ticker, financials_by_period)
+        template = "sanayi"
+        share_field = "share_capital"
+        currency = "TRY"
+
+    own_bars = price_history.fetch_ohlcv(ticker, market, days=400)
+    current_price = own_bars[-1].close if own_bars else None
+    share_capital = financials_by_period.get(analysis.latest_period, {}).get(share_field)
+    valuation_metrics = calculator.compute_valuation(analysis, current_price, share_capital)
+
+    fundamental = None
+    if not is_us and financial_group == "XI_29":
+        # Greenblatt/Carlisle/Graham/Piotroski SADECE BIST XI_29 sanayi icin
+        # mevcut (fundamental_screens.py kapsam siniri, bkz. o modulun ust notu).
+        fundamental = fundamental_screens.compute_fundamental_screens(
+            financials_by_period,
+            price=current_price,
+            share_capital=share_capital,
+            own_pe=valuation_metrics.pe_ratio if valuation_metrics else None,
+            own_pb=valuation_metrics.pb_ratio if valuation_metrics else None,
+        )
+
+    risk_free_rate_pct = valuation._RISK_FREE_RATE_PCT.get(currency)
+
+    deger = lens_deger.hesapla_deger_mercegi(
+        lens_deger.DegerGirdisi(
+            analysis=analysis, valuation=valuation_metrics, fundamental=fundamental,
+            risk_free_rate_pct=risk_free_rate_pct, template=template,
+        )
+    )
+
+    ocf_ttm = calculator.trailing_12m_from_cumulative(
+        financials_by_period, analysis.latest_period, lambda d: d.get("operating_cash_flow_cum")
+    )
+    kalite = lens_kalite.hesapla_kalite_mercegi(
+        lens_kalite.KaliteGirdisi(
+            analysis=analysis, greenblatt=fundamental.greenblatt if fundamental else None,
+            operating_cash_flow_ttm=ocf_ttm, template=template,
+        )
+    )
+
+    buyume = lens_buyume.hesapla_buyume_mercegi(
+        lens_buyume.BuyumeGirdisi(
+            analysis=analysis, financials_by_period=financials_by_period,
+            own_pe=valuation_metrics.pe_ratio if valuation_metrics else None,
+            enflasyon_yoy_pct=None, template=template,
+        )
+    )
+
+    merton_result = None
+    latest_raw = financials_by_period.get(analysis.latest_period, {})
+    short_term_liabilities = latest_raw.get("short_term_liabilities")
+    long_term_financial_debt = latest_raw.get("long_term_financial_debt")
+    if (
+        current_price is not None
+        and share_capital is not None
+        and short_term_liabilities is not None
+        and risk_free_rate_pct is not None
+        and len(own_bars) >= 120
+    ):
+        # KMV "temerrut noktasi" (merton.compute_merton_dd_edf docstring'i):
+        # kisa_vadeli_yukumlulukler + 0,5 x uzun_vadeli_finansal_borc.
+        debt_face_value = short_term_liabilities + (Decimal("0.5") * long_term_financial_debt if long_term_financial_debt is not None else Decimal(0))
+        equity_market_value = current_price * share_capital
+        equity_volatility_pct = merton_module.annualized_equity_volatility([bar.close for bar in own_bars])
+        if equity_volatility_pct is not None and debt_face_value > 0:
+            merton_result = merton_module.compute_merton_dd_edf(
+                equity_market_value, debt_face_value, equity_volatility_pct, risk_free_rate_pct
+            )
+
+    guvenlik = lens_guvenlik.hesapla_guvenlik_mercegi(
+        lens_guvenlik.GuvenlikGirdisi(
+            analysis=analysis, financials_by_period=financials_by_period,
+            piotroski=fundamental.piotroski if fundamental else None, merton=merton_result, template=template,
+        )
+    )
+
+    bilesik = lens_bilesik_skor.hesapla_bilesik_skor(ticker, analysis.latest_period, deger, kalite, buyume, guvenlik)
+    return MultiLensScoreResult(
+        ticker=ticker, market=market, period=analysis.latest_period, company_name=company_name,
+        price=current_price, bilesik=bilesik,
     )
 
 

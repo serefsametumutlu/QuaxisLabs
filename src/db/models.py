@@ -261,6 +261,43 @@ class FundHolding(Base):
     weight_pct: Mapped[Decimal] = mapped_column(Numeric(9, 4))
 
 
+class SectorMetricCache(Base):
+    """Faz 3c (docs/spec/spec_mercek_deger.md/spec_mercek_kalite.md/
+    spec_mercek_buyume.md "Sektör ayarlaması" bölümleri): bir
+    `(ust_sektor, sirket_turu)` grubunun bir metriğinin (örn.
+    "ebitda_margin_current", "roe_annualized", "pe_ratio") DÖNEM BAZLI
+    robust (medyan + MAD) dağılımını önbellekler -- v2 mercek modüllerinin
+    (`src/analysis/lens_common.SektorIstatistigi`) HAZIR parametre olarak
+    tükettiği veri.
+
+    Hesaplama BURADA YAPILMAZ (repository katmanı SADECE CRUD/cache'tir,
+    quaxis-mimari anayasa) -- `src/analysis/lens_common.robust_istatistik()`
+    çağıran taraf (pipeline.py / scripts/) tarafından çalıştırılır, sonuç
+    (n, medyan, mad) burada SADECE saklanır/okunur.
+
+    `(ust_sektor, sirket_turu)` gruplama anahtarı BİLEREK `(sector,
+    financial_group)` DEĞİL -- `spec_sektor_evren.md`'nin "Mevcut sınırlama
+    tespiti" notu: eski `get_sector_peer_tickers()` BİST-ince-sektör bazlı
+    çalışıyordu ve NASDAQ'ı hiç KAPSAMIYORDU, bu tablo İKİ piyasayı
+    BİRLİKTE gören ortak eksende tutulur."""
+
+    __tablename__ = "sector_metric_cache"
+    __table_args__ = (
+        UniqueConstraint("ust_sektor", "sirket_turu", "metric", "year", "period", name="uq_sector_metric_cache_key"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    ust_sektor: Mapped[str] = mapped_column(String(40), index=True)
+    sirket_turu: Mapped[str] = mapped_column(String(20))
+    metric: Mapped[str] = mapped_column(String(60))  # orn. "ebitda_margin_current", "pe_ratio"
+    year: Mapped[int]
+    period: Mapped[int]
+    n: Mapped[int]  # ornekleme buyuklugu -- lens_common.MIN_SECTOR_N (5) kontrolu OKUYUCU tarafinda yapilir
+    medyan: Mapped[Decimal] = mapped_column(Numeric(24, 6))
+    mad: Mapped[Decimal] = mapped_column(Numeric(24, 6))  # Medyan Mutlak Sapma (winsorize edilmis orneklemden)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow_naive)
+
+
 class GeneratedCard(Base):
     __tablename__ = "generated_card"
 

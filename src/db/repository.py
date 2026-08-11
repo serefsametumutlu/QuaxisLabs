@@ -33,6 +33,7 @@ from src.db.models import (
     Fund,
     FundHolding,
     GeneratedCard,
+    SectorMetricCache,
     TechnicalCommentaryCache,
     DefaultSessionLocal,
     utcnow_naive,
@@ -643,6 +644,95 @@ def get_sector_peer_tickers(session: Session, sector: str, financial_group: str,
         )
     ).scalars().all()
     return list(rows)
+
+
+def get_sector_peer_tickers_v2(
+    session: Session, ust_sektor: str, sirket_turu: str, exclude_ticker: str | None = None, market: str | None = None
+) -> list[str]:
+    """`get_sector_peer_tickers()`'ın Faz 3c YÜKSELTMESİ -- gruplama anahtarı
+    `(sector, financial_group)` YERİNE `(ust_sektor, sirket_turu)` (spec_
+    sektor_evren.md "Mevcut sınırlama tespiti": eski fonksiyon BİST-ince-
+    sektör bazlıydı ve NASDAQ'ı hiç KAPSAMIYORDU) -- bu fonksiyon İKİ
+    piyasayı BİRLİKTE gören ortak eksende çalışır (`market` verilirse TEK
+    piyasaya daraltılabilir, verilmezse BİST+NASDAQ BİRLİKTE taranır).
+
+    Eski `get_sector_peer_tickers()` DEĞİŞTİRİLMEDİ (v1/Derin Kart hâlâ onu
+    kullanır, persona kural 8) -- bu YENİ, AYRI bir fonksiyondur."""
+    conditions = [Company.ust_sektor == ust_sektor, Company.sirket_turu == sirket_turu]
+    if exclude_ticker is not None:
+        conditions.append(Company.ticker != exclude_ticker)
+    if market is not None:
+        conditions.append(Company.market == market)
+    rows = session.execute(select(Company.ticker).where(*conditions)).scalars().all()
+    return list(rows)
+
+
+def get_sector_metric_cache(
+    session: Session, ust_sektor: str, sirket_turu: str, metric: str, period: tuple[int, int], max_age_hours: int = 12
+) -> SectorMetricCache | None:
+    """Faz 3c -- `(ust_sektor, sirket_turu, metric, year, period)` için
+    DÖNEM BAZLI önbelleklenmiş robust istatistiği (n, medyan, mad) döner.
+    Kayıt yoksa VEYA `max_age_hours`'tan eskiyse `None` döner (çağıran
+    taraf -- pipeline.py -- bu durumda `src.analysis.lens_common.
+    robust_istatistik()`'i YENİDEN çalıştırıp `save_sector_metric_cache()`
+    ile üzerine yazmalıdır; bu fonksiyon hesaplama YAPMAZ, SADECE okur).
+
+    `max_age_hours=12`: mevcut `is_data_fresh()` ile AYNI muhafazakar
+    pencere (bu tabloda DB'nin İÇİNE her yeni analiz edilen şirketle
+    büyüyen bir örneklem var -- taksonomi önbelleğinin (90 gün) AKSİNE bu
+    dağılım günlük ölçekte anlamlı değişebilir)."""
+    year, period_no = period
+    row = session.execute(
+        select(SectorMetricCache).where(
+            SectorMetricCache.ust_sektor == ust_sektor,
+            SectorMetricCache.sirket_turu == sirket_turu,
+            SectorMetricCache.metric == metric,
+            SectorMetricCache.year == year,
+            SectorMetricCache.period == period_no,
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        return None
+    if utcnow_naive() - row.updated_at > timedelta(hours=max_age_hours):
+        return None
+    return row
+
+
+def save_sector_metric_cache(
+    session: Session,
+    ust_sektor: str,
+    sirket_turu: str,
+    metric: str,
+    period: tuple[int, int],
+    n: int,
+    medyan: Decimal,
+    mad: Decimal,
+) -> SectorMetricCache:
+    """`get_sector_metric_cache()`'in yazma tarafı -- upsert (aynı anahtar
+    zaten varsa GÜNCELLENİR, yeni satır oluşturulmaz)."""
+    year, period_no = period
+    row = session.execute(
+        select(SectorMetricCache).where(
+            SectorMetricCache.ust_sektor == ust_sektor,
+            SectorMetricCache.sirket_turu == sirket_turu,
+            SectorMetricCache.metric == metric,
+            SectorMetricCache.year == year,
+            SectorMetricCache.period == period_no,
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        row = SectorMetricCache(
+            ust_sektor=ust_sektor, sirket_turu=sirket_turu, metric=metric, year=year, period=period_no,
+            n=n, medyan=medyan, mad=mad,
+        )
+        session.add(row)
+    else:
+        row.n = n
+        row.medyan = medyan
+        row.mad = mad
+        row.updated_at = utcnow_naive()
+    session.commit()
+    return row
 
 
 # --- Faz 12: Yaklaşan Bilanço Tarihleri (earnings_calendar) -----------------------------------------------------

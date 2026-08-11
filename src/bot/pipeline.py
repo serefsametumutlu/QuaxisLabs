@@ -1561,11 +1561,19 @@ def compute_multi_lens_score_for_ticker(ticker: str, market: str = "BIST") -> Mu
     KENDİSİ zaten "bayrak" rolü görür: v1 ayrı, v2 ayrı, hiçbiri diğerini
     bozmaz.
 
-    Bu turda SADECE `sanayi` (BİST XI_29) ve `abd_sanayi` (NASDAQ US_GAAP)
-    şablonları desteklenir (spec'lerin 4'ünün de birincil kapsamı) --
-    banka/sigorta/finansman v2 desteği (kendi özel bileşen kümeleri
-    spec'lerde TANIMLI ama BU TURDA KODLANMADI) `UnsupportedCompanyTypeError`
-    ile AÇIKÇA işaretlenir, sessizce yanlış bir şablona DÜŞÜLMEZ (Kural 3)."""
+    Desteklenen şablonlar: `sanayi` (BİST XI_29), `abd_sanayi` (NASDAQ
+    US_GAAP), `banka` (UFRS konvansiyonel + UFRS_KATILIM katılım bankası),
+    `sigorta` (UFRS_K), `finansman` (XI_29K Tasarruf Finansman Şirketleri)
+    -- bu turda banka/sigorta/finansman DE eklendi (bkz. `docs/spec/
+    spec_mercek_deger.md`/`spec_mercek_kalite.md`/`spec_mercek_buyume.md`/
+    `spec_mercek_guvenlik.md` "Sektör ayarlaması" bölümleri): KALİTE
+    merceği SADECE ROE+ROA'dan, GÜVENLİK merceği kaldıraç YERİNE özkaynak/
+    aktif oranından (+ henüz kodlanmamış Piotroski-benzeri iskelet)
+    oluşur, BÜYÜME merceğinde Hasılat Büyümesi bileşeni Prim/Kredi/
+    Finansman Geliri büyümesiyle DEĞİŞTİRİLİR. Gerçekten HİÇ desteklenmeyen
+    bir `financial_group` gelirse (yukarıdaki 5 türün dışında)
+    `UnsupportedCompanyTypeError` AÇIKÇA fırlatılır, sessizce yanlış bir
+    şablona DÜŞÜLMEZ (Kural 3)."""
     ticker = ticker.strip().upper()
     _ensure_financials_cached(ticker, market, periods=None)
 
@@ -1585,26 +1593,45 @@ def compute_multi_lens_score_for_ticker(ticker: str, market: str = "BIST") -> Mu
         share_field = "shares_outstanding"
         currency = "USD"
     else:
-        if financial_group not in (None, "XI_29"):
+        if financial_group not in (None, "XI_29", "UFRS", "UFRS_KATILIM", "UFRS_K", "XI_29K"):
             raise UnsupportedCompanyTypeError(
-                f"'{ticker}' (financial_group={financial_group}) -- v2 çok-mercekli skorlama bu turda SADECE "
-                "sanayi/ticaret (XI_29) şirketleri için kodlandı, banka/sigorta/finansman desteği sonraki bir "
-                "tura bırakıldı (spec'lerde tanımlı, henüz kodlanmadı)."
+                f"'{ticker}' (financial_group={financial_group}) -- v2 çok-mercekli skorlama bu şirket türü "
+                "için henüz kodlanmadı (spec'lerde tanımlı değil)."
             )
-        analysis = calculator.analyze(ticker, financials_by_period)
-        template = "sanayi"
         share_field = "share_capital"
         currency = "TRY"
+        if financial_group in ("UFRS", "UFRS_KATILIM"):
+            bank_variant = "participation" if financial_group == "UFRS_KATILIM" else "conventional"
+            analysis = calculator.analyze_bank(ticker, financials_by_period, bank_variant=bank_variant)
+            template = "banka"
+        elif financial_group == "UFRS_K":
+            analysis = calculator.analyze_insurance(ticker, financials_by_period)
+            template = "sigorta"
+        elif financial_group == "XI_29K":
+            analysis = calculator.analyze_financing(ticker, financials_by_period)
+            template = "finansman"
+        else:
+            analysis = calculator.analyze(ticker, financials_by_period)
+            template = "sanayi"
 
     own_bars = price_history.fetch_ohlcv(ticker, market, days=400)
     current_price = own_bars[-1].close if own_bars else None
     share_capital = financials_by_period.get(analysis.latest_period, {}).get(share_field)
-    valuation_metrics = calculator.compute_valuation(analysis, current_price, share_capital)
+    if template == "banka":
+        valuation_metrics = calculator.compute_valuation_bank(analysis, current_price, share_capital)
+    elif template == "sigorta":
+        valuation_metrics = calculator.compute_valuation_insurance(analysis, current_price, share_capital)
+    elif template == "finansman":
+        valuation_metrics = calculator.compute_valuation_financing(analysis, current_price, share_capital)
+    else:
+        valuation_metrics = calculator.compute_valuation(analysis, current_price, share_capital)
 
     fundamental = None
     if not is_us and financial_group == "XI_29":
         # Greenblatt/Carlisle/Graham/Piotroski SADECE BIST XI_29 sanayi icin
-        # mevcut (fundamental_screens.py kapsam siniri, bkz. o modulun ust notu).
+        # mevcut (fundamental_screens.py kapsam siniri, bkz. o modulun ust notu)
+        # -- banka/sigorta/finansman'da `fundamental` BILINCLI olarak None
+        # kalir (v1 deseniyle TUTARLI, bkz. run_pipeline()'in ayni kosulu).
         fundamental = fundamental_screens.compute_fundamental_screens(
             financials_by_period,
             price=current_price,
@@ -1622,51 +1649,106 @@ def compute_multi_lens_score_for_ticker(ticker: str, market: str = "BIST") -> Mu
         )
     )
 
-    ocf_ttm = calculator.trailing_12m_from_cumulative(
-        financials_by_period, analysis.latest_period, lambda d: d.get("operating_cash_flow_cum")
-    )
-    kalite = lens_kalite.hesapla_kalite_mercegi(
-        lens_kalite.KaliteGirdisi(
-            analysis=analysis, greenblatt=fundamental.greenblatt if fundamental else None,
-            operating_cash_flow_ttm=ocf_ttm, template=template,
+    if template in ("sanayi", "abd_sanayi"):
+        ocf_ttm = calculator.trailing_12m_from_cumulative(
+            financials_by_period, analysis.latest_period, lambda d: d.get("operating_cash_flow_cum")
         )
-    )
-
-    buyume = lens_buyume.hesapla_buyume_mercegi(
-        lens_buyume.BuyumeGirdisi(
-            analysis=analysis, financials_by_period=financials_by_period,
-            own_pe=valuation_metrics.pe_ratio if valuation_metrics else None,
-            enflasyon_yoy_pct=None, template=template,
-        )
-    )
-
-    merton_result = None
-    latest_raw = financials_by_period.get(analysis.latest_period, {})
-    short_term_liabilities = latest_raw.get("short_term_liabilities")
-    long_term_financial_debt = latest_raw.get("long_term_financial_debt")
-    if (
-        current_price is not None
-        and share_capital is not None
-        and short_term_liabilities is not None
-        and risk_free_rate_pct is not None
-        and len(own_bars) >= 120
-    ):
-        # KMV "temerrut noktasi" (merton.compute_merton_dd_edf docstring'i):
-        # kisa_vadeli_yukumlulukler + 0,5 x uzun_vadeli_finansal_borc.
-        debt_face_value = short_term_liabilities + (Decimal("0.5") * long_term_financial_debt if long_term_financial_debt is not None else Decimal(0))
-        equity_market_value = current_price * share_capital
-        equity_volatility_pct = merton_module.annualized_equity_volatility([bar.close for bar in own_bars])
-        if equity_volatility_pct is not None and debt_face_value > 0:
-            merton_result = merton_module.compute_merton_dd_edf(
-                equity_market_value, debt_face_value, equity_volatility_pct, risk_free_rate_pct
+        kalite = lens_kalite.hesapla_kalite_mercegi(
+            lens_kalite.KaliteGirdisi(
+                analysis=analysis, greenblatt=fundamental.greenblatt if fundamental else None,
+                operating_cash_flow_ttm=ocf_ttm, template=template,
             )
-
-    guvenlik = lens_guvenlik.hesapla_guvenlik_mercegi(
-        lens_guvenlik.GuvenlikGirdisi(
-            analysis=analysis, financials_by_period=financials_by_period,
-            piotroski=fundamental.piotroski if fundamental else None, merton=merton_result, template=template,
         )
-    )
+    else:
+        # spec_mercek_kalite.md §Sektör ayarlaması madde 1: banka/sigorta/
+        # finansman'da KALİTE merceği SADECE ROE+ROA'dan oluşur. Sigorta
+        # (UFRS_K) şemasında `total_assets` HİÇ YOK (bkz. isyatirim.py
+        # STANDARD_ITEM_MAP_UFRS_K) -- ROA orada HER ZAMAN None'dır, `return_
+        # on_assets_annualized` alanı zaten InsuranceRatios'ta hiç TANIMLI
+        # DEĞİL (`getattr` ile güvenle None'a düşer).
+        roa_pct = getattr(analysis.ratios, "return_on_assets_annualized", None)
+        kalite = lens_kalite.hesapla_kalite_mercegi_banka(
+            ticker, analysis.latest_period, roe_pct=analysis.ratios.roe_annualized, roa_pct=roa_pct, template=template,
+        )
+
+    latest_raw = financials_by_period.get(analysis.latest_period, {})
+    if template in ("sanayi", "abd_sanayi"):
+        buyume = lens_buyume.hesapla_buyume_mercegi(
+            lens_buyume.BuyumeGirdisi(
+                analysis=analysis, financials_by_period=financials_by_period,
+                own_pe=valuation_metrics.pe_ratio if valuation_metrics else None,
+                enflasyon_yoy_pct=None, template=template,
+            )
+        )
+    else:
+        # spec_mercek_buyume.md §Sektör ayarlaması madde 3: Hasılat Büyümesi
+        # bileşeni Prim Büyümesi (sigorta, zaten `InsuranceRatios.
+        # premium_growth_yoy_pct` MEVCUT) veya kredi büyümesi (banka, ham
+        # `loans` alanından TÜRETİLİR) veya finansman geliri büyümesi
+        # (finansman, ham `financing_revenue` alanından TÜRETİLİR) ile
+        # DEĞİŞTİRİLİR -- calculator.classify_change() ile TEK satır
+        # türetim (BankRatios/FinancingRatios DEĞİŞTİRİLMEDEN, ham fbp +
+        # aritmetik deseni, bkz. spec_mercek_guvenlik.md'nin Toplam
+        # Yükümlülük/Özkaynak bileşeniyle AYNI ilke).
+        if template == "sigorta":
+            buyume_orani_pct = analysis.ratios.premium_growth_yoy_pct
+            buyume_metrik_adi = "prim"
+        else:
+            yoy_raw = financials_by_period.get(calculator.year_ago_period(analysis.latest_period), {})
+            if template == "banka":
+                buyume_orani_pct, _label, _direction = calculator.classify_change(latest_raw.get("loans"), yoy_raw.get("loans"))
+                buyume_metrik_adi = "kredi"
+            else:  # "finansman"
+                buyume_orani_pct, _label, _direction = calculator.classify_change(
+                    latest_raw.get("financing_revenue"), yoy_raw.get("financing_revenue")
+                )
+                buyume_metrik_adi = "finansman geliri"
+        buyume = lens_buyume.hesapla_buyume_mercegi_finans(
+            lens_buyume.BuyumeGirdisiFinans(
+                analysis=analysis, financials_by_period=financials_by_period, template=template,
+                buyume_orani_pct=buyume_orani_pct, buyume_metrik_adi=buyume_metrik_adi,
+                own_pe=valuation_metrics.pe_ratio if valuation_metrics else None, enflasyon_yoy_pct=None,
+            )
+        )
+
+    if template in ("sanayi", "abd_sanayi"):
+        merton_result = None
+        short_term_liabilities = latest_raw.get("short_term_liabilities")
+        long_term_financial_debt = latest_raw.get("long_term_financial_debt")
+        if (
+            current_price is not None
+            and share_capital is not None
+            and short_term_liabilities is not None
+            and risk_free_rate_pct is not None
+            and len(own_bars) >= 120
+        ):
+            # KMV "temerrut noktasi" (merton.compute_merton_dd_edf docstring'i):
+            # kisa_vadeli_yukumlulukler + 0,5 x uzun_vadeli_finansal_borc.
+            debt_face_value = short_term_liabilities + (Decimal("0.5") * long_term_financial_debt if long_term_financial_debt is not None else Decimal(0))
+            equity_market_value = current_price * share_capital
+            equity_volatility_pct = merton_module.annualized_equity_volatility([bar.close for bar in own_bars])
+            if equity_volatility_pct is not None and debt_face_value > 0:
+                merton_result = merton_module.compute_merton_dd_edf(
+                    equity_market_value, debt_face_value, equity_volatility_pct, risk_free_rate_pct
+                )
+
+        guvenlik = lens_guvenlik.hesapla_guvenlik_mercegi(
+            lens_guvenlik.GuvenlikGirdisi(
+                analysis=analysis, financials_by_period=financials_by_period,
+                piotroski=fundamental.piotroski if fundamental else None, merton=merton_result, template=template,
+            )
+        )
+    else:
+        # spec_mercek_guvenlik.md §Sektör ayarlaması madde 1: Kaldıraç/
+        # Toplam Yükümlülük-Özkaynak KAVRAMSAL OLARAK UYGULANAMAZ -- SADECE
+        # özkaynak/aktif oranı (+ henüz kodlanmamış Piotroski-benzeri
+        # iskelet, piotroski=None). Sigorta'da bu oran da None'dır (ham
+        # `total_assets` UFRS_K şemasında hiç yok) -- mercek dürüstçe
+        # "YETERSİZ VERİ" döner (Kural 3, uydurma yapılmaz).
+        ozkaynak_aktif_orani_pct = getattr(analysis.ratios, "equity_to_assets_current", None)
+        guvenlik = lens_guvenlik.hesapla_guvenlik_mercegi_finans(
+            ticker, analysis.latest_period, ozkaynak_aktif_orani_pct=ozkaynak_aktif_orani_pct, piotroski=None,
+        )
 
     bilesik = lens_bilesik_skor.hesapla_bilesik_skor(ticker, analysis.latest_period, deger, kalite, buyume, guvenlik)
     return MultiLensScoreResult(

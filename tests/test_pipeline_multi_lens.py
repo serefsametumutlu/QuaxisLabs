@@ -139,14 +139,193 @@ def test_compute_multi_lens_score_az_fiyat_gecmisinde_merton_atlanir_diger_biles
     assert isimler["Toplam Yükümlülük/Özkaynak (geniş tanım)"].score is not None
 
 
-def test_compute_multi_lens_score_banka_semasi_desteklenmiyor_hata_firlatir(izole_db, monkeypatch) -> None:
-    raw = _fake_raw_zengin("FAKEBANK")
-    raw = isyatirim.RawFinancials(ticker="FAKEBANK", company_code="FAKEBANK", financial_group="UFRS", periods=raw.periods, items=raw.items)
+def test_compute_multi_lens_score_bilinmeyen_sema_hata_firlatir(izole_db, monkeypatch) -> None:
+    """Gercekten desteklenmeyen bir financial_group (XI_29/UFRS/UFRS_KATILIM/
+    UFRS_K/XI_29K DISINDA) HALA UnsupportedCompanyTypeError firlatmali --
+    bu tur SADECE banka/sigorta/finansman'a GERCEK destek eklendi, "bilinen
+    5 tur DISI" durum YINE reddedilir (Kural 3)."""
+    raw = _fake_raw_zengin("FAKEUNK")
+    raw = isyatirim.RawFinancials(ticker="FAKEUNK", company_code="FAKEUNK", financial_group="BILINMEYEN", periods=raw.periods, items=raw.items)
     monkeypatch.setattr(isyatirim, "fetch_financials", _make_fake_fetch(raw))
     monkeypatch.setattr(isyatirim, "fetch_price_history", _fake_price_history(10))
 
     with pytest.raises(pipeline.UnsupportedCompanyTypeError):
-        pipeline.compute_multi_lens_score_for_ticker("FAKEBANK", market="BIST")
+        pipeline.compute_multi_lens_score_for_ticker("FAKEUNK", market="BIST")
+
+
+# --- Banka/sigorta/finansman v2 destegi (bu tur eklendi) -----------------------------------------------------
+
+_B_LATEST = (2026, 3)
+_B_Q4_PRIOR = (2025, 12)
+_B_YOY = (2025, 3)
+_B_Q4_PRIOR2 = (2024, 12)
+_B_YOY2 = (2024, 3)
+
+
+def _build_fake_raw_from_map(ticker: str, values_by_period: dict, item_map: dict, financial_group: str) -> isyatirim.RawFinancials:
+    values_by_item_code: dict[str, dict[tuple[int, int], Decimal]] = {}
+    for period, field_values in values_by_period.items():
+        for field, value in field_values.items():
+            item_code = item_map[field]
+            values_by_item_code.setdefault(item_code, {})[period] = value
+    items = {
+        code: isyatirim.FinancialItem(item_code=code, description_tr="", values_by_period=vals)
+        for code, vals in values_by_item_code.items()
+    }
+    periods = sorted(values_by_period.keys(), reverse=True)
+    return isyatirim.RawFinancials(ticker=ticker, company_code=ticker, financial_group=financial_group, periods=periods, items=items)
+
+
+def _fake_raw_banka(ticker: str = "TESTBANK") -> isyatirim.RawFinancials:
+    values = {
+        _B_LATEST: {
+            "interest_income": Decimal("500"), "interest_expense": Decimal("200"), "net_income": Decimal("120"),
+            "loans": Decimal("4000"), "deposits": Decimal("4500"), "total_assets": Decimal("10000"),
+            "equity": Decimal("1200"), "share_capital": Decimal("500"),
+        },
+        _B_Q4_PRIOR: {"net_income": Decimal("380")},
+        _B_YOY: {
+            "interest_income": Decimal("420"), "net_income": Decimal("95"),
+            "loans": Decimal("3200"), "deposits": Decimal("3800"), "total_assets": Decimal("8800"), "equity": Decimal("950"),
+        },
+        _B_Q4_PRIOR2: {"net_income": Decimal("340")},
+        _B_YOY2: {"net_income": Decimal("80")},
+    }
+    return _build_fake_raw_from_map(ticker, values, isyatirim.STANDARD_ITEM_MAP_UFRS, "UFRS")
+
+
+def test_compute_multi_lens_score_banka_dort_mercek_ve_bilesik_uretir(izole_db, monkeypatch) -> None:
+    monkeypatch.setattr(isyatirim, "fetch_financials", _make_fake_fetch(_fake_raw_banka("TESTBANK")))
+    monkeypatch.setattr(isyatirim, "fetch_price_history", _fake_price_history(10))
+
+    sonuc = pipeline.compute_multi_lens_score_for_ticker("testbank", market="BIST")
+
+    assert sonuc.ticker == "TESTBANK"
+    profil = sonuc.bilesik.mercekler
+    assert profil.deger is not None
+    assert profil.kalite is not None
+    assert profil.buyume is not None
+    assert profil.guvenlik is not None
+    # spec_mercek_kalite.md §Sektör ayarlaması madde 1: KALİTE merceği
+    # banka'da SADECE ROE+ROA'dan olusur -- sanayinin 7 bileseni (FAVOK
+    # marji, brut marj, ROC vb.) HIC GORUNMEZ.
+    kalite_isimler = {c.name for c in profil.kalite.components}
+    assert kalite_isimler == {"Özkaynak Kârlılığı (ROE)", "Aktif Kârlılığı (ROA)"}
+    # spec_mercek_guvenlik.md §Sektör ayarlaması madde 1: GÜVENLİK merceği
+    # kaldirac YERINE ozkaynak/aktif oranindan olusur.
+    guvenlik_isimler = {c.name for c in profil.guvenlik.components}
+    assert guvenlik_isimler == {"Özkaynak/Aktif Oranı (sermaye yeterliliği proxy'si)"}
+    assert Decimal("0") <= sonuc.bilesik.total_score <= Decimal("10")
+
+
+def _fake_raw_sigorta(ticker: str = "TESTSIG") -> isyatirim.RawFinancials:
+    values = {
+        _B_LATEST: {
+            "gross_written_premiums": Decimal("500"), "net_premiums_earned": Decimal("400"),
+            "technical_income": Decimal("300"), "technical_expense": Decimal("250"), "net_income": Decimal("40"),
+            "receivables_from_operations": Decimal("100"), "payables_from_operations": Decimal("80"),
+            "equity": Decimal("600"), "share_capital": Decimal("200"),
+            "cash_and_equivalents": Decimal("50"), "financial_assets": Decimal("200"),
+            "technical_provisions_current": Decimal("300"), "technical_provisions_noncurrent": Decimal("50"),
+        },
+        _B_Q4_PRIOR: {"net_income": Decimal("140")},
+        _B_YOY: {"gross_written_premiums": Decimal("400"), "net_income": Decimal("30"), "equity": Decimal("480")},
+        _B_Q4_PRIOR2: {"net_income": Decimal("110")},
+        _B_YOY2: {"net_income": Decimal("25")},
+    }
+    return _build_fake_raw_from_map(ticker, values, isyatirim.STANDARD_ITEM_MAP_UFRS_K, "UFRS_K")
+
+
+def test_compute_multi_lens_score_sigorta_dort_mercek_uretir_guvenlik_yetersiz_veri(izole_db, monkeypatch) -> None:
+    monkeypatch.setattr(isyatirim, "fetch_financials", _make_fake_fetch(_fake_raw_sigorta("TESTSIG")))
+    monkeypatch.setattr(isyatirim, "fetch_price_history", _fake_price_history(10))
+
+    sonuc = pipeline.compute_multi_lens_score_for_ticker("testsig", market="BIST")
+
+    profil = sonuc.bilesik.mercekler
+    assert profil.deger is not None
+    assert profil.kalite is not None
+    assert profil.buyume is not None
+    assert profil.guvenlik is not None
+    buyume_isimler = {c.name for c in profil.buyume.components}
+    assert "Prim Büyümesi (reel, seviye+trend)" in buyume_isimler
+    # UFRS_K semasinda total_assets HIC YOK -- ROA (Kalite) ve ozkaynak/
+    # aktif orani (Guvenlik) HER ZAMAN None -- Guvenlik merceginin TEK
+    # bileseni de veri uretemedigi icin dürüstçe YETERSİZ VERİ doner
+    # (Kural 3, bkz. spec_bilesik_skor.md "eksik ama durust" ilkesi).
+    assert not profil.guvenlik.data_sufficient
+    # Bilesik skor YINE de uretilir -- Guvenlik'in agirligi diger merceklere devredilir.
+    assert Decimal("0") <= sonuc.bilesik.total_score <= Decimal("10")
+
+
+def _fake_raw_finansman(ticker: str = "TESTFIN") -> isyatirim.RawFinancials:
+    values = {
+        _B_LATEST: {
+            "financing_revenue": Decimal("300"), "operating_expenses": Decimal("100"),
+            "net_operating_profit": Decimal("150"), "net_income": Decimal("90"),
+            "cash": Decimal("200"), "overdue_receivables": Decimal("10"),
+            "total_assets": Decimal("2000"), "equity": Decimal("600"), "share_capital": Decimal("300"),
+        },
+        _B_Q4_PRIOR: {"net_income": Decimal("280")},
+        _B_YOY: {
+            "financing_revenue": Decimal("220"), "net_income": Decimal("60"),
+            "equity": Decimal("460"), "total_assets": Decimal("1700"),
+        },
+        _B_Q4_PRIOR2: {"net_income": Decimal("210")},
+        _B_YOY2: {"net_income": Decimal("45")},
+    }
+    return _build_fake_raw_from_map(ticker, values, isyatirim.STANDARD_ITEM_MAP_FINANSMAN, "XI_29K")
+
+
+def test_compute_multi_lens_score_finansman_dort_mercek_ve_bilesik_uretir(izole_db, monkeypatch) -> None:
+    monkeypatch.setattr(isyatirim, "fetch_financials", _make_fake_fetch(_fake_raw_finansman("TESTFIN")))
+    monkeypatch.setattr(isyatirim, "fetch_price_history", _fake_price_history(10))
+
+    sonuc = pipeline.compute_multi_lens_score_for_ticker("testfin", market="BIST")
+
+    profil = sonuc.bilesik.mercekler
+    assert profil.deger is not None
+    assert profil.kalite is not None
+    assert profil.buyume is not None
+    assert profil.guvenlik is not None
+    kalite_isimler = {c.name for c in profil.kalite.components}
+    assert kalite_isimler == {"Özkaynak Kârlılığı (ROE)", "Aktif Kârlılığı (ROA)"}
+    guvenlik_isimler = {c.name for c in profil.guvenlik.components}
+    assert guvenlik_isimler == {"Özkaynak/Aktif Oranı (sermaye yeterliliği proxy'si)"}
+    buyume_isimler = {c.name for c in profil.buyume.components}
+    assert "Finansman Geliri Büyümesi (reel, seviye+trend)" in buyume_isimler
+    assert Decimal("0") <= sonuc.bilesik.total_score <= Decimal("10")
+
+
+def test_compute_multi_lens_score_katilim_bankasi_da_calisir(izole_db, monkeypatch) -> None:
+    """UFRS_KATILIM (katilim bankasi) -- v1'deki desenle TUTARLI olarak
+    AYNI STANDARD_ITEM_MAP_UFRS_KATILIM esleme tablosuyla `banka` sablonuna
+    dusmeli (bkz. calculator.analyze_bank(bank_variant='participation'))."""
+    raw = _build_fake_raw_from_map(
+        "TESTKATB",
+        {
+            _B_LATEST: {
+                "interest_income": Decimal("500"), "interest_expense": Decimal("200"), "net_income": Decimal("120"),
+                "loans": Decimal("4000"), "deposits": Decimal("4500"), "total_assets": Decimal("10000"),
+                "equity": Decimal("1200"), "share_capital": Decimal("500"),
+            },
+            _B_Q4_PRIOR: {"net_income": Decimal("380")},
+            _B_YOY: {
+                "interest_income": Decimal("420"), "net_income": Decimal("95"),
+                "loans": Decimal("3200"), "deposits": Decimal("3800"), "total_assets": Decimal("8800"), "equity": Decimal("950"),
+            },
+            _B_Q4_PRIOR2: {"net_income": Decimal("340")},
+            _B_YOY2: {"net_income": Decimal("80")},
+        },
+        isyatirim.STANDARD_ITEM_MAP_UFRS_KATILIM,
+        "UFRS_KATILIM",
+    )
+    monkeypatch.setattr(isyatirim, "fetch_financials", _make_fake_fetch(raw))
+    monkeypatch.setattr(isyatirim, "fetch_price_history", _fake_price_history(10))
+
+    sonuc = pipeline.compute_multi_lens_score_for_ticker("TESTKATB", market="BIST")
+    kalite_isimler = {c.name for c in sonuc.bilesik.mercekler.kalite.components}
+    assert kalite_isimler == {"Özkaynak Kârlılığı (ROE)", "Aktif Kârlılığı (ROA)"}
 
 
 def test_compute_multi_lens_score_ticker_bulunamazsa_hata_firlatir(izole_db, monkeypatch) -> None:

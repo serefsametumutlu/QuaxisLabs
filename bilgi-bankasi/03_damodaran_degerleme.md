@@ -1896,3 +1896,152 @@ Her seçimin EŞLEŞEN bir kazanç/defter değeri ölçüsü VARDIR (Tablo 8.1/8
 - En düşük maliyetli somut çıktı yine NİTEL tarafta: sinerji/kontrol açıklamalarını sorgulayan LLM taraması (BAYRAK-59/60), Kısım 6'daki BAYRAK-39 ile birleştirilip TEK bir "M&A açıklama güvenilirlik taraması" özelliği olarak paketlenebilir — iki kitaplar arası ayrı bölümde (Ch.12, Ch.15) bağımsız olarak ortaya çıkan bir öneri, bu da onu güçlendiriyor.
 - P&G/Gillette (Illustration 15.3) kitabın en eksiksiz uçtan uca sayısal vaka örneği — 3 adımlı yöntemin TÜM ara adımlarını (bağımsız değer → sinerjisiz toplam → sinerjili birleşik → fark) somut dolar rakamlarıyla gösteriyor; ileride bir "yöntem doğrulama" referansı olarak kullanılabilir.
 - Ch.16 (Şeffaflık Değeri) bu oturuma DAHİL EDİLMEDİ — bir sonraki oturumda İLKE-375'ten, FORMÜL-152'den, BAYRAK-63'ten, Kontrol Listesi II'den devam edilecek.
+
+---
+
+## Kısım 8b — Bölüm 16: Şeffaflık Değeri (Ch.16 The Value of Transparency, PDF s.749-795)
+
+### İlkeler
+
+- İLKE-375: Deneysel çıkış noktası — aynı risk/kaldıraç/getiri/büyüme profiline sahip iki firmadan biri tek-iş-kollu ve şeffaf, diğeri çok-iş-kollu ve karmaşık finansal tablolara sahipse, standart DCF ikisine AYNI değeri verir (karmaşıklık hiçbir girdiyi etkilemez); ama gerçek yatırımcılar basit olanı daha yüksek değerler — yazar bunun YATIRIMCI HATASI değil, DEĞERLEME MODELİNİN GÖZ ARDI ETTİĞİ bir değer bileşeni olduğunu savunur.
+- İLKE-376: Karmaşıklık iki AYRI kaynaktan gelir: (1) bilgi ifşa sorunu — gerekli bilgi ya YOK ya da bulanık/gereksiz bilgiyle boğulmuş, (2) firmanın kendisinin (organizasyon yapısı/iş karışımı) doğası gereği karmaşık olması — tam ifşa olsa bile değerlemesi zor. İlkine düzenleme çare olabilir, ikincisine OLAMAZ.
+- İLKE-377: Karmaşıklığın regülasyon kaynaklı kısmı — gelişen piyasalarda zayıf ifşa gerekliliği; ancak ifşa politikası şirketin kendi özelliklerinden çok, kayıtlı olduğu ÜLKENİN hukuki çerçevesine bağlıdır (Berglof&Pajuste 2005, 370 Orta/Doğu Avrupa firması).
+- İLKE-378: Muhasebe standardı TUTARSIZLIKLARI karmaşıklığı artırır — aynı ekonomik olay farklı muamele görür: satın alınan patent varlık gösterilir ama içeride geliştirilen benzeri gösterilmez (Ar-Ge doğrudan gider yazılır); mülk sahibi perakendeci varlık+borç gösterir ama kiralayan rakip hiçbirini göstermez (operating lease); çalışan opsiyonları veriliş anında değil sadece kullanım anında muhasebeleştirilir.
+- İLKE-379: "Bulanık" (takdire açık) muhasebe standartları üç yolla suistimal edilir: (1) tekrarlayan "tek seferlik" giderler faaliyet kârını sistematik olarak ŞİŞİRİR ve sermaye tabanını küçültür, (2) özel amaçlı işletmeler (SPE) aracılığıyla varlık/borç bilanço dışına taşınır, (3) kazanç düzleştirme — rezerv biriktirip ihtiyaç anında çözme (Microsoft yazılım güncelleme rezervi), yatırım değer artışını kâr gösterme (Intel), emeklilik fonu fazlasını kâr gösterme örnekleri.
+- İLKE-380: Artan ifşa gerekliliklerinin İSTENMEYEN yan etkisi — finansal tablolar daha UZUN ve daha KARMAŞIK hale gelir, "veri çöplüğüne" dönüşüp asıl önemli bilgiyi GÖMER (P&G/Kimberly-Clark 10-K sayfa sayısı artışı örneği, Sarbanes-Oxley sonrası hacim artışı).
+- İLKE-381: İş karışımı karmaşıklığı — çok sayıda, birbirinden FARKLI marj/risk profiline sahip iş kolunda faaliyet gösteren firmalar (GE gibi) analiz edilmesi çok daha zor firmalardır; finansal kol (GE Capital, Ford Capital gibi) içeren üretim/hizmet firmaları özellikle sorunludur çünkü finansal ve finansal-olmayan bölümlerin kaldıraç/operasyon karakteristikleri TAMAMEN farklıdır.
+- İLKE-382: Yapılandırma karmaşıklığı — %100'ün altında iştirak sahipliği (özellikle konsolidasyon eşiğinin altına düşürülerek) düşük getirili varlıkların bilanço dışına taşınmasını sağlar (Coca-Cola'nın şişeleyicilerini bağımsızlaştırması örneği — görünürdeki getiri oranı yükselir ama gerçek birleşik getiri/kaldıraç gizlenir); piramit yapı ve çapraz sahiplik (Ch.13'te detaylandırılan) kontrolü yoğunlaştırırken şeffaflığı azaltır.
+- İLKE-383: Büyüme stratejisi karmaşıklığı — devralma yoluyla büyüme, dahili yatırımdan çok daha KARMAŞIK muhasebe üretir: satın alınan firmanın türü (maddi olmayan varlık ağırlıklı hedefte şerefiye çok daha büyük), ödeme yöntemi (nakit/hisse), satın alma fiyatının varlıklara DAĞITIMI ve şerefiye değer düşüklüğü (impairment) ZAMANLAMASI hepsi TAKDİRE bağlıdır.
+- İLKE-384: Finansal enstrüman karmaşıklığı — hibrit menkul kıymetler ("quasi-equity", örn. trust preferred stock) firmaların borcu "borç" etiketi olmadan taşımasını sağlar; bu eğilimin uç noktası Enron'un gizli ortaklıklardaki borcunun firmayı çökertmesidir.
+- İLKE-385: Firmaların karmaşıklık YARATMA motivasyonu 1 — KONTROL: düşmanca devralmalardan korunmak için karmaşık iştirak/holding yapıları ve farklı oy haklı hisse sınıfları kullanılır; şeffaf olmayan finansal tablolar genelde zayıf kurumsal yönetişimle BİRLİKTE görülür; opaklık siyasi bağlantı yoğunluğuyla da KORELE bulunmuştur (Riahi-Belkaoui).
+- İLKE-386: Firmaların karmaşıklık YARATMA motivasyonu 2 — VERGİ: düşük vergili bölgelerde holding yapıları ve transfer fiyatlandırması/şirketler-arası kredilerle gelir kaydırma; vergi hukukundaki karmaşıklık doğrudan finansal tablo karmaşıklığına DÖNÜŞÜR.
+- İLKE-387: Firmaların karmaşıklık YARATMA motivasyonu 3 — OPERASYONEL/REKABETÇİ ENDİŞE: rakiplerin bilgiyi kullanması veya müşteri/çalışanların olumsuz tepkisi (özellikle mali sıkıntıda "ölüm sarmalı" riski, Ch.6'daki dolaylı iflas maliyetleriyle bağlantılı); yazar bu gerekçeye SEMPATİ DUYMAZ — halka açık sermayeye erişimin bedeli ifşa yükümlülüğüdür.
+- İLKE-388: Firmaların karmaşıklık YARATMA motivasyonu 4 (en vahim) — ALDATMA: yatırımcıları firmanın gerçekte olduğundan daha değerli/az borçlu göstermek; küçük başlayan sapmalar zamanla büyür ve gerçek ortaya çıktığında büyük ekonomik/sosyal maliyet doğurur; analistlerin sorgusuz kabulü ve yatırımcıların yüzeysel analizi bu oyunun İŞLEMESİNE ortak olur.
+- İLKE-389: Karmaşıklığın en basit (ama şaşırtıcı derecede etkili) ölçüsü finansal tablo/dipnot HACMİDİR (10-K sayfa sayısı) — kısa raporlar hem basit iş yapısını hem de bilgi EKSİKLİĞİNİ yansıtabileceğinden çift anlamlı bir ölçüdür, ama pratik bir proxy'dir.
+- İLKE-390: Ülke düzeyinde opaklık, hesap verilebilirlik/yasal/ekonomik-politika/muhasebe/düzenleyici olmak üzere 5 faktörden oluşan bileşik bir endeksle (Price Waterhouse Opacity Index) ölçülebilir — en yaygın rastlanan muhasebe sorunları: ilişkili taraf işlemlerinin ifşa edilmemesi, eksik/desteklenmeyen ekler, karmaşıklaştırıcı enflasyon muhasebesi, tutarsız konsolidasyon/şerefiye kuralları, çift defter tutma.
+- İLKE-391: Firma düzeyinde ifşa/yönetişim, üç boyutlu (sahiplik yapısı, finansal bilgi, kurul/yönetim yapısı) bir puanlama sistemiyle (S&P Transparency & Disclosure Index) ölçülebilir; halka açık büyük şirketler genelde finansal bilgi ifşasında iyi ama sahiplik yapısı/yatırımcı hakları/kurul yapısı ifşasında ZAYIF çıkar.
+- İLKE-392: Değerleme-odaklı bir karmaşıklık ölçüsü, DCF'in her bir girdisini (faaliyet kârı, vergi oranı, capex, işletme sermayesi, büyüme oranı, sermaye maliyeti, çapraz sahiplikler, çalışan opsiyonları) hangi faktörlerin tahmin etmeyi ZORLAŞTIRDIĞINI eşleştirerek inşa edilir — her faktörün ağırlığı, değere katkısına ve tahmin edilebilirliğini ne kadar bozduğuna göre değişir (bazı sorunlar dipnotlardan düzeltilebilir — operating lease/Ar-Ge gibi — bazıları düzeltilemez — özel şirket çapraz sahiplikleri gibi).
+- İLKE-393: Opaklığın ölçülebilir bir maliyeti vardır — Price Waterhouse opaklığı ÖRTÜK bir vergi oranına dönüştürür (bir ülkenin opaklık düzeyinin en şeffaf ülke düzeyine göre farkı, ek bir "vergi" gibi değeri aşındırır); Kurtzman Group ise opaklığı sermaye maliyetine eklenen bir PRİM olarak ifade eder.
+- İLKE-394: Kurumların (institutional investors) daha az şeffaf ülkelerdeki firmalara daha AZ yatırım yaptığı ve krizlerde bu yatırımlardan çok daha HIZLI kaçtığı gösterilmiştir (Gelos&Wei 2003) — opaklık likidite riskini de artırır.
+- İLKE-395: Konglomera iskontosu (çeşitlendirilmiş firmaların uzman firmalara göre düşük değerlenmesi) kısmen YÖNETİM VERİMSİZLİĞİNE, kısmen ARTAN MUHASEBE KARMAŞIKLIĞINA (konsolide maliyet paylaştırma, bölüm-bazlı piyasa fiyatı yokluğu) atfedilebilir; bu ikisini AYIRT ETMENİN yolu bölünme (spin-off/split-off) sonrası piyasa tepkisini izlemektir — iskonto sadece karmaşıklıktan kaynaklanıyorsa bölünme SONRASI kaybolmalı, yönetim sorunuysa DEVAM etmelidir.
+- İLKE-396: Piyasa şeffaflığı ÖDÜLLENDİRİR — bölünme (divestiture) duyurularında, satış fiyatı VE motifi AÇIKLANAN işlemler açıklanmayanlara göre BELİRGİN ÖLÇÜDE daha olumlu piyasa tepkisi alır (bkz. Eşikler).
+- İLKE-397: Daha iyi ifşa, düşük emir defteri makası (bid-ask spread), yüksek işlem hacmi ve (zayıf ama var olan kanıtlarla) daha düşük özkaynak/borç maliyetiyle İLİŞKİLİDİR; ancak bu kanıt KESİN DEĞİLDİR çünkü daha fazla ifşa yapan firmalar genelde daha iyi yönetişim/performansa da sahiptir — nedensellik netleştirilememiştir.
+- İLKE-398: Zayıf ifşa REJİMLİ piyasalarda hisseler birbirleriyle çok daha YÜKSEK korelasyonla hareket eder (yüksek R²) — bu, çeşitlendirme faydasını azaltır ve piyasa çöküşü riskine toplu maruziyeti ARTIRIR.
+- İLKE-399: İfşa politikası DEĞİŞİKLİKLERİNE piyasa tepkisi doğrudan bir test sunar — gelişen piyasalarda şeffaflığı artıran muhasebe standardı değişiklikleri güçlü OLUMLU tepki alır; ABD'de ADR (Amerikan Emanet Makbuzu) listelenen gelişen piyasa firmaları da (genelde ABD GAAP'ına göre yeniden düzenlenmiş, daha bilgilendirici tablolarla) OLUMLU tepki görür — ama bu değişikliklerin genelde yönetişim iyileştirmesi/likidite artışıyla EŞ ZAMANLI olması nedeniyle kanıt kesin değildir.
+- İLKE-400: Karmaşıklığı YOK SAYMA argümanı — yöneticiler dürüstse, açıklanmayan bilgi FİRMA-ÖZEL (çeşitlendirilebilir) risktir ve ortalamada değeri ETKİLEMEMELİDİR; ancak bu görüş İKİ sorunla çürütülür: (1) yöneticiler opsiyon kullanıp hisse satarak KISA VADELİ manipülasyondan büyük kazanç sağlayabilir, (2) uzun-vadeli odaklı yöneticiler bile kendi (iyimser) tahminlerine kanabilir.
+- İLKE-401: Yöneticiler bilgiyi SAKLADIĞINDA, sakladıkları KÖTÜ haber olma olasılığı İYİ haberden YÜKSEKTİR — bu asimetri nedeniyle karmaşık firmaların yatırımcıları OLUMSUZ sürprizlerle OLUMLU sürprizlerden daha sık karşılaşır, özellikle ekonomik büyüme yavaşladığında (Enron'un çöküşünün Tyco/Williams Energy/GE üzerindeki domino etkisi örneği).
+- İLKE-402: DCF değerini karmaşıklık için ayarlamanın 4 yolu vardır (bunlar birbirini DIŞLAMAZ, farklı ifşa sorunu türlerine çözüm sunar): nakit akışını haraç kesmek, iskonto oranını yükseltmek, büyüme oranı/dönemini kısaltmak, veya konvansiyonel değere düz bir karmaşıklık iskontosu uygulamak.
+- İLKE-403: Göreli değerlemede karmaşıklık ayarı — çok-iş-kollu bir firma TEK bir çarpanla değil, HER iş kolu kendi emsal grubuyla AYRI değerlenmelidir; belirtilmemiş/gizlenmiş kazanç kaynakları için DÜŞÜK (muhafazakâr) bir çarpan varsayılmalıdır; karmaşıklık arttıkça gerçek emsal bulmak da ZORLAŞIR (GE veya Citigroup'a gerçekten kim benzer?).
+- İLKE-404: Karmaşıklığın "çaresi" YENİ YASA/MUHASEBE KURALI DEĞİLDİR — yasalar kaba araçlardır ve istenmeyen yan etkiler yaratır (opsiyon kısıtlamaları yönetici-hissedar hizalanmasını zayıflatabilir, SPE kısıtlamaları meşru düşük-maliyetli finansman yollarını kapatabilir); asıl çözüm PİYASA DİSİPLİNİDİR — analistlerin bilgi talep edip vermeyenleri düşürmesi, yatırımcıların karmaşık/opak firmaları SATIN ALMAYI REDDETMESİ.
+- İLKE-405: Denetim/muhasebe bütünlüğü için somut öneriler: denetim ve danışmanlık hizmetlerinin AYNI firmadan alınmaması, muhasebe kurallarının basitleştirilip takdir payının azaltılması, vergi ve raporlama için TEK bir defter kullanılması, çok-iş-kollu firmaların her iş kolu için yeniden yatırım verisini AYRI raporlaması, finansal kolların (GE Capital tipi) TAM ayrı finansal tablolar sunması.
+- İLKE-406: Güçlü kurumsal yönetişim (bağımsız/küçük kurullar, CEO'dan bağımsız aday gösterme, sınırlı çoklu kurul üyeliği, muhasebe uzmanlığına sahip denetim komitesi) manipülasyona ve bilgi saklamaya karşı en iyi savunmadır; yönetici tazminatının (özellikle opsiyon bazlı) kısa-vadeli "defterleri süsleyip sonra ayrılma" teşvikini azaltacak şekilde tasarlanması gerekir.
+- İLKE-407: Genel sonuç — karmaşık firmalar OTOMATİK olarak değersiz DEĞİLDİR (GE/IBM/Tyco 1990'larda karmaşıklaşırken değer kazandı); ama ortalama yatırımcı için VARSAYILAN duruş SKEPTİK olmalıdır, çünkü asimetrik kötü-haber-saklama riski karmaşıklığı YAPISAL OLARAK bir maliyet unsuru haline getirir.
+
+### Formüller
+
+- FORMÜL-152: Opaklığın Örtük Vergi Eşdeğeri (Price Waterhouse)
+  - Formül: `Örtük_Vergi_Farkı = f(O-Factor_ülke − O-Factor_referans)` — örnek: Singapur (O=29) referans alındığında Çin (O=87) düzeyine çıkış ≈ +46 puan vergi oranı eşdeğeri.
+  - Değişkenler: O-Factor = 5 alt bileşenden (yolsuzluk, hukuki opaklık, ekonomik-politika opaklığı, muhasebe/yönetişim opaklığı, düzenleyici opaklık) oluşan bileşik ülke skoru.
+  - QuaxisLabs karşılığı: VERİ EKSİK (yapısal) — ülke/piyasa düzeyinde opaklık endeksi QuaxisLabs'ta hiç YOK; BIST/NASDAQ/Kripto üç piyasa için sabit/manuel bir ülke-risk-primi zaten kullanılıyor (`_RISK_FREE_RATE_PCT`, Kısım 1) ama bu OPAKLIK bileşeni İÇERMİYOR.
+- FORMÜL-153: Haraç Kesilmiş (Haircut) Nakit Akışı
+  - Formül: `Ayarlı_Nakit_Akışı = Raporlanan_Nakit_Akışı × Yönetim_Güven_Olasılığı` VEYA `vergi_oranı_yükseltilerek daha düşük nakit akışı hesaplanır`
+  - Değişkenler: Yönetim_Güven_Olasılığı = geçmiş muhasebe düzeltme sayısı + yönetişim kalitesi gibi objektif/subjektif faktörlerden türetilen bir katsayı (0-1).
+  - QuaxisLabs karşılığı: UYGULANAMAZ — "yönetim güvenilirliği" öznel bir LLM-yorumu girdisi olabilir ama QuaxisLabs'ta böyle bir puanlama/geçmiş-düzeltme veri kaynağı YOK.
+- FORMÜL-154: Tarihsel Karmaşıklık Risk Primi
+  - Formül: `k_e,karmaşık = k_e,baz + (Getiri_karmaşık_portföy_tarihsel − Getiri_endeks_tarihsel)` — örnek: %18,3 (karmaşık firma portföyü) − %14,1 (S&P 500) = +%4,2 puan.
+  - Değişkenler: geriye dönük 20 yıllık getiri karşılaştırması, karmaşık/basit firma sınıflandırması sübjektiftir.
+  - QuaxisLabs karşılığı: VERİ EKSİK — beta hiç hesaplanmıyor (Kısım 1'den beri bilinen açık), dolayısıyla üzerine eklenecek bir "karmaşıklık primi" katmanı da YOK.
+- FORMÜL-155: Karmaşıklık-Skoru Bağlantılı Sermaye Maliyeti Farkı
+  - Formül: `Δk = k_e,en-karmaşık-%20 − k_e,en-şeffaf-%20` — S&P 500 örneğinde ampirik olarak ~%1 puan.
+  - Değişkenler: karmaşıklık skoru persentili (S&P T&D endeksi veya benzeri) ile sermaye maliyeti arasında kurulan doğrusal ilişki.
+  - QuaxisLabs karşılığı: VERİ EKSİK — hem WACC hem karmaşıklık skoru YOK; kavramsal referans olarak notlandı.
+- FORMÜL-156: Bilanço-Dışı Borç Düzeltmeli Kaldıraç
+  - Formül: `D/E_düzeltilmiş = (Raporlanan_Borç + Tahmini_Bilanço-dışı_Borç) / Özkaynak` → yeniden kaldıraçlı beta ve maliyetler bu oranla hesaplanır.
+  - Değişkenler: Tahmini_Bilanço-dışı_Borç = kapitalize edilmiş operating lease + SPE borcu tahmini vb. (Ch.3'te detaylandırılan kapitalizasyon yöntemleriyle).
+  - QuaxisLabs karşılığı: KISMEN İLGİLİ — `net_debt()` (calculator.py:484) sadece raporlanan finansal borcu kullanıyor, operating lease kapitalizasyonu YOK (Kısım 2'den beri bilinen "yeniden yatırım/capex" açığıyla AYNI kök).
+- FORMÜL-157: Karmaşıklık İskontosu — Piyasa Regresyonu (Damodaran 2001, 100 büyük şirket)
+  - Formül: `PD/DD = f(ROE, β, beklenen_büyüme, 10-K_sayfa_sayısı)` — örnek girdi: ROE %15, β 1,15, büyüme %10, 350 sayfa 10-K → tahmini PD/DD.
+  - Değişkenler: 10-K sayfa sayısı karmaşıklık proxy'si olarak kullanılıyor; regresyon katsayıları döneme/örnekleme özgüdür (tekrarlanabilir değil, güncellenmesi gerekir).
+  - QuaxisLabs karşılığı: KISMEN UYGULANABİLİR — `roe_annualized` ve `pb_ratio` ZATEN mevcut (Kısım 1/Buffett bulguları); β=1 varsayımı (gerçek β yok) ve KAP/SEC dosya UZUNLUĞU gibi bir karmaşıklık proxy'si YOK — en düşük maliyetli eksik parça budur (KAP bildirim sayısı/uzunluğu fetcher'a eklenebilir).
+- FORMÜL-158: Konglomera İskontosu (Tobin's Q Bazlı)
+  - Formül: `İskonto_% = (Q_çeşitlendirilmiş − Q_uzman) / Q_uzman` ≈ −%8 (Villalonga 1999)
+  - Değişkenler: Q = piyasa değeri / yenileme maliyeti (Tobin's Q); çeşitlendirilmiş vs tek-iş-kollu (pure-play) firma karşılaştırması.
+  - QuaxisLabs karşılığı: VERİ EKSİK (mimari) — Tobin's Q hiç hesaplanmıyor (yenileme maliyeti verisi yok, `pb_ratio` defter değeri kullanıyor, yenileme maliyeti DEĞİL); ayrıca çok-firma çeşitlendirme sınıflandırması "çok-firma karşılaştırma altyapısı yok" kategorisiyle (Kısım 4-5) AYNI açık.
+- FORMÜL-159: Bölünme (Divestiture) Duyuru Aşırı Getirisi
+  - Formül: `Ortalama_AR = %1,45` (77 divestiture, 1977-1982, Linn&Rozeff 1984); motif+fiyat AÇIKLANAN işlemlerde %3,92, AÇIKLANMAYANLARDA %0,70.
+  - Değişkenler: AR = duyuru penceresindeki aşırı (piyasa-ayarlı) getiri.
+  - QuaxisLabs karşılığı: UYGULANAMAZ — olay çalışması (event study) altyapısı ve kurumsal aksiyon (divestiture/spin-off) veri kaynağı QuaxisLabs'ta YOK.
+
+### Eşikler
+
+| Metrik | Eşik/Değer | Yorum | Kaynak bölüm |
+|---|---|---|---|
+| Opaklık → örtük vergi eşdeğeri: Singapur | O-Factor 29, %0 | En şeffaf referans ülke | Cost of Opacity, Tablo 16.5 |
+| Opaklık → örtük vergi eşdeğeri: ABD / İngiltere | O-Factor 36 / 38 → %5 / %7 | Gelişmiş piyasa düşük-orta bandı | Cost of Opacity, Tablo 16.5 |
+| Opaklık → örtük vergi eşdeğeri: Türkiye | O-Factor 74 → %36 | Örneklemdeki 35 ülke arasında yüksek bantta | Cost of Opacity, Tablo 16.5 |
+| Opaklık → örtük vergi eşdeğeri: Çin / Rusya | O-Factor 87/84 → %46/%43 | Örneklemdeki en opak iki ülke | Cost of Opacity, Tablo 16.5 |
+| Kurtzman Group (2004) — Endonezya'da ek sermaye maliyeti primi | %8,54 puan | Baz maliyet %9 ise talep edilen oran %17,54 | Cost of Opacity |
+| Konglomera (çeşitlendirilmiş firma) Tobin's Q iskontosu | ~%8 (Villalonga 1999) | Uzman/tek-iş-kollu firmalara göre | Conglomerate Discount |
+| Bölünme (divestiture) duyurusu ortalama aşırı getiri | %1,45 (77 işlem, 1977-1982) | Piyasa şeffaflığı/netliği ödüllendiriyor | Linn & Rozeff 1984 |
+| Bölünme duyurusu — motif+fiyat AÇIKLANAN vs AÇIKLANMAYAN | %3,92 vs %0,70 (yalnız fiyat açıklanan: %2,30; yalnız motif: %0,37) | Açıklık derecesiyle orantılı piyasa tepkisi | Table 16.6 |
+| S&P 500 — en karmaşık %20 ile en şeffaf %20 arası sermaye maliyeti farkı | ~%1 puan | Zayıf ama ölçülebilir ilişki | Cost of Capital |
+| 10-K uzunluğu (2004, ABD büyük şirketler) — aralık | ~200 - 1.026+ sayfa | Citigroup 1.026, GE 410, Microsoft/J&J/Intel 215-218 | Table 16.1 |
+| S&P Transparency & Disclosure — en sık EKSİK bulunan 6 madde | Yönetişim şart/kod metni, hissedar top-3 listesi, yönetici maaş biçimi, kurul katılım tarihi, aday gösterme komitesi isimleri, direktör maaş kararı süreci | Finansal bilgi ifşası GÜÇLÜ, yönetişim ifşası ZAYIF | S&P Study |
+| Regresyon örneği (Damodaran 2001, 100 büyük şirket): ROE %15, β 1,15, büyüme %10, 350 sayfa 10-K | Tahmini PD/DD (formülle hesaplanır) | Karmaşıklık (sayfa sayısı) diğer temel değişkenlerle BİRLİKTE çarpanı açıklıyor | Relative Valuation regression |
+
+### Kontrol listeleri
+
+**II — Karmaşıklık Kaynağı Teşhis Listesi**
+1. Düzenleyici çerçeve zayıf mı (gelişen piyasa, hafif ifşa gerekliliği)?
+2. Kiralama/Ar-Ge/opsiyon gibi kalemlerde muhasebe TUTARSIZLIĞI var mı (aynı ekonomik olay farklı muamele görüyor mu)?
+3. Tekrarlayan "tek seferlik" gider kalıbı var mı (EBBS — "earnings before bad stuff" şüphesi)?
+4. Özel amaçlı işletme (SPE) / konsolide edilmeyen ortaklık kullanımı var mı?
+5. Kazanç düzleştirme sinyali var mı (rezerv oluşturup-çözme, yatırım/emeklilik kazancının faaliyet kârına sızması)?
+6. Çoklu iş kolu + finansal kol (captive finance) karışımı var mı?
+7. %100 altı iştirak sahipliği / piramit / çapraz sahiplik yapısı var mı?
+8. Büyüme ağırlıklı olarak devralma mı (şerefiye/satın-alma-fiyatı-dağıtımı takdirî mi)?
+9. Hibrit/karmaşık finansal enstrüman (quasi-equity) kullanımı var mı?
+
+**JJ — Karmaşıklık Motivasyonu Teşhis Listesi**
+1. Yönetim düşmanca devralmaya karşı savunma amaçlı opaklık mı yaratıyor (piramit/çapraz sahiplik/farklı oy haklı hisse)?
+2. Düşük-vergi bölgesi yapıları / transfer fiyatlandırması şüphesi var mı?
+3. Rekabetçi/operasyonel gizlilik gerekçesi öne sürülüyor mu — makul mü yoksa bahane mi (özellikle mali sıkıntı döneminde)?
+4. Hile/aldatma sinyali var mı (küçük başlayıp büyüyen tutarsızlıklar, dipnotlarda "aslında borç ama farklı gösterildi" tarzı savunmalar)?
+
+**KK — DCF/Göreli Değeri Karmaşıklık İçin Ayarlama Seçenekleri (4+1 yöntem)**
+1. Nakit akışını haraç kes — görünmez/faaliyet-dışı kazanç payını tespit et, yönetime güven olasılığı ata veya vergi oranını yükselt.
+2. İskonto oranını ayarla — tarihsel prim / beta primi / karmaşıklık-skoru bağlantılı / bilanço-dışı borç düzeltmeli D/E.
+3. Büyüme oranı/dönemini ayarla — daha düşük YSGK ve daha hızlı sönümlenen fazla getiri varsay.
+4. Düz bir karmaşıklık iskontosu uygula — kural-of-thumb / skor-bağlantılı / piyasa-regresyonu bazlı.
+5. (Göreli değerleme) Çok-iş-kollu firmayı TEK çarpanla değil, her iş kolunu kendi emsal grubuyla AYRI değerle; belirtilmemiş kazanca DÜŞÜK çarpan uygula.
+
+### Kırmızı bayraklar
+
+- BAYRAK-63: Kiralama/Ar-Ge Muhasebe Tutarsızlığı — Nasıl tespit edilir: mülk sahibi vs kiracı, dahili geliştirme vs satın alınan patent farklı bilanço muamelesi görüyorsa, raporlanan getiri/kaldıraç oranları YANILTICIDIR. — Gereken veri: operating lease taahhütleri (dipnot), Ar-Ge harcaması büyüklüğü.
+- BAYRAK-64: Tekrarlayan "Tek Seferlik" Giderler — Nasıl tespit edilir: her yıl YENİ bir "olağanüstü/tek seferlik" kalem raporlanıyorsa, bunlar aslında SÜREKLİ faaliyet giderleridir. — Gereken veri: geçmiş 3-5 yılın "tek seferlik" kalem sıklığı/büyüklüğü.
+- BAYRAK-65: SPE / Bilanço-Dışı Ortaklık Kullanımı — Nasıl tespit edilir: dipnotlarda konsolide edilmeyen özel amaçlı işletme/ortaklık referansları varsa, gerçek borç/varlık raporlanandan FAZLA olabilir. — Gereken veri: dipnot SPE/ilişkili taraf açıklamaları.
+- BAYRAK-66: Kazanç Düzleştirme Sinyalleri — Nasıl tespit edilir: yatırım geliri veya emeklilik fonu kazancının faaliyet kârına sistematik olarak sızdığı, ya da rezerv oluşturup-ihtiyaç-anında-çözme örüntüsü görülüyorsa. — Gereken veri: faaliyet-dışı gelir kalemlerinin faaliyet kârı içindeki payının zaman serisi.
+- BAYRAK-67: %100 Altı İştirak ile Düşük Getirili Varlık Gizleme — Nasıl tespit edilir: firma azınlık payına düşürülmüş iştirakler aracılığıyla düşük getirili varlıkları bilanço dışına taşıyıp görünürdeki (konsolide) getiri oranını YAPAY olarak yükseltiyorsa. — Gereken veri: azınlık payı büyüklüğü, iştirak sayısı/oranları.
+- BAYRAK-68: Finansal Kol / Ana Faaliyet Karışıklığı — Nasıl tespit edilir: bir üretim/hizmet firması, çok farklı kaldıraç/risk profiline sahip bir finansal kolu (captive finance) AYRIŞTIRMADAN raporluyorsa, konsolide kaldıraç oranı YANILTICIDIR. — Gereken veri: segment bazlı ayrı bilanço/borç açıklaması (varsa).
+- BAYRAK-69: Piramit / Çapraz Sahiplik ile Kontrol Yoğunlaştırma — Nasıl tespit edilir: oy hakkı ile nakit akış hakkı arasında büyük fark varsa (Ch.13 ile çapraz referans), kontrol sahipleri grup içi kaynak transferi yapabilir. — Gereken veri: sahiplik zinciri, oy/nakit-akış hakkı oranı.
+- BAYRAK-70: Vergi Cenneti Yapıları — Nasıl tespit edilir: düşük-vergi bölgelerinde iştirak varlığı ve efektif vergi oranının açıklanan faaliyet coğrafyasıyla TUTARSIZ düşüklüğü. — Gereken veri: efektif vergi oranı zaman serisi, iştirak coğrafi dağılımı.
+- BAYRAK-71: Sektör-İçi Domino Riski (Enron Etkisi) — Nasıl tespit edilir: bir grup/sektördeki muhasebe skandalı sonrası, "karmaşık" olarak algılanan İLİŞKİSİZ ama benzer yapıdaki diğer şirketlerin de fiyat baskısı görmesi — bu bir temel değer değişikliği değil, ALGI/güven şoku olabilir. — Gereken veri: haber akışı taraması, ilişkili sektör muhasebe soruşturmaları.
+
+### Uygulama notları (koda dönüşüm için)
+
+**Nicel (skorlanabilir, kısmen mevcut veriyle):**
+- FORMÜL-157 (karmaşıklık-ayarlı PD/DD regresyonu) — `roe_annualized` ve `pb_ratio` ZATEN mevcut; β=1 basitleştirmesi ve bir "karmaşıklık proxy'si" (10-K/KAP bildirim uzunluğu) eksik. **En düşük maliyetli somut öneri:** KAP/SEC dosya sayısı veya toplam dipnot uzunluğu fetcher seviyesinde toplanabilirse (isyatirim.py/sec_edgar.py), basit bir "karmaşıklık proxy skoru" (10-K sayfa sayısı örneğindeki gibi) SIFIR yeni fetcher gerektirmeden türetilebilir.
+- FORMÜL-156 (bilanço-dışı borç düzeltmesi) — operating lease kapitalizasyonu Ch.3'te (Kısım 2) zaten "veri eksik" olarak işaretlenmişti; bu formül AYNI eksikliğe bağımlı, YENİ bir açık değil.
+
+**Nitel (LLM yorumuna uygun — bu bölümün EN GÜÇLÜ yönü):**
+- Kontrol Listesi II/JJ ve BAYRAK-63…71 TAMAMEN nitel/dipnot-okuma görevleridir — QuaxisLabs'ın yapılandırılmış finansal veri modeliyle DOĞRUDAN taranamaz, ama bir LLM'in KAP/SEC dosyalarının DİPNOT METNİNİ okuyup bu 9+4+9 maddelik kontrol listesini işaretlediği bir "Şeffaflık/Karmaşıklık Taraması" özelliği için YÜKSEK değerli bir şablon sunar.
+- **Bu bölümün en önemli mimari gözlemi:** QuaxisLabs şu ana kadar SADECE yapılandırılmış SAYISAL veri (XBRL/itemCode bazlı kalemler) çekiyor — hiçbir fetcher DİPNOT/METİN içeriğini ham olarak almıyor. Bu, Ch.12'deki (Kısım 6) "nitel opsiyon/sinerji gerekçe taraması" ve Ch.15'teki (Kısım 8a) "M&A açıklama güvenilirlik taraması" önerileriyle AYNI temel altyapı ihtiyacına (dipnot/metin fetcher'ı) işaret ediyor — artık 3. kez farklı bölümde bağımsız olarak ortaya çıkan bir öneri, bu da onu QuaxisLabs'ın ikinci en güçlü genişleme adayı yapıyor (birincisi sayısal veri eksikleri, ikincisi metin/dipnot okuma altyapısı).
+
+**Uygulanamaz (veri/mimari eksikliği nedeniyle şimdilik dışarıda):**
+- FORMÜL-152 (ülke opaklık endeksi), FORMÜL-158 (Tobin's Q konglomera iskontosu), FORMÜL-159 (divestiture olay çalışması) — hiçbiri için gerekli ham veri (ülke opaklık skoru, yenileme maliyeti, kurumsal aksiyon veritabanı) QuaxisLabs'ta YOK ve kısa vadede eklenmesi öncelikli değil.
+- Sahiplik yapısı/yönetişim/çapraz-sahiplik/piramit verisi (BAYRAK-67/69, İLKE-382/385) — Kısım 7'de (Ch.13 Kontrol) tespit edilen "SAHİPLİK YAPISI/YÖNETİŞİM verisi TAMAMEN YOK" kategorisinin bu bölümde 2. KEZ doğrulanması; artık kitaplar-arası DEĞİL ama Damodaran kitabı İÇİNDE tekrarlanan, netleşmiş bir yapısal eksiklik.
+
+### Kısım 8b — özel notlar
+- App.16.2'nin (Measuring Complexity with a Score) asıl skorlama TABLOSU PDF'te GÖRSEL/tablo olarak gömülü — `get_text()` ile s.790-791 BOŞ çıktı verdi (OCR gerekmeyen bu kitapta NADİR görülen bir görsel-tablo istisnası); tablonun içeriği metin akışından (Table 16.4'ün devamı niteliğinde bir puanlama şablonu olduğu) DOLAYLI olarak çıkarıldı, doğrudan alıntılanamadı.
+- Bu bölüm kitaptaki formül YOĞUNLUĞU EN DÜŞÜK bölümlerden biri (8 formül/47 sayfa) ama NİTEL çıkarım (İlke/Bayrak) YOĞUNLUĞU en yüksek bölümlerden biri — konunun doğası (ifşa/yönetişim/karmaşıklık) sayısal değil kavramsal olduğundan beklenen bir örüntü.
+- **En değerli tekrarlanan mimari bulgu:** "dipnot/metin fetcher'ı yok" açığı şimdi 3 farklı bölümde (Ch.12 opsiyon/sinerji gerekçesi, Ch.15 M&A açıklaması, Ch.16 şeffaflık taraması) bağımsız olarak ortaya çıktı — bu, `00_sentez.md` aşamasında TEK bir "LLM-tabanlı dipnot/metin okuma modülü" önerisi olarak birleştirilmeli.

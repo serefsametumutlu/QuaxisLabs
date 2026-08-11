@@ -27,8 +27,9 @@ from decimal import Decimal
 from src.analysis import scorer
 from src.analysis.calculator import AnalysisResult, FinancialsByPeriod
 from src.analysis.fundamental_screens import PiotroskiResult
-from src.analysis.lens_common import LensSonucu, _agirlik_dagit_ve_hesapla, _lerp_score, _safe_pct, oran_str, seviye_trend_skoru_v2
+from src.analysis.lens_common import LensSonucu, _agirlik_dagit_ve_hesapla, _lerp_score, _num_str, _safe_pct, oran_str, seviye_trend_skoru_v2
 from src.analysis.merton import MertonResult
+from src.formatting import format_percent_tr
 
 
 @dataclass(frozen=True)
@@ -112,7 +113,7 @@ def _skor_merton(merton: MertonResult | None) -> tuple[Decimal | None, str]:
     return (
         skor,
         f"Merton temerrüt olasılığı (EDF, sentetik/dolaylı gösterge -- faiz karşılama oranı verisi eksikliği "
-        f"nedeniyle) %{edf.quantize(Decimal('0.01'))} (mesafe-i temerrüt {merton.distance_to_default.quantize(Decimal('0.01'))} std. sapma).",
+        f"nedeniyle) {format_percent_tr(edf, decimals=2)} (mesafe-i temerrüt {_num_str(merton.distance_to_default)} std. sapma).",
     )
 
 

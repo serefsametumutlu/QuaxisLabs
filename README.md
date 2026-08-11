@@ -1464,6 +1464,83 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       `scripts/refresh_universe.py` sadece import/`--help` ile doğrulandı —
       tam canlı NASDAQ taraması (binlerce istek) bu fazın kapsamı DIŞINDA,
       ayrı bir adımda çalıştırılacak. 1211 test, hepsi yeşil (44 yeni).
+- [x] **Faz 3 (Temel Analiz v2 — çok-mercekli skorlama)** — `docs/spec/
+      spec_mercek_{deger,kalite,buyume,guvenlik}.md` + `spec_bilesik_skor.md`
+      onaylanmış spec'leri (Faz 3a denetiminden geçmiş, `quant_denetim_01.md`
+      bulguları işlenmiş) kod'a geçirildi. Mevcut 7-bileşenli v1 Radar Skoru
+      (`scorer.score_industrial()` vb.) **DEĞİŞTİRİLMEDİ** — v2 tamamen AYRI,
+      YENİ modüller olarak eklendi (persona kural 8: "genişleyerek taşı,
+      çöpe atma").
+      **YENİ** `src/analysis/lens_common.py`: `seviye_trend_skoru_v2` —
+      `quant_denetim_01.md` K1 bulgusunun (`scorer._seviye_trend_skoru`'nun
+      "bozuluyor" dalında trend işareti sıfırı geçince ~5+ puanlık sert
+      skor uçurumu, ayrıca bant sınırlarında süreksizlik) SÜREKLİ düzeltmesi
+      — v1'in `_seviye_trend_skoru`'su DOKUNULMADAN bırakıldı (davranışı
+      ASLA değişmedi), yeni bir kardeş fonksiyon eklendi; 4 mercek modülünün
+      TAMAMI SADECE bunu kullanır. Ayrıca robust (medyan+MAD, winsorize)
+      sektör istatistiği + n≥5 kuralı (`MIN_SECTOR_N`, sektor-siniflandirma
+      skill'in n≥3'ten YÜKSELTİLMİŞ hali).
+      **YENİ 4 mercek modülü** (`src/analysis/lens_deger.py`,
+      `lens_kalite.py`, `lens_buyume.py`, `lens_guvenlik.py`) — her biri
+      kendi 0-10 skoruna + `data_coverage_pct`/rozete normalize edilir
+      (v1'in `_agirlik_dagit_ve_hesapla`'sı İTHAL edilir, KOPYALANMAZ):
+      *Değer* (Mutlak Ucuzluk %35 [v1 çekirdeği], Sektöre Göreli Konum %20
+      [gerçek MAD-normalize z-skoru, quant_denetim_01.md Y2 düzeltmesi],
+      Kazanç Getirisi vs Risksiz Oran %15, Graham Çarpanı %10, Greenblatt
+      Kazanç Getirisi %10, Carlisle Acquirer's Multiple %5, NCAV/Net-Net
+      Bonus %5 [K2 düzeltmesi: negatif net işletme sermayesinde bonus
+      SESSİZCE atlanır, ceza YOK]); *Kalite* (Nakit Üretimi %25, ROE %20,
+      Net Marj %15, Brüt Marj %15 [YENİ], Greenblatt ROC %10, ROA %5
+      [YENİ], Nakit Kâr Kalitesi %10 [YENİ, x-katı oran — K4 düzeltmesi:
+      `format_percent_tr` yerine `oran_str` ile "1,00x" biçiminde]; banka/
+      sigorta için `hesapla_kalite_mercegi_banka()` — ROE/ROA nominal
+      ağırlıkları orantısal dağıtım motoruyla OTOMATİK %80/%20 verir, Y1
+      düzeltmesi); *Büyüme* (Hasılat Büyümesi %55 [v1 çekirdeği], PEG
+      Oranı %25 [Lynch, kanonik ev BURASI], Marjinal ROE + Verimlilik
+      Kaynaklı Büyüme %20 [YENİ, Damodaran FORMÜL-42/43, K5a/K5b
+      düzeltmeleri: `equity_t-1<=0` guard + somut sürekli `fark_puan`
+      formülü]); *Güvenlik* (Kaldıraç %30 [v1 çekirdeği], Bilanço Kalitesi
+      %20 [v1 çekirdeği], Piotroski F-Skoru %25 [sürekli hale getirildi],
+      Toplam Yükümlülük/Özkaynak %15 [YENİ, K3a düzeltmesi: `equity<=0`
+      guard — negatif özkaynaklı şirket artık YANLIŞLIKLA "güçlü" çıkmıyor],
+      Merton Temerrüt Olasılığı (EDF) %10 [YENİ orkestrasyon — BAYRAK-79/80:
+      `merton.py` PROJENİN HİÇBİR yerinde çağrılmıyordu, ilk kez bir
+      skorlama motoruna bağlandı]).
+      **YENİ** `src/analysis/lens_bilesik_skor.py`: 4 merceğin (Değer %30/
+      Kalite %30/Güvenlik %25/Büyüme %15) şeffaf ağırlıklı ortalaması —
+      ince orkestrasyon katmanı, kendi hesap mantığı TAŞIMAZ; Y4 düzeltmesi
+      (Σ(ağırlık)=0 guard, sıfıra bölme yerine YETERSİZ VERİ rozeti).
+      **YENİ** `src/db/models.py::SectorMetricCache` + `src/db/repository.py`
+      (`get_sector_peer_tickers_v2` — `(ust_sektor, sirket_turu)` gruplama
+      anahtarı, `spec_sektor_evren.md`'nin "mevcut sınırlama tespiti"
+      düzeltmesi; `get_sector_metric_cache`/`save_sector_metric_cache` —
+      DÖNEM BAZLI robust dağılım önbelleği, hesaplama repository'de
+      YAPILMAZ, sadece CRUD/cache).
+      **YENİ** `src/bot/pipeline.py::compute_multi_lens_score_for_ticker()`
+      — v2'nin BAĞIMSIZ giriş noktası, v1 `run_pipeline()` akışına HİÇ
+      DOKUNMAZ. Bu turda SADECE `sanayi`/`abd_sanayi` şablonları desteklenir
+      (banka/sigorta/finansman v2 desteği `UnsupportedCompanyTypeError` ile
+      AÇIKÇA ertelendi). `_STOCK_FIELDS`'e `long_term_liabilities` eklendi
+      (isyatirim.py'de ZATEN eşliydi, sadece whitelist'e eksikti — sıfır
+      maliyetli "quick win", Güvenlik merceğinin Toplam Yükümlülük/Özkaynak
+      bileşenini BİST'te çalışır hale getirdi).
+      Canlı doğrulandı: `python scripts/demo_v2_skor.py` (THYAO/BİST +
+      AAPL/NASDAQ, gerçek İş Yatırım/SEC EDGAR/KAP verisiyle) — THYAO
+      Bileşik 6,1 DENGELİ (Değer 7,5/Kalite 3,5/Büyüme 9,2/Güvenlik 5,7),
+      AAPL Bileşik 6,2 DENGELİ (Değer 1,6 RİSKLİ/Kalite 8,8 SAĞLAM/Büyüme
+      6,5/Güvenlik 8,3) — AAPL'ın Değer-Kalite ayrışması `spec_bilesik_
+      skor.md`'nin kendi test senaryosunun ("Buffett-tipi dayanıklı
+      avantajlı ama Graham'a göre pahalı") CANLI kanıtını üretti. Bu turda
+      DIŞARIDA bırakılan (bilinçli, `bilgi-bankasi/_ilerleme.md`'de
+      belgeli, gerçek veri-bloker'ı) kalemler: 10+ yıllık trend serisi,
+      harici kredi notu API'si, BİST faiz gideri/SG&A/Ar-Ge (sanayi XI_29
+      şemasında yok) — bu bileşenler spec'lerin "VERİ EKSİK" davranışıyla
+      (`None`, bileşen atlanır, ağırlık yeniden dağıtılır) idare edilir.
+      1270 test, hepsi yeşil (59 yeni — `test_lens_common.py`,
+      `test_lens_deger.py`, `test_lens_kalite.py`, `test_lens_buyume.py`,
+      `test_lens_guvenlik.py`, `test_lens_bilesik_skor.py`,
+      `test_sector_metric_cache.py`, `test_pipeline_multi_lens.py`).
+      Detay: `docs/spec/quant_denetim_01.md`, `docs/spec/veri_tamlik_notu.md`.
 
 ## Dizin Yapisi
 

@@ -1429,6 +1429,41 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       Ç1(bilinen)+Ç2(KAP)=H1(KAP kümülatif) kesin toplama yöntemiyle
       keşfedildi. Canlı doğrulandı. 1167 test, hepsi yeşil (2 yeni). Detay:
       `06_BILINEN_SORUNLAR.md` #50.
+- [x] **Faz 2 (Sektör/Evren)** — `docs/spec/spec_sektor_evren.md` onaylanmış
+      spec'i kod'a geçirildi. **YENİ** `Company` alanları: `ust_sektor`,
+      `sirket_turu`, `sic_code`, `exchange`, `cik`, `index_memberships`
+      (JSON, bu fazda DOLDURULMUYOR), `sector_updated_at`
+      (`_migrate_add_sector_taxonomy_columns`, `_migrate_add_market_column`
+      ile AYNI idempotent ALTER TABLE deseni). `src/fetchers/kap.py`:
+      `KAP_SEKTOR_TO_UST_SEKTOR` (48 ince sektör -> ortak 11-grup üst-sektör,
+      kap.org.tr/tr/Sektorler'den canlı türetildi), `KAP_TICKER_SECTOR_OVERRIDES`
+      (TUPRS -> Enerji), `ust_sektor_for_kap()`, `sirket_turu_on_tahmin_from_kap()`
+      (BANKALAR/SİGORTA/FİNANSMAN/GYO KAP'ta zaten ayrık — analiz öncesi
+      KESİN; diğer Finans/GYO alt-kategorileri belirsiz kalır, None döner).
+      `src/fetchers/sec_edgar.py`: `fetch_exchange_listings()`
+      (`company_tickers_exchange.json`, exchange+cik), `fetch_sic_info()`
+      (`submissions/CIK{cik}.json`, sic+sicDescription — CANLI doğrulanmış
+      User-Agent/retry deseni AYNEN kullanıldı), `SIC_RANGE_TO_UST_SEKTOR`
+      (dar aralıklar önce) + `SIC_TICKER_SECTOR_OVERRIDES`
+      (GOOGL/GOOG/GOOGM/GOOGN/META -> İletişim, PYPL -> Finans — GICS 2018
+      "Communication Services" ayrımı SIC'te yok), `ust_sektor_for_sic()`,
+      `sirket_turu_for_sic()`. `src/db/repository.py::upsert_sector_taxonomy()`
+      (set_company_info ile AYNI ilke, TickerMarketConflictError sessizce
+      yutulmaz). **YENİ** `scripts/refresh_universe.py` — BİST kolu (tek
+      istekle ~640 şirket, checkpoint gerekmez) + NASDAQ kolu (Adım 1: bulk
+      exchange listesi, Adım 2: `_next_batch()` ile checkpoint'li SIC
+      zenginleştirme, `--limit`, `SEC_BULK_PACING_SECONDS=0.12`, 404'te satır
+      `sector_updated_at` ile kalıcı işaretlenir). CLI:
+      `python scripts/refresh_universe.py [--market bist|nasdaq] [--limit N] [--dry-run]`.
+      Kullanıcı onayı: NASDAQ kapsamı SEC `exchange=="Nasdaq"` (NYSE hariç),
+      `index_memberships` bu fazda boş, `get_sector_peer_tickers()` n≥5
+      eksikliği Faz 3'e ertelendi (dokunulmadı). Test: `pytest tests/test_sector_universe.py`
+      (44 yeni test — KAP/SIC eşleme doğruluğu, SIC aralık çakışma/sıra
+      kontrolü, 10 canlı NASDAQ tickerının regresyonu, `_next_batch()`
+      sorgusu, migration idempotentliği, `TickerMarketConflictError`).
+      `scripts/refresh_universe.py` sadece import/`--help` ile doğrulandı —
+      tam canlı NASDAQ taraması (binlerce istek) bu fazın kapsamı DIŞINDA,
+      ayrı bir adımda çalıştırılacak. 1211 test, hepsi yeşil (44 yeni).
 
 ## Dizin Yapisi
 

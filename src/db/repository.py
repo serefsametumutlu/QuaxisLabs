@@ -574,6 +574,60 @@ def update_company_sectors(session: Session, sector_map: dict[str, str]) -> int:
     return updated
 
 
+def upsert_sector_taxonomy(
+    session: Session,
+    ticker: str,
+    market: str,
+    sector: str | None = None,
+    ust_sektor: str | None = None,
+    sirket_turu: str | None = None,
+    sic_code: str | None = None,
+    exchange: str | None = None,
+    cik: str | None = None,
+    touch_sector_updated_at: bool = True,
+) -> Company:
+    """Faz 2 (docs/spec/spec_sektor_evren.md): scripts/refresh_universe.py için
+    bir Company satırını (yoksa OLUŞTURARAK) sektör/evren alanlarıyla günceller
+    -- `set_company_info()` ile AYNI ilke (None verilen alan DEĞİŞTİRİLMEZ),
+    SADECE bu spec'in yeni alanlarına (ust_sektor, sirket_turu, sic_code,
+    exchange, cik) ve `sector`'a (KAP ince sektör / SEC sicDescription --
+    Company'nin ZATEN var olan alanı, spec ile İSMİ DEĞİŞTİRİLMEDİ, kullanım
+    alanı NASDAQ'ı da kapsayacak şekilde GENİŞLETİLDİ) odaklanır.
+
+    `market` HER ZAMAN açıkça verilir -- evren-doldurma script'i yeni bir
+    Company satırı OLUŞTURABİLİR. TickerMarketConflictError (bkz. sınıf
+    docstring'i) burada SESSİZCE YUTULMAZ, `_get_or_create_company` yolu
+    üzerinden çağırana FIRLATILIR (spec "Kenar durumlar" bölümü: BIST/NASDAQ
+    sembol çakışması sessizce ezilmemeli).
+
+    `touch_sector_updated_at=False`: NASDAQ Adım 1'in (bkz. spec "Tazelik ve
+    checkpoint tasarımı") ucuz bulk-keşif satırları için -- bu satırlar HENÜZ
+    zenginleştirilmedi (sic_code=None kalır), bu yüzden "sektör verisi
+    şimdi tazelendi" damgası VURULMAMALI; `_next_batch()` sorgusu zaten
+    `sic_code IS NULL` koşuluyla bu satırları YİNE DE kuyruğa alır.
+
+    `session.commit()` BURADA YAPILMAZ -- çağıran taraf (refresh_universe.py)
+    toplu işi TEK commit ile bitirir (binlerce satırlık NASDAQ evreninde her
+    satırda ayrı commit performans kaybı yaratır).
+    """
+    company = _get_or_create_company(session, ticker, market=market)
+    if sector:
+        company.sector = sector
+    if ust_sektor is not None:
+        company.ust_sektor = ust_sektor
+    if sirket_turu is not None:
+        company.sirket_turu = sirket_turu
+    if sic_code is not None:
+        company.sic_code = sic_code
+    if exchange is not None:
+        company.exchange = exchange
+    if cik is not None:
+        company.cik = cik
+    if touch_sector_updated_at:
+        company.sector_updated_at = utcnow_naive()
+    return company
+
+
 def get_sector_peer_tickers(session: Session, sector: str, financial_group: str, exclude_ticker: str) -> list[str]:
     """Derin Kart'ın "Karşılaştırma Ortalaması" çizgisi için: AYNI sektör +
     AYNI financial_group'taki DİĞER (kendisi hariç) şirketlerin ticker

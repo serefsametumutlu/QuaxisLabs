@@ -50,6 +50,48 @@ class Company(Base):
     # varsayimdir (bkz. _migrate_add_market_column ve modul ust notu).
     market: Mapped[str] = mapped_column(String(10), default="BIST", server_default="BIST")
 
+    # --- Faz 2 (docs/spec/spec_sektor_evren.md) -- sektör/evren alanları -- YENİ ---
+    ust_sektor: Mapped[str | None] = mapped_column(String(40))
+    # Ortak 11-grup taksonomi değeri (bkz. spec "Ortak üst-sektör taksonomisi").
+    # `sector` (=alt_sektor, ince) alanından KAP/SIC eşleme tablolarıyla türetilir.
+
+    sirket_turu: Mapped[str | None] = mapped_column(String(20))
+    # "sanayi" | "banka" | "sigorta" | "finansman" | "gyo" -- skor şablonu
+    # seçimi için (bkz. spec "Şirket türü tanımı" bölümü). financial_group'tan
+    # AYRI bir alan: financial_group BIST'e özel veri-çekim şeması etiketidir
+    # (İş Yatırım API parametresi), sirket_turu piyasa-bağımsız ortak eksendir.
+
+    sic_code: Mapped[str | None] = mapped_column(String(10))
+    # NASDAQ icin SEC'in ham SIC kodu (orn. "3674"). Sadece market="NASDAQ"
+    # icin doldurulur -- traceability/yeniden-turetme icin saklanir (SIC
+    # aralik tablosu ileride degisirse SEC'e TEKRAR gitmeden ust_sektor
+    # yeniden hesaplanabilir).
+
+    exchange: Mapped[str | None] = mapped_column(String(20))
+    # SEC company_tickers_exchange.json'daki ham deger (orn. "Nasdaq",
+    # "NYSE"). "NASDAQ evreni" filtresi BUNDAN yapilir (bkz. Tazelik/
+    # checkpoint bolumu). BIST satirlarinda None kalir (market="BIST" zaten
+    # yeterli, ayri bir BIST "exchange" kavrami yok).
+
+    cik: Mapped[str | None] = mapped_column(String(10))
+    # NASDAQ icin SEC CIK'i (10 haneye sifirla doldurulmus). sec_edgar.py
+    # zaten her cagride resolve_cik() ile bunu COZUYOR (24 saatlik dosya
+    # onbellegiyle) -- burada saklamak toplu is (refresh_universe.py)
+    # sirasinda TEKRAR ticker-map aramasi yapmayi gereksiz kilar, DB'den
+    # dogrudan okunabilir.
+
+    index_memberships: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # Orn. ["BIST30", "BIST100"] (BIST) -- NASDAQ icin bu fazda VERI KAYNAGI
+    # YOK (bkz. spec "Veri Bagimliligi"), bu yuzden NASDAQ satirlarinda hep
+    # None/[] kalir; alan yine de EKLENIR (semaya sonradan eklemek migration
+    # gerektirir, simdiden acmak ucretsiz). Bu fazda DOLDURULMUYOR.
+
+    sector_updated_at: Mapped[datetime | None] = mapped_column(DateTime)
+    # `last_updated` (finansal veri tazeligi, is_data_fresh()) ile KARISTIRILMAMALI
+    # -- sektor/evren verisi AYRI bir tazelik penceresine sahiptir (bkz.
+    # scripts/refresh_universe.py SECTOR_STALE_AFTER_DAYS, cok daha uzun:
+    # gunler degil, haftalar/aylar).
+
 
 class FinancialPeriod(Base):
     __tablename__ = "financial_period"
@@ -309,10 +351,43 @@ def _migrate_fix_fund_holding_unique_constraint(engine: Engine) -> None:
             return
 
 
+def _migrate_add_sector_taxonomy_columns(engine: Engine) -> None:
+    """Faz 2 (docs/spec/spec_sektor_evren.md) ONCESI olusturulmus veritabanlarinda
+    'company' tablosu zaten var ama ust_sektor/sirket_turu/sic_code/exchange/
+    cik/index_memberships/sector_updated_at sutunlari YOK -- _migrate_add_market_column
+    ile BIREBIR AYNI idempotent ALTER TABLE deseni: her sutun icin ayri
+    kontrol, zaten varsa atlanir. Hepsi nullable -- mevcut satirlarda NULL
+    kalir, geriye donuk KIRILMAZ (bkz. Company sinifi ic yorumlari).
+
+    SQLite'ta JSON sutunu TEXT affinity ile calisir -- CommentaryCache.positives
+    zaten AYNI deseni kullaniyor (emsal var, bkz. spec "Migration" bolumu).
+    """
+    inspector = inspect(engine)
+    if "company" not in inspector.get_table_names():
+        return  # create_all() zaten dogru sekilde (yeni sutunlar DAHIL) olusturacak
+    existing_columns = {col["name"] for col in inspector.get_columns("company")}
+
+    new_columns: list[tuple[str, str]] = [
+        ("ust_sektor", "VARCHAR(40)"),
+        ("sirket_turu", "VARCHAR(20)"),
+        ("sic_code", "VARCHAR(10)"),
+        ("exchange", "VARCHAR(20)"),
+        ("cik", "VARCHAR(10)"),
+        ("index_memberships", "JSON"),
+        ("sector_updated_at", "DATETIME"),
+    ]
+    with engine.begin() as connection:
+        for column_name, column_type in new_columns:
+            if column_name in existing_columns:
+                continue
+            logger.info("Migration: 'company' tablosuna '%s' sutunu ekleniyor.", column_name)
+            connection.execute(text(f"ALTER TABLE company ADD COLUMN {column_name} {column_type}"))
+
+
 def init_db(engine: Engine | None = None) -> None:
     """Tablolari olusturur (varsa dokunmaz -- create_all idempotenttir) VE
     var olan tablolarda eksik sutunlari migrate eder (bkz. _migrate_add_market_column,
-    _migrate_add_commentary_hook_column).
+    _migrate_add_commentary_hook_column, _migrate_add_sector_taxonomy_columns).
 
     `engine` verilmezse varsayilan (config.DATABASE_URL'e bagli) engine
     kullanilir. Uygulama ilk calistiginda repository.get_session() bunu
@@ -323,6 +398,7 @@ def init_db(engine: Engine | None = None) -> None:
     Base.metadata.create_all(bind=target_engine)
     _migrate_add_market_column(target_engine)
     _migrate_add_commentary_hook_column(target_engine)
+    _migrate_add_sector_taxonomy_columns(target_engine)
 
 
 # Uygulamanin varsayilan (production) baglantisi. Testler bunu KULLANMAZ;

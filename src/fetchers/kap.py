@@ -388,6 +388,158 @@ def fetch_sector_map() -> dict[str, str]:
     return sector_map
 
 
+# --- Faz 2 (docs/spec/spec_sektor_evren.md) -- ortak sektör taksonomisi --------
+
+
+# Ortak 11-grup üst-sektör taksonomisi (GICS'in sadeleştirilmiş hali, spec
+# "Ortak üst-sektör taksonomisi" bölümü BİREBİR) -- hem BİST (KAP ince
+# sektör) hem NASDAQ (SIC kodu) bu KAPALI kümeye eşlenir.
+UST_SEKTOR_DEGERLERI: tuple[str, ...] = (
+    "Enerji",
+    "Ana Metaller ve Madencilik",
+    "Sanayi",
+    "Tüketici (Döngüsel)",
+    "Tüketici (Temel)",
+    "Sağlık",
+    "Finans",
+    "Teknoloji",
+    "İletişim",
+    "Kamu Hizmetleri",
+    "Gayrimenkul/GYO",
+)
+
+# KAP'ın kap.org.tr/tr/Sektorler sayfasından canlı çekilen 48 benzersiz ince
+# sektör adının ("sectorName", Company.sector) ortak üst-sektöre eşlemesi --
+# spec "KAP → Üst-Sektör Eşleme Tablosu" BİREBİR (tahmine dayalı DEĞİL,
+# sayfadan türetildi). Yeni bir KAP kategorisi (nadir) bu sözlükte YOKSA
+# ust_sektor=None döner (uydurma YAPILMAZ, Kural 3) -- bkz. ust_sektor_for_kap().
+KAP_SEKTOR_TO_UST_SEKTOR: dict[str, str] = {
+    "TARIM VE HAYVANCILIK AVCILIK VE İLGİLİ HİZMET FAALİYETLERİ": "Tüketici (Temel)",
+    "BALIKÇILIK VE SU ÜRÜNLERİ": "Tüketici (Temel)",
+    "HAM PETROL VE DOĞAL GAZ ÇIKARTILMASI": "Enerji",
+    "KÖMÜR VE LİNYİT MADENCİLİĞİ": "Enerji",
+    "METAL CEVHERİ MADENCİLİĞİ": "Ana Metaller ve Madencilik",
+    "DİĞER MADENCİLİK VE TAŞ OCAKÇILIĞI": "Ana Metaller ve Madencilik",
+    "GIDA, İÇECEK VE TÜTÜN": "Tüketici (Temel)",
+    "TEKSTİL, GİYİM EŞYASI VE DERİ": "Tüketici (Döngüsel)",
+    "ORMAN ÜRÜNLERİ VE MOBİLYA": "Tüketici (Döngüsel)",
+    "KAĞIT VE KAĞIT ÜRÜNLERİ BASIM": "Ana Metaller ve Madencilik",
+    "YAYIMCILIK": "İletişim",
+    "TELEKOMÜNİKASYON": "İletişim",
+    # KAP bu kategoride rafineri/ilaç/kimya şirketlerini AYNI kovaya koyuyor
+    # -- varsayılan (bu üç GICS sektöründen en yaygını) korunur, bilinen
+    # istisnalar KAP_TICKER_SECTOR_OVERRIDES ile elle düzeltilir (bkz. spec
+    # "Ticker-düzeyi override (KAP)" notu).
+    "KİMYA İLAÇ PETROL LASTİK VE PLASTİK ÜRÜNLER": "Ana Metaller ve Madencilik",
+    "TAŞ VE TOPRAĞA DAYALI": "Ana Metaller ve Madencilik",
+    "ANA METAL SANAYİ": "Ana Metaller ve Madencilik",
+    "METAL EŞYA MAKİNE ELEKTRİKLİ CİHAZLAR VE ULAŞIM ARAÇLARI": "Sanayi",
+    "DİĞER İMALAT SANAYİİ": "Sanayi",
+    "ELEKTRİK GAZ VE BUHAR": "Kamu Hizmetleri",
+    "İNŞAAT VE BAYINDIRLIK İŞLERİ": "Sanayi",
+    "TOPTAN TİCARET": "Tüketici (Döngüsel)",
+    "PERAKENDE TİCARET": "Tüketici (Döngüsel)",
+    "ULAŞTIRMA VE DEPOLAMA": "Sanayi",
+    "KONAKLAMA": "Tüketici (Döngüsel)",
+    "YİYECEK VE İÇECEK HİZMETLERİ": "Tüketici (Döngüsel)",
+    "SEYAHAT ACENTESİ, TUR OPERATÖRÜ VE DİĞER REZERVASYON HİZMETLERİ İLE İLGİLİ FAALİYETLER": "Tüketici (Döngüsel)",
+    "BANKALAR": "Finans",
+    "ARACI KURUMLAR": "Finans",
+    "SİGORTA ŞİRKETLERİ": "Finans",
+    "FİNANSAL KİRALAMA VE FAKTORİNG ŞİRKETLERİ": "Finans",
+    "FİNANSMAN ŞİRKETLERİ": "Finans",
+    "VARLIK YÖNETİM ŞİRKETLERİ": "Finans",
+    "MENKUL KIYMET YATIRIM ORTAKLIKLARI": "Finans",
+    "GİRİŞİM SERMAYESİ YATIRIM ORTAKLIKLARI": "Finans",
+    "HOLDİNGLER VE YATIRIM ŞİRKETLERİ": "Finans",
+    "GAYRİMENKUL FAALİYETLERİ": "Gayrimenkul/GYO",
+    "GAYRİMENKUL YATIRIM ORTAKLIKLARI": "Gayrimenkul/GYO",
+    "KİRALAMA VE LEASING FAALİYETLERİ": "Finans",
+    "BÜRO YÖNETİMİ, BÜRO DESTEĞİ VE DİĞER ŞİRKET DESTEK FAALİYETLERİ": "Sanayi",
+    "BİLGİ HİZMET FAALİYETLERİ": "Teknoloji",
+    "BİLİŞİM": "Teknoloji",
+    "HUKUK VE MUHASEBE FAALİYETLERİ": "Sanayi",
+    "MİMARLIK VE MÜHENDİSLİK FAALİYETLERİ; TEKNİK MUAYENE VE ANALİZ": "Sanayi",
+    "REKLAMCILIK VE PAZAR ARAŞTIRMASI": "İletişim",
+    "İNSAN SAĞLIĞI VE SOSYAL HİZMETLER": "Sağlık",
+    "SAVUNMA": "Sanayi",
+    "SPOR FAALİYETLERİ EĞLENCE VE OYUN FAALİYETLERİ": "Tüketici (Döngüsel)",
+    "SPOR EĞLENCE BOŞ ZAMANLARI DEĞERLENDİRME HİZMETLERİ": "Tüketici (Döngüsel)",
+    "YARATICI SANATLAR GÖSTERİ SANATLARI VE EĞLENCE FAALİYETLERİ": "İletişim",
+}
+
+# Ticker-düzeyi override (spec "Ticker-düzeyi override (KAP)" notu BİREBİR):
+# TUPRS "KİMYA İLAÇ PETROL LASTİK VE PLASTİK ÜRÜNLER" ince kategorisinde ama
+# GERÇEK iş modeli rafineri (Enerji) -- varsayılan eşlemeden İSTİSNA.
+KAP_TICKER_SECTOR_OVERRIDES: dict[str, str] = {
+    "TUPRS": "Enerji",  # rafineri — KAP'ın "Kimya İlaç Petrol..." ince kategorisi
+    # bu şirketi ilaç/kimya şirketleriyle aynı kovaya koyuyor
+}
+
+
+def ust_sektor_for_kap(ticker: str, fine_sector: str) -> str | None:
+    """Ticker + KAP ince sektör adından ortak üst-sektörü türetir.
+
+    Kural sırası (spec "Kural sırası" ile aynı ilke): `KAP_TICKER_SECTOR_OVERRIDES`
+    içinde ticker varsa o KULLANILIR; yoksa `KAP_SEKTOR_TO_UST_SEKTOR[fine_sector]`
+    denenir; ikisi de yoksa None döner (Kural 3 -- uydurma YAPILMAZ, kart
+    "N/A" gösterir; bkz. spec "Kenar durumlar": KAP ince sektörü bilinmeyen/
+    yeni bir kategoriyse).
+    """
+    override = KAP_TICKER_SECTOR_OVERRIDES.get(ticker.strip().upper())
+    if override is not None:
+        return override
+    return KAP_SEKTOR_TO_UST_SEKTOR.get(fine_sector)
+
+
+# KAP ince sektöründen ANALİZ ÖNCESİ (financial_group henüz bilinmeden)
+# KESİN olarak türetilebilen sirket_turu değerleri -- spec "Önemli asimetri"
+# notu: bu 4 kategori KAP'ta "zaten ayrık" (başka hiçbir ince kategoriyle
+# karışmaz). Diğer Finans/Gayrimenkul-GYO üst-sektöründeki ince kategoriler
+# (aracı kurum, holding, leasing, MKYO, girişim sermayesi YO, gayrimenkul
+# faaliyetleri) buraya KASITLI OLARAK eklenmedi -- bkz. sirket_turu_on_tahmin_from_kap().
+_KAP_FINE_SECTOR_TO_SIRKET_TURU_KESIN: dict[str, str] = {
+    "BANKALAR": "banka",
+    "SİGORTA ŞİRKETLERİ": "sigorta",
+    "FİNANSMAN ŞİRKETLERİ": "finansman",
+    "GAYRİMENKUL YATIRIM ORTAKLIKLARI": "gyo",
+}
+
+# sirket_turu ön-tahmininin "sanayi" VARSAYILAMAYACAĞI üst-sektörler (spec:
+# "sanayi = ... KAP ince sektör Finans/Gayrimenkul/GYO grubunda DEĞİLSE").
+_SIRKET_TURU_ONTAHMIN_DISI_UST_SEKTORLER = frozenset({"Finans", "Gayrimenkul/GYO"})
+
+
+def sirket_turu_on_tahmin_from_kap(fine_sector: str) -> str | None:
+    """Spec "Şirket türü tanımı ve kaynağı" tablosunun BİST kolonu, ANALİZ
+    ÖNCESİ (evren-doldurma anında, financial_group henüz `None` olabilir)
+    ön-tahmini -- bkz. spec "Önemli asimetri" notu: `financial_group`
+    dolduğunda (analiz sonrası) KESİN değer bu ön-tahminin ÜZERİNE YAZILIR
+    (bu fonksiyon o yeniden-türetmeyi YAPMAZ, Faz 3'ün pipeline entegrasyonu
+    konusudur -- bu spec sadece ön-tahmin fonksiyonunu sağlar).
+
+    - KAP ince sektör BANKALAR/SİGORTA ŞİRKETLERİ/FİNANSMAN ŞİRKETLERİ/
+      GAYRİMENKUL YATIRIM ORTAKLIKLARI ise -> doğrudan (KAP'ta zaten ayrık)
+      karşılık gelen değer -- analiz gerekmeden KESİNDİR.
+    - Üst-sektörü Finans/Gayrimenkul-GYO OLAN ama yukarıdaki 4 kategoriden
+      biri OLMAYAN ince sektörler (aracı kurum, holding, leasing, MKYO,
+      girişim sermayesi YO, gayrimenkul faaliyetleri) -> None: KAP ince
+      sektöründen banka/sigorta/finansman ayrımı YAPILAMAZ (spec: bu ayrım
+      SADECE financial_group ile KESİNLEŞİR), uydurma yapılmaz (Kural 3).
+    - Aksi halde (üst-sektör Finans/GYO DIŞINDA) -> 'sanayi' ön-tahmini.
+    - KAP ince sektörü hiç tanınmıyorsa (KAP_SEKTOR_TO_UST_SEKTOR'da yok) -> None.
+    """
+    kesin = _KAP_FINE_SECTOR_TO_SIRKET_TURU_KESIN.get(fine_sector)
+    if kesin is not None:
+        return kesin
+    ust_sektor = KAP_SEKTOR_TO_UST_SEKTOR.get(fine_sector)
+    if ust_sektor is None:
+        return None
+    if ust_sektor in _SIRKET_TURU_ONTAHMIN_DISI_UST_SEKTORLER:
+        return None
+    return "sanayi"
+
+
 def normalize_ticker(ticker: str) -> str:
     """'THYAO.IS' -> 'thyao', 'BIMAS' -> 'bımas' seklinde KAP aramasinin
     bekledigi kucuk harfli koda cevirir.

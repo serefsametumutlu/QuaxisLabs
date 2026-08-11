@@ -74,6 +74,14 @@ logger = logging.getLogger(__name__)
 
 TICKERS_ENDPOINT = "https://www.sec.gov/files/company_tickers.json"
 COMPANYFACTS_ENDPOINT = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik10}.json"
+# Faz 2 (docs/spec/spec_sektor_evren.md) -- CANLI doğrulandı: TÜM SEC
+# filer'larının (ticker, cik, exchange) üçlüsünü TEK istekte döner (bkz.
+# spec "Girdiler" tablosu). company_tickers.json'dan (yukarıda, sadece
+# ticker->cik) FARKLI bir uç nokta -- "exchange" alanı SADECE burada var.
+TICKERS_EXCHANGE_ENDPOINT = "https://www.sec.gov/files/company_tickers_exchange.json"
+# SIC kodu/açıklaması BAŞKA hiçbir bulk uç noktada (companyfacts DAHİL) YOK --
+# bu yüzden per-company çağrılması gerekir (bkz. spec "NASDAQ kolu Adım 2").
+SUBMISSIONS_ENDPOINT = "https://data.sec.gov/submissions/CIK{cik10}.json"
 
 # yfinance kutuphanesi EKLEMEK yerine, yfinance'in de altta kullandigi AYNI
 # halka acik uc noktaya (query1.finance.yahoo.com) dogrudan httpx ile
@@ -529,6 +537,287 @@ def resolve_cik(ticker: str) -> str:
             "(NASDAQ/NYSE disi bir sembol olabilir veya SEC'e hic XBRL raporlamamis olabilir)."
         )
     return cik10
+
+
+# --- Faz 2 (docs/spec/spec_sektor_evren.md) -- borsa listesi + SIC -----------------------------------------------------
+
+
+@dataclass(frozen=True)
+class ExchangeListing:
+    """TEK bir SEC filer'ının company_tickers_exchange.json satırı."""
+
+    ticker: str
+    cik10: str
+    exchange: str | None  # orn. "Nasdaq", "NYSE" -- CANLI dogrulanan ham deger
+    name: str | None
+
+
+@retry(
+    reraise=True,
+    stop=stop_after_attempt(config.HTTP_MAX_RETRIES),
+    wait=wait_fixed(config.HTTP_RATE_LIMIT_DELAY_SECONDS),
+    retry=retry_if_exception_type(httpx.RequestError),
+)
+def _request_exchange_listings() -> dict:
+    try:
+        response = httpx.get(TICKERS_EXCHANGE_ENDPOINT, headers=_HEADERS, timeout=config.HTTP_TIMEOUT_SECONDS)
+    except httpx.RequestError as exc:
+        logger.warning("SEC company_tickers_exchange.json istegi basarisiz, yeniden denenecek: %s", exc)
+        raise
+    if response.status_code != 200:
+        raise SecEdgarNetworkError(
+            f"SEC company_tickers_exchange.json beklenmeyen HTTP durum kodu dondurdu: {response.status_code}"
+        )
+    try:
+        return response.json()
+    except ValueError as exc:
+        raise SecEdgarNetworkError("SEC company_tickers_exchange.json JSON olarak ayristirilamadi.") from exc
+
+
+def fetch_exchange_listings() -> list[ExchangeListing]:
+    """TÜM SEC filer'larının (ticker, cik, exchange) üçlüsünü TEK istekte
+    döner (bkz. spec "Girdiler" tablosu, CANLI doğrulandı: `{"fields":["cik",
+    "name","ticker","exchange"],"data":[[1045810,"NVIDIA CORP","NVDA","Nasdaq"],...]}`).
+
+    "NASDAQ evreni" filtresi (exchange=="Nasdaq") BURADA UYGULANMAZ -- ham
+    veri döner, iş kuralı çağıran tarafta (bkz. is_nasdaq_exchange(),
+    scripts/refresh_universe.py) uygulanır; bu ayrım tek bir yerde
+    (fonksiyon) toplanır, script'in kendisine GÖMÜLMEZ.
+
+    Hatalar:
+        SecEdgarNetworkError: Ağ hatası veya beklenmeyen yanıt biçimi
+            (örn. "fields" beklenen kolonları içermiyor).
+    """
+    payload = _request_exchange_listings()
+    fields = payload.get("fields") or []
+    try:
+        idx_cik = fields.index("cik")
+        idx_name = fields.index("name")
+        idx_ticker = fields.index("ticker")
+        idx_exchange = fields.index("exchange")
+    except ValueError as exc:
+        raise SecEdgarNetworkError(
+            "SEC company_tickers_exchange.json beklenen 'fields' semasini icermiyor (endpoint degismis olabilir)."
+        ) from exc
+
+    listings: list[ExchangeListing] = []
+    for row in payload.get("data") or []:
+        try:
+            cik_raw = row[idx_cik]
+            ticker_raw = row[idx_ticker]
+        except IndexError:
+            continue
+        if cik_raw is None or not ticker_raw:
+            continue
+        listings.append(
+            ExchangeListing(
+                ticker=str(ticker_raw).upper(),
+                cik10=f"{int(cik_raw):010d}",
+                exchange=row[idx_exchange] if idx_exchange < len(row) else None,
+                name=row[idx_name] if idx_name < len(row) else None,
+            )
+        )
+    return listings
+
+
+def is_nasdaq_exchange(exchange: str | None) -> bool:
+    """company_tickers_exchange.json'daki 'exchange' alanının NASDAQ'ı temsil
+    edip etmediğini kontrol eder. CANLI doğrulanan değer tam olarak "Nasdaq"
+    (bkz. spec "Girdiler" tablosu) -- karşılaştırma büyük/küçük harfe
+    duyarsız yapılır (spec notu: "case-sensitive yapılmamalı ya da normalize
+    edilmeli")."""
+    return bool(exchange) and exchange.strip().casefold() == "nasdaq"
+
+
+@dataclass(frozen=True)
+class SicInfo:
+    """submissions/CIK{cik}.json'dan çekilen SIC kodu + açıklaması."""
+
+    sic: str | None
+    sic_description: str | None
+
+
+@retry(
+    reraise=True,
+    stop=stop_after_attempt(config.HTTP_MAX_RETRIES),
+    wait=wait_fixed(config.HTTP_RATE_LIMIT_DELAY_SECONDS),
+    retry=retry_if_exception_type(httpx.RequestError),
+)
+def _request_submissions(cik10: str) -> dict:
+    url = SUBMISSIONS_ENDPOINT.format(cik10=cik10)
+    try:
+        response = httpx.get(url, headers=_HEADERS, timeout=config.HTTP_TIMEOUT_SECONDS)
+    except httpx.RequestError as exc:
+        logger.warning("SEC submissions istegi basarisiz, yeniden denenecek: %s", exc)
+        raise
+    if response.status_code == 404:
+        raise CompanyNotFoundError(
+            f"SEC CIK{cik10} icin submissions bulunamadi (bazi ticker'lar XBRL raporlamiyor olabilir)."
+        )
+    if response.status_code != 200:
+        raise SecEdgarNetworkError(f"SEC submissions beklenmeyen HTTP durum kodu dondurdu: {response.status_code}")
+    try:
+        return response.json()
+    except ValueError as exc:
+        raise SecEdgarNetworkError("SEC submissions yaniti JSON olarak ayristirilamadi.") from exc
+
+
+def fetch_sic_info(cik10: str) -> SicInfo:
+    """CIK için SEC'in submissions uç noktasından sic/sicDescription çeker
+    (bkz. spec "Girdiler" tablosu, CANLI doğrulandı: AAPL -> {"sic":"3571",
+    "sicDescription":"Electronic Computers"}). Bu alan companyfacts'te YOKTUR
+    -- ayrı bir uç nokta, `_HEADERS`/User-Agent AYNI (data.sec.gov aynı
+    rate-limit'e tabi, bkz. modül üst notu).
+
+    Hatalar:
+        CompanyNotFoundError: CIK için submissions kaydı yok (404) -- bazı
+            ticker'lar XBRL raporlamıyor olabilir (spec "Kenar durumlar").
+        SecEdgarNetworkError: Ağ hatası veya beklenmeyen yanıt biçimi.
+    """
+    payload = _request_submissions(cik10)
+    sic = payload.get("sic") or None
+    sic_description = payload.get("sicDescription") or None
+    return SicInfo(sic=sic, sic_description=sic_description)
+
+
+# --- Faz 2 -- SIC -> ortak üst-sektör eşleme tablosu -----------------------------------------------------
+#
+# Kaynak: SEC'in resmi SIC kod listesi + proje evrenindeki 10 resmi NASDAQ
+# hissesinin TAMAMI CANLI SIC koduyla doğrulandı (bkz. spec "SIC → Üst-Sektör
+# Eşleme Tablosu" bölümü). (SIC_min, SIC_max, üst_sektör) -- kapsayıcı
+# aralıklar, SIRAYLA denenir, İLK eşleşen kullanılır: dar aralıklar KASITLI
+# OLARAK geniş aralıklarından ÖNCE yazıldı (örn. 2830-2836 -> 2800-2899'dan
+# önce) -- bkz. ust_sektor_for_sic().
+SIC_RANGE_TO_UST_SEKTOR: list[tuple[int, int, str]] = [
+    (100, 999, "Tüketici (Temel)"),  # Tarım/ormancılık/balıkçılık
+    (1000, 1099, "Ana Metaller ve Madencilik"),  # Metal madenciliği
+    (1200, 1299, "Enerji"),  # Kömür/linyit
+    (1300, 1399, "Enerji"),  # Ham petrol ve doğalgaz
+    (1400, 1499, "Ana Metaller ve Madencilik"),  # Metalik olmayan maden
+    (1500, 1799, "Sanayi"),  # İnşaat
+    (2000, 2199, "Tüketici (Temel)"),  # Gıda/tütün
+    (2200, 2299, "Tüketici (Döngüsel)"),  # Tekstil
+    (2300, 2399, "Tüketici (Döngüsel)"),  # Giyim
+    (2400, 2499, "Ana Metaller ve Madencilik"),  # Kereste/ahşap
+    (2500, 2599, "Tüketici (Döngüsel)"),  # Mobilya
+    (2600, 2699, "Ana Metaller ve Madencilik"),  # Kağıt
+    (2700, 2799, "İletişim"),  # Basım/yayıncılık
+    (2830, 2836, "Sağlık"),  # İlaç/biyolojik ürünler (kimya alt kümesi)
+    (2800, 2899, "Ana Metaller ve Madencilik"),  # Diğer kimyasallar (2830-2836 YUKARIDA öncelikli)
+    (2900, 2999, "Enerji"),  # Petrol rafinaj
+    (3000, 3099, "Sanayi"),  # Kauçuk/plastik
+    (3100, 3199, "Tüketici (Döngüsel)"),  # Deri
+    (3200, 3299, "Ana Metaller ve Madencilik"),  # Taş/kil/cam
+    (3300, 3399, "Ana Metaller ve Madencilik"),  # Ana metal
+    (3400, 3499, "Sanayi"),  # İşlenmiş metal ürünler
+    (3570, 3579, "Teknoloji"),  # Bilgisayar donanımı (AAPL burada)
+    (3500, 3599, "Sanayi"),  # Diğer makine (3570-3579 YUKARIDA öncelikli)
+    (3660, 3679, "Teknoloji"),  # Elektronik/haberleşme donanımı, yarı iletken
+    (3600, 3699, "Sanayi"),  # Diğer elektrikli ekipman (3660-3679 öncelikli)
+    (3711, 3711, "Tüketici (Döngüsel)"),  # Motorlu taşıtlar (TSLA)
+    (3700, 3799, "Sanayi"),  # Diğer ulaşım ekipmanı (havacılık/savunma)
+    (3826, 3851, "Sağlık"),  # Tıbbi/laboratuvar cihazları
+    (3800, 3899, "Sanayi"),  # Diğer ölçüm/kontrol cihazları
+    (3900, 3999, "Sanayi"),  # Diğer imalat
+    (4000, 4599, "Sanayi"),  # Kara/hava/deniz taşımacılığı
+    (4600, 4699, "Enerji"),  # Boru hatları
+    (4700, 4799, "Sanayi"),  # Taşımacılık hizmetleri
+    (4800, 4899, "İletişim"),  # Telefon/TV yayıncılık/kablo
+    (4900, 4999, "Kamu Hizmetleri"),  # Elektrik/gaz/su
+    (5000, 5199, "Tüketici (Döngüsel)"),  # Toptan ticaret
+    (5400, 5499, "Tüketici (Temel)"),  # Gıda mağazaları
+    (5200, 5999, "Tüketici (Döngüsel)"),  # Diğer perakende (5400-5499 öncelikli)
+    (6000, 6099, "Finans"),  # Mevduat bankaları
+    (6100, 6299, "Finans"),  # Kredi kuruluşları, aracı kurumlar
+    (6300, 6499, "Finans"),  # Sigorta
+    (6500, 6599, "Gayrimenkul/GYO"),  # Gayrimenkul
+    (6798, 6798, "Gayrimenkul/GYO"),  # REIT (spesifik kod, 6700-6799'dan öncelikli)
+    (6700, 6799, "Finans"),  # Diğer holding/yatırım ofisleri
+    (7000, 7099, "Tüketici (Döngüsel)"),  # Otel/konaklama
+    (7200, 7299, "Tüketici (Döngüsel)"),  # Kişisel hizmetler
+    (7370, 7379, "Teknoloji"),  # Yazılım/BT hizmetleri (bkz. İSTİSNA override'lar)
+    (7300, 7399, "Sanayi"),  # Diğer iş hizmetleri (7370-7379 öncelikli)
+    (7500, 7599, "Tüketici (Döngüsel)"),  # Oto bakım/onarım
+    (7800, 7899, "İletişim"),  # Sinema/video (NFLX burada)
+    (7900, 7999, "Tüketici (Döngüsel)"),  # Eğlence/rekreasyon
+    (8000, 8099, "Sağlık"),  # Sağlık hizmetleri
+    (8200, 8299, "Tüketici (Döngüsel)"),  # Eğitim hizmetleri
+    (8700, 8999, "Sanayi"),  # Mühendislik/muhasebe/diğer hizmetler
+]
+
+# Ticker-düzeyi override -- CANLI doğrulanmış istisnalar (spec "Ticker-düzeyi
+# override (SIC)" bölümü BİREBİR): SIC aralık tablosu TEK BAŞINA yeterli
+# DEĞİL (GOOGL/META SIC 7370'te MSFT ile aynı kovaya düşüyor ama GICS'te
+# İletişim'dedir; PYPL'nin SIC 7389'u anlamsız bir çöp-kutusu kod).
+SIC_TICKER_SECTOR_OVERRIDES: dict[str, str] = {
+    # GICS 2018 "Communication Services" ayrımı -- bu şirketler SIC 7370'te
+    # (genel "bilgisayar programlama") MSFT ile aynı kovaya düşüyor ama
+    # reklam/medya odaklı iş modelleri İletişim'e denk düşer.
+    "GOOGL": "İletişim",
+    "GOOG": "İletişim",
+    "GOOGM": "İletişim",
+    "GOOGN": "İletişim",
+    "META": "İletişim",
+    # SIC 7389 ("İş Hizmetleri, NEC") anlamsız bir çöp-kutusu kod --
+    # PYPL'nin gerçek iş modeli ödeme işleme (Finans - Transaction &
+    # Payment Processing Services).
+    "PYPL": "Finans",
+}
+
+
+def ust_sektor_for_sic(ticker: str, sic_code: str | None) -> str | None:
+    """SIC kodundan (+ ticker override) ortak üst-sektörü türetir.
+
+    Kural sırası (spec "Kural sırası" BİREBİR): `SIC_TICKER_SECTOR_OVERRIDES[ticker]`
+    varsa KULLANILIR; yoksa `SIC_RANGE_TO_UST_SEKTOR` içinde SIC kodunu
+    kapsayan İLK (en dar/en özel, liste sırası bunu garanti eder) aralık
+    kullanılır. Hiçbiri eşleşmezse None döner (Kural 3 -- uydurma YAPILMAZ,
+    kart "N/A" gösterir; bkz. spec "Kenar durumlar": SIC kodu hiçbir aralığa
+    düşmüyorsa, örn. 9100+ kamu idaresi kodları)."""
+    override = SIC_TICKER_SECTOR_OVERRIDES.get(ticker.strip().upper())
+    if override is not None:
+        return override
+    if not sic_code:
+        return None
+    try:
+        sic_int = int(sic_code)
+    except ValueError:
+        return None
+    for lo, hi, ust_sektor in SIC_RANGE_TO_UST_SEKTOR:
+        if lo <= sic_int <= hi:
+            return ust_sektor
+    return None
+
+
+def sirket_turu_for_sic(sic_code: str | None) -> str | None:
+    """Spec "Şirket türü tanımı ve kaynağı" tablosunun NASDAQ kolonu BİREBİR:
+    SIC 6000-6099 -> 'banka', 6100-6299 (6798 hariç, zaten bu aralıkta değil)
+    -> 'finansman', 6300-6499 -> 'sigorta', 6500-6599 veya 6798 -> 'gyo',
+    6000-6999 (ve 6798) DIŞINDA HER ŞEY -> 'sanayi'.
+
+    6000-6999 aralığında yukarıdaki 4 alt-aralığa DÜŞMEYEN kodlar (örn.
+    6700-6797, 6799-6999 -- diğer holding/yatırım ofisleri) için spec'te
+    AÇIK bir sirket_turu tanımlanmadığından (sadece "sanayi DEĞİL" bilgisi
+    çıkarılabilir) None döner -- uydurma YAPILMAZ (Kural 3)."""
+    if not sic_code:
+        return None
+    try:
+        sic_int = int(sic_code)
+    except ValueError:
+        return None
+    if sic_int == 6798:
+        return "gyo"
+    if 6000 <= sic_int <= 6099:
+        return "banka"
+    if 6100 <= sic_int <= 6299:
+        return "finansman"
+    if 6300 <= sic_int <= 6499:
+        return "sigorta"
+    if 6500 <= sic_int <= 6599:
+        return "gyo"
+    if 6000 <= sic_int <= 6999:
+        return None
+    return "sanayi"
 
 
 # --- HTTP katmani -----------------------------------------------------

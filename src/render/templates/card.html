@@ -1,6 +1,7 @@
 <!--
-  Bilanco Radar kart sablonu -- yatay, tek-kare "terminal röntgen" (X-ray)
-  estetigi (Fintables tarzi paylasim karti referans alindi).
+  Bilanco Radar kart sablonu -- yatay, tek-kare "kurumsal arastirma raporu"
+  estetigi (Kart Tasarim Sistemi v2 -- bkz. .claude/skills/kart-tasarim-sistemi/
+  SKILL.md + docs/spec/tasarim_notlari.md).
 
   ONEMLI: Bu sablon HICBIR sayi hesaplamaz veya bicimlendirmez. Butun
   degerler src.render.card.build_card_context() tarafindan ONCEDEN
@@ -9,6 +10,12 @@
   banka/sigorta modunda income_keys listesi zaten FAVOK icermez. SADECE
   FAVOK GRAFIGI card.py'deki show_ebitda bayragiyla (deger var mi) kosullu
   gizlenir -- bos bir grafik anlamsizdir (bkz. §B17, 06_BILINEN_SORUNLAR.md).
+
+  TOKEN SISTEMI: tum renk/punto/bosluk `_design_tokens.css`'ten (`var(--...)`)
+  gelir -- bu dosyada HARDCODED hex renk/px punto YASAK (SKILL.md madde 1).
+  Playwright `page.set_content()` `base_url` desteklemedigi icin token
+  dosyasi harici <link> ILE DEGIL, Jinja'nin "include" direktifiyle <style>
+  icine INLINE edilir (fontlar dahil, bkz. _design_tokens.css ust notu).
 -->
 <!DOCTYPE html>
 <html lang="tr">
@@ -16,36 +23,23 @@
 <meta charset="utf-8">
 <title>{{ ticker }} - Bilanço Radar</title>
 <style>
-  :root {
-    --bg: #0a0e12;
-    --panel: rgba(255, 255, 255, 0.02);
-    --border: rgba(226, 232, 240, 0.09);
-    --border-soft: rgba(226, 232, 240, 0.06);
-    --heading: #e2e8f0;
-    --secondary: #64748b;
-    --positive: #22c55e;
-    --negative: #ef4444;
-    --accent: #f59e0b;
-    --mixed: #f97316;
-  }
+{% include "_design_tokens.css" %}
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
-    background: var(--bg);
+    background: var(--bg-canvas);
+    font-family: var(--font-sans);
   }
 
   .card {
     position: relative;
     width: 2000px;
-    background: radial-gradient(circle at 10% -10%, rgba(245, 158, 11, 0.05), transparent 40%),
-      radial-gradient(circle at 100% 0%, rgba(34, 197, 94, 0.04), transparent 35%),
-      var(--bg);
-    color: var(--heading);
-    font-family: "Cascadia Code", "Cascadia Mono", Consolas, "JetBrains Mono", "IBM Plex Mono",
-      "SFMono-Regular", Menlo, Monaco, ui-monospace, monospace;
-    border: 1px solid var(--border);
-    border-radius: 18px;
+    background: var(--bg-canvas);
+    color: var(--ink-primary);
+    font-family: var(--font-sans);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
     overflow: hidden;
     padding: 30px 36px 24px;
 
@@ -77,22 +71,8 @@
       "movers    movers"
       "score     score"
       "footer    footer";
-    column-gap: 24px;
-    row-gap: 18px;
-  }
-
-  .scanlines {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: repeating-linear-gradient(
-      to bottom,
-      rgba(255, 255, 255, 0.018) 0px,
-      rgba(255, 255, 255, 0.018) 1px,
-      transparent 1px,
-      transparent 3px
-    );
-    mix-blend-mode: overlay;
+    column-gap: var(--space-6);
+    row-gap: var(--space-5);
   }
 
   /* --- Ust bant --- */
@@ -103,18 +83,17 @@
      yer alirken, ust bant TEK BASINA cerceve/arka plansiz duz metin
      olarak duruyordu; bu tutarsizlik "eksik/basit" hissi yaratiyordu.
      Artik diger bolumlerle AYNI kutu dilini (kenarlik+panel+radius)
-     kullanir, ustune ince bir accent seride sahiptir. */
+     kullanir, ustune imza altin aksan seride sahiptir (marka kimligi). */
   .top-band {
     grid-area: header;
     display: flex;
     flex-direction: column;
-    gap: 20px;
-    padding: 26px 30px;
-    border: 1px solid var(--border);
-    border-top: 3px solid var(--accent);
-    border-radius: 12px;
-    background: linear-gradient(180deg, rgba(245, 158, 11, 0.05), transparent 55%), var(--panel);
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+    gap: var(--space-5);
+    padding: var(--space-6) var(--space-7);
+    border: 1px solid var(--border-default);
+    border-top: var(--accent-bar-w) solid var(--brand-gold);
+    border-radius: var(--radius-md);
+    background: var(--bg-surface);
   }
 
   .top-band-row {
@@ -129,91 +108,92 @@
   .masthead {
     display: flex;
     align-items: center;
-    gap: 14px;
-    margin-bottom: 20px;
+    gap: var(--space-4);
+    margin-bottom: var(--space-5);
   }
 
   .masthead-logo {
-    height: 64px;
-    width: 64px;
+    height: 56px;
+    width: 56px;
     border-radius: 50%;
     display: block;
   }
 
   .masthead-text {
-    font-size: 22px;
-    font-weight: 800;
-    letter-spacing: 0.6px;
+    font-size: var(--text-h3);
+    font-weight: var(--weight-black);
+    letter-spacing: var(--tracking-wide);
   }
 
   .masthead-brand {
-    color: var(--heading);
+    color: var(--ink-primary);
   }
 
   .masthead-accent {
-    color: #2dd4bf;
+    color: var(--brand-teal);
   }
 
   .masthead-product {
-    color: var(--secondary);
-    font-weight: 600;
-    letter-spacing: 0.3px;
+    color: var(--ink-tertiary);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-normal);
   }
 
   .ticker-row {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--space-3);
   }
 
   .ticker-logo {
     height: 50px;
     width: 50px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     object-fit: contain;
     display: block;
-    background: var(--panel);
+    background: var(--bg-surface-raised);
   }
 
   .ticker-big {
-    font-size: 52px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    color: var(--heading);
-    line-height: 1;
+    font-size: var(--text-h1);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-tight);
+    color: var(--ink-primary);
+    line-height: var(--leading-tight);
   }
 
   .period-badge {
     display: inline-flex;
     align-items: center;
-    padding: 6px 16px;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: var(--panel);
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--heading);
-    opacity: 0.9;
+    padding: 6px var(--space-4);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-pill);
+    background: var(--bg-surface-raised);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--text-body);
+    font-weight: var(--weight-bold);
+    color: var(--ink-primary);
+    opacity: 0.92;
     line-height: 1;
   }
 
   .company-line {
-    margin-top: 9px;
-    font-size: 19px;
-    color: var(--heading);
-    opacity: 0.85;
+    margin-top: var(--space-2);
+    font-size: var(--text-body-lg);
+    color: var(--ink-secondary);
   }
 
   .meta-line {
-    margin-top: 5px;
-    font-size: 15px;
-    color: var(--secondary);
-    letter-spacing: 0.4px;
+    margin-top: var(--space-1);
+    font-size: var(--text-caption);
+    color: var(--ink-tertiary);
+    letter-spacing: var(--tracking-normal);
   }
 
   .dot-sep {
-    margin: 0 8px;
-    color: var(--secondary);
+    margin: 0 var(--space-2);
+    color: var(--ink-tertiary);
   }
 
   .top-right {
@@ -221,38 +201,38 @@
   }
 
   .price-value {
-    font-size: 44px;
-    font-weight: 700;
-    color: var(--heading);
-    line-height: 1;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 38px;
+    font-weight: var(--weight-bold);
+    color: var(--ink-primary);
+    line-height: var(--leading-tight);
   }
 
   .price-label {
-    margin-top: 7px;
-    font-size: 12.5px;
-    color: var(--secondary);
-    letter-spacing: 1px;
+    margin-top: var(--space-2);
+    font-size: var(--text-micro);
+    color: var(--ink-tertiary);
+    letter-spacing: var(--tracking-wider);
   }
 
   /* --- Ust bant icindeki DEGERLEME seridi (piyasa degeri/carpanlar) ---
      Kullanici geri bildirimi: bu kutucuklar ayri, kalin cerceveli/gradyanli
      bir bolum olarak asiri yer kapliyordu. Artik ust banda gomulu, ince
-     dikey ayirac cizgileriyle tek satirlik bir serit (Fintables referans
-     kartlarindaki -- bkz. references/ klasoru, TAVHL/ANSGR orneklerindeki
-     "Fiyat | Piyasa Degeri | F/K | PD/DD | FD/FAVOK" seridi gibi) -- kutu
-     cercevesi/gradyan/golge YOK, sadece etiket+deger cifti. */
+     dikey ayirac cizgileriyle tek satirlik bir serit -- kutu cercevesi/
+     gradyan/golge YOK, sadece etiket+deger cifti. */
   .header-stats {
     display: flex;
     flex-wrap: wrap;
-    row-gap: 14px;
-    padding-top: 20px;
-    border-top: 1px solid var(--border);
+    row-gap: var(--space-4);
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--border-default);
   }
 
   .header-stat {
     flex: 1 1 150px;
-    padding: 0 20px;
-    border-left: 1px solid var(--border);
+    padding: 0 var(--space-5);
+    border-left: 1px solid var(--border-subtle);
   }
 
   .header-stat:first-child {
@@ -261,37 +241,37 @@
   }
 
   .header-stat-label {
-    font-size: 12.5px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    color: var(--secondary);
-    margin-bottom: 6px;
+    font-size: var(--text-micro);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-wider);
+    color: var(--ink-tertiary);
+    margin-bottom: var(--space-2);
   }
 
   .header-stat-value {
-    font-size: 24px;
-    font-weight: 700;
-    color: var(--heading);
+    font-family: var(--font-mono);
+    font-size: var(--text-h3);
+    font-weight: var(--weight-bold);
+    color: var(--ink-primary);
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
   }
 
   .header-stat-value.ratio {
-    color: var(--accent);
+    color: var(--brand-gold);
   }
 
   /* --- Bilanco Ozeti (genel degerlendirme, skor bolumunun alti) --- */
 
   .summary-block {
-    padding-top: 18px;
-    border-top: 1px solid var(--border);
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--border-default);
   }
 
   .summary-box {
-    font-size: 19px;
-    line-height: 1.65;
-    color: var(--heading);
-    opacity: 0.95;
+    font-size: var(--text-body);
+    line-height: var(--leading-relaxed);
+    color: var(--ink-secondary);
   }
 
   /* --- Bolum basliklari --- */
@@ -299,35 +279,37 @@
   .section-title {
     display: flex;
     align-items: baseline;
-    gap: 10px;
-    margin-bottom: 14px;
-    padding: 4px 12px;
-    border-left: 4px solid var(--accent);
-    background: rgba(245, 158, 11, 0.07);
-    border-radius: 0 4px 4px 0;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+    padding-left: var(--space-3);
+    border-left: var(--accent-bar-w) solid var(--border-strong);
+  }
+
+  .section-title.section-title-hero {
+    border-left-color: var(--brand-gold);
   }
 
   .title-text {
-    font-size: 23px;
-    font-weight: 800;
-    letter-spacing: 0.8px;
-    color: var(--heading);
+    font-size: var(--text-h2);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-normal);
+    color: var(--ink-primary);
   }
 
   .title-sub {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--secondary);
-    letter-spacing: 0.7px;
+    font-size: var(--text-caption);
+    font-weight: var(--weight-semibold);
+    color: var(--ink-tertiary);
+    letter-spacing: var(--tracking-wide);
   }
 
   /* --- Tablolar --- */
 
   .table-section {
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 16px 18px 12px;
-    background: var(--panel);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    padding: var(--space-4) var(--space-5) var(--space-3);
+    background: var(--bg-surface);
     /* Grid varsayilaninda (align-items: stretch) bu kutu, ayni satirdaki
        en uzun kutuya (orn. 5 satirli BİLANÇO yaninda 4 satirli GELİR
        TABLOSU -- FAVÖK satiri gizliyse) esitlenecek sekilde UZATILIYOR,
@@ -345,46 +327,61 @@
   .data-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 19px;
+    font-size: var(--text-body-lg);
   }
 
   .data-table th {
     text-align: right;
-    font-size: 14px;
-    letter-spacing: 0.5px;
-    color: var(--secondary);
-    font-weight: 700;
-    padding: 9px 4px;
-    border-bottom: 1px solid var(--border);
+    font-family: var(--font-sans);
+    font-size: var(--text-caption);
+    letter-spacing: var(--tracking-wide);
+    color: var(--ink-tertiary);
+    font-weight: var(--weight-bold);
+    padding: var(--space-2) 4px;
+    border-bottom: 1px solid var(--border-default);
   }
 
   .data-table th.col-label,
   .data-table td.label-cell {
     text-align: left;
+    font-family: var(--font-sans);
   }
 
   .data-table td {
     text-align: right;
-    padding: 13px 4px;
-    border-bottom: 1px solid var(--border-soft);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    padding: var(--space-3) 4px;
+    border-bottom: 1px solid var(--border-subtle);
     white-space: nowrap;
   }
 
   .data-table tbody tr:nth-child(odd) {
-    background: rgba(255, 255, 255, 0.012);
+    background: var(--bg-surface-sunken);
+  }
+
+  /* Değişim sütunu YÜZDE ("%20,0") VEYA metin geçiş etiketi ("veri yok",
+     "zarardan kâra geçti") taşıyabilir (bkz. card.py _line_item_row) -- tek
+     tip veri OLMADIĞI için mono/tabular-nums yerine sans-serif kullanılır
+     (Iterasyon 1 bulgusu: karışık dilde metin etiketleri mono fontta
+     "terminal hatası" gibi görünüyordu, bkz. tasarim_notlari.md). */
+  .data-table td.change-cell {
+    font-family: var(--font-sans);
+    font-variant-numeric: normal;
+    font-weight: var(--weight-semibold);
   }
 
   .row-emphasis td {
-    font-weight: 700;
+    font-weight: var(--weight-bold);
   }
 
   .secondary {
-    color: var(--secondary);
+    color: var(--ink-tertiary);
   }
 
-  .positive { color: var(--positive); font-weight: 600; }
-  .negative { color: var(--negative); font-weight: 600; }
-  .neutral { color: var(--secondary); font-weight: 600; }
+  .positive { color: var(--clr-positive); font-weight: var(--weight-semibold); }
+  .negative { color: var(--clr-negative); font-weight: var(--weight-semibold); }
+  .neutral { color: var(--ink-secondary); font-weight: var(--weight-semibold); }
 
   /* --- Ceyreklik mini grafikler --- */
 
@@ -392,15 +389,15 @@
 
   .charts-row {
     display: flex;
-    gap: 16px;
+    gap: var(--space-4);
   }
 
   .mini-chart-block {
     flex: 1;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 16px 16px 12px;
-    background: var(--panel);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    padding: var(--space-4) var(--space-4) var(--space-3);
+    background: var(--bg-surface);
     min-width: 0;
   }
 
@@ -408,15 +405,15 @@
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    gap: 10px;
-    margin-bottom: 14px;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
   }
 
   .mini-chart-title {
-    font-size: 14.5px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    color: var(--secondary);
+    font-size: var(--text-caption);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-normal);
+    color: var(--ink-tertiary);
   }
 
   /* Serinin en son (en guncel) ceyregine ait deger -- profesyonel finans
@@ -425,18 +422,19 @@
      tamamini okumasi gerekmez. .positive/.negative/.neutral renkleri
      zaten global olarak tanimli (bkz. yukarida). */
   .mini-chart-current {
-    font-size: 18px;
-    font-weight: 700;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--text-h3);
+    font-weight: var(--weight-bold);
     white-space: nowrap;
   }
 
   /* Degerler artik bar'larin UZERINE yazilmiyor (dar sutunlarda cakisiyordu) --
-     referans kartlardaki (Fintables) gibi SOLDA gercek bir grafik ekseni
-     olarak gosteriliyor (bkz. .chart-axis). */
+     SOLDA gercek bir grafik ekseni olarak gosteriliyor (bkz. .chart-axis). */
   .mini-chart-body {
     display: flex;
     align-items: flex-start;
-    gap: 10px;
+    gap: var(--space-3);
   }
 
   /* Etiketler artik flexbox space-between ILE DEGIL (metin satir yuksekligi
@@ -447,8 +445,8 @@
     position: relative;
     width: 50px;
     height: 72px;
-    padding-right: 8px;
-    border-right: 1px solid var(--border);
+    padding-right: var(--space-2);
+    border-right: 1px solid var(--border-default);
     flex-shrink: 0;
   }
 
@@ -461,11 +459,13 @@
 
   .chart-axis span {
     position: absolute;
-    right: 8px;
+    right: var(--space-2);
     transform: translateY(-50%);
-    font-size: 11.5px;
-    font-weight: 600;
-    color: var(--secondary);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--text-micro);
+    font-weight: var(--weight-medium);
+    color: var(--ink-tertiary);
     line-height: 1;
     white-space: nowrap;
   }
@@ -477,7 +477,7 @@
 
   .mini-chart {
     display: flex;
-    gap: 10px;
+    gap: var(--space-2);
   }
 
   .chart-col {
@@ -487,11 +487,10 @@
     min-width: 0;
   }
 
-  /* Fintables referans kartlarindaki gibi (bkz. references/ klasoru) ince
-     yatay izgara cizgileri -- y_axis_ticks'in top_pct'siyle ayni referansi
-     kullanmasi icin araligi SABIT %25 DEGIL, her grafigin kendi tik sayisina
-     gore card.py'de hesaplanmis --grid-interval degiskenidir (bkz.
-     .mini-chart[style] inline degeri, _build_chart: grid_interval_pct).
+  /* Ince yatay izgara cizgileri -- y_axis_ticks'in top_pct'siyle ayni
+     referansi kullanmasi icin araligi SABIT %25 DEGIL, her grafigin kendi
+     tik sayisina gore card.py'de hesaplanmis --grid-interval degiskenidir
+     (bkz. .mini-chart[style] inline degeri, _build_chart: grid_interval_pct).
      Bar'lar (.bar, opak arka planli) bu cizgilerin ONUNDE durur, sadece
      bar'in UZERINDEKI bos alanda gorunurler -- gercek grafik izlenimi verir. */
   .chart-upper {
@@ -502,8 +501,8 @@
     justify-content: center;
     background-image: repeating-linear-gradient(
       to bottom,
-      var(--border-soft) 0,
-      var(--border-soft) 1px,
+      var(--border-subtle) 0,
+      var(--border-subtle) 1px,
       transparent 1px,
       transparent 100%
     );
@@ -511,8 +510,7 @@
   }
 
   /* Seride negatif deger yoksa bu alan HIC render edilmemeli -- aksi halde
-     (kullanici geri bildirimi: bar'lar eksenle hizasiz gorunuyordu) bar
-     sutunu eksenden daha uzun render olur, ikisi arasindaki oran gorsel
+     bar sutunu eksenden daha uzun render olur, ikisi arasindaki oran gorsel
      olarak bozulurdu. Sadece .has-negative sinifi varsa acilir. */
   .chart-lower {
     position: relative;
@@ -523,8 +521,8 @@
     overflow: hidden;
     background-image: repeating-linear-gradient(
       to bottom,
-      var(--border-soft) 0,
-      var(--border-soft) 1px,
+      var(--border-subtle) 0,
+      var(--border-subtle) 1px,
       transparent 1px,
       transparent 100%
     );
@@ -538,13 +536,12 @@
 
   .chart-zero {
     height: 1px;
-    background: var(--border);
+    background: var(--border-default);
   }
 
-  /* Fintables referansindaki gibi (bkz. references/) ince, sutuna tam
-     yaslanmayan bar'lar -- kolon genisliginin tamamini kaplamak yerine
-     %62'sini kullanir, geri kalani (justify-content:center ile) iki
-     yanda esit bosluk birakir. */
+  /* Ince, sutuna tam yaslanmayan bar'lar -- kolon genisliginin tamamini
+     kaplamak yerine %62'sini kullanir, geri kalani (justify-content:center
+     ile) iki yanda esit bosluk birakir. */
   .bar {
     width: 62%;
     min-height: 0;
@@ -552,46 +549,48 @@
   }
 
   .bar-positive {
-    background: linear-gradient(180deg, var(--positive), rgba(34, 197, 94, 0.55));
+    background: var(--clr-positive);
     border-radius: 3px 3px 0 0;
   }
 
   .bar-negative {
-    background: linear-gradient(0deg, var(--negative), rgba(239, 68, 68, 0.55));
+    background: var(--clr-negative);
     border-radius: 0 0 3px 3px;
   }
 
-  /* En son (en guncel) ceyrek -- kullanici geri bildirimi: grafiklerin
-     "daha profesyonel" gorunmesi icin en onemli/guncel bar'i digerlerinden
-     ayirt edilebilir kilan ince bir vurgu (amber cerceve + biraz daha genis
-     bar) eklendi; renk (yesil/kirmizi = artis/azalis) DEGISMEZ, sadece
-     hangi barin "bu ceyrek" oldugu netlesir. */
+  /* En son (en guncel) ceyrek -- grafiklerin "daha profesyonel" gorunmesi
+     icin en onemli/guncel bar'i digerlerinden ayirt edilebilir kilan ince
+     bir vurgu (altin cerceve + biraz daha genis bar) eklendi; renk
+     (yesil/kirmizi = artis/azalis) DEGISMEZ, sadece hangi barin "bu ceyrek"
+     oldugu netlesir. */
   .mini-chart .chart-col:last-child .bar {
     width: 74%;
   }
 
   .mini-chart .chart-col:last-child .bar-positive,
   .mini-chart .chart-col:last-child .bar-negative {
-    box-shadow: 0 0 0 1.5px var(--accent);
+    box-shadow: 0 0 0 1.5px var(--brand-gold);
   }
 
   .mini-chart-labels span:last-child {
-    color: var(--heading);
-    font-weight: 700;
+    color: var(--ink-primary);
+    font-weight: var(--weight-bold);
   }
 
   .mini-chart-labels {
     display: flex;
-    gap: 6px;
-    margin-top: 9px;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
   }
 
   .mini-chart-labels span {
     flex: 1;
     text-align: center;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
     font-size: 10.5px;
-    font-weight: 600;
-    color: var(--secondary);
+    font-weight: var(--weight-medium);
+    color: var(--ink-tertiary);
   }
 
   /* --- Artis/Azalis ozeti --- */
@@ -600,100 +599,140 @@
     grid-area: movers;
     display: flex;
     flex-direction: row;
-    gap: 16px;
+    gap: var(--space-4);
   }
 
   .movers-col {
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 16px 20px;
-    background: var(--panel);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    padding: var(--space-4) var(--space-5);
+    background: var(--bg-surface);
     flex: 1;
   }
 
-  .movers-positive { border-left: 4px solid var(--positive); }
-  .movers-negative { border-left: 4px solid var(--negative); }
+  .movers-positive { border-left: var(--accent-bar-w) solid var(--clr-positive); }
+  .movers-negative { border-left: var(--accent-bar-w) solid var(--clr-negative); }
 
   .movers-title {
-    font-size: 16px;
-    font-weight: 700;
-    letter-spacing: 0.6px;
-    margin-bottom: 14px;
+    font-size: var(--text-caption);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-wide);
+    margin-bottom: var(--space-4);
   }
 
-  .movers-positive .movers-title { color: var(--positive); }
-  .movers-negative .movers-title { color: var(--negative); }
+  .movers-positive .movers-title { color: var(--clr-positive); }
+  .movers-negative .movers-title { color: var(--clr-negative); }
 
   .movers-col ul {
     list-style: none;
   }
 
   .movers-col li {
-    font-size: 17px;
-    line-height: 1.6;
-    padding-left: 22px;
+    font-size: var(--text-body);
+    line-height: var(--leading-relaxed);
+    padding-left: var(--space-6);
     position: relative;
-    margin-bottom: 13px;
-    color: var(--heading);
-    opacity: 0.94;
+    margin-bottom: var(--space-3);
+    color: var(--ink-secondary);
   }
 
   .movers-col li::before {
-    content: "✓";
+    content: "";
     position: absolute;
-    left: 0;
-    font-weight: 700;
-    color: var(--positive);
+    left: 2px;
+    top: 9px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--clr-positive);
   }
 
   .movers-negative li::before {
-    content: "!";
-    color: var(--negative);
+    background: var(--clr-negative);
+    border-radius: 1px;
   }
 
   .movers-col li.empty {
-    color: var(--secondary);
+    color: var(--ink-tertiary);
     font-style: normal;
   }
 
-  /* --- Radar skoru --- */
+  .movers-col li.empty::before {
+    display: none;
+  }
+
+  /* --- Radar skoru (KAHRAMAN katman) --------------------------------------
+     Kart Tasarim Sistemi v2: bu bolum artik SADECE font boyutuyla degil,
+     AYRI bir zemin katmaniyla (--bg-surface-raised) da diger tum bolumlerden
+     ayrisir -- "3 saniyede okunacak tek mesaj" burasi oldugu icin gorsel
+     agirlik ONCELIKLE buraya akar. */
 
   .score-section {
     grid-area: score;
     display: flex;
     flex-direction: column;
-    gap: 22px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 24px 26px;
-    background: var(--panel);
+    gap: var(--space-6);
+    border: 1px solid var(--border-strong);
+    border-top: var(--accent-bar-w) solid var(--brand-gold);
+    border-radius: var(--radius-md);
+    padding: var(--space-6) var(--space-7);
+    background: var(--bg-surface-raised);
   }
 
   .score-header {
     display: flex;
+    align-items: center;
+    gap: var(--space-7);
+    flex-wrap: wrap;
+  }
+
+  .score-header-title {
+    flex-shrink: 0;
+  }
+
+  .score-hero {
+    display: flex;
     align-items: baseline;
-    gap: 20px;
+    gap: var(--space-4);
   }
 
   .score-big {
-    font-size: 60px;
-    font-weight: 700;
-    color: var(--heading);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--text-display);
+    font-weight: var(--weight-bold);
+    color: var(--ink-primary);
     line-height: 1;
   }
 
   .score-max {
-    font-size: 24px;
-    color: var(--secondary);
-    font-weight: 500;
-    margin-left: 2px;
+    font-family: var(--font-mono);
+    font-size: var(--text-h3);
+    color: var(--ink-tertiary);
+    font-weight: var(--weight-medium);
   }
 
-  .badge-saglam-text { color: var(--positive); }
-  .badge-dengeli-text { color: var(--accent); }
-  .badge-karisik-text { color: var(--mixed); }
-  .badge-riskli-text { color: var(--negative); }
-  .badge-yetersiz-text { color: var(--secondary); }
+  /* Rozet artik SADECE renkli metin degil -- doygunlugu kisilmis bir
+     zemin (`-soft`) uzerinde chip olarak gosterilir (Tufte ilkesi:
+     cerceve/golge yerine RENKLI ZEMIN ile ayrim). Skor rakaminin YANINDA
+     degil ALTINDA (dikey istif) -- "kahraman rakam -> rozet" okuma sirasi
+     (Iterasyon 3 karari, bkz. tasarim_notlari.md). */
+  .score-badge-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px var(--space-4);
+    border-radius: var(--radius-pill);
+    font-size: var(--text-caption);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-wide);
+    width: fit-content;
+  }
+
+  .badge-saglam-text { color: var(--clr-positive); background: var(--clr-positive-soft); }
+  .badge-dengeli-text { color: var(--brand-gold); background: var(--brand-gold-soft); }
+  .badge-karisik-text { color: var(--clr-mixed); background: var(--clr-warning-soft); }
+  .badge-riskli-text { color: var(--clr-negative); background: var(--clr-negative-soft); }
+  .badge-yetersiz-text { color: var(--ink-tertiary); background: var(--bg-surface-sunken); }
 
   /* CANLI HATA (kullanici raporu, ASTS, §B17): bilesenlerin buyuk cogunlugu
      "veri yok" iken sayisal bir skor + SAGLAM rozeti YANILTICIYDI --
@@ -701,26 +740,89 @@
      gosterilir (bkz. card.py _score_display_context). Metin sayidan uzun
      oldugu icin font kucultulur, tasmasin diye satir kirilabilir. */
   .score-insufficient {
-    font-size: 32px;
-    letter-spacing: 0.02em;
+    font-size: 30px;
+    letter-spacing: 0.01em;
   }
 
-  /* Kullanici geri bildirimi: "en onemli nokta olan BILANCO SKORU kismi
-     cok kucuk kalmis, telefonda bile zor okunuyor" -- her bilesen ARTIK
-     SABIT 3 sutunlu (auto-fit/kucuk-minmax DEGIL) genis kartlarda, buyuk
-     puntoyla gosteriliyor. 3 sutun secildi (2 degil) -- kart Twitter/X
-     gibi platformlarda kirpilmadan paylasilabilsin diye kullanici geri
-     bildirimiyle kartin GENISLIGI artirildi (bkz. .card width) ve dikey
-     yuksekligi geri kazanmak icin skor SATIR SAYISI azaltildi (2 sutunda
-     7 bilesen 4 satir tutuyordu, 3 sutunda 3 satira duser). Son satirda
-     TEK BASINA kalan bilesen (bkz. :last-child:nth-child(3n+1) -- bu
-     "satirin ilk sutununda VE ayni zamanda son eleman" demektir, yani
-     satirda YALNIZ kaldigi anlamina gelir) tam genislige yayilir. */
+  /* --- İKİNCİL KATMAN: v2 Mercek Profili (Değer/Kalite/Büyüme/Güvenlik) --
+     SKILL.md: "Mercek profili için kompakt yatay bar/segment gösterimi
+     tercih edilir (4 mercek tek satırda okunur)." `mercek_rows` bos ise
+     (v2 skorlama henuz hesaplanmadi/gecirilmedi -- bkz. card.py
+     build_card_context docstring'i) bu bolum TAMAMEN gizlenir (asagidaki
+     Jinja kosuluyla). */
+  .lens-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-4);
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--border-default);
+  }
+
+  .lens-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .lens-item-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  /* Iterasyon 3 duzeltmesi: bu etiket/rakam ONCEDEN (--text-caption/--text-h3)
+     ASAGIDAKI UCUNCUL "BİLEŞEN KIRILIMI" katmanindan (--text-body-lg/--text-h3)
+     KUCUK/ESIT gorunuyordu -- bu, ikincil katmanin ucuncul katmandan GORSEL
+     OLARAK DAHA ONEMSIZ gorunmesine yol aciyordu (hiyerarsi ters donuyordu).
+     Simdi isim --text-body-lg (bileşen adiyla ayni), rakam --text-h2 (bileşen
+     rakamindan BUYUK) -- kahraman (58px) > mercek (21px) > bileşen (17px)
+     sirasi acikca korunuyor. */
+  .lens-name {
+    font-size: var(--text-body-lg);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-normal);
+    color: var(--ink-primary);
+  }
+
+  .lens-score {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--text-h2);
+    font-weight: var(--weight-bold);
+  }
+
+  .lens-score.score-good { color: var(--clr-positive); }
+  .lens-score.score-mid { color: var(--brand-gold); }
+  .lens-score.score-poor { color: var(--clr-negative); }
+  .lens-score.score-na { color: var(--ink-tertiary); }
+
+  .lens-track {
+    height: 8px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-surface-sunken);
+    overflow: hidden;
+  }
+
+  .lens-fill {
+    height: 100%;
+    border-radius: var(--radius-pill);
+  }
+
+  .lens-fill.score-good { background: var(--clr-positive); }
+  .lens-fill.score-mid { background: var(--brand-gold); }
+  .lens-fill.score-poor { background: var(--clr-negative); }
+  .lens-fill.score-na { background: var(--border-strong); }
+
+  /* --- ÜÇÜNCÜL KATMAN: v1 bilesen listesi (Nakit Uretimi/Kaldirac/ROE/vb.) --
+     kahraman (skor rakami) ve ikincil (mercek seridi) katmanindan sonra
+     gelir, bu yuzden en sonre/en kucuk punto -- 3 sutunlu, mercek
+     seridiyle KARISTIRILMASIN diye ayri bir baslikla (bkz. .score-section
+     icindeki "Bileşen Kırılımı" section-title). */
   .score-list {
     list-style: none;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 16px 20px;
+    gap: var(--space-4) var(--space-5);
   }
 
   .score-list li:last-child:nth-child(3n + 1) {
@@ -728,77 +830,78 @@
   }
 
   .score-list li {
-    padding: 18px 20px;
-    border: 1px solid var(--border-soft);
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.015);
+    padding: var(--space-4) var(--space-5);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--bg-surface);
   }
 
   .score-row-top {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    gap: 10px;
-    font-size: 19px;
-    margin-bottom: 8px;
+    gap: var(--space-3);
+    font-size: var(--text-body-lg);
+    margin-bottom: var(--space-2);
   }
 
   .score-list .score-name {
-    color: var(--heading);
-    opacity: 0.95;
-    font-weight: 700;
+    color: var(--ink-primary);
+    font-weight: var(--weight-bold);
   }
 
   .score-list .score-weight {
-    font-size: 13.5px;
-    color: var(--secondary);
-    font-weight: 600;
-    margin-left: 6px;
+    font-size: var(--text-micro);
+    color: var(--ink-tertiary);
+    font-weight: var(--weight-semibold);
+    margin-left: var(--space-2);
   }
 
   .score-list .score-value {
-    font-size: 26px;
-    font-weight: 700;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--text-h3);
+    font-weight: var(--weight-bold);
     white-space: nowrap;
   }
 
-  .score-value.score-good { color: var(--positive); }
-  .score-value.score-mid { color: var(--accent); }
-  .score-value.score-poor { color: var(--negative); }
-  .score-value.score-na { color: var(--secondary); }
+  .score-value.score-good { color: var(--clr-positive); }
+  .score-value.score-mid { color: var(--brand-gold); }
+  .score-value.score-poor { color: var(--clr-negative); }
+  .score-value.score-na { color: var(--ink-tertiary); }
 
   .score-reasoning {
-    font-size: 15.5px;
-    line-height: 1.55;
-    color: var(--secondary);
+    font-size: var(--text-caption);
+    line-height: var(--leading-relaxed);
+    color: var(--ink-tertiary);
   }
 
   /* --- Alt bant --- */
 
   .bottom-band {
     grid-area: footer;
-    padding-top: 12px;
-    border-top: 1px solid var(--border);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--border-default);
     display: flex;
     justify-content: space-between;
     align-items: baseline;
   }
 
   .disclaimer {
-    font-size: 12.5px;
-    color: var(--secondary);
-    letter-spacing: 0.2px;
+    font-size: var(--text-micro);
+    color: var(--ink-tertiary);
+    letter-spacing: var(--tracking-normal);
   }
 
   .footer-meta {
-    font-size: 12px;
-    color: var(--secondary);
-    opacity: 0.75;
+    font-size: var(--text-micro);
+    color: var(--ink-tertiary);
+    opacity: 0.85;
   }
 
   .footer-handle {
-    color: var(--heading);
-    font-weight: 700;
+    color: var(--ink-primary);
+    font-weight: var(--weight-bold);
     opacity: 0.9;
   }
 </style>
@@ -833,9 +936,8 @@
       {% endif %}
     </div>
     {% if valuation %}
-    <!-- DEGERLEME kutulari kullanici geri bildirimiyle buraya, ust banda
-         tasindi (bkz. .header-stats ici not) -- ayri bir bolum/satir
-         DEGIL, ince bir istatistik seridi. -->
+    <!-- DEGERLEME kutulari ust banda, ince bir istatistik seridi olarak
+         gomulu (bkz. .header-stats ici not). -->
     <div class="header-stats">
       {% if sector_template in ["banka", "sigorta", "finansman"] %}
       <div class="header-stat">
@@ -859,9 +961,9 @@
         <div class="header-stat-label">SERMAYE</div>
         <div class="header-stat-value">{{ valuation.sermaye }}</div>
       </div>
-      <!-- NET BORÇ burada AYRICA gosterilmiyor -- kullanici geri bildirimi:
-           bu kalem zaten BİLANÇO tablosunda (Dönen/Duran/Toplam Varlıklar'ın
-           hemen altinda, bkz. asagidaki balance_keys) satir olarak var. -->
+      <!-- NET BORÇ burada AYRICA gosterilmiyor -- bu kalem zaten BİLANÇO
+           tablosunda (Dönen/Duran/Toplam Varlıklar'ın hemen altinda, bkz.
+           asagidaki balance_keys) satir olarak var. -->
       <div class="header-stat">
         <div class="header-stat-label">F/K</div>
         <div class="header-stat-value ratio">{{ valuation.fk }}</div>
@@ -913,7 +1015,7 @@
           <td class="label-cell">{{ row.label }}</td>
           <td class="{{ row.value_class }}">{{ row.current }}</td>
           <td class="secondary">{{ row.comparison }}</td>
-          <td class="{{ row.color_class }}">{{ row.change_display }}</td>
+          <td class="change-cell {{ row.color_class }}">{{ row.change_display }}</td>
         </tr>
         {% endfor %}
         {% set net_row = income_rows.net_income %}
@@ -921,7 +1023,7 @@
           <td class="label-cell">{{ net_row.label }}</td>
           <td class="{{ net_row.value_class }}">{{ net_row.current }}</td>
           <td class="secondary">{{ net_row.comparison }}</td>
-          <td class="{{ net_row.color_class }}">{{ net_row.change_display }}</td>
+          <td class="change-cell {{ net_row.color_class }}">{{ net_row.change_display }}</td>
         </tr>
       </tbody>
     </table>
@@ -940,7 +1042,7 @@
           <td class="label-cell">{{ row.label }}</td>
           <td class="{{ row.value_class }}">{{ row.current }}</td>
           <td class="secondary">{{ row.comparison }}</td>
-          <td class="{{ row.color_class }}">{{ row.change_display }}</td>
+          <td class="change-cell {{ row.color_class }}">{{ row.change_display }}</td>
         </tr>
         {% endfor %}
         {% set equity_row = balance_rows.equity %}
@@ -948,7 +1050,7 @@
           <td class="label-cell">{{ equity_row.label }}</td>
           <td class="{{ equity_row.value_class }}">{{ equity_row.current }}</td>
           <td class="secondary">{{ equity_row.comparison }}</td>
-          <td class="{{ equity_row.color_class }}">{{ equity_row.change_display }}</td>
+          <td class="change-cell {{ equity_row.color_class }}">{{ equity_row.change_display }}</td>
         </tr>
       </tbody>
     </table>
@@ -1022,14 +1124,14 @@
 
   <section class="movers-section">
     <div class="movers-col movers-positive">
-      <div class="movers-title">▲ ARTIŞLAR</div>
+      <div class="movers-title">ARTIŞLAR</div>
       <ul>
         {% for item in positives %}<li>{{ item }}</li>{% endfor %}
         {% if not positives %}<li class="empty">Belirgin bir artış bulgusu yok.</li>{% endif %}
       </ul>
     </div>
     <div class="movers-col movers-negative">
-      <div class="movers-title">▼ AZALIŞLAR</div>
+      <div class="movers-title">AZALIŞLAR</div>
       <ul>
         {% for item in negatives %}<li>{{ item }}</li>{% endfor %}
         {% if not negatives %}<li class="empty">Belirgin bir azalış bulgusu yok.</li>{% endif %}
@@ -1039,24 +1141,53 @@
 
   <section class="score-section">
     <div class="score-header">
-      <div class="section-title"><span class="title-text">BİLANÇO SKORU</span></div>
-      {% if score_data_sufficient %}
-      <div class="score-big badge-{{ score_badge_class }}-text">{{ score_total_display }}<span class="score-max">/10</span></div>
-      {% else %}
-      <div class="score-big score-insufficient badge-{{ score_badge_class }}-text">{{ score_badge }}</div>
-      {% endif %}
-    </div>
-    <ul class="score-list">
-      {% for row in score_rows %}
-      <li>
-        <div class="score-row-top">
-          <span class="score-name">{{ row.name }}<span class="score-weight">(ağırlık {{ row.weight }})</span></span>
-          <span class="score-value {{ row.score_band_class }}">{{ row.score }}</span>
+      <div class="score-header-title">
+        <div class="section-title section-title-hero"><span class="title-text">BİLANÇO SKORU</span></div>
+        <div class="score-hero">
+          {% if score_data_sufficient %}
+          <div class="score-big">{{ score_total_display }}<span class="score-max">/10</span></div>
+          {% else %}
+          <div class="score-big score-insufficient">{{ score_badge }}</div>
+          {% endif %}
         </div>
-        <div class="score-reasoning">{{ row.reasoning }}</div>
-      </li>
+        {% if score_data_sufficient %}
+        <span class="score-badge-chip badge-{{ score_badge_class }}-text">{{ score_badge }}</span>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if mercek_rows %}
+    <!-- İKİNCİL KATMAN: v2 çok-mercekli profil (Değer/Kalite/Büyüme/Güvenlik)
+         -- SADECE mercek_profili build_card_context()'e geçildiyse görünür
+         (bkz. card.py docstring'i, mevcut çağıranlar etkilenmez). -->
+    <div class="lens-strip">
+      {% for row in mercek_rows %}
+      <div class="lens-item">
+        <div class="lens-item-top">
+          <span class="lens-name">{{ row.name }}</span>
+          <span class="lens-score {{ row.band_class }}">{{ row.score_display }}</span>
+        </div>
+        <div class="lens-track"><div class="lens-fill {{ row.band_class }}" style="width: {{ row.bar_pct }}%;"></div></div>
+      </div>
       {% endfor %}
-    </ul>
+    </div>
+    {% endif %}
+
+    <div>
+      <div class="section-title"><span class="title-text">BİLEŞEN KIRILIMI</span></div>
+      <ul class="score-list">
+        {% for row in score_rows %}
+        <li>
+          <div class="score-row-top">
+            <span class="score-name">{{ row.name }}<span class="score-weight">(ağırlık {{ row.weight }})</span></span>
+            <span class="score-value {{ row.score_band_class }}">{{ row.score }}</span>
+          </div>
+          <div class="score-reasoning">{{ row.reasoning }}</div>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+
     <div class="summary-block">
       <div class="section-title"><span class="title-text">BİLANÇO ÖZETİ</span></div>
       <div class="summary-box">{{ summary }}</div>

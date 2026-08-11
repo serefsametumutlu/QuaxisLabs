@@ -64,7 +64,7 @@ from PIL import Image
 
 import config
 from src.ai import commentary as commentary_module
-from src.analysis import calculator, scorer
+from src.analysis import calculator, lens_bilesik_skor, scorer
 from src.analysis.valuation import ValuationAssessment
 from src.fetchers import company_logo, kap
 from src.formatting import format_currency_short, format_number_tr, format_percent_tr
@@ -342,6 +342,52 @@ def _score_row(c: scorer.ComponentScore) -> dict:
     }
 
 
+_MERCEK_LABELS: tuple[tuple[str, str], ...] = (
+    ("değer", "Değer"),
+    ("kalite", "Kalite"),
+    ("büyüme", "Büyüme"),
+    ("güvenlik", "Güvenlik"),
+)
+
+
+def _mercek_rows(profil: lens_bilesik_skor.MercekProfili | None) -> list[dict]:
+    """v2 çok-mercekli (Değer/Kalite/Büyüme/Güvenlik) skor profilini kartın
+    İKİNCİL katmanındaki kompakt tek-satır şerit için hazırlar (SKILL.md:
+    "4 mercek tek satırda okunur"). `profil` `None` ise (çağıran taraf v2
+    skorlamayı henüz hesaplamadıysa -- BUGÜNKÜ `run_pipeline()` davranışı)
+    boş liste döner, şablon bölümü TAMAMEN gizler -- build_card_context()
+    SÖZLEŞMESİ bu YENİ, OPSİYONEL parametre olmadan ÇAĞRILDIĞINDA (mevcut
+    TÜM çağıranlar) davranış birebir v1 ile AYNI kalır.
+
+    Her mercek kendi içinde `data_sufficient=False` dönebilir (bkz.
+    `lens_common.LensSonucu` -- v1 `ScoreResult` ile aynı tip) -- bu durumda
+    o mercek "N/A" gösterir, uydurma bir sayı ÜRETİLMEZ (Kural 3)."""
+    if profil is None:
+        return []
+    lenses = {"değer": profil.deger, "kalite": profil.kalite, "büyüme": profil.buyume, "güvenlik": profil.guvenlik}
+    rows = []
+    for key, label in _MERCEK_LABELS:
+        sonuc = lenses[key]
+        if sonuc is None or not sonuc.data_sufficient:
+            rows.append({"name": label, "score_display": "N/A", "band_class": "score-na", "bar_pct": 0})
+            continue
+        score = _clamp_lens_score(sonuc.total_score)
+        rows.append({
+            "name": label,
+            "score_display": format_number_tr(score, decimals=1),
+            "band_class": _score_band_class(score),
+            "bar_pct": int(min(max(float(score) * 10, 0), 100)),
+        })
+    return rows
+
+
+def _clamp_lens_score(score: Decimal) -> Decimal:
+    """Bar genişliği (%) hesaplanmadan önce 0-10 aralığına sıkıştırır --
+    SADECE görsel taşma/eksi genişlik önler, `score.total_score`'un
+    KENDİSİNİ (skor tablosunda gösterilen sayıyı) DEĞİŞTİRMEZ."""
+    return max(Decimal(0), min(Decimal(10), score))
+
+
 def _score_display_context(score: scorer.ScoreResult) -> dict:
     """Kart baslik skorunun (BILANÇO SKORU buyuk rakami) context'ini uretir.
 
@@ -589,6 +635,7 @@ def build_card_context(
     price: Decimal | None = None,
     valuation: calculator.ValuationMetrics | None = None,
     valuation_assessment: ValuationAssessment | None = None,
+    mercek_profili: lens_bilesik_skor.MercekProfili | None = None,
     data_sources_note: str = "İş Yatırım, KAP",
     now: datetime | None = None,
 ) -> dict:
@@ -605,7 +652,18 @@ def build_card_context(
     Kart'ın da kullandığı PAYLAŞILAN formatlayıcı, bkz. o modülün
     docstring'i) ile biçimlendirilir -- hesaplamanın kendisi burada
     YAPILMAZ, sadece `src.analysis.valuation.compute_valuation_assessment()`
-    çıktısı (varsa) Türkçeleştirilir."""
+    çıktısı (varsa) Türkçeleştirilir.
+
+    `mercek_profili` (Kart Tasarım Sistemi v2, YENİ + OPSİYONEL --
+    `lens_bilesik_skor.hesapla_bilesik_skor()`'un ürettiği `BilesikSkorSonucu.
+    mercekler`): verilirse context'e `mercek_rows` (4 elemanlı liste --
+    Değer/Kalite/Büyüme/Güvenlik) eklenir, kart bunu BİLANÇO SKORU'nun
+    HEMEN ALTINDA kompakt bir şerit olarak gösterir (bkz. card.html
+    `.lens-strip`). Varsayılan `None` -- BUGÜN `run_pipeline()` v2 skorlamayı
+    hesaplamıyor/geçirmiyor (bkz. docs/spec/tasarim_notlari.md §3 "Python
+    tarafı için ayrı öneri"), bu yüzden context `mercek_rows: []` döner ve
+    şablon bölümü TAMAMEN gizler -- MEVCUT hiçbir çağıran ETKİLENMEZ, imza/
+    dönen alan adları KIRILMADI (sadece YENİ, opsiyonel bir anahtar eklendi)."""
     disclosures = disclosures or []
     now = now or datetime.now()
 
@@ -663,6 +721,7 @@ def build_card_context(
         "price_display": f"{format_number_tr(price, decimals=2)} ₺" if price is not None else None,
         "valuation": _valuation_context(valuation),
         "valuation_analysis": valuation_view.build_valuation_view(valuation_assessment, "BIST"),
+        "mercek_rows": _mercek_rows(mercek_profili),
         "headline": commentary.headline,
         "summary": commentary.summary,
         "show_ebitda": show_ebitda,

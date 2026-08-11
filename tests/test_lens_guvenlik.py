@@ -6,7 +6,15 @@ from decimal import Decimal
 
 from src.analysis import calculator
 from src.analysis.fundamental_screens import PiotroskiResult
-from src.analysis.lens_guvenlik import GuvenlikGirdisi, _skor_merton, _skor_piotroski, _skor_toplam_yukumluluk_ozkaynak, hesapla_guvenlik_mercegi
+from src.analysis.lens_guvenlik import (
+    GuvenlikGirdisi,
+    _skor_merton,
+    _skor_ozkaynak_aktif_orani,
+    _skor_piotroski,
+    _skor_toplam_yukumluluk_ozkaynak,
+    hesapla_guvenlik_mercegi,
+    hesapla_guvenlik_mercegi_finans,
+)
 from src.analysis.merton import MertonResult
 
 _LATEST = (2026, 3)
@@ -152,3 +160,46 @@ def test_skor_merton_yuksek_edf_dusuk_puan() -> None:
     skor, _ = _skor_merton(merton)
     assert skor is not None
     assert skor < Decimal("3")
+
+
+# --- hesapla_guvenlik_mercegi_finans (banka/sigorta/finansman -- spec §Sektör ayarlaması madde 1) -----------------------------------------------------
+
+
+def test_skor_ozkaynak_aktif_orani_veri_yoksa_atlanir() -> None:
+    skor, gerekce = _skor_ozkaynak_aktif_orani(None)
+    assert skor is None
+    assert "atlandı" in gerekce
+
+
+def test_skor_ozkaynak_aktif_orani_guclu_oranda_yuksek_puan() -> None:
+    skor, gerekce = _skor_ozkaynak_aktif_orani(Decimal("15"))
+    assert skor is not None
+    assert skor > Decimal("6")
+    assert "sermaye yeterliliği" in gerekce
+
+
+def test_guvenlik_mercegi_finans_banka_ozkaynak_aktif_orani_ile_calisir() -> None:
+    """Banka/finansman: ozkaynak_aktif_orani MEVCUT (BankRatios/
+    FinancingRatios'ta zaten var), Piotroski YAPISAL OLARAK YOK -- bu tur
+    (fundamental_screens.py SADECE XI_29 sanayi icin hesaplar) Piotroski
+    bileseni bilesen LISTESINDEN TAMAMEN CIKARILIR (None-skorlu bir satir
+    olarak DEGIL) ki nominal agirlik %100 tek bilesende toplanip
+    data_sufficient DOGRU calissin (bkz. modul notu -- 44,44/55,56 split
+    Piotroski HICBIR ZAMAN dolmadigi surece merceği surekli 'yetersiz'
+    birakirdi)."""
+    sonuc = hesapla_guvenlik_mercegi_finans("AKBNK", (2026, 3), ozkaynak_aktif_orani_pct=Decimal("14"), piotroski=None)
+    isimler = {c.name: c for c in sonuc.components}
+    assert isimler["Özkaynak/Aktif Oranı (sermaye yeterliliği proxy'si)"].score is not None
+    assert isimler["Özkaynak/Aktif Oranı (sermaye yeterliliği proxy'si)"].weight_effective == Decimal(100)
+    assert "Piotroski Benzeri Finansal Sağlık Taraması" not in isimler
+    assert sonuc.data_sufficient
+    assert sonuc.total_score > Decimal("0")
+
+
+def test_guvenlik_mercegi_finans_sigorta_veri_yoksa_yetersiz_veri() -> None:
+    """Sigorta (UFRS_K) semasinda total_assets HIC YOK -- ozkaynak_aktif_
+    orani_pct de None gelir, Piotroski de None -- HICBIR bilesen veri
+    uretmez, mercek durustce 'YETERSIZ VERI' doner (Kural 3, uydurma yok)."""
+    sonuc = hesapla_guvenlik_mercegi_finans("XSIGORTA", (2026, 3), ozkaynak_aktif_orani_pct=None, piotroski=None)
+    assert not sonuc.data_sufficient
+    assert sonuc.total_score == Decimal("0")

@@ -141,12 +141,23 @@ def hesapla_kalite_mercegi_banka(
 ) -> LensSonucu:
     """Banka/sigorta/finansman şablonu -- SADECE ROE+ROA (spec §Sektör
     ayarlaması madde 1). Nominal ağırlıklar HER şablonda AYNI tutulur
-    (ROE=20, ROA=5) ki `_agirlik_dagit_ve_hesapla`'nın orantısal dağıtımı
-    OTOMATİK olarak %80/%20'yi üretsin (quant_denetim_01.md Y1 düzeltmesi
-    -- doğru oran BU merceğin KENDİ ağırlıklarından türetilir, banka
-    CONFIG'inin BAŞKA bir oranından DEĞİL).
+    (ROE=80, ROA=20 -- quant_denetim_01.md Y1 düzeltmesinin ÖNERDİĞİ
+    80/20 oranı BURADA nominal ağırlığın KENDİSİ olarak yazılır, KALİTE
+    merceğinin `sanayi` şablonundaki 20/5 -- AYNI 4:1 ORANI -- yerine
+    DOĞRUDAN kullanılır).
 
-    DÜZELTME (bu tur -- banka/sigorta/finansman v2 desteğinin bitirilmesi):
+    DÜZELTME (bu tur -- iki AYRI hata giderildi):
+    1. Nominal ağırlıklar ÖNCEDEN (20, 5) idi -- toplamları 25 olduğu için
+       `_agirlik_dagit_ve_hesapla`'nın `min_veri_agirlik_yuzdesi=%50`
+       kontrolü HER ZAMAN (ROE+ROA İKİSİ de dolu olsa BİLE) `data_sufficient
+       =False`/"YETERSİZ VERİ" ÜRETİYORDU (CANLI doğrulandı) -- oysa bu
+       eşik nominal ağırlıkların TOPLAMDA %100'e tamamlandığı VARSAYIMIYLA
+       tasarlanmıştır (v1'in TÜM CONFIG şablonlarında ve `hesapla_kalite_
+       mercegi`'nin 7 bileşeninde bu HER ZAMAN doğrudur). Efektif ağırlık
+       oranı (80/20) DEĞİŞMEDİ (80:20 ORANI 20:5 ile AYNIDIR) -- SADECE
+       "veri yeterliliği" hesabının doğru çalışması için nominal ağırlıklar
+       100'e tamamlanacak şekilde YENİDEN YAZILDI.
+    2. Eşikler artık `template` parametresine göre `scorer.CONFIG[template]`
     eşikler artık `template` parametresine göre `scorer.CONFIG[template]`
     içinden okunur -- ÖNCEKİ sürüm BANKA'nın kendi eşiklerini (ROE
     güçlü=%20/orta=%10/tavan=%35, ROA güçlü=%2,5/orta=%1/tavan=%4)
@@ -172,7 +183,7 @@ def hesapla_kalite_mercegi_banka(
         guclu_esik=roa_cfg["guclu_esik"], orta_esik=roa_cfg["orta_esik"], tavan=roa_cfg["tavan"],
     )
     bilesenler = [
-        ("Özkaynak Kârlılığı (ROE)", Decimal("20"), roe),
-        ("Aktif Kârlılığı (ROA)", Decimal("5"), roa),
+        ("Özkaynak Kârlılığı (ROE)", Decimal("80"), roe),
+        ("Aktif Kârlılığı (ROA)", Decimal("20"), roa),
     ]
     return _agirlik_dagit_ve_hesapla(ticker, period, f"kalite_{template}", bilesenler)

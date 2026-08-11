@@ -137,3 +137,86 @@ def hesapla_guvenlik_mercegi(girdi: GuvenlikGirdisi) -> LensSonucu:
         ("Merton Temerrüt Olasılığı (EDF)", Decimal("10"), merton),
     ]
     return _agirlik_dagit_ve_hesapla(girdi.analysis.ticker, girdi.analysis.latest_period, "güvenlik", bilesenler)
+
+
+# --- Banka/sigorta/finansman şablonu (spec §Sektör ayarlaması madde 1) -----------------------------------------------------
+#
+# Kaldıraç (Net Borç/FAVÖK) ve Toplam Yükümlülük/Özkaynak KAVRAMSAL OLARAK
+# UYGULANAMAZ (02/İLKE-31: bankalar iş modeli gereği ~10:1 kaldıraçla
+# NORMAL çalışır -- "net borç"/FAVÖK kavramı da mevduat/kredi=iş modelinin
+# kendisi olduğu için ANLAMSIZDIR). Bu şablonlarda GÜVENLİK merceği
+# `özkaynak_aktif_orani` (zaten CAMELS-esinli `scorer.CONFIG["banka"]`
+# içinde MEVCUT, "Capital Adequacy" ruhuna uygun bir proxy) + Piotroski
+# BENZERİ bir finansal sağlık taraması (spec'in kendi ifadesiyle "bankalar
+# için henüz YOK, iskelet" -- fundamental_screens.py Piotroski'yi SADECE
+# BİST XI_29 sanayi için hesaplar, bu yüzden burada HER ZAMAN None/YAPISAL
+# OLARAK YOK) ile ÇALIŞIR. Nominal ağırlıklar İCAT EDİLMEDİ -- sanayi
+# GÜVENLİK tablosundaki (spec_mercek_guvenlik.md) MEVCUT "Bilanço Kalitesi"
+# (%20, özkaynak/varlık bunun YARISIdır) ve "Piotroski F-Skoru" (%25)
+# ağırlıkları AYNI 4:5 ORANIYLA, ama %100'e TAMAMLANACAK şekilde YENİDEN
+# YAZILIR (20/45*100=%44,44, 25/45*100=%55,56) -- SADELİKLE (20,25) DEĞİL
+# çünkü `_agirlik_dagit_ve_hesapla`'nın `min_veri_agirlik_yuzdesi=%50`
+# kontrolü nominal ağırlıkların TOPLAMDA %100'e tamamlandığı VARSAYIMIYLA
+# çalışır (bkz. `lens_kalite.hesapla_kalite_mercegi_banka`'daki AYNI
+# düzeltme, bu turda İKİ yerde de giderildi) -- Piotroski HER ZAMAN None
+# döndüğü için `_agirlik_dagit_ve_hesapla` ağırlığını OTOMATİK olarak
+# özkaynak/aktif oranına (%100) devreder (banka/finansman'da); sigorta'da
+# özkaynak/aktif oranı da None'dır (UFRS_K şemasında `total_assets` hiç
+# YOK) -- bu durumda mercek dürüstçe "YETERSİZ VERİ" döner (Kural 3:
+# uydurma yapılmaz, spec_bilesik_skor.md'nin "eksik ama dürüst" ilkesi).
+
+
+def _skor_ozkaynak_aktif_orani(oran_pct: Decimal | None) -> tuple[Decimal | None, str]:
+    """CAMELS "Capital Adequacy" ruhuna uygun proxy -- `scorer.CONFIG["banka"]
+    ["ozkaynak_aktif_orani"]` eşikleri (güçlü≥%12, orta≥%8, tavan%18) AYNEN
+    kullanılır (regülatif Sermaye Yeterlilik Oranı'nın YERİNE GEÇMEZ, bkz.
+    scorer.score_bank() docstring'i -- v1'deki AYNI proxy v2'ye taşınır)."""
+    if oran_pct is None:
+        return (
+            None,
+            "özkaynak/aktif oranı hesaplanamadı (bu şirket türünde toplam varlık verisi eksik/uygulanamaz), "
+            "bileşen atlandı.",
+        )
+    cfg = scorer.CONFIG["banka"]["ozkaynak_aktif_orani"]
+    return seviye_trend_skoru_v2(
+        "Özkaynak/aktif oranı (sermaye yeterliliği proxy'si)", oran_pct, None,
+        guclu_esik=cfg["guclu_esik"], orta_esik=cfg["orta_esik"], tavan=cfg["tavan"],
+    )
+
+
+def hesapla_guvenlik_mercegi_finans(
+    ticker: str,
+    period: tuple[int, int],
+    ozkaynak_aktif_orani_pct: Decimal | None,
+    piotroski: PiotroskiResult | None = None,
+) -> LensSonucu:
+    """Banka/sigorta/finansman şablonu -- SADECE özkaynak/aktif oranı +
+    (varsa) Piotroski benzeri sağlık taraması (spec §Sektör ayarlaması
+    madde 1).
+
+    `piotroski` BU TURDA daima `None` gelir (fundamental_screens.py
+    SADECE BİST XI_29 sanayi için hesaplar) -- parametre olarak TUTULDU ki
+    bu iskelet ileride (spec'in kendi notu: "bankalar için henüz YOK,
+    iskelet") gerçek bir Piotroski-benzeri tarama eklenirse tek satırla
+    doldurulabilsin. `piotroski is None` iken bu bileşen `spec_mercek_
+    kalite.md`'nin "YAPISAL OLARAK YOK -- kartta boş satır DEĞİL" ilkesiyle
+    TUTARLI olarak bileşen LİSTESİNDEN TAMAMEN ÇIKARILIR (None-skorlu bir
+    bileşen olarak GÖSTERİLMEZ) -- aksi halde HİÇBİR ZAMAN dolmayacak bir
+    nominal ağırlık (%55,56) sürekli "veri kapsamını" %50 eşiğinin altında
+    tutar ve mercek asla `data_sufficient=True` OLAMAZDI (CANLI doğrulandı,
+    `lens_kalite.hesapla_kalite_mercegi_banka`'daki AYNI sınıf hatanın bir
+    başka örneği)."""
+    oao = _skor_ozkaynak_aktif_orani(ozkaynak_aktif_orani_pct)
+    if piotroski is not None:
+        piyo = _skor_piotroski(piotroski)
+        bilesenler = [
+            # 20:25 (sanayi güvenlik tablosundaki Bilanço Kalitesi:Piotroski
+            # oranı) AYNI 4:5 ORANIYLA, %100'e tamamlanacak şekilde: 44,44/55,56.
+            ("Özkaynak/Aktif Oranı (sermaye yeterliliği proxy'si)", Decimal("44.44"), oao),
+            ("Piotroski Benzeri Finansal Sağlık Taraması", Decimal("55.56"), piyo),
+        ]
+    else:
+        bilesenler = [
+            ("Özkaynak/Aktif Oranı (sermaye yeterliliği proxy'si)", Decimal("100"), oao),
+        ]
+    return _agirlik_dagit_ve_hesapla(ticker, period, "güvenlik_finans", bilesenler)

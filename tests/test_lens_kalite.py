@@ -120,6 +120,16 @@ def test_kalite_mercegi_banka_ikisi_de_varsa_agirlik_orani_80_20() -> None:
     assert roa_agirlik == Decimal(20)
 
 
+def test_kalite_mercegi_banka_ikisi_de_varsa_veri_yeterli() -> None:
+    """Nominal agirlik duzeltmesi (bu tur): (20,5) -> (80,20) -- ONCEKI
+    surumde nominal toplam (25) HER ZAMAN min_veri_agirlik_yuzdesi (%50)
+    esiginin ALTINDA kalip data_sufficient'i YANLISLIKLA False donduruyordu
+    (CANLI dogrulandi), ROE+ROA ikisi de dolu olsa BILE."""
+    sonuc = hesapla_kalite_mercegi_banka("AKBNK", (2026, 3), roe_pct=Decimal("25"), roa_pct=Decimal("3"))
+    assert sonuc.data_sufficient
+    assert sonuc.badge != "YETERSİZ VERİ"
+
+
 def test_kalite_mercegi_banka_sadece_roe_varsa_agirlik_100() -> None:
     sonuc = hesapla_kalite_mercegi_banka("AKBNK", (2026, 3), roe_pct=Decimal("25"), roa_pct=None)
     isimler = {c.name: c for c in sonuc.components}

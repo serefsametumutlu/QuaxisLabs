@@ -32,7 +32,16 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from src.analysis import scorer
-from src.analysis.calculator import AnalysisResult, ValuationMetrics
+from src.analysis.calculator import (
+    AnalysisResult,
+    BankAnalysisResult,
+    BankValuationMetrics,
+    FinancingAnalysisResult,
+    FinancingValuationMetrics,
+    InsuranceAnalysisResult,
+    InsuranceValuationMetrics,
+    ValuationMetrics,
+)
 from src.analysis.fundamental_screens import AcquirersMultipleResult, FundamentalScreens, GrahamResult, GreenblattResult
 from src.analysis.lens_common import (
     MIN_SECTOR_N,
@@ -52,15 +61,23 @@ from src.analysis.lens_common import (
 class DegerGirdisi:
     """Değer merceği hesaplamasının TÜM girdileri -- pipeline.py bunları
     zaten var olan `calculator`/`fundamental_screens` çağrılarından toplar,
-    burada YENİDEN hesaplama YAPILMAZ."""
+    burada YENİDEN hesaplama YAPILMAZ.
 
-    analysis: AnalysisResult
-    valuation: ValuationMetrics | None = None
+    `analysis`/`valuation`: banka/sigorta/finansman şablonlarında
+    `BankAnalysisResult`/`InsuranceAnalysisResult`/`FinancingAnalysisResult`
+    (+ karşılık gelen `*ValuationMetrics`) de kabul edilir -- bu mercek
+    SADECE `.ticker`/`.latest_period`/`.pe_ratio`/`.pb_ratio` gibi ORTAK
+    alanlara dokunur (NCAV bileşeni HARİÇ, bkz. `hesapla_deger_mercegi`
+    template guard'ı -- `current_assets`/`total_liabilities` kavramı bu
+    şablonlarda YOK)."""
+
+    analysis: AnalysisResult | BankAnalysisResult | InsuranceAnalysisResult | FinancingAnalysisResult
+    valuation: ValuationMetrics | BankValuationMetrics | InsuranceValuationMetrics | FinancingValuationMetrics | None = None
     fundamental: FundamentalScreens | None = None  # SADECE BİST XI_29 sanayi
     risk_free_rate_pct: Decimal | None = None  # `valuation._RISK_FREE_RATE_PCT[currency]`
     sektor_pe: SektorIstatistigi | None = None
     sektor_pb: SektorIstatistigi | None = None
-    template: str = "sanayi"  # "sanayi" | "abd_sanayi" (CONFIG'te degerleme esikleri olan sablonlar)
+    template: str = "sanayi"  # "sanayi" | "abd_sanayi" | "banka" | "sigorta" | "finansman"
 
 
 def _skor_sektore_goreli(
@@ -231,7 +248,20 @@ def hesapla_deger_mercegi(girdi: DegerGirdisi) -> LensSonucu:
     graham = _skor_graham_carpani(graham_kaynagi)
     greenblatt = _skor_greenblatt_kazanc_getirisi(greenblatt_kaynagi)
     carlisle = _skor_carlisle(carlisle_kaynagi)
-    ncav = _skor_ncav_bonus(girdi.analysis, girdi.valuation)
+
+    if girdi.template in ("sanayi", "abd_sanayi"):
+        ncav = _skor_ncav_bonus(girdi.analysis, girdi.valuation)
+    else:
+        # Banka/sigorta/finansman bilanço şeması (BankAnalysisResult/
+        # InsuranceAnalysisResult/FinancingAnalysisResult) sanayiden YAPISAL
+        # OLARAK FARKLIDIR -- `current_assets`/`total_liabilities` kavramı bu
+        # şablonlarda YOK (mevduat/kredi zaten bankanın iş modelinin
+        # kendisidir, "net işletme sermayesi" kavramsal olarak ANLAMSIZDIR --
+        # spec_mercek_guvenlik.md'nin Kaldıraç/Toplam Yükümlülük-Özkaynak
+        # bileşenlerini AYNI gerekçeyle banka/sigorta/finansman'da
+        # UYGULANAMAZ sayması ile TUTARLI). Bileşen YAPISAL OLARAK YOK
+        # sayılır (None ile aynı -- ağırlık diğer bileşenlere yeniden dağıtılır).
+        ncav = None, "NCAV / net işletme sermayesi kavramı bu şirket türünde (banka/sigorta/finansman) uygulanamaz, bileşen atlandı."
 
     bilesenler = [
         ("Mutlak Ucuzluk (F/K + PD/DD)", Decimal("35"), mutlak_ucuzluk),

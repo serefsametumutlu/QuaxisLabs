@@ -40,12 +40,19 @@ class BuyumeGirdisi:
 
 
 def _skor_hasilat_buyumesi(
-    hasilat_yoy_pct: Decimal | None, enflasyon_yoy_pct: Decimal | None, cfg: dict
+    hasilat_yoy_pct: Decimal | None, enflasyon_yoy_pct: Decimal | None, cfg: dict, metrik_adi: str = "satış"
 ) -> tuple[Decimal | None, str]:
     """Mevcut scorer.py `buyume` cfg'si AYNEN taşınır -- SADECE motor
-    `seviye_trend_skoru_v2`'ye (K1 düzeltmeli) geçirilmiştir."""
+    `seviye_trend_skoru_v2`'ye (K1 düzeltmeli) geçirilmiştir.
+
+    `metrik_adi` (bu tur EKLENDİ, banka/sigorta/finansman desteği için):
+    banka/finansman şablonlarında "satış" yerine "kredi"/"finansman geliri"
+    gibi doğru metrik adı geçirilir (spec_mercek_buyume.md §Sektör
+    ayarlaması madde 3: Hasılat Büyümesi bileşeni bu şablonlarda Prim/
+    kredi büyümesi ile DEĞİŞTİRİLİR) -- varsayılan "satış" ESKİ davranışı
+    (sanayi/abd_sanayi metin çıktısı) DEĞİŞTİRMEZ."""
     if hasilat_yoy_pct is None:
-        return None, "hasılat YoY değişimi hesaplanamadı (önceki dönem verisi yok), bileşen atlandı."
+        return None, f"{metrik_adi} YoY değişimi hesaplanamadı (önceki dönem verisi yok), bileşen atlandı."
 
     if enflasyon_yoy_pct is not None:
         reel = hasilat_yoy_pct - enflasyon_yoy_pct
@@ -55,9 +62,9 @@ def _skor_hasilat_buyumesi(
         not_metni = "(enflasyon verisi girilmedi, nominal büyüme kullanıldı)"
 
     skor, _gerekce = seviye_trend_skoru_v2(
-        "Satış büyümesi", reel, None, guclu_esik=cfg["guclu_esik"], orta_esik=cfg["orta_esik"], tavan=cfg["tavan"], taban=cfg["taban"]
+        f"{metrik_adi.capitalize()} büyümesi", reel, None, guclu_esik=cfg["guclu_esik"], orta_esik=cfg["orta_esik"], tavan=cfg["tavan"], taban=cfg["taban"]
     )
-    aciklama = f"satış büyümesi {format_percent_tr(reel)} {not_metni}."
+    aciklama = f"{metrik_adi} büyümesi {format_percent_tr(reel)} {not_metni}."
     if reel is not None and reel > Decimal(25):
         # 01/İLKE-72 (Zweig): Fortune 500'ün en büyük 150'sinden sadece 8'i
         # (2 tam onyıl >=%15) sürdürebildi -- BÜYÜME İSTİKRARI ÇEKİNCESİ,
@@ -159,3 +166,69 @@ def hesapla_buyume_mercegi(girdi: BuyumeGirdisi) -> LensSonucu:
         ("Marjinal ROE + Verimlilik Kaynaklı Büyüme", Decimal("20"), marjinal),
     ]
     return _agirlik_dagit_ve_hesapla(girdi.analysis.ticker, girdi.analysis.latest_period, "büyüme", bilesenler)
+
+
+# --- Banka/sigorta/finansman şablonu (spec §Sektör ayarlaması madde 3) -----------------------------------------------------
+#
+# Hasılat Büyümesi bileşeni Prim Büyümesi (sigorta, zaten `analysis.ratios.
+# premium_growth_yoy_pct` MEVCUT) veya kredi büyümesi (banka/UFRS_KATILIM,
+# `financials_by_period`'daki ham `loans` alanından, YENİ) veya finansman
+# geliri büyümesi (finansman/XI_29K, ham `financing_revenue` alanından,
+# YENİ) ile DEĞİŞTİRİLİR -- diğer 2 bileşen (PEG, Marjinal ROE) bu
+# şablonlarda da KAVRAMSAL OLARAK geçerlidir (ROE zaten `analysis.ratios`
+# içinde MEVCUT, bkz. spec_bilesik_skor.md §Kenar durumlar).
+#
+# EŞİK KAYNAĞI (uydurma DEĞİL): bu 3 şablon için AYRI bir "büyüme" eşik
+# seti `scorer.CONFIG`'te YOKTUR (v1'in score_bank()/score_financing()
+# fonksiyonları hiç büyüme bileşeni İÇERMEZ) -- yeni bir eşik İCAT ETMEK
+# yerine, `scorer.CONFIG["sigorta"]["prim_buyumesi"]` (güçlü=%15/orta=%0/
+# tavan=%40/taban=%-20 -- v1'de ZATEN kalibre edilmiş, finansal sektöre
+# özgü TEK büyüme eşiği) ÜÇÜNDE de ORTAK kullanılır (sigortada zaten
+# doğrudan aynı kaynak, banka/finansman'da "benzer büyüklükte finansal
+# sektör büyüme oranı" varsayımıyla GENELLEŞTİRİLİR).
+
+
+def _finansal_sektor_buyume_cfg() -> dict:
+    return scorer.CONFIG["sigorta"]["prim_buyumesi"]
+
+
+@dataclass(frozen=True)
+class BuyumeGirdisiFinans:
+    """Banka/sigorta/finansman şablonu için Büyüme merceği girdileri.
+
+    `analysis`: `calculator.BankAnalysisResult` / `InsuranceAnalysisResult`
+    / `FinancingAnalysisResult` -- bu fonksiyon SADECE `.ticker`/
+    `.latest_period`/`.ratios.roe_annualized`/`.ratios.ttm_net_income`
+    ORTAK alanlarına dokunur (duck-typing, `_skor_marjinal_roe_ve_
+    verimlilik` sanayi ile TAMAMEN AYNI, kopyalanmadı).
+
+    `buyume_orani_pct`: çağıran taraf (pipeline.py) önceden hesaplar --
+    sigorta için `analysis.ratios.premium_growth_yoy_pct` DOĞRUDAN, banka
+    için ham `loans` YoY değişimi (`calculator.classify_change`), finansman
+    için ham `financing_revenue` YoY değişimi (AYNI fonksiyon) ile."""
+
+    analysis: object
+    financials_by_period: FinancialsByPeriod
+    template: str  # "banka" | "sigorta" | "finansman"
+    buyume_orani_pct: Decimal | None = None
+    buyume_metrik_adi: str = "prim"  # "kredi" (banka) | "prim" (sigorta) | "finansman geliri" (finansman)
+    own_pe: Decimal | None = None
+    enflasyon_yoy_pct: Decimal | None = None
+
+
+def hesapla_buyume_mercegi_finans(girdi: BuyumeGirdisiFinans) -> LensSonucu:
+    """spec_mercek_buyume.md §Sektör ayarlaması madde 3 -- 3 bileşenli AYNI
+    yapı (Hasılat/Prim/Kredi Büyümesi %55, PEG %25, Marjinal ROE+Verimlilik
+    %20), SADECE büyüme kaynağı ve eşik seti değişir."""
+    cfg = _finansal_sektor_buyume_cfg()
+    hasilat = _skor_hasilat_buyumesi(girdi.buyume_orani_pct, girdi.enflasyon_yoy_pct, cfg, metrik_adi=girdi.buyume_metrik_adi)
+    peg = _skor_peg(girdi.own_pe, girdi.buyume_orani_pct)
+    marjinal = _skor_marjinal_roe_ve_verimlilik(girdi.analysis, girdi.financials_by_period)
+
+    etiket = {"banka": "Kredi", "sigorta": "Prim", "finansman": "Finansman Geliri"}.get(girdi.template, girdi.buyume_metrik_adi.capitalize())
+    bilesenler = [
+        (f"{etiket} Büyümesi (reel, seviye+trend)", Decimal("55"), hasilat),
+        ("PEG Oranı (Lynch)", Decimal("25"), peg),
+        ("Marjinal ROE + Verimlilik Kaynaklı Büyüme", Decimal("20"), marjinal),
+    ]
+    return _agirlik_dagit_ve_hesapla(girdi.analysis.ticker, girdi.analysis.latest_period, f"büyüme_{girdi.template}", bilesenler)

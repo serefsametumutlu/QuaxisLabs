@@ -33,6 +33,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
+from src.analysis import scorer
 from src.analysis.calculator import AnalysisResult
 from src.analysis.fundamental_screens import GreenblattResult
 from src.analysis.lens_common import LensSonucu, _agirlik_dagit_ve_hesapla, _lerp_score, _asymptote_to, oran_str, seviye_trend_skoru_v2
@@ -132,18 +133,46 @@ def hesapla_kalite_mercegi(girdi: KaliteGirdisi) -> LensSonucu:
 
 
 def hesapla_kalite_mercegi_banka(
-    ticker: str, period: tuple[int, int], roe_pct: Decimal | None, roa_pct: Decimal | None
+    ticker: str,
+    period: tuple[int, int],
+    roe_pct: Decimal | None,
+    roa_pct: Decimal | None,
+    template: str = "banka",
 ) -> LensSonucu:
     """Banka/sigorta/finansman şablonu -- SADECE ROE+ROA (spec §Sektör
-    ayarlaması madde 1). Nominal ağırlıklar `sanayi` şablonuyla AYNI
-    tutulur (ROE=20, ROA=5) ki `_agirlik_dagit_ve_hesapla`'nın orantısal
-    dağıtımı OTOMATİK olarak %80/%20'yi üretsin (quant_denetim_01.md Y1
-    düzeltmesi -- doğru oran BU merceğin KENDİ ağırlıklarından türetilir,
-    banka CONFIG'inin BAŞKA bir oranından DEĞİL)."""
-    roe = seviye_trend_skoru_v2("Özkaynak kârlılığı (ROE)", roe_pct, None, guclu_esik=Decimal(20), orta_esik=Decimal(10), tavan=Decimal(35))
-    roa = seviye_trend_skoru_v2("Aktif kârlılığı (ROA)", roa_pct, None, guclu_esik=Decimal("2.5"), orta_esik=Decimal(1), tavan=Decimal(4))
+    ayarlaması madde 1). Nominal ağırlıklar HER şablonda AYNI tutulur
+    (ROE=20, ROA=5) ki `_agirlik_dagit_ve_hesapla`'nın orantısal dağıtımı
+    OTOMATİK olarak %80/%20'yi üretsin (quant_denetim_01.md Y1 düzeltmesi
+    -- doğru oran BU merceğin KENDİ ağırlıklarından türetilir, banka
+    CONFIG'inin BAŞKA bir oranından DEĞİL).
+
+    DÜZELTME (bu tur -- banka/sigorta/finansman v2 desteğinin bitirilmesi):
+    eşikler artık `template` parametresine göre `scorer.CONFIG[template]`
+    içinden okunur -- ÖNCEKİ sürüm BANKA'nın kendi eşiklerini (ROE
+    güçlü=%20/orta=%10/tavan=%35, ROA güçlü=%2,5/orta=%1/tavan=%4)
+    sigorta/finansman için de SESSİZCE kullanıyordu; oysa v1'in KENDİ
+    kalibre ettiği şablon-özel eşikleri FARKLIDIR
+    (`CONFIG["sigorta"]["ozkaynak_karliligi"]` güçlü=%25/orta=%10/tavan=%40,
+    `CONFIG["finansman"]["aktif_karliligi"]` güçlü=%5/orta=%2/tavan=%10,
+    taban=%-5) -- persona kural 8 ("v1'deki desene sadık kal") gereği
+    artık DOĞRU şablondan okunur. `template="banka"` varsayılanı ESKİ
+    davranışı (ve mevcut testleri) DEĞİŞTİRMEZ. Sigorta CONFIG'inde
+    `aktif_karliligi` alt-sözlüğü hiç YOK (ham `total_assets` verisi
+    UFRS_K şemasında hiç yok, ROA zaten HER ZAMAN None gelir) -- bu
+    durumda banka'nın ROA eşikleri YEDEK olarak kullanılır (hiçbir zaman
+    tetiklenmez, sadece KeyError'u önler)."""
+    roe_cfg = scorer.CONFIG[template]["ozkaynak_karliligi"]
+    roa_cfg = scorer.CONFIG[template].get("aktif_karliligi") or scorer.CONFIG["banka"]["aktif_karliligi"]
+    roe = seviye_trend_skoru_v2(
+        "Özkaynak kârlılığı (ROE)", roe_pct, None,
+        guclu_esik=roe_cfg["guclu_esik"], orta_esik=roe_cfg["orta_esik"], tavan=roe_cfg["tavan"],
+    )
+    roa = seviye_trend_skoru_v2(
+        "Aktif kârlılığı (ROA)", roa_pct, None,
+        guclu_esik=roa_cfg["guclu_esik"], orta_esik=roa_cfg["orta_esik"], tavan=roa_cfg["tavan"],
+    )
     bilesenler = [
         ("Özkaynak Kârlılığı (ROE)", Decimal("20"), roe),
         ("Aktif Kârlılığı (ROA)", Decimal("5"), roa),
     ]
-    return _agirlik_dagit_ve_hesapla(ticker, period, "kalite_banka", bilesenler)
+    return _agirlik_dagit_ve_hesapla(ticker, period, f"kalite_{template}", bilesenler)

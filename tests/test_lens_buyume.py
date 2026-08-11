@@ -5,7 +5,14 @@ from __future__ import annotations
 from decimal import Decimal
 
 from src.analysis import calculator
-from src.analysis.lens_buyume import BuyumeGirdisi, hesapla_buyume_mercegi, _skor_marjinal_roe_ve_verimlilik, _skor_peg
+from src.analysis.lens_buyume import (
+    BuyumeGirdisi,
+    BuyumeGirdisiFinans,
+    hesapla_buyume_mercegi,
+    hesapla_buyume_mercegi_finans,
+    _skor_marjinal_roe_ve_verimlilik,
+    _skor_peg,
+)
 
 _LATEST = (2026, 3)
 _QOQ_PRIOR = (2025, 12)
@@ -111,3 +118,104 @@ def test_marjinal_roe_pozitif_ozkaynakta_hesaplanir() -> None:
     assert skor is not None
     assert Decimal("0") <= skor <= Decimal("10")
     assert "marjinal ROE" in gerekce
+
+
+# --- hesapla_buyume_mercegi_finans (banka/sigorta/finansman -- spec §Sektör ayarlaması madde 3) -----------------------------------------------------
+
+_SIG_LATEST = (2026, 3)
+_SIG_QOQ = (2025, 12)
+_SIG_YOY = (2025, 3)
+
+
+_SIG_PRIOR_YEAR_FULL = (2024, 12)
+_SIG_PRIOR_YEAR_SAME_Q = (2024, 3)
+
+
+def _sigorta_fbp() -> dict:
+    return {
+        _SIG_LATEST: {
+            "gross_written_premiums_cum": Decimal("500"), "gross_written_premiums": Decimal("500"),
+            "net_premiums_earned_cum": Decimal("400"),
+            "technical_income_cum": Decimal("300"), "technical_expense_cum": Decimal("-250"),
+            "net_income_cum": Decimal("40"),
+            "receivables_from_operations": Decimal("100"), "payables_from_operations": Decimal("80"),
+            "equity": Decimal("600"), "share_capital": Decimal("200"),
+        },
+        _SIG_QOQ: {"net_income_cum": Decimal("140"), "equity": Decimal("560")},
+        _SIG_YOY: {"gross_written_premiums": Decimal("400"), "net_income_cum": Decimal("30"), "equity": Decimal("480")},
+        _SIG_PRIOR_YEAR_FULL: {"net_income_cum": Decimal("110")},
+        _SIG_PRIOR_YEAR_SAME_Q: {"net_income_cum": Decimal("25")},
+    }
+
+
+def _sigorta_analysis():
+    return calculator.analyze_insurance("TESTSIG", _sigorta_fbp())
+
+
+def _banka_fbp() -> dict:
+    return {
+        _SIG_LATEST: {
+            "interest_income_cum": Decimal("500"), "interest_expense_cum": Decimal("-200"),
+            "net_income_cum": Decimal("120"),
+            "loans": Decimal("4000"), "deposits": Decimal("4500"), "total_assets": Decimal("10000"),
+            "equity": Decimal("1200"), "share_capital": Decimal("500"),
+        },
+        _SIG_QOQ: {"interest_income_cum": Decimal("1600"), "net_income_cum": Decimal("380"), "loans": Decimal("3800"), "equity": Decimal("1100")},
+        _SIG_YOY: {"interest_income_cum": Decimal("420"), "net_income_cum": Decimal("95"), "loans": Decimal("3200"), "equity": Decimal("950")},
+        _SIG_PRIOR_YEAR_FULL: {"net_income_cum": Decimal("340")},
+        _SIG_PRIOR_YEAR_SAME_Q: {"net_income_cum": Decimal("80")},
+    }
+
+
+def _banka_analysis():
+    return calculator.analyze_bank("TESTBANK", _banka_fbp())
+
+
+def test_buyume_mercegi_finans_sigorta_prim_buyumesi_bileseni_uretir() -> None:
+    analysis = _sigorta_analysis()
+    fbp = _sigorta_fbp()
+    girdi = BuyumeGirdisiFinans(
+        analysis=analysis, financials_by_period=fbp, template="sigorta",
+        buyume_orani_pct=analysis.ratios.premium_growth_yoy_pct, buyume_metrik_adi="prim",
+        own_pe=Decimal("8"),
+    )
+    sonuc = hesapla_buyume_mercegi_finans(girdi)
+    isimler = {c.name: c for c in sonuc.components}
+    assert "Prim Büyümesi (reel, seviye+trend)" in isimler
+    assert isimler["Prim Büyümesi (reel, seviye+trend)"].score is not None
+    assert isimler["PEG Oranı (Lynch)"].score is not None
+    assert sonuc.total_score > Decimal("0")
+
+
+def test_buyume_mercegi_finans_banka_kredi_buyumesi_bileseni_uretir() -> None:
+    analysis = _banka_analysis()
+    fbp = _banka_fbp()
+    kredi_buyume_pct, _label, _direction = calculator.classify_change(
+        fbp[_SIG_LATEST]["loans"], fbp[_SIG_YOY]["loans"]
+    )
+    girdi = BuyumeGirdisiFinans(
+        analysis=analysis, financials_by_period=fbp, template="banka",
+        buyume_orani_pct=kredi_buyume_pct, buyume_metrik_adi="kredi",
+    )
+    sonuc = hesapla_buyume_mercegi_finans(girdi)
+    isimler = {c.name: c for c in sonuc.components}
+    assert "Kredi Büyümesi (reel, seviye+trend)" in isimler
+    assert isimler["Kredi Büyümesi (reel, seviye+trend)"].score is not None
+    assert isimler["Marjinal ROE + Verimlilik Kaynaklı Büyüme"].score is not None
+
+
+def test_buyume_mercegi_finans_buyume_verisi_yoksa_atlanir_diger_bilesenler_calisir() -> None:
+    analysis = _sigorta_analysis()
+    fbp = _sigorta_fbp()
+    girdi = BuyumeGirdisiFinans(
+        analysis=analysis, financials_by_period=fbp, template="sigorta",
+        buyume_orani_pct=None, buyume_metrik_adi="prim", own_pe=Decimal("8"),
+    )
+    sonuc = hesapla_buyume_mercegi_finans(girdi)
+    isimler = {c.name: c for c in sonuc.components}
+    assert isimler["Prim Büyümesi (reel, seviye+trend)"].score is None
+    # PEG de buyume_orani_pct'e bagli oldugu icin (payda) o da None olmali.
+    assert isimler["PEG Oranı (Lynch)"].score is None
+    # Marjinal ROE buyume oranindan BAGIMSIZ -- HALA calisir.
+    assert isimler["Marjinal ROE + Verimlilik Kaynaklı Büyüme"].score is not None
+    assert sonuc.total_score > Decimal("0")

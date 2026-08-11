@@ -125,3 +125,49 @@ def test_kalite_mercegi_banka_sadece_roe_varsa_agirlik_100() -> None:
     isimler = {c.name: c for c in sonuc.components}
     assert isimler["Özkaynak Kârlılığı (ROE)"].weight_effective == Decimal(100)
     assert isimler["Aktif Kârlılığı (ROA)"].score is None
+
+
+# --- hesapla_kalite_mercegi_banka: template-farkindalik (bu tur -- sigorta/finansman eslikleri banka'dan FARKLI) -----------------------------------------------------
+
+
+def test_kalite_mercegi_banka_template_varsayilan_banka_esikleriyle_ayni() -> None:
+    """template verilmezse ESKI davranis (banka esikleri, ROE guclu=%20)
+    KORUNUR -- geriye uyumluluk (mevcut testler DEGISMEDEN gecmeli)."""
+    sonuc = hesapla_kalite_mercegi_banka("AKBNK", (2026, 3), roe_pct=Decimal("20"), roa_pct=None)
+    isimler = {c.name: c for c in sonuc.components}
+    # ROE=20 banka guclu_esik'ine (20) TAM denk -- _lerp_score(20,10,20,4,7)=7 asymptote basi.
+    assert isimler["Özkaynak Kârlılığı (ROE)"].score is not None
+
+
+def test_kalite_mercegi_sigorta_kendi_roe_esiklerini_kullanir() -> None:
+    """CONFIG['sigorta']['ozkaynak_karliligi'] = guclu=%25/orta=%10/tavan=%40
+    -- banka'dan (guclu=%20) FARKLI. ROE=%22 banka'da 'guclu' bandina
+    girerken sigortada henuz 'orta-guclu arasi' kalir -- iki template
+    FARKLI skor uretmeli (aksi halde eski hatali davranis SESSIZCE devam
+    ediyor demektir)."""
+    banka_sonuc = hesapla_kalite_mercegi_banka("XBANK", (2026, 3), roe_pct=Decimal("22"), roa_pct=None, template="banka")
+    sigorta_sonuc = hesapla_kalite_mercegi_banka("XSIGORTA", (2026, 3), roe_pct=Decimal("22"), roa_pct=None, template="sigorta")
+    banka_roe = {c.name: c for c in banka_sonuc.components}["Özkaynak Kârlılığı (ROE)"].score
+    sigorta_roe = {c.name: c for c in sigorta_sonuc.components}["Özkaynak Kârlılığı (ROE)"].score
+    assert banka_roe != sigorta_roe
+
+
+def test_kalite_mercegi_finansman_kendi_roa_esiklerini_kullanir() -> None:
+    """CONFIG['finansman']['aktif_karliligi'] = guclu=%5/orta=%2/tavan=%10
+    -- banka'dan (guclu=%2,5) FARKLI. ROA=%4 banka esiginde 'guclu'ye
+    YAKIN/UZERINDE iken finansmanda henuz orta-guclu arasindadir."""
+    banka_sonuc = hesapla_kalite_mercegi_banka("XBANK", (2026, 3), roe_pct=None, roa_pct=Decimal("4"), template="banka")
+    finansman_sonuc = hesapla_kalite_mercegi_banka("XFIN", (2026, 3), roe_pct=None, roa_pct=Decimal("4"), template="finansman")
+    banka_roa = {c.name: c for c in banka_sonuc.components}["Aktif Kârlılığı (ROA)"].score
+    finansman_roa = {c.name: c for c in finansman_sonuc.components}["Aktif Kârlılığı (ROA)"].score
+    assert banka_roa != finansman_roa
+
+
+def test_kalite_mercegi_sigorta_roa_yoksa_keyerror_atmaz_yedek_esik_kullanir() -> None:
+    """CONFIG['sigorta']'da 'aktif_karliligi' alt-sozlugu hic YOK -- roa_pct
+    zaten None geldigi icin bu hicbir zaman TETIKLENMEZ ama yedek esik
+    (banka'nin) dict erisiminde KeyError FIRLATMAMALI."""
+    sonuc = hesapla_kalite_mercegi_banka("XSIGORTA", (2026, 3), roe_pct=Decimal("25"), roa_pct=None, template="sigorta")
+    isimler = {c.name: c for c in sonuc.components}
+    assert isimler["Aktif Kârlılığı (ROA)"].score is None
+    assert isimler["Özkaynak Kârlılığı (ROE)"].weight_effective == Decimal(100)

@@ -1711,3 +1711,188 @@ Her seçimin EŞLEŞEN bir kazanç/defter değeri ölçüsü VARDIR (Tablo 8.1/8
 - **Kısıtlı hisse/özel yerleştirme/QMDM (FORMÜL-132/133/136)** — özel şirket değerleme aracı, kapsam dışı.
 - **Sentetik spread/illikidite-ayarlı göreli değerleme regresyonları (FORMÜL-134/137)** — Kısım 4-5'teki BİLİNEN "çok-firma cross-sectional regresyon altyapısı yok" eksikliği; ancak turnover-ratio verisi (FORMÜL-130) EKLENİRSE bu regresyonların bir versiyonu için GİRDİ HAZIR OLACAKTIR.
 - **Optimal/status-quo çift-senaryo değerleme (FORMÜL-125-128'in ORTAK KÖKÜ)** — `valuation.py` TEK-senaryolu çalışıyor, "karşı-olgusal" (counterfactual) yeniden-çalıştırma yeteneği YOK; WACC eksikliği (Kısım 1'den beri bilinen) burada "optimal financing" senaryosunu da ENGELLEYEREK kümülatif etkisini GENİŞLETTİ.
+
+---
+
+## Kısım 8a — Bölüm 15: Sinerji Değeri (Ch.15 The Value of Synergy, PDF s.706-748)
+
+> Not: Kısım 8 planı Ch.15+Ch.16 idi; bu oturumda SADECE Ch.15 işlendi. Ch.16 (Şeffaflık Değeri, PDF s.749-795) ayrı bir oturuma bırakıldı — bkz. `_ilerleme.md`.
+
+### İlkeler
+
+- İLKE-342: Sinerji tanımı — iki firmayı birleştirerek, ayrı ayrı faaliyet gösterselerdi elde edemeyecekleri fırsatlar yaratmaktan doğan EK değerdir; M&A'da en çok kullanılan (ve en çok istismar edilen) gerekçedir.
+- İLKE-343: Faaliyet sinerjisi 4 alt türe ayrılır: (1) ölçek ekonomisi (genelde yatay birleşmelerde — aynı sektördeki iki firma), (2) azalan rekabetten doğan fiyatlama gücü artışı (özellikle az sayıda oyunculu sektörlerde etkili), (3) farklı fonksiyonel güçlerin birleşimi (örn. güçlü pazarlama + iyi ürün hattı), (4) yeni/mevcut pazarlarda daha yüksek büyüme (örn. dağıtım ağı + marka + yerel pazar bilgisi birleşimi).
+- İLKE-344: Finansal sinerji dört kaynaktan gelir: nakit fazlası (cash slack), borç kapasitesi artışı, vergi avantajları, çeşitlendirme — ilk üçü gerçek değer yaratabilir, çeşitlendirme genelde YARATMAZ (bkz. İLKE-350).
+- İLKE-345: Faaliyet sinerjileri tipik olarak daha yüksek nakit akışı olarak; finansal sinerjiler ise hem nakit akışı hem daha düşük iskonto oranı (sermaye maliyeti) olarak ortaya çıkabilir.
+- İLKE-346: Sinerji değerinin var olup olmadığı değil, NASIL değerlenmesi gerektiği asıl sorudur — yazar "sinerji tahmin edilemez" görüşünü reddeder; belirsizlik altında bile en iyi tahmin yapılmalıdır, aksi halde firma sinerji için hiç prim ödememelidir.
+- İLKE-347: Sinerjinin değere etkisi ancak DCF'in 4 girdisinden birini (veya birkaçını) değiştirerek olur: mevcut varlıklardan nakit akışı (maliyet tasarrufu), beklenen büyüme oranı (pazar gücü), büyüme döneminin uzunluğu (rekabet avantajı süresi) veya sermaye maliyeti (borç kapasitesi).
+- İLKE-348: Sinerji NE ZAMAN başlayacak sorusu kritiktir — sinerji nadiren anında ortaya çıkar; gecikme ne kadar uzarsa sinerjinin bugünkü değeri o kadar düşer (bkz. FORMÜL-146).
+- İLKE-349: Sinerji değerleme 3 adımdır: (1) iki firmayı kendi ağırlıklı ortalama sermaye maliyetleriyle BAĞIMSIZ değerle, (2) sinerjisiz birleşik değeri iki bağımsız değerin toplamı olarak hesapla, (3) sinerji etkilerini büyüme/nakit akışı/iskonto oranına işleyip birleşik firmayı YENİDEN değerle; farkı sinerji değeridir.
+- İLKE-350: Çeşitlendirme, halka açık ve yatırımcıları kendi başına çeşitlendirebilen firmalar için TEK BAŞINA değer yaratmaz — yatırımcılar bunu çok daha düşük maliyetle kendi portföylerinde yapabilir; sadece özel/kapalı şirketler için potansiyel fayda olabilir.
+- İLKE-351: Çeşitlendirme-güdümlü birleşmede kazanç azalması firma-özel risktir (beta'ya yansımaz, betalar her zaman değer-ağırlıklı ortalamadır) — dolayısıyla riskteki azalma iskonto oranını DEĞİŞTİRMEZ, değeri etkilemez; TEK istisna, azalan değişkenliğin borç kapasitesini artırması (bkz. İLKE-354).
+- İLKE-352: Sinerji ile kontrol değeri (Ch.13) kesinlikle AYRI tutulmalıdır — kontrol değeri hedef firmanın kendi başına daha iyi yönetilmesinden gelir (tek firma analizi), sinerji ise İKİ firmanın birleşiminden gelir; karıştırmak çifte sayıma ve yanlış iskonto oranı seçimine yol açar.
+- İLKE-353: Nakit fazlası (cash slack) sinerjisi, sermayeye kısıtlı erişimi olan (küçük/özel) bir firma nakit zengini bir firmayla birleştiğinde, aksi halde reddedilecek pozitif NBD'li projelerin artık üstlenilebilmesinden doğar; büyük halka açık firmaların küçük özel firmaları alması durumunda en belirgindir.
+- İLKE-354: Borç kapasitesi sinerjisi, iki firmanın nakit akışlarının kusursuz korelasyonlu OLMAMASI halinde birleşik firmanın kazanç değişkenliğinin azalmasından, dolayısıyla artan optimal borç oranından/vergi kalkanından doğar; ANCAK bu, mevcut tahvil sahiplerinden hissedarlara doğru bir servet transferi maliyeti taşır (kupon oranları yeniden müzakere edilmezse tahvil fiyatları yükselir).
+- İLKE-355: Borç kapasitesi argümanı SADECE her iki firma da birleşme ÖNCESİ optimal borç seviyesindeyse geçerlidir; hedef veya alıcı zaten kaldıraçsızsa (optimal altında) ve alım bunu düzeltme aracı olarak kullanılıyorsa, bu sinerji DEĞİL, her iki firmanın da tek başına yapabileceği bir kontrol/optimizasyon hareketidir.
+- İLKE-356: Vergi avantajı sinerjisi üç biçimde gelir: (1) zarar eden bir firmanın kullanılamayan vergi indirimlerinin (NOL) kârlı firmayla birleşince mahsup edilmesi, (2) alınan firmanın amortismana tabi varlıklarının piyasa değerine yazılıp yeniden amortisman ayrılabilmesi (şerefiye bu avantajı TAŞIMAZ, amortismanı vergiden düşülemez), (3) bazı ülkelerde (örn. Brezilya) özkaynak defter değeri artışı üzerinden ek vergi indirimi hakkı.
+- İLKE-357: Vergiye dayalı birleşmeler vergi mükelleflerine dolaylı bir maliyet yükler (devlet bu sinerjiyi sübvanse eder) — bu, salt vergi motivasyonlu alımların toplumsal maliyetidir.
+- İLKE-358: Gerçek opsiyonlar çerçevesi (DCF'e ek prim), sadece alım hedefe İSTİSNAİ/ayrıcalıklı bir pazara giriş hakkı veriyorsa gerekçelidir; hedefe girişin birçok alternatif yolundan biri ise (rekabetçi pazar), standart DCF zaten beklenen sinerjiyi yeterince yakalar — opsiyon primi genelde GEREKSİZDİR, şüpheyle yaklaşılmalı.
+- İLKE-359: Şüpheli (dubious) sinerji kategorisi: piyasanın sistematik olarak yanılacağı varsayımına dayanan gerekçeler — bunlar gerçek değer değil, algı yönetimidir.
+- İLKE-360: "Artırıcı (accretive) alım" gerekçesi (alıcının HBK'sının artması) YANLIŞTIR — bu sadece alıcının F/K'sı hedeften yüksekse matematiksel olarak gerçekleşir; piyasa ileriye bakıyorsa birleşik firmanın F/K'sı hedefin düşük F/K'sının NEDENİNİ (risk/düşük büyüme) yansıtacak şekilde düşer; EPS artışı/azalışı TEK BAŞINA değer yaratıp yaratmadığını göstermez.
+- İLKE-361: "Hızlı büyüme satın alma" gerekçesi tehlikelidir — yüksek büyümeli bir hedefin satın alınması alıcının büyüme oranını artırsa bile, ödenen fiyat hedefin gerçek değerini AŞARSA hissedar değeri YOK EDİLİR; değer yaratımı büyümenin kendisinden değil, hedefin değerinin ALTINDA ödemekten gelir.
+- İLKE-362: Duyuru anındaki piyasa tepkisi (birleşik değerin toplam değerden büyük olması) sinerjinin varlığına dair ZAYIF bir kanıttır — çünkü değer artışı düşük değerleme (undervaluation) veya kontrol değişikliği gibi başka hipotezlerle de tutarlıdır.
+- İLKE-363: Birleşme-SONRASI performans (kârlılık/büyüme rakip grubuna göre) sinerjinin varlığına dair DAHA GÜÇLÜ bir testtir; ampirik kanıtlar çoğu birleşmenin bu testi GEÇEMEDİĞİNİ gösterir (bkz. Eşikler tablosu).
+- İLKE-364: Yüksek geri satış/iptal (divestiture) oranları, vaat edilen sinerjinin fiilen teslim edilmediğinin en çarpıcı dolaylı kanıtıdır — uzun vadede izlenen alımların yaklaşık yarısı elden çıkarılmıştır.
+- İLKE-365: Sinerji paylaşımı, her iki tarafın (alıcı/hedef) birleşime kattığı gücün NE KADAR BENZERSİZ olduğuna bağlıdır — alıcının katkısı yalnızca ona özgüyse (başka hiçbir firma aynı sinerjiyi yaratamaz) alıcı payın büyük kısmını alabilir; katkı genel/tekrarlanabilirse (herhangi bir rakip de sağlayabilir) pazarlık gücü hedefe kayar.
+- İLKE-366: Halka açık hedeflerde piyasa rakip teklif verenler için doğal bir mekanizma sunar (hedef fiyatı yukarı zorlar); özel/küçük hedeflerde bu mekanizma zayıftır, dolayısıyla alıcı sinerji değerinin daha büyük payını tutabilir.
+- İLKE-367: Ampirik kanıt, birleşme ilanlarında hedef hissedarların açık kazanan olduğunu, alıcı hissedarların ise genelde sıfıra yakın veya negatif getiri elde ettiğini gösterir — birçok vakada alıcı sinerjinin %100'ünden FAZLASINI öder (bkz. Eşikler).
+- İLKE-368: Alıcıların sinerji için fazla ödemesinin 3 temel nedeni: (1) danışman/yatırım bankacısı teşvik yapısındaki çıkar çatışması (ücret işlemin TAMAMLANMASINA bağlı, mantıklı olmasına değil), (2) yönetici kibri (hubris) — kendini ortalamanın üstünde/istisna görme eğilimi, (3) sinerji teslimatı için açık bir PLAN olmaması ve bu konuda kimsenin sorumlu tutulmaması.
+- İLKE-369: Başarı olasılığını artıran örüntüler: (a) büyük firmanın küçük firmayı alması, "eşitler birleşmesi"nden daha başarılıdır (kültürel çatışma daha az), (b) somut/anında maliyet-tasarruflu sinerjiler büyüme sinerjilerinden daha güvenilir teslim edilir (büyüme sinerjisi belirsiz ve izlenmesi zor), (c) küçük özel firmaları konsolide eden programlar halka açık hedeflere odaklanan programlardan daha başarılıdır (daha yüksek cash-slack faydası + piyasa fiyatına önceden gömülü sinerji primi yok).
+- İLKE-370: Yaygın değerleme hatası — hedef hissedarları, KENDİLERİNİN yaratmadığı güçler için (alıcının yüksek kredi notu, alıcının fazla borç kapasitesi) sübvanse edilmemelidir; bu, alıcı hissedarlarından hedef hissedarlarına haksız bir servet transferidir.
+- İLKE-371: Sinerji nakit akışları BİRLEŞİK firmaya ait olduğundan, iskonto oranı olarak birleşik firmanın sermaye maliyeti kullanılmalıdır — sadece alıcının veya sadece hedefin oranı YANLIŞTIR; "güvenli" görünen vergi tasarrufu nakit akışları bile risksiz oranla iskonto EDİLMEMELİDİR (bunlar asla risksiz değildir).
+- İLKE-372: Sinerji yeni, çok farklı risk profilli bir iş koluna giriyorsa, iskonto oranı ne alıcının ne hedefin mevcut sermaye maliyetiyle SINIRLI olmalıdır — o iş kolunun kendi riskini yansıtmalıdır.
+- İLKE-373: Kontrol ve sinerji birlikte gerekçe gösterildiğinde AYRI değerlenmelidir: önce kontrol değeri (statükoya karşı optimal yönetim, tek firma), sonra sinerji değeri (bu bölümdeki 3 adımlı çerçeve) — sıralama önemlidir, kontrol önce.
+- İLKE-374: Genel sonuç: sinerji sık vaat edilir, nadiren teslim edilir — analist varsayılan olarak SKEPTİK yaklaşmalı, iddia edilen her sinerji kaynağını yukarıdaki 4-DCF-girdisi testinden geçirmelidir.
+
+### Formüller
+
+- FORMÜL-138: Sinerji Değeri
+  - Formül: `Sinerji = Değer(Birleşik, sinerjili) − [Değer(A, bağımsız) + Değer(B, bağımsız)]`
+  - Değişkenler: Değer(A)/Değer(B) = her firmanın kendi WACC'ıyla iskontolanmış bağımsız DCF değeri; Değer(Birleşik, sinerjili) = sinerji varsayımları (marj/büyüme/iskonto oranı değişikliği) işlenmiş birleşik firma DCF değeri.
+  - QuaxisLabs karşılığı: VERİ EKSİK (yapısal) — `valuation.py` yalnızca TEK bir varlığı değerler (β=1 basitleştirmeli FCFE); iki-firma birleştirme/karşılaştırma akışı YOK. Ayrıca her iki firma için de WACC hiç hesaplanmıyor (bkz. Kısım 1/3 notları).
+- FORMÜL-139: Adil Alım Fiyatı Testi
+  - Formül: `Ödenen Toplam Fiyat = Konsolide Değer (sinerji + kontrol dahil) ⇒ değer-nötr işlem`
+  - Değişkenler: Ödenen fiyat = piyasa fiyatı + prim (Figure 15.1); Konsolide değer = Tablo 15.1'deki sinerji+kontrol düzeltmeli değer.
+  - QuaxisLabs karşılığı: `market_cap` (calculator.py:838) piyasa fiyatı tarafını karşılar; prim/konsolide-değer karşılaştırması M&A-özel bir akış olduğundan UYGULANAMAZ (tekil varlık motoru, alım fiyatı girdisi yok).
+- FORMÜL-140: Maliyet Sinerjisi (Vergi Sonrası) Değeri
+  - Formül: `PV(maliyet sinerjisi) = Σ_t [ΔFAVÖK_t × (1 − vergi_oranı)] / (1+WACC_birleşik)^t`
+  - Değişkenler: ΔFAVÖK_t = t yılındaki vergi-öncesi tasarruf; sürekli tasarruflarda terminal değer de büyüme oranıyla hesaplanır.
+  - QuaxisLabs karşılığı: `ttm_operating_profit` (calculator.py) FAVÖK tabanını karşılar; vergi oranı ve WACC alanları YOK (VERİ EKSİK — bkz. Kısım 1 "income_before_tax" bulgusu).
+- FORMÜL-141: Büyüme Sinerjisi — Getiri Artışı Kanalı
+  - Formül: `g_yeni = yeniden_yatırım_oranı × YSGK_yeni` (YSGK = yatırılan sermaye getirisi, vergi sonrası)
+  - Değişkenler: yeniden_yatırım_oranı sabit tutulur, sadece YSGK artışı büyümeyi yükseltir.
+  - QuaxisLabs karşılığı: `valuation.py`'nin `reinvestment_rate = g/ROE` özdeşliği (satır ~419) TERSİNE çalışıyor (g'den reinvestment türetiyor); bu formülün YSGK-öncelikli yönü doğrudan uygulanamaz, kavramsal referans olarak notlandı.
+- FORMÜL-142: Büyüme Sinerjisi — Yeniden Yatırım Oranı Kanalı
+  - Formül: `g_yeni = yeniden_yatırım_oranı_yeni × YSGK_sabit`
+  - Değişkenler: YSGK sabit tutulur, sadece yeniden yatırım oranı artışı büyümeyi yükseltir.
+  - QuaxisLabs karşılığı: Aynı VERİ EKSİK gerekçesi — Capex/yeniden yatırım verisi TAMAMEN EKSİK (Kısım 2'den beri bilinen en yüksek hacimli açık).
+- FORMÜL-143: Büyüme Sinerjisi — Büyüme Dönemi Uzaması Kanalı
+  - Formül: `Δ Değer = PV(Yüksek-büyüme nakit akışları, N'→yıl) − PV(...,N→yıl)`, N' > N (rekabet avantajı süresinin uzaması)
+  - Değişkenler: N/N' = yüksek büyüme dönemi süresi (yıl).
+  - QuaxisLabs karşılığı: `trends.py`'nin 12 çeyrek/~3 yıllık kısıtı çok-yıllı büyüme dönemi projeksiyonunu zaten engelliyor (kitaplar-arası tekrarlanan yapısal açık).
+- FORMÜL-144: Birleşik Firma Kaldıraçsız Beta ve Sermaye Maliyeti
+  - Formül: `β_u,birleşik = [Değer_A/(Değer_A+Değer_B)] × β_u,A + [Değer_B/(Değer_A+Değer_B)] × β_u,B`, sonra birleşik D/E ile yeniden kaldıraçlanır.
+  - Değişkenler: β_u = kaldıraçsız beta (D/E ve vergi oranından arındırılmış); ağırlıklar birleşme ÖNCESİ piyasa değerleridir.
+  - QuaxisLabs karşılığı: VERİ EKSİK — beta hiç hesaplanmıyor (`valuation.py` β=1 varsayıyor, endeks getiri serisi çekilmiyor — Kısım 1'den beri bilinen açık); iki-firma ağırlıklandırma akışı da YAPISAL OLARAK YOK.
+- FORMÜL-145: Birleşik Firma Vergi-Sonrası Yatırılan Sermaye Getirisi
+  - Formül: `YSGK_birleşik = [(FAVÖK_A + FAVÖK_B) × (1−vergi_oranı)] / (Sermaye_A + Sermaye_B)`
+  - Değişkenler: FAVÖK = vergi öncesi faaliyet kârı; Sermaye = toplam yatırılan sermaye (borç+özkaynak, defter değeri).
+  - QuaxisLabs karşılığı: `ttm_operating_profit` ve toplam sermaye (borç+özkaynak) bileşenleri KISMEN mevcut (bilanço kalemleri var); vergi oranı eksikliği nedeniyle tam formül UYGULANAMAZ.
+- FORMÜL-146: Gecikmeli Sinerjinin Bugünkü Değeri
+  - Formül: `PV(sinerji, n yıl gecikmeli) = Sinerji_anlık / (1+WACC_birleşik)^n`
+  - Değişkenler: n = sinerjinin fiilen ortaya çıkmaya başlayacağı yıl sayısı.
+  - QuaxisLabs karşılığı: WACC eksikliği nedeniyle UYGULANAMAZ; kavramsal olarak "sinerji varsayımlarına zaman iskontosu eklenmeli" notu düşüldü.
+- FORMÜL-147: Nakit Fazlası (Cash Slack) Sinerjisi Değeri
+  - Formül: `Sinerji_nakit-fazlası = Σ NBD(sermaye kısıtı nedeniyle reddedilecek projeler)`
+  - Değişkenler: Projeler hedef firmanın sermaye kısıtı olmasaydı üstlenebileceği pozitif NBD'li yatırımlardır; erteleme mümkünse değer sadece erteleme kaybı kadardır.
+  - QuaxisLabs karşılığı: UYGULANAMAZ (proje-bazlı/şirket-içi yatırım fırsat verisi QuaxisLabs kapsamında YOK — "tek-proje derinlik eksikliği" kategorisi, Kısım 6'da ilk tespit edildi).
+- FORMÜL-148: Vergi Zararı Mahsubu (NOL) Sinerjisi PV'si
+  - Formül: `PV(NOL sinerjisi) = Σ_t [min(alıcı_vergi_öncesi_kâr_t, kalan_NOL) × vergi_oranı] / (1+WACC_birleşik)^t`
+  - Değişkenler: kalan_NOL her yıl kullanılan tutar kadar azalır.
+  - QuaxisLabs karşılığı: VERİ EKSİK — hem `income_before_tax` hem NOL/geçmiş zarar taşınan tutar alanı YOK; vergi oranı da eksik.
+- FORMÜL-149: Varlık Yeniden Değerleme (Step-Up) Amortisman Vergi Kalkanı PV'si
+  - Formül: `PV(amortisman kalkanı) = Σ_t [ΔAmortisman_t × vergi_oranı] / (1+WACC)^t`
+  - Değişkenler: ΔAmortisman_t = yeni (piyasa değeri bazlı) amortisman − eski (defter değeri bazlı) amortisman.
+  - QuaxisLabs karşılığı: `depreciation_amortization` ham verisi VAR (Kısım 1/Buffett turundan bilinen "en ucuz eklenebilecek gösterge" — amortisman/brüt kâr oranı) ama vergi oranı eksikliği ve M&A-özel "yeniden değerleme" senaryosu nedeniyle bu formülün TAMAMI UYGULANAMAZ.
+- FORMÜL-150: Borç Kapasitesi Sinerjisi Değeri
+  - Formül: `Sinerji_borç-kapasitesi = Değer(Birleşik @ yeni-yüksek D/(D+E), yeniden-kaldıraçlı β) − Değer(Birleşik @ birleşme-öncesi ağırlıklı-ortalama D/(D+E))`
+  - Değişkenler: D/(D+E) = borç/(borç+özkaynak); yeni oran genelde azalan kazanç değişkenliğinden kaynaklanan optimal-borç artışını yansıtır.
+  - QuaxisLabs karşılığı: VERİ EKSİK — optimal sermaye yapısı/WACC hesaplama motoru YOK (Kısım 7'de "optimal financing" senaryosunun da aynı nedenle kurulamadığı doğrulanmıştı).
+- FORMÜL-151: Çeşitlendirme Nötrlük Testi (Kontrol Formülü)
+  - Formül: `Değer(A+B, sinerjisiz) = Değer(A, bağımsız) + Değer(B, bağımsız)` — eşitlik sağlanıyorsa çeşitlendirmenin KENDİ BAŞINA değer yaratmadığı doğrulanır (İLKE-350/351).
+  - Değişkenler: FORMÜL-138 ile aynı bağımsız değerleme bileşenleri, sinerji terimi olmadan.
+  - QuaxisLabs karşılığı: FORMÜL-138 ile aynı yapısal eksiklik (iki-firma karşılaştırma akışı YOK) — bu formül M&A değerlendirme sırasında bir "null hipotez" kontrolü olarak nitel bir uyarı notuna (LLM yorumu) dönüştürülebilir, sayısal olarak UYGULANAMAZ.
+
+### Eşikler
+
+| Metrik | Eşik/Değer | Yorum | Kaynak bölüm |
+|---|---|---|---|
+| Birleşme duyurusunda birleşik değer artışı (Bradley/Desai/Kim 1988, 236 tender offer, 1963-1984) | Ortalama %7,48 (1984 doları ile ~$117M) | Sinerji varlığına ZAYIF kanıt — düşük değerleme/kontrol değişikliği hipotezleriyle de tutarlı | Evidence on Synergy |
+| McKinsey 1972-1983 (58 alım programı) | 28/58 (%48) her iki testte (sermaye maliyeti üstü getiri + rakip performansı) başarısız, 6/58 en az birinde başarısız | Sinerjinin fiilen TESLİM EDİLMEDİĞİNE kanıt | Postmerger Studies |
+| McKinsey 1990'lar takip çalışması (115 birleşme, ABD+İngiltere) | %60 sermaye maliyetinin ALTINDA getiri, sadece %23 fazla getiri | Aynı yönde, daha güncel kanıt | Postmerger Studies |
+| KPMG 1996-1998 (700 en pahalı işlem) | %17 değer yarattı / %30 nötr / %53 değer YOK ETTİ | Büyük çoğunluk değer yok ediyor | Postmerger Studies |
+| Divestiture oranı (1982-1986 alımları, 1988'e kadar izlenmiş) | %20,2 | Kısa vadede bile yüksek geri satış oranı | Postmerger Studies |
+| Uzun-dönem (10+ yıl) izlenen alımlarda divestiture oranı | ~%50 | Sinerjinin çoğu vakada ASLA gerçekleşmediğinin en güçlü dolaylı kanıtı | Postmerger Studies |
+| Kaplan & Weisbach (1992) — geri alınan (reversed) birleşme oranı | %44 | Genelde fazla ödeme veya operasyonel uyumsuzluk nedeniyle | Postmerger Studies |
+| Lang & Stulz (1994) — çoklu-iş-kollu firma değer iskontosu | %5-10 | Çeşitlendirmenin DEĞER YOK ETTİĞİNE (yaratmadığına ek olarak) kanıt | Diversification |
+| Tender offer primi — 1960'lar / 1970'ler / 1980-1985 (Jarrell/Brickley/Netter 1988) | %19 / %35 / %30 | Zaman içinde primler dalgalı, düşme trendi yok | Evidence on Synergy Sharing |
+| Hedef hissedar getirisi — başarılı tender offer / başarılı merger (Jensen&Ruback 1983) | %30 / %20 | Hedef hissedarlar HER durumda açık kazanan | Evidence on Synergy Sharing |
+| Alıcı hissedar getirisi (tender offer duyurusunda) — 1960'lar/1970'ler/1980'ler | %4,4 / %2 / −%1 | Zaman içinde alıcı getirisi KÖTÜLEŞİYOR | Evidence on Synergy Sharing |
+| Alıcı firma kaybı, 1998-2001 (Moeller/Schlingemann/Stulz 2004) | Harcanan $ başına 12 sent, toplam $240 milyar | Karşılaştırma: 1980'ler boyunca toplam sadece $7 milyar | Evidence on Synergy Sharing |
+| CEO medya övgüsü etkisi (Hayward & Hambrick 1997, 106 büyük alım) | Her ek övgü makalesi primi %1,6 artırıyor | Kibir (hubris) göstergesi ile prim büyüklüğü arasında somut korelasyon | Why Do Bidders Overpay |
+| P&G / Gillette (2004) vaka — sinerjisiz birleşik değer | $158.467 milyon (P&G $128.985M + Gillette $29.482M) | 3 adımlı yöntemin tam uygulanmış örneği | Illustration 15.3 |
+| P&G / Gillette — sinerjili birleşik değer ve sinerji değeri | $163.872 milyon → sinerji = **$5.405 milyon** | Ölçek ekonomisi ($200M/yıl tasarruf) + %1 YSGK artışı + yeniden beta ağırlıklandırma | Illustration 15.3 |
+| Illustration 15.1 — $15M/yıl vergi-öncesi maliyet tasarrufu | Firma değeri +$162,90 milyon | Maliyet sinerjisinin saf DCF etkisi | Illustration 15.1 |
+| Illustration 15.2 — YSGK %10,5→%12,6 (getiri artışı kanalı) | Sinerji değeri $55,07 milyon | 3 büyüme-sinerjisi kanalından en yüksek etkili | Illustration 15.2 |
+| Illustration 15.2 — yeniden yatırım oranı %70→%90 (yatırım fırsatı kanalı) | Sinerji değeri $24,02 milyon | Getiri artışı kanalından daha düşük etkili | Illustration 15.2 |
+| Illustration 15.2 — büyüme dönemi 5→10 yıl uzaması | Sinerji değeri $45,72 milyon | Rekabet avantajı süresinin uzaması kanalı | Illustration 15.2 |
+| Illustration 15.7 — D/(D+E) %10→%20 (borç kapasitesi sinerjisi) | Firma değeri $729,69M→$752,53M, sinerji $22,84 milyon | Beta 1,1866'ya yükseliyor, borç maliyeti sabit kalıyor | Illustration 15.7 |
+| Illustration 15.6 — Congoleum LBO (1979), varlık yeniden değerleme | Amortisman vergi kalkanı PV = $41,76 milyon (~işlem bedelinin %10'u) | Vergi oranı %48, iskonto oranı %14,5; ilk 7 yılda yoğunlaşıyor | Illustration 15.6 |
+| Illustration 15.5 — $1 milyar NOL, %40 vergi oranı, tek yılda tam mahsup | Vergi tasarrufu = $400 milyon | Alıcının kârı yetersizse aynı tutar yıllara yayılır (örn. 4×$100M) | Illustration 15.5 |
+| Brezilya özkaynak-getiri vergi indirimi örneği | %12 oran × $2 milyar özkaynak artışı = $240 milyon ek yıllık vergi indirimi | Ülkeye özgü, nadir uygulanabilir bir vergi sinerjisi türü | Tax Benefits |
+
+### Kontrol listeleri
+
+**GG — Sinerji Değerleme Süreci (2 ön-soru + 3 adım)**
+1. Sinerji hangi DCF girdisini etkiliyor — nakit akışı, büyüme oranı, büyüme dönemi süresi, sermaye maliyeti (veya birden fazlası)?
+2. Sinerji NE ZAMAN nakit akışlarına yansımaya başlayacak — gecikme modellendi mi (FORMÜL-146)?
+3. Adım 1: İki firmayı KENDİ ayrı WACC'larıyla, BAĞIMSIZ olarak değerle.
+4. Adım 2: Sinerjisiz birleşik değeri = Değer(A) + Değer(B) olarak hesapla (FORMÜL-151 ile çapraz kontrol).
+5. Adım 3: Sinerji varsayımlarını (marj/büyüme/oran) birleşik firma projeksiyonuna işleyip YENİDEN değerle; fark = sinerji değeri.
+6. Kontrol değerini (Ch.13) bu hesaptan TAMAMEN ayrı tut — çifte sayım riskini kontrol et.
+7. Ödenecek toplam fiyatı (piyasa fiyatı + prim), sinerji+kontrol dahil konsolide değerle karşılaştır — "adil fiyat" testi geçiyor mu?
+
+**HH — Aşırı Ödeme (Overpayment) Kırmızı Bayrak Taraması**
+1. Danışman/yatırım bankacısı ücret yapısı işlemin TAMAMLANMASINA mı bağlı (mantıklı olmasına değil)?
+2. Yönetim alım kararını, fiyattan BAĞIMSIZ olarak önceden mi vermiş görünüyor?
+3. CEO'da kibir (hubris) göstergeleri var mı — yakın zamanda büyük başarı, yoğun medya övgüsü, göreli olarak yüksek tazminat?
+4. Sinerjinin teslimatı için açık bir uygulama planı ve sorumlu belirtilmiş mi, yoksa sadece genel bir vaat mi?
+5. Bu bir "eşitler birleşmesi" mi (büyük+büyük) yoksa büyük firmanın küçük firmayı alması mı (ikincisi daha yüksek başarı oranına sahip)?
+6. Vaat edilen sinerji ağırlıklı olarak maliyet tasarrufu mu (daha güvenilir) yoksa büyüme sinerjisi mi (daha az güvenilir teslim)?
+7. Hedef halka açık mı (piyasa zaten rekabetçi fiyatlama sağlar) yoksa özel/küçük mü (alıcı daha büyük pay tutabilir)?
+8. İskonto oranı doğru mu seçilmiş — birleşik firmanın sermaye maliyeti mi, yoksa yanlışlıkla alıcının/hedefin/risksiz oranın mı kullanıldığı?
+9. Kontrol değeri ile sinerji değeri AYRI hesaplanmış mı, yoksa tek bir prim rakamı altında karıştırılmış mı?
+10. Hedef hissedarları, kendilerinin YARATMADIĞI güçler (alıcının kredi notu, alıcının fazla borç kapasitesi) için sübvanse ediliyor mu?
+
+### Kırmızı bayraklar
+
+- BAYRAK-54: Artırıcı/Azaltıcı (Accretive/Dilutive) Alım Gerekçesi — Nasıl tespit edilir: alım gerekçesinde HBK artışı öne çıkarılıyor ama hedefin düşük F/K'sının NEDENİ (yüksek risk/düşük büyüme) tartışılmamışsa, bu geçersiz bir gerekçedir (İLKE-360). — Gereken veri: alıcı/hedef F/K oranları, alım öncesi/sonrası HBK.
+- BAYRAK-55: Salt Çeşitlendirme Gerekçesi — Nasıl tespit edilir: her iki firma da halka açık ve yatırımcı tabanı dağınıksa, gerekçe "risk azaltma/çeşitlendirme" ise sinerji değeri sıfıra yakın olmalıdır; buna rağmen yüksek prim öneriliyorsa şüphelenilmeli. — Gereken veri: her iki firmanın beta'sı, iş kolu korelasyonu, halka açıklık oranı.
+- BAYRAK-56: Yanlış İskonto Oranı — Nasıl tespit edilir: sinerji nakit akışları risksiz oranla VEYA sadece alıcının/sadece hedefin sermaye maliyetiyle iskonto edilmişse hatalıdır; birleşik firma WACC'ı kullanılmalıdır. — Gereken veri: kullanılan iskonto oranı, birleşik firma sermaye yapısı/beta.
+- BAYRAK-57: Kontrol-Sinerji Karışıklığı / Çifte Sayım — Nasıl tespit edilir: değerleme tek bir "prim" rakamı sunuyor, statükoya-karşı-optimal-yönetim (kontrol) ve bağımsız-toplam-karşı-birleşik (sinerji) ayrımı yapılmamışsa. — Gereken veri: üç ayrı değer noktası (statükoyla mevcut, optimal yönetimle tek başına, sinerjili birleşik).
+- BAYRAK-58: Hedef Firma Sübvansiyonu — Nasıl tespit edilir: hedefin sermaye maliyeti hesabında hedefin KENDİ borç maliyeti/kredi notu yerine alıcının daha düşük maliyeti/fazla borç kapasitesi kullanılmışsa. — Gereken veri: hedef ve alıcı ayrı ayrı borç maliyeti, kredi notu, borç oranı.
+- BAYRAK-59: Yönetici Kibri (Hubris) Sinyali — Nasıl tespit edilir: CEO'nun yakın dönemde büyük bir başarısı, yoğun olumlu medya kapsamı ve/veya üst düzey ekibine göre orantısız yüksek tazminatı varsa, alım priminin şişirilmiş olma olasılığı artar (İLKE-368, Eşikler: %1,6/makale). — Gereken veri: yönetici tazminat oranı, medya taraması, yakın geçmiş performans.
+- BAYRAK-60: Sinerji Teslimat Planı Yokluğu — Nasıl tespit edilir: kamuya açık iletişimde sinerji vaat ediliyor ama somut bir uygulama planı, zaman çizelgesi veya sorumlu belirtilmemişse, teslim olasılığı düşüktür (KPMG bulgusu). — Gereken veri: birleşme sonrası entegrasyon planı açıklamaları.
+- BAYRAK-61: Anlık Sinerji Varsayımı — Nasıl tespit edilir: değerleme modeli sinerjinin t=0'da tam olarak devreye girdiğini varsayıyor, hiçbir gecikme/kademeli devreye girme parametresi yoksa değer ŞİŞİRİLMİŞ olabilir. — Gereken veri: modeldeki gecikme varsayımı (varsa).
+- BAYRAK-62: Sınırsız Büyüme Sinerjisi Varsayımı — Nasıl tespit edilir: maliyet sinerjisi doğası gereği SINIRLIDIR (kesilebilecek maliyet sonlu), ancak büyüme sinerjisi projeksiyonu mevcut pazar payı/rekabet kısıtlarıyla çapraz kontrol edilmeden aşırı iyimser büyütülmüşse şüphe edilmeli. — Gereken veri: hedef pazarın toplam büyüklüğü/büyüme oranı, birleşik firmanın öngörülen pazar payı.
+
+### Uygulama notları (koda dönüşüm için)
+
+**Nicel (skorlanabilir, ama şu an veri/mimari eksik):**
+- FORMÜL-138/151 (sinerji = birleşik − bağımsız toplam) — yalnızca QuaxisLabs iki-varlık girişini destekleseydi skorlanabilir; bugün YAPISAL OLARAK yok.
+- FORMÜL-144/150 (beta ağırlıklandırma, borç kapasitesi sinerjisi) — WACC/beta motoru inşa edilirse (Kısım 1'den beri bilinen en büyük yapısal eksiklik) teorik olarak uygulanabilir hale gelir.
+
+**Nitel (LLM yorumuna uygun):**
+- BAYRAK-59 (CEO kibri taraması) ve BAYRAK-60 (sinerji planı yokluğu) — bir alım/birleşme haberi kapsanan bir hisseyi (BIST/NASDAQ evreninde) etkiliyorsa, yönetim açıklama metinlerinde "sinerji" iddialarının somut plan/sayı ile desteklenip desteklenmediğini sorgulayan bir LLM görevi olarak eklenebilir (Kısım 6'daki BAYRAK-39 "nitel opsiyon/sinerji gerekçe taraması" ile AYNI kategori — artık 2. kez tekrarlanan bir öneri).
+- İLKE-365/366 (paylaşım çerçevesi — "katkının benzersizliği") — bir alım haberinde hangi tarafın pazarlık gücü daha fazla olacağına dair nitel yorum üretilebilir.
+- BAYRAK-54 (accretive/dilutive fallacy) — bir şirketin alım gerekçesi açıklamasında bu mantık hatası tespit edilirse, kullanıcıya "bu gerekçe tek başına yeterli değil" uyarısı nitel metin olarak üretilebilir.
+
+**Uygulanamaz (veri/mimari eksikliği nedeniyle şimdilik dışarıda — YENİ pekiştirilen kategori):**
+- Bu bölümün NEREDEYSE TAMAMI (FORMÜL-138/139/140/144/145/146/147/148/149/150/151) İKİ FARKLI firmanın eş zamanlı, birleştirilmiş değerlemesini gerektirir. QuaxisLabs tekil halka açık varlık analiz motorudur — M&A/deal-advisory kapsamı DIŞINDADIR. Bu, Kısım 7'de Ch.13 (Kontrol Değeri) için tespit edilen "M&A kapsam dışılığı" ile AYNI kategori, ama burada daha da BASKINDIR: Ch.13'te en azından TEK firmanın (hedefin) yeniden değerlemesi söz konusuydu, Ch.15'te ise metodolojinin ÇEKİRDEĞİ iki firmanın birleştirilmesidir — hiçbir alt formül tek-firma bazında anlamlı değildir.
+- Alt bileşenler (WACC, beta, tax_rate, income_before_tax, NOL/geçmiş zarar, reinvestment_rate/Capex) zaten Kısım 1-7'de tekrar tekrar tespit edilen TEKİL veri açıklarıdır — bu bölüm bu açıkların hiçbirini YENİ olarak eklemedi, sadece M&A bağlamında BİR KEZ DAHA doğruladı.
+
+### Kısım 8a — özel notlar
+- Bu bölüm, kitaplar-arası ARTIK NET olan bir örüntüyü teyit etti: Damodaran'ın Part Three (Ch.10-17) bölümlerinin bir kısmı (Ch.13 Kontrol, Ch.15 Sinerji) QuaxisLabs'ın "tekil halka açık varlık" mimarisiyle YAPISAL OLARAK uyuşmuyor — bu VERİ EKSİKLİĞİ değil, ÜRÜN KAPSAMI sınırıdır (M&A danışmanlığı değil, tekil varlık analizi).
+- En düşük maliyetli somut çıktı yine NİTEL tarafta: sinerji/kontrol açıklamalarını sorgulayan LLM taraması (BAYRAK-59/60), Kısım 6'daki BAYRAK-39 ile birleştirilip TEK bir "M&A açıklama güvenilirlik taraması" özelliği olarak paketlenebilir — iki kitaplar arası ayrı bölümde (Ch.12, Ch.15) bağımsız olarak ortaya çıkan bir öneri, bu da onu güçlendiriyor.
+- P&G/Gillette (Illustration 15.3) kitabın en eksiksiz uçtan uca sayısal vaka örneği — 3 adımlı yöntemin TÜM ara adımlarını (bağımsız değer → sinerjisiz toplam → sinerjili birleşik → fark) somut dolar rakamlarıyla gösteriyor; ileride bir "yöntem doğrulama" referansı olarak kullanılabilir.
+- Ch.16 (Şeffaflık Değeri) bu oturuma DAHİL EDİLMEDİ — bir sonraki oturumda İLKE-375'ten, FORMÜL-152'den, BAYRAK-63'ten, Kontrol Listesi II'den devam edilecek.

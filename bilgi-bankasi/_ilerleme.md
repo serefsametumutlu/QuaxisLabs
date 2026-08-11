@@ -5,7 +5,7 @@
 |---|---|---|---|
 | 01 | The Intelligent Investor (Benjamin Graham, Rev. Ed. — Jason Zweig commentary) | **TAMAMLANDI** — Tüm kısımlar (Introduction + Ch.1-20 + Postscript + Appendix) işlendi. | `bilgi-bankasi/01_graham_akilli_yatirimci.md` |
 | 02 | Warren Buffett and the Interpretation of Financial Statements | **TAMAMLANDI** — 5 ana kısım (Gelir Tablosu, Bilanço, Özkaynaklar, Nakit Akış Tablosu, Değerleme) + Appendix model şirket karşılaştırması işlendi. Terimler Sözlüğü bilinçli olarak atlandı (sadece tanım niteliğinde). | `bilgi-bankasi/02_buffett_finansal_tablolar.md` |
-| 03 | Damodaran on Valuation, 2nd Ed. (Aswath Damodaran) | **DEVAM EDİYOR** — Kısım 1-7/9 TAMAMLANDI, bu turda commit edilecek. Kısım 8-9 (Ch.15-18 + appendix) işlenmedi. | `bilgi-bankasi/03_damodaran_degerleme.md` |
+| 03 | Damodaran on Valuation, 2nd Ed. (Aswath Damodaran) | **DEVAM EDİYOR** — Kısım 1-7 + 8a (Ch.15) TAMAMLANDI, bu turda commit edilecek. Kısım 8b (Ch.16) + Kısım 9 (Ch.17-18 + appendix) işlenmedi. | `bilgi-bankasi/03_damodaran_degerleme.md` |
 
 ## Kitap geneli TOPLAM sayılar — 02 Buffett (dosya üzerinde script ile doğrulandı)
 - İLKE: **61** (İLKE-01…61, kesintisiz, tekrarsız)
@@ -169,9 +169,11 @@ TOC ve bölüm sınırları PyMuPDF `get_text()` ile doğrudan (OCR'sız) çıka
 | **Kısım 5** | Ch.9 Value Multiples + Ch.10 Cash, Cross Holdings, and Other Assets (+App.10.1) | s.386-477 | 187-236 (50) | 88-104 (17) | 26 | 4 (U-X) | 28-34 (7) | TAMAMLANDI, commit c93dd73 |
 | **Kısım 6** | Ch.11 Employee Equity Options and Compensation + Ch.12 The Value of Intangibles (+App.12.1 Option Pricing Models) | s.478-590 | 237-284 (48) | 105-123 (19) | 25 | 4 (Y-BB) | 35-41 (7) | TAMAMLANDI, bu turda commit edilecek |
 | **Kısım 7** | Ch.13 The Value of Control + Ch.14 The Value of Liquidity | s.591-705 | 285-341 (57) | 124-137 (14) | 44 | 4 (CC-FF, 20 madde) | 42-53 (12) | TAMAMLANDI, bu turda commit edilecek |
-| **Kısım 8-9** | Ch.15-18 + appendix'ler | s.706-864 | — | — | — | — | — | **İŞLENMEDİ — sıradaki oturumda başlanacak. Sıradaki adım: Kısım 8 = Ch.15 Value of Synergy + Ch.16 Value of Transparency (+App.16.1, 16.2), PDF s.706-795. İLKE-342'den, FORMÜL-138'den, BAYRAK-54'ten, Kontrol Listesi GG'den devam edilecek.** |
+| **Kısım 8a** | Ch.15 The Value of Synergy | s.706-748 | 342-374 (33) | 138-151 (14) | 21 | 17 (GG:7+HH:10, 2 liste) | 54-62 (9) | TAMAMLANDI, bu turda commit edilecek |
+| **Kısım 8b** | Ch.16 The Value of Transparency (+App.16.1, 16.2) | s.749-795 | — | — | — | — | — | **İŞLENMEDİ — bilinçli olarak bu oturuma alınmadı (kullanıcı talimatı: SADECE Ch.15). Sıradaki oturumda İLKE-375'ten, FORMÜL-152'den, BAYRAK-63'ten, Kontrol Listesi II'den devam edilecek.** |
+| **Kısım 9** | Ch.17 Cost of Distress + Ch.18 Closing Thoughts | s.796-864 | — | — | — | — | — | İŞLENMEDİ |
 
-**Kitap geneli TOPLAM sayılar (Kısım 1-7, script ile doğrulandı, kesintisiz/tekrarsız):** İLKE **341** (01-341), FORMÜL **137** (01-137), BAYRAK **53** (01-53), EŞİK toplam **162** satır (15+15+12+25+26+25+44) + 2 ayrı kredi-notu-bandı tablosu (Tablo 2.4: 15 satır, Tablo 6.2: 14 satır), KONTROL LİSTESİ **58** madde (A-FF, 32 liste).
+**Kitap geneli TOPLAM sayılar (Kısım 1-8a, script ile doğrulanmadı — bu turda manuel sayıldı):** İLKE **374** (01-374), FORMÜL **151** (01-151), BAYRAK **62** (01-62), EŞİK toplam **183** satır (15+15+12+25+26+25+44+21) + 2 ayrı kredi-notu-bandı tablosu (Tablo 2.4: 15 satır, Tablo 6.2: 14 satır), KONTROL LİSTESİ **75** madde (A-HH, 34 liste).
 
 ### Kısım 7 — özel notlar
 - **En düşük maliyetli somut bulgu bu turda:** Devir hızı (turnover ratio = günlük TL işlem hacmi / piyasa değeri) HİÇBİR YENİ FETCHER GEREKTİRMEDEN eklenebilir — `src/fetchers/isyatirim.py` günlük TL hacmini ZATEN çekiyor, `src/analysis/calculator.py::market_cap` (satır 838) ZATEN hesaplıyor; sadece `src/analysis/technical.py` (hacim verisinin bugün yaşadığı modül) ile `calculator.py` (temel analiz skorlaması) ARASINDA hiç köprü YOK. Amihud illikidite oranı da AYNI mevcut fiyat+hacim serisinden (technical.py::TechnicalSnapshot) türetilebilir.
@@ -227,5 +229,12 @@ TOC ve bölüm sınırları PyMuPDF `get_text()` ile doğrudan (OCR'sız) çıka
 ### Kısım 1-3 DURDURULDU notu (ESKİ, artık kapandı) — kullanıcı token/kota kaygısı nedeniyle
 Kısım 1-6 TAMAMLANDI ve commit edildi (bkz. yukarı "Kısım 4/5/6 — özel notlar"). Bu notun tarihsel bağlamı: önceki bir oturum Kısım 4-5-6 sırayla işleyip Kısım 6 sonunda DURMUŞTU (kullanıcı talimatı, token/kota kaygısı), Kısım 7-9 YENİ bir oturuma bırakılmıştı.
 
-### Sıradaki oturumda başlanacak yer (GÜNCEL — Kısım 7 tamamlandıktan SONRA)
-Kısım 1-7 TAMAMLANDI (bkz. yukarı "Kısım 7 — özel notlar"), bu turda commit edilecek. Kısım 8-9 HENÜZ İŞLENMEDİ. Sıradaki oturumda başlanacak yer: **Kısım 8 = Ch.15 The Value of Synergy + Ch.16 The Value of Transparency (+App.16.1, 16.2), PDF s.706-795** — ID numaralandırması İLKE-342'den, FORMÜL-138'den, BAYRAK-54'ten, Kontrol Listesi GG'den DEVAM edecek (kesintisiz). Her kısım kendi standardında BİR KEZ işlenip commit edilmeli, tekrar açılıp genişletilmemeli (zenginleştirme turu YOK — Graham dersi, Kısım 7 talimatında da tekrarlandı). Kısım 9 sonunda (gelecek oturum) tüm kitap için tutarlılık taraması (script ile İLKE/FORMÜL/BAYRAK numaralarının kesintisiz/tekrarsız doğrulanması) + `_ilerleme.md`'ye kitap geneli TOPLAM sayılar bloğu + final rapor yapılmalı.
+### Kısım 8a — özel notlar (Ch.15 Sinerji Değeri)
+- TOC'tan PDF s.706-748 (Ch.15) / s.749 (Ch.16 başlangıcı) sınırı doğrulanarak SADECE Ch.15 işlendi (kullanıcı talimatı — Ch.16 ayrı oturuma bırakıldı).
+- **En baskın yapısal bulgu:** Bu bölümün NEREDEYSE TAMAMI (14 formülün 11'i) iki firmanın eş zamanlı/birleştirilmiş değerlemesini gerektiriyor — QuaxisLabs'ın tekil-varlık mimarisiyle YAPISAL OLARAK uyuşmuyor. Bu, Kısım 7'de Ch.13 (Kontrol) için tespit edilen "M&A kapsam dışılığı" kategorisiyle AYNI ama burada DAHA BASKIN (Ch.13'te en azından tek firma yeniden değerleniyordu, Ch.15'te metodolojinin çekirdeği iki-firma birleşimi).
+- Alt bileşen veri açıkları (WACC, beta, tax_rate, income_before_tax, NOL, reinvestment_rate/Capex) YENİ değil — Kısım 1-7'de tekrar tekrar tespit edilen tekil açıkların M&A bağlamında bir kez daha doğrulanması.
+- En uygulanabilir somut çıktı NİTEL tarafta: sinerji/kontrol açıklamalarını sorgulayan LLM taraması (BAYRAK-59/60), Kısım 6'daki BAYRAK-39 ile AYNI kategori — artık 2. kez farklı bölümde bağımsız ortaya çıktı, "M&A açıklama güvenilirlik taraması" özelliği için gerekçe güçlendi.
+- P&G/Gillette (Illustration 15.3) 3 adımlı yöntemi uçtan uca sayısal olarak gösteren en eksiksiz vaka örneği — sinerji değeri $5.405 milyon.
+
+### Sıradaki oturumda başlanacak yer (GÜNCEL — Kısım 8a tamamlandıktan SONRA)
+Kısım 1-7 + 8a TAMAMLANDI, bu turda commit edilecek. Kısım 8b (Ch.16) ve Kısım 9 (Ch.17-18) HENÜZ İŞLENMEDİ. Sıradaki oturumda başlanacak yer: **Kısım 8b = Ch.16 The Value of Transparency (+App.16.1, 16.2), PDF s.749-795** — ID numaralandırması İLKE-375'ten, FORMÜL-152'den, BAYRAK-63'ten, Kontrol Listesi II'den DEVAM edecek (kesintisiz). Her kısım kendi standardında BİR KEZ işlenip commit edilmeli, tekrar açılıp genişletilmemeli (zenginleştirme turu YOK — Graham dersi, Kısım 7 talimatında da tekrarlandı). Kısım 9 sonunda (gelecek oturum) tüm kitap için tutarlılık taraması (script ile İLKE/FORMÜL/BAYRAK numaralarının kesintisiz/tekrarsız doğrulanması) + `_ilerleme.md`'ye kitap geneli TOPLAM sayılar bloğu + final rapor yapılmalı.

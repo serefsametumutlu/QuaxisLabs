@@ -40,7 +40,7 @@ kitap-okuyucu agent'ı ile bilgi-bankasi/ altındaki 6 kitap dosyasını okuyup 
 sektor-siniflandirma ve quaxis-mimari skill'lerini uygula. Hedef: BİST ve NASDAQ hisse evrenlerini sektörel sınıflandırmayla DB'ye kazandırmak. Adımlar: (1) temel-analiz-uzmani agent'ı ile docs/spec/spec_sektor_evren.md yaz — ortak üst-sektör taksonomisi, KAP→sektör ve SIC→sektör eşleme tabloları, Company modeline eklenecek alanlar, tazelik/checkpoint kuralları; scripts/explore_kap_sektor.py ve sec_edgar.py'deki mevcut imkanları temel al, gerekirse canlı keşif scriptiyle doğrula. (2) Spec'i bana özetle, onayımı al. (3) kod-gelistirici agent'ı ile uygula: fetcher güncellemeleri, model alanları, scripts/refresh_universe.py (rate-limit'e saygılı, kaldığı yerden devam eden), testler. (4) Scripti çalıştırıp iki evrenin sektör dağılım özetini (sektör başına şirket sayısı tablosu) raporla. Mevcut 569 test yeşil kalacak.
 ```
 
-**Bitti kriteri:** DB'de sektör etiketli iki evren var; sektör başına n sayıları raporlandı (Faz 3'teki n≥5 kuralı için kritik).
+**Bitti kriteri:** DB'de sektör etiketli iki evren var; sektör başına n sayıları raporlandı (Faz 3'teki n≥5 kuralı için kritik). ✅ **TAMAMLANDI (2026-08-11, commit `fdf242c`)** — BİST 643 şirket (tam, KAP), NASDAQ 4352 ticker keşfedildi / 1442 SIC ile zenginleştirildi (kademeli — `scripts/refresh_universe.py --market nasdaq --limit N` ile devam ettirilir, checkpoint DB'nin kendisi, 90 gün tazelik penceresi). Her iki piyasada her üst-sektörde n≥5 (istisna: BİST Sağlık/Enerji n=4 — Faz 3'te "yetersiz örneklem" uyarısı tetiklenecek). 1211/1211 test yeşil.
 
 ---
 

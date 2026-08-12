@@ -1,0 +1,273 @@
+"""SPEC: kullanıcı isteği (2026-08-12) -- dashboard satırına tıklanınca açılan
+şirket detay sayfası. `tests/test_dashboard.py` ile AYNI desen: gerçek ağ
+isteği ATILMAZ, izole bir SQLite dosyasına yazılan sentetik `MarketScanResult`
++ `FinancialPeriod` satırları üzerinden test edilir.
+"""
+
+from __future__ import annotations
+
+from decimal import Decimal
+
+import pytest
+
+from src.db import models, repository
+from src.db.models import Company, MarketScanResult, utcnow_naive
+from src.render import company_detail
+
+
+@pytest.fixture()
+def session(tmp_path):
+    db_url = f"sqlite:///{tmp_path / 'test_company_detail.db'}"
+    engine, session_factory = models.create_engine_and_session(db_url)
+    models.init_db(engine)
+    db_session = session_factory()
+    yield db_session
+    db_session.close()
+
+
+def _mercekler_detay_fixture() -> dict:
+    def bilesen(name, score, w_nom, w_eff, katki, reasoning):
+        return {
+            "name": name,
+            "score": str(score) if score is not None else None,
+            "weight_nominal": str(w_nom),
+            "weight_effective": str(w_eff),
+            "contribution": str(katki),
+            "reasoning_tr": reasoning,
+        }
+
+    return {
+        "değer": [
+            bilesen("Mutlak Ucuzluk (F/K + PD/DD)", "7.5", "35", "35.0", "2.62",
+                    "THYAO için F/K=5,2 sektör bandına göre ucuz kabul edildi."),
+            bilesen("Kazanç Getirisi vs Risksiz Oran", None, "15", "0.0", "0.00",
+                    "Risksiz faiz oranı verisi eksik olduğu için bu bileşen atlandı."),
+        ],
+        "kalite": [
+            bilesen("Nakit Üretimi (FAVÖK marjı)", "8.0", "25", "25.0", "2.00",
+                    "FAVÖK marjı %22,4 -- güçlü eşiğin (≥%20) üzerinde."),
+        ],
+        "büyüme": [
+            bilesen("Hasılat Büyümesi", "6.0", "55", "55.0", "3.30", "Reel hasılat büyümesi %14,2."),
+        ],
+        "güvenlik": [
+            bilesen("Kaldıraç (Net Borç/FAVÖK)", "9.0", "30", "30.0", "2.70", "Net Borç/FAVÖK 0,8x -- çok iyi."),
+        ],
+    }
+
+
+def _add_ok_row(session, ticker="THYAO", market="BIST") -> None:
+    session.add(Company(ticker=ticker, name=f"{ticker} A.Ş.", market=market, ust_sektor="Sanayi", sirket_turu="sanayi"))
+    session.add(MarketScanResult(
+        ticker=ticker, market=market, company_name=f"{ticker} A.Ş.", ust_sektor="Sanayi", sirket_turu="sanayi",
+        template="sanayi", year=2026, period=6, scan_status="ok",
+        deger_score=Decimal("7.0"), deger_badge="SAĞLAM", deger_coverage_pct=Decimal("85"),
+        kalite_score=Decimal("8.0"), kalite_badge="SAĞLAM", kalite_coverage_pct=Decimal("100"),
+        buyume_score=Decimal("6.0"), buyume_badge="DENGELİ", buyume_coverage_pct=Decimal("100"),
+        guvenlik_score=Decimal("9.0"), guvenlik_badge="SAĞLAM", guvenlik_coverage_pct=Decimal("100"),
+        bilesik_score=Decimal("7.5"), bilesik_badge="SAĞLAM", bilesik_data_coverage_pct=Decimal("95"),
+        dahil_edilen_mercekler=["değer", "kalite", "büyüme", "güvenlik"],
+        current_price=Decimal("300"), market_cap=Decimal("400000000000"), pe_ratio=Decimal("5.2"),
+        pb_ratio=Decimal("1.8"), ev_ebitda=Decimal("4.1"), currency="TRY",
+        mercekler_detay=_mercekler_detay_fixture(),
+        computed_at=utcnow_naive(),
+    ))
+
+
+def _add_financials(session, ticker="THYAO") -> None:
+    records = []
+    data_by_period = {
+        (2026, 6): {"revenue": Decimal("120"), "gross_profit": Decimal("50"), "operating_profit": Decimal("20"),
+                    "net_income": Decimal("15"), "cash": Decimal("200"), "trade_receivables": Decimal("80"),
+                    "total_assets": Decimal("1000"), "financial_debt": Decimal("300"), "equity": Decimal("400"),
+                    "current_assets": Decimal("500")},
+        (2025, 6): {"revenue": Decimal("100"), "gross_profit": Decimal("40"), "operating_profit": Decimal("15"),
+                    "net_income": Decimal("10"), "cash": Decimal("150"), "trade_receivables": Decimal("60"),
+                    "total_assets": Decimal("900"), "financial_debt": Decimal("280"), "equity": Decimal("350"),
+                    "current_assets": Decimal("420")},
+        (2026, 3): {"revenue": Decimal("90"), "gross_profit": Decimal("35"), "operating_profit": Decimal("12"),
+                    "net_income": Decimal("8"), "cash": Decimal("170"), "trade_receivables": Decimal("70"),
+                    "total_assets": Decimal("950"), "financial_debt": Decimal("290"), "equity": Decimal("380"),
+                    "current_assets": Decimal("460")},
+    }
+    for (year, period), fields in data_by_period.items():
+        for item_code, value in fields.items():
+            records.append((year, period, item_code, item_code, value))
+    repository.upsert_financials(session, ticker, records)
+
+
+# --- build_company_detail_data() ---------------------------------------------------------------
+
+
+def test_satir_yoksa_none_doner(session) -> None:
+    assert company_detail.build_company_detail_data(session, "YOKTUR", "BIST") is None
+
+
+def test_piyasa_uyusmuyorsa_none_doner(session) -> None:
+    _add_ok_row(session, "THYAO", "BIST")
+    session.commit()
+    assert company_detail.build_company_detail_data(session, "THYAO", "NASDAQ") is None
+
+
+def test_ust_seviye_kimlik_alanlari(session) -> None:
+    _add_ok_row(session)
+    session.commit()
+
+    data = company_detail.build_company_detail_data(session, "THYAO", "BIST")
+    assert data["ticker"] == "THYAO"
+    assert data["company_name"] == "THYAO A.Ş."
+    assert data["market"] == "BIST"
+    assert data["ust_sektor"] == "Sanayi"
+    assert data["sirket_turu_display"] == "Sanayi"
+    assert data["bilesik"]["score_display"] == "7,5"
+    assert data["bilesik"]["badge"] == "SAĞLAM"
+
+
+def test_mercekler_detay_tum_bilesenleri_tasir(session) -> None:
+    """Görevin EN ÖNEMLİ kısmı -- mercekler_detay'daki HER bileşen (skor,
+    ağırlık, katkı, reasoning_tr) sızmadan/eksilmeden data'ya geçmeli."""
+    _add_ok_row(session)
+    session.commit()
+
+    data = company_detail.build_company_detail_data(session, "THYAO", "BIST")
+    deger = data["mercekler"]["değer"]
+    assert deger["score_display"] == "7,0"
+    assert len(deger["components"]) == 2
+    ucuzluk = deger["components"][0]
+    assert ucuzluk["name"] == "Mutlak Ucuzluk (F/K + PD/DD)"
+    assert ucuzluk["score_display"] == "7,5/10"
+    assert ucuzluk["weight_nominal_display"] == "%35"
+    assert ucuzluk["contribution_display"] == "2,62"
+    assert "THYAO için F/K=5,2" in ucuzluk["reasoning_tr"]
+
+    eksik_bilesen = deger["components"][1]
+    assert eksik_bilesen["score_display"] == "N/A"
+    assert eksik_bilesen["veri_eksik"] is True
+
+    kalite = data["mercekler"]["kalite"]
+    assert len(kalite["components"]) == 1
+    assert kalite["components"][0]["reasoning_tr"].startswith("FAVÖK marjı")
+
+
+def test_mercek_veri_yoksa_none_doner(session) -> None:
+    _add_ok_row(session)
+    session.commit()
+    # Güvenlik skorunu temizle -- veri yok senaryosu
+    row = session.get(MarketScanResult, "THYAO")
+    row.guvenlik_score = None
+    row.guvenlik_badge = None
+    session.commit()
+
+    data = company_detail.build_company_detail_data(session, "THYAO", "BIST")
+    assert data["mercekler"]["güvenlik"] is None
+
+
+def test_snapshot_yoksa_bilesik_ve_mercekler_none(session) -> None:
+    session.add(Company(ticker="YENI", name="Yeni A.Ş.", market="BIST"))
+    session.add(MarketScanResult(ticker="YENI", market="BIST", scan_status="veri_yok", computed_at=utcnow_naive()))
+    session.commit()
+
+    data = company_detail.build_company_detail_data(session, "YENI", "BIST")
+    assert data["bilesik"] is None
+    assert data["mercekler"] is None
+    assert data["carpanlar"] is None
+
+
+def test_carpanlar_bloku(session) -> None:
+    _add_ok_row(session)
+    session.commit()
+    data = company_detail.build_company_detail_data(session, "THYAO", "BIST")
+    assert data["carpanlar"]["pe_ratio_display"] == "5,2"
+    assert "₺" in data["carpanlar"]["price_display"]
+
+
+# --- Finansal tablo özeti -----------------------------------------------------------------------
+
+
+def test_finansal_veri_yoksa_available_false(session) -> None:
+    _add_ok_row(session)
+    session.commit()
+    data = company_detail.build_company_detail_data(session, "THYAO", "BIST")
+    assert data["financials"]["available"] is False
+    assert data["financials"]["note"]
+
+
+def test_finansal_ozet_sanayi_sablonu(session) -> None:
+    _add_ok_row(session)
+    _add_financials(session)
+    session.commit()
+
+    data = company_detail.build_company_detail_data(session, "THYAO", "BIST")
+    fin = data["financials"]
+    assert fin["available"] is True
+    labels = [r["label"] for r in fin["income_rows"]]
+    assert "Satışlar" in labels
+    assert "Net Dönem Kârı" in labels
+    balance_labels = [r["label"] for r in fin["balance_rows"]]
+    assert "Toplam Varlıklar" in balance_labels
+    assert "Özkaynaklar" in balance_labels
+    # quarterly_trend en az revenue/ebitda/net_income kalemlerini içerir
+    trend_labels = [t["label"] for t in fin["quarterly_trend"]]
+    assert "Satışlar" in trend_labels
+    assert "Net Dönem Kârı" in trend_labels
+
+
+def test_faaliyet_raporu_placeholder_dogru_ve_dahil(session) -> None:
+    _add_ok_row(session)
+    session.commit()
+    data = company_detail.build_company_detail_data(session, "THYAO", "BIST")
+    assert "henüz araştırılmadı" in data["faaliyet_raporu_placeholder"]
+
+
+# --- render_company_detail_html() ---------------------------------------------------------------
+
+
+def test_render_html_tek_dosya_ve_bilesenler_gorunur(session) -> None:
+    _add_ok_row(session)
+    _add_financials(session)
+    session.commit()
+
+    data = company_detail.build_company_detail_data(session, "THYAO", "BIST")
+    html = company_detail.render_company_detail_html(data)
+
+    assert "<!DOCTYPE html>" in html
+    assert "THYAO" in html
+    assert "Mutlak Ucuzluk (F/K + PD/DD)" in html
+    assert "THYAO için F/K=5,2 sektör bandına göre ucuz kabul edildi." in html
+    assert "henüz araştırılmadı" in html
+    assert '<link ' not in html
+    assert 'src="' not in html
+
+
+def test_render_html_dashboard_geri_donus_linki(session) -> None:
+    _add_ok_row(session)
+    session.commit()
+    data = company_detail.build_company_detail_data(session, "THYAO", "BIST")
+    html = company_detail.render_company_detail_html(data)
+    assert 'href="../dashboard.html"' in html
+
+
+# --- build_and_write_company_detail() / build_and_write_all_company_details() -----------------
+
+
+def test_build_and_write_company_detail_dosyaya_yazar(session, tmp_path) -> None:
+    _add_ok_row(session)
+    session.commit()
+
+    out_path = tmp_path / "detay" / "BIST_THYAO.html"
+    result = company_detail.build_and_write_company_detail("THYAO", "BIST", out_path, session=session)
+
+    assert result == str(out_path)
+    assert out_path.exists()
+    assert "THYAO" in out_path.read_text(encoding="utf-8")
+
+
+def test_build_and_write_company_detail_satir_yoksa_none(session, tmp_path) -> None:
+    out_path = tmp_path / "yok.html"
+    result = company_detail.build_and_write_company_detail("YOKTUR", "BIST", out_path, session=session)
+    assert result is None
+    assert not out_path.exists()
+
+
+def test_detail_relative_path_deseni() -> None:
+    assert company_detail.detail_relative_path("THYAO", "BIST") == "detay/BIST_THYAO.html"

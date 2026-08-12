@@ -1,0 +1,354 @@
+<!--
+  QuaxisLabs Şirket Detay Sayfası -- dashboard.html'deki bir satıra
+  tıklanınca açılan, tek şirkete özel tek-dosya HTML (harici kaynak/CDN YOK).
+  Üretici: src/render/company_detail.py::build_company_detail_data()/
+  render_company_detail_html() -- BU ŞABLON HİÇBİR skor/formül HESAPLAMAZ,
+  tüm değerler Python'da ÖNCEDEN Türkçe biçimlendirilmiş string olarak gelir
+  (.claude/skills/kart-tasarim-sistemi/SKILL.md §Şablon sözleşmesi).
+
+  TOKEN SİSTEMİ: dashboard.html/card.html ile AYNI kaynak (`_design_tokens.css`)
+  -- görsel kimlik marka genelinde TUTARLI, hardcoded hex renk YASAK.
+-->
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ data.ticker }} — {{ data.company_name }} | QuaxisLabs</title>
+<style>
+{% include "_design_tokens.css" %}
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg-canvas);
+    color: var(--ink-primary);
+    font-family: var(--font-sans);
+    padding: var(--space-6);
+  }
+
+  .q-num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+  .container { max-width: 1180px; margin: 0 auto; }
+
+  .back-link {
+    display: inline-block;
+    margin-bottom: var(--space-5);
+    font-family: var(--font-mono);
+    font-size: var(--text-caption);
+    color: var(--brand-teal);
+    text-decoration: none;
+  }
+  .back-link:hover { text-decoration: underline; }
+
+  /* ---- Kimlik / kahraman skor ------------------------------------- */
+  .identity-hero {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-6);
+    background: var(--bg-surface-raised);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+    margin-bottom: var(--space-6);
+    border-left: var(--accent-bar-w) solid var(--brand-gold);
+  }
+  .identity-main .ticker { font-family: var(--font-mono); font-size: var(--text-h1); font-weight: var(--weight-bold); letter-spacing: var(--tracking-tight); color: var(--ink-primary); }
+  .identity-main .company-name { font-size: var(--text-h2); color: var(--ink-secondary); margin-top: var(--space-1); }
+  .identity-meta { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+  .meta-chip {
+    font-family: var(--font-mono);
+    font-size: var(--text-micro);
+    color: var(--ink-tertiary);
+    background: var(--bg-surface-sunken);
+    border-radius: var(--radius-pill);
+    padding: 2px var(--space-3);
+  }
+
+  .score-hero { text-align: right; }
+  .score-hero .score-num { font-family: var(--font-mono); font-size: var(--text-display); font-weight: var(--weight-black); line-height: 1; }
+  .score-hero .score-badge {
+    display: inline-block;
+    margin-top: var(--space-2);
+    font-size: var(--text-caption);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-pill);
+  }
+  .score-hero .coverage-note { display: block; margin-top: var(--space-2); font-size: var(--text-micro); color: var(--ink-tertiary); }
+
+  .badge-text.saglam, .score-num.saglam { color: var(--clr-positive); }
+  .badge-text.dengeli, .score-num.dengeli { color: var(--brand-gold); }
+  .badge-text.karisik, .score-num.karisik { color: var(--clr-mixed); }
+  .badge-text.riskli, .score-num.riskli { color: var(--clr-negative); }
+  .badge-text.yetersiz, .score-num.yetersiz { color: var(--ink-tertiary); }
+  .score-badge.saglam { background: var(--clr-positive-soft); color: var(--clr-positive); }
+  .score-badge.dengeli { background: var(--brand-gold-soft); color: var(--brand-gold); }
+  .score-badge.karisik { background: var(--clr-warning-soft); color: var(--clr-mixed); }
+  .score-badge.riskli { background: var(--clr-negative-soft); color: var(--clr-negative); }
+  .score-badge.yetersiz { background: var(--bg-surface-sunken); color: var(--ink-tertiary); }
+
+  /* ---- Ana çarpanlar şeridi ----------------------------------------- */
+  .carpanlar-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: var(--space-4);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+    margin-bottom: var(--space-6);
+  }
+  .carpan-box .label { font-size: var(--text-micro); color: var(--ink-tertiary); text-transform: uppercase; letter-spacing: var(--tracking-wide); }
+  .carpan-box .value { font-family: var(--font-mono); font-size: var(--text-h3); font-weight: var(--weight-semibold); color: var(--ink-primary); margin-top: var(--space-1); }
+
+  /* ---- Bölüm başlığı --------------------------------------------------- */
+  .section-title {
+    font-size: var(--text-h2);
+    font-weight: var(--weight-semibold);
+    color: var(--ink-primary);
+    margin: var(--space-7) 0 var(--space-4);
+    padding-left: var(--space-3);
+    border-left: var(--accent-bar-w) solid var(--brand-teal);
+  }
+
+  /* ---- Mercek kartları/tabloları ------------------------------------- */
+  .lens-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(520px, 1fr)); gap: var(--space-5); }
+  .lens-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .lens-card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
+    background: var(--bg-surface-sunken);
+  }
+  .lens-card-head .lens-title { font-size: var(--text-h3); font-weight: var(--weight-bold); color: var(--ink-primary); }
+  .lens-card-head .lens-score { font-family: var(--font-mono); font-size: var(--text-h2); font-weight: var(--weight-bold); }
+  .lens-card-head .lens-coverage { font-size: var(--text-micro); color: var(--ink-tertiary); font-family: var(--font-mono); }
+  .lens-empty { padding: var(--space-5); color: var(--ink-tertiary); font-size: var(--text-body); }
+
+  table.component-table { width: 100%; border-collapse: collapse; }
+  table.component-table th {
+    text-align: right;
+    font-size: var(--text-micro);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--ink-tertiary);
+    font-weight: var(--weight-medium);
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border-default);
+  }
+  table.component-table th.col-left { text-align: left; }
+  table.component-table td {
+    padding: var(--space-3);
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: var(--text-caption);
+    color: var(--ink-secondary);
+    text-align: right;
+    vertical-align: top;
+  }
+  table.component-table td.col-left { text-align: left; color: var(--ink-primary); font-weight: var(--weight-medium); }
+  table.component-table td.q-num { font-family: var(--font-mono); white-space: nowrap; }
+  table.component-table td.reasoning { text-align: left; color: var(--ink-secondary); line-height: var(--leading-normal); max-width: 360px; }
+  table.component-table tr:last-child td { border-bottom: none; }
+  .veri-eksik-flag { color: var(--clr-warning); font-size: var(--text-micro); margin-left: 4px; }
+
+  /* ---- Finansal özet tabloları --------------------------------------- */
+  .financial-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: var(--space-5); margin-bottom: var(--space-5); }
+  .financial-card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: var(--space-5); }
+  .financial-card h3 { font-size: var(--text-h3); color: var(--ink-primary); margin-bottom: var(--space-3); }
+  table.financial-table { width: 100%; border-collapse: collapse; }
+  table.financial-table th { text-align: right; font-size: var(--text-micro); color: var(--ink-tertiary); text-transform: uppercase; padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--border-default); }
+  table.financial-table th.col-left { text-align: left; }
+  table.financial-table td { text-align: right; padding: var(--space-2); border-bottom: 1px solid var(--border-subtle); font-size: var(--text-caption); color: var(--ink-secondary); font-family: var(--font-mono); }
+  table.financial-table td.col-left { text-align: left; color: var(--ink-primary); font-family: var(--font-sans); }
+  .financial-unavailable { color: var(--ink-tertiary); font-size: var(--text-body); padding: var(--space-4); text-align: center; }
+
+  /* ---- Faaliyet raporu placeholder ------------------------------------ */
+  .placeholder-box {
+    background: var(--bg-surface-sunken);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+    color: var(--ink-tertiary);
+    font-size: var(--text-body);
+    line-height: var(--leading-relaxed);
+  }
+
+  .footer-note {
+    margin-top: var(--space-7);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--border-subtle);
+    font-size: var(--text-micro);
+    color: var(--ink-tertiary);
+    text-align: center;
+  }
+
+  @media (max-width: 700px) {
+    body { padding: var(--space-3); }
+    .identity-hero { flex-direction: column; align-items: flex-start; }
+    .score-hero { text-align: left; }
+    .lens-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<a class="back-link" href="{{ data.dashboard_relative_url }}">← Piyasa Dashboard'una dön</a>
+
+<header class="identity-hero">
+  <div class="identity-main">
+    <div class="ticker">{{ data.ticker }}</div>
+    <div class="company-name">{{ data.company_name }}</div>
+    <div class="identity-meta">
+      <span class="meta-chip">{{ data.ust_sektor }}</span>
+      <span class="meta-chip">{{ data.sirket_turu_display }}</span>
+      <span class="meta-chip">{{ data.market }}</span>
+      <span class="meta-chip">Dönem: {{ data.period_display }}</span>
+      <span class="meta-chip">Son tarama: {{ data.computed_at_display }}</span>
+      {% if data.scan_status != "ok" %}<span class="meta-chip">durum: {{ data.scan_status }}</span>{% endif %}
+    </div>
+  </div>
+  <div class="score-hero">
+    {% if data.bilesik %}
+      <div class="score-num q-num {{ data.bilesik.badge_class }}">{{ data.bilesik.score_display }}</div>
+      <span class="score-badge {{ data.bilesik.badge_class }}">{{ data.bilesik.badge }}</span>
+      <span class="coverage-note">Veri kapsamı: {{ data.bilesik.data_coverage_pct_display }}</span>
+    {% else %}
+      <div class="score-num q-num yetersiz">—</div>
+      <span class="score-badge yetersiz">YETERSİZ VERİ</span>
+    {% endif %}
+  </div>
+</header>
+
+{% if data.carpanlar %}
+<div class="carpanlar-strip">
+  <div class="carpan-box"><div class="label">Fiyat</div><div class="value q-num">{{ data.carpanlar.price_display }}</div></div>
+  <div class="carpan-box"><div class="label">Piyasa Değeri</div><div class="value q-num">{{ data.carpanlar.market_cap_display }}</div></div>
+  <div class="carpan-box"><div class="label">F/K</div><div class="value q-num">{{ data.carpanlar.pe_ratio_display }}</div></div>
+  <div class="carpan-box"><div class="label">PD/DD</div><div class="value q-num">{{ data.carpanlar.pb_ratio_display }}</div></div>
+  <div class="carpan-box"><div class="label">FD/FAVÖK</div><div class="value q-num">{{ data.carpanlar.ev_ebitda_display }}</div></div>
+</div>
+{% endif %}
+
+<h2 class="section-title">4 Mercek — Bileşen Bazlı Detay</h2>
+{% if data.mercekler %}
+<div class="lens-grid">
+  {% for key, label in [("değer","Değer"), ("kalite","Kalite"), ("büyüme","Büyüme"), ("güvenlik","Güvenlik")] %}
+  {% set lens = data.mercekler[key] %}
+  <div class="lens-card">
+    <div class="lens-card-head">
+      <span class="lens-title">{{ label }}</span>
+      {% if lens %}
+        <span class="lens-score q-num {{ lens.badge_class }}">{{ lens.score_display }}</span>
+        <span class="lens-coverage">kapsam: {{ lens.data_coverage_pct_display }}</span>
+      {% endif %}
+    </div>
+    {% if lens and lens.components %}
+    <table class="component-table">
+      <thead>
+        <tr>
+          <th class="col-left">Bileşen</th>
+          <th>Skor</th>
+          <th>Nominal Ağırlık</th>
+          <th>Efektif Ağırlık</th>
+          <th>Katkı</th>
+          <th class="col-left">Gerekçe</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in lens.components %}
+        <tr>
+          <td class="col-left">{{ c.name }}{% if c.veri_eksik %}<span class="veri-eksik-flag" title="Bu bileşen için veri eksik -- ağırlığı diğer bileşenlere yeniden dağıtıldı">△</span>{% endif %}</td>
+          <td class="q-num">{{ c.score_display }}</td>
+          <td class="q-num">{{ c.weight_nominal_display }}</td>
+          <td class="q-num">{{ c.weight_effective_display }}</td>
+          <td class="q-num">{{ c.contribution_display }}</td>
+          <td class="reasoning">{{ c.reasoning_tr }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="lens-empty">Bu mercek için veri yok/yetersiz -- bileşen detayı gösterilemiyor.</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<p class="lens-empty">Bu şirket için henüz bir skor anlık görüntüsü yok.</p>
+{% endif %}
+
+<h2 class="section-title">Finansal Tablo Özeti</h2>
+{% if data.financials.available %}
+<p class="meta-chip" style="margin-bottom: var(--space-4); display:inline-block;">Güncel dönem: {{ data.financials.latest_period_display }}</p>
+<div class="financial-grid">
+  <div class="financial-card">
+    <h3>Gelir Tablosu (güncel dönem vs. YoY)</h3>
+    <table class="financial-table">
+      <thead><tr><th class="col-left">Kalem</th><th>Güncel</th><th>Geçen Yıl</th><th>Değişim</th></tr></thead>
+      <tbody>
+        {% for r in data.financials.income_rows %}
+        <tr><td class="col-left">{{ r.label }}</td><td>{{ r.current }}</td><td>{{ r.comparison }}</td><td>{{ r.change }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="financial-card">
+    <h3>Bilanço (güncel dönem vs. QoQ)</h3>
+    <table class="financial-table">
+      <thead><tr><th class="col-left">Kalem</th><th>Güncel</th><th>Ö. Çeyrek</th><th>Değişim</th></tr></thead>
+      <tbody>
+        {% for r in data.financials.balance_rows %}
+        <tr><td class="col-left">{{ r.label }}</td><td>{{ r.current }}</td><td>{{ r.comparison }}</td><td>{{ r.change }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% if data.financials.quarterly_trend %}
+<div class="financial-card" style="margin-bottom: var(--space-6);">
+  <h3>Çeyreklik Seri (en fazla son 5 dönem)</h3>
+  <table class="financial-table">
+    <thead>
+      <tr>
+        <th class="col-left">Kalem</th>
+        {% for p in data.financials.quarterly_trend[0].points %}<th>{{ p.period_label }}</th>{% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in data.financials.quarterly_trend %}
+      <tr>
+        <td class="col-left">{{ row.label }}</td>
+        {% for p in row.points %}<td>{{ p.display }}</td>{% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% else %}
+<p class="financial-unavailable">{{ data.financials.note }}</p>
+{% endif %}
+
+<h2 class="section-title">Faaliyet Raporu Bulguları</h2>
+<div class="placeholder-box">{{ data.faaliyet_raporu_placeholder }}</div>
+
+<p class="footer-note">
+  Bu içerik yatırım tavsiyesi değildir; yatırım kararı için profesyonel danışmanlık alınmalıdır.
+  Üretim: {{ data.generated_at_display }}
+</p>
+
+</div>
+</body>
+</html>

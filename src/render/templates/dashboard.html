@@ -373,6 +373,17 @@
   }
   .index-chip.active { color: var(--bg-canvas); background: var(--brand-gold); border-color: var(--brand-gold); }
   .company-name { display: block; font-size: var(--text-micro); color: var(--ink-tertiary); font-weight: var(--weight-regular); }
+  .eco-badge {
+    font-family: var(--font-mono);
+    font-size: var(--text-micro);
+    font-weight: var(--weight-medium);
+    padding: 1px var(--space-2);
+    margin-left: var(--space-2);
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--brand-gold);
+    color: var(--brand-gold);
+    cursor: help;
+  }
   .status-pill {
     font-family: var(--font-mono);
     font-size: var(--text-micro);
@@ -600,6 +611,7 @@
             <td class="col-left"
                 data-sort="{{ c.ticker }}">
               <a class="ticker-cell" href="{{ c.detail_url }}" target="_blank" rel="noopener">{{ c.ticker }}</a>
+              {% if c.ekosistem_etiketi %}<span class="eco-badge" title="Görsel gruplama, istatistiksel sektör karşılaştırmasını etkilemez (n&lt;5, hala {{ c.ust_sektor }} havuzunda)">{{ c.ekosistem_etiketi }}</span>{% endif %}
               <span class="company-name">{{ c.company_name }}{% if c.scan_status != 'ok' %} — <span class="status-pill">{{ c.scan_status }}</span>{% endif %}</span>
             </td>
             <td class="col-left" data-sort="{{ c.sirket_turu_display }}">{{ c.sirket_turu_display }}</td>

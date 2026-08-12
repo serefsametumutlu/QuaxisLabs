@@ -110,6 +110,33 @@ def test_build_dashboard_data_satir_semasi(session) -> None:
     assert company["in_bist100"] is True
 
 
+# --- docs/spec/spec_sektor_inceltme.md "Seçenek B" -- görsel ekosistem etiketi -----------------------------------------------------
+
+
+def test_ekosistem_etiketi_havacilik_dortlusunde_gorunur_diger_sirketlerde_none(session) -> None:
+    _add_ok_row(session, "THYAO")
+    _add_ok_row(session, "AKBNK", ust_sektor="Finans", sirket_turu="banka")
+    session.commit()
+
+    data = dashboard.build_dashboard_data(session)
+    companies = {c["ticker"]: c for s in data["markets"]["BIST"]["sectors"] for c in s["companies"]}
+    assert companies["THYAO"]["ekosistem_etiketi"] == "Havacılık"
+    assert companies["AKBNK"]["ekosistem_etiketi"] is None
+
+
+def test_ekosistem_etiketi_ust_sektor_gruplamasini_etkilemez(session) -> None:
+    """Seçenek B'nin TEMEL iddiası -- THYAO 'Sanayi' istatistiksel havuzunda
+    KALIR, ekosistem_etiketi SADECE görsel bir ek alan, ayrı bir grup
+    OLUŞTURMAZ (regresyon testi)."""
+    _add_ok_row(session, "THYAO", ust_sektor="Sanayi", sirket_turu="sanayi")
+    session.commit()
+
+    data = dashboard.build_dashboard_data(session)
+    sectors = data["markets"]["BIST"]["sectors"]
+    assert len(sectors) == 1
+    assert sectors[0]["ust_sektor"] == "Sanayi"
+
+
 def test_dusuk_kapsamli_mercek_kapsam_cezali_skor_gosterir(session) -> None:
     """docs/spec/spec_kapsam_cezali_skor.md §3/§8 test senaryo 1 (AYES canlı
     örneği): bir mercek 1-2 bileşenden şişirilmiş yüksek bir skora sahip

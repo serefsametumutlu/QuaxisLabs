@@ -6,26 +6,40 @@ modülü import ETMEZ (quaxis-mimari anayasa madde 1).
 kadar İYİ ve SÜRDÜRÜLEBİLİR biçimde kazanıyor? (Fiyattan BAĞIMSIZ, DEĞER
 merceğinden KASITLI olarak ayrık -- 00_sentez.md §2.5.)
 
-Ağırlıklar (spec §Eşikler ve ağırlıklar, `sanayi`/`abd_sanayi`, toplam %100):
-    Nakit Üretimi (FAVÖK marjı)     %25  -- 02/İLKE-01-06
-    Özkaynak Kârlılığı (ROE)        %20  -- 02/FORMÜL-22, İLKE-40,41
-    Kârlılık (Net Marj)             %15  -- 02/FORMÜL-07, İLKE-13
-    Brüt Kâr Marjı (seviye+trend)   %15  -- 02/FORMÜL-01, İLKE-02,03
-    Greenblatt ROC                  %10  -- Greenblatt "Sihirli Formül"ünün KALİTE bacağı
-    ROA                              %5  -- 02/FORMÜL-13, İLKE-26
-    Nakit Kâr Kalitesi (OCF/NetKâr) %10  -- Piotroski kriter #4'ün SÜREKLİ versiyonu
+Ağırlıklar (spec §Eşikler ve ağırlıklar, `sanayi`/`abd_sanayi`, toplam %100
+-- docs/spec/spec_yeni_bilesenler_agirliklandirma.md §1 turunda GÜNCELLENDİ,
+üç YENİ bileşen eklendi, payın çoğu FAVÖK marjından çekildi):
+    Nakit Üretimi (FAVÖK marjı)     %20  -- 02/İLKE-01 (eski %25, -5)
+    Özkaynak Kârlılığı (ROE)        %18  -- 02/FORMÜL-22, İLKE-40,41 (eski %20, -2)
+    Kârlılık (Net Marj)             %13  -- 02/FORMÜL-07, İLKE-13 (eski %15, -2)
+    Brüt Kâr Marjı (seviye+trend)   %13  -- 02/FORMÜL-01, İLKE-02,03 (eski %15, -2)
+    Greenblatt ROC                   %8  -- Greenblatt "Sihirli Formül"ünün KALİTE bacağı (eski %10, -2)
+    ROA                               %4  -- 02/FORMÜL-13, İLKE-26 (eski %5, -1)
+    Nakit Kâr Kalitesi (OCF/NetKâr)  %9  -- Piotroski kriter #4'ün SÜREKLİ versiyonu (eski %10, -1)
+    SG&A/Brüt Kâr (YENİ)             %5  -- 02/FORMÜL-02, SADECE NASDAQ'ta dolu
+    Ar-Ge/Brüt Kâr (YENİ)            %3  -- 02/FORMÜL-03, SADECE NASDAQ'ta dolu (GERİLİM notu, bkz. _skor_rd_orani)
+    Faiz Gideri/Faaliyet Kârı (YENİ) %7  -- 01/FORMÜL-18, 02/FORMÜL-05, BAYRAK-06, SADECE NASDAQ'ta dolu
 
 Banka/sigorta/finansman şablonlarında (spec §Sektör ayarlaması madde 1)
 KALİTE merceği SADECE ROE+ROA'dan oluşur; ağırlıklar (%20/%5 nominal
 kendi içinde) `_agirlik_dagit_ve_hesapla`'nın orantısal dağıtımıyla
 OTOMATİK %80/%20'ye döner (quant_denetim_01.md Y1 düzeltmesi: doğru
 orantısal değer BU merceğin KENDİ nominal ağırlıklarından türetilir).
+Bu banka/sigorta/finansman şablonu YENİ 3 bileşenden ETKİLENMEDİ (spec_
+yeni_bilesenler_agirliklandirma.md: "yeni bileşenlerin TÜMÜ sanayi/
+abd_sanayi şablonlarında yaşıyor").
 
 Amortisman/Brüt Kâr (Formüller-3): spec'in kendi Eşikler tablosunda AĞIRLIK
-TAŞIMAZ (weight tablosu 25+20+15+15+10+5+10=%100'dür, bu bileşen o toplama
-DAHİL DEĞİLDİR) -- SADECE bilgi amaçlı hesaplanabilir bir formül olarak
-belgelenir, bu turda skorlanan bileşen KÜMESİNE EKLENMEDİ (gelecekte veri/
-kalibrasyon netleşirse eklenebilir).
+TAŞIMAZ -- SADECE bilgi amaçlı hesaplanabilir bir formül olarak belgelenir,
+bu turda skorlanan bileşen KÜMESİNE EKLENMEDİ (gelecekte veri/kalibrasyon
+netleşirse eklenebilir).
+
+SG&A/Ar-Ge/Faiz Gideri (docs/spec/spec_yeni_bilesenler_agirliklandirma.md
+§1): BİST XI_29 sanayi haritasında bu ham alanlar hiç çekilmiyor, bu üç
+bileşen BİST'te HER ZAMAN `None` döner, ağırlığı (%15 toplam) diğer 7
+bileşene ORANTISAL yeniden dağıtılır (`_agirlik_dagit_ve_hesapla`,
+DEĞİŞMEDİ) -- BİST kartı fiilen v1'e YAKIN 7-bileşenli KALİTE görür,
+NASDAQ kartı 10-bileşenli (piyasa asimetrisi kartta AÇIKÇA belirtilir).
 """
 
 from __future__ import annotations
@@ -36,7 +50,15 @@ from decimal import Decimal
 from src.analysis import scorer
 from src.analysis.calculator import AnalysisResult
 from src.analysis.fundamental_screens import GreenblattResult
-from src.analysis.lens_common import LensSonucu, _agirlik_dagit_ve_hesapla, _lerp_score, _asymptote_to, oran_str, seviye_trend_skoru_v2
+from src.analysis.lens_common import (
+    LensSonucu,
+    _agirlik_dagit_ve_hesapla,
+    _asymptote_to,
+    _lerp_score,
+    oran_str,
+    seviye_trend_skoru_v2,
+)
+from src.formatting import format_percent_tr
 
 
 @dataclass(frozen=True)
@@ -138,6 +160,107 @@ def _skor_nakit_kar_kalitesi(ocf_ttm: Decimal | None, net_income_ttm: Decimal | 
     return skor, f"nakit kâr kalitesi (OCF/Net Kâr) {oran_str(oran)} -- ideal ~1,00x veya üzeri (Piotroski kriter #4'ün sürekli hali)."
 
 
+# --- YENİ bileşenler (docs/spec/spec_yeni_bilesenler_agirliklandirma.md §1) -----------------------------------------------------
+#
+# Üçü de SADECE NASDAQ'ta dolu (BİST XI_29 sanayi haritasında bu ham alanlar
+# hiç çekilmiyor, isyatirim.py grep ile doğrulandı -- her zaman None kalır,
+# `_agirlik_dagit_ve_hesapla` ağırlığını diğer 7 bileşene ORANTISAL dağıtır).
+
+
+def _skor_sga_orani(oran_pct: Decimal | None) -> tuple[Decimal | None, str]:
+    """02/FORMÜL-02 -- SG&A (satış, genel, idari giderler)/Brüt Kâr, DÜŞÜK=
+    iyi (ters yön). Eşik (spec_mercek_kalite.md satır 140, spec_yeni_
+    bilesenler_agirliklandirma.md §1'in AYNEN aktardığı tablo): <%30
+    fantastik (9-10), %30-80 mümkün (kademeli 8->3), ~%100+ tekrarlayan
+    kırmızı bayrak (0-2)."""
+    if oran_pct is None:
+        return None, (
+            "SG&A/Brüt Kâr oranı hesaplanamadı (bu veri sadece NASDAQ şirketlerinde mevcut, BİST'te henüz "
+            "çekilmiyor -- araştırma gerekiyor), bileşen atlandı."
+        )
+    esik_fantastik, esik_mumkun = Decimal(30), Decimal(80)
+    if oran_pct < esik_fantastik:
+        skor = _lerp_score(oran_pct, Decimal(0), esik_fantastik, Decimal(10), Decimal(9))
+    elif oran_pct <= esik_mumkun:
+        skor = _lerp_score(oran_pct, esik_fantastik, esik_mumkun, Decimal(8), Decimal(3))
+    else:
+        skor = _lerp_score(oran_pct, esik_mumkun, Decimal(100), Decimal(3), Decimal(0))
+    return skor, (
+        f"SG&A (satış, genel, idari giderler)/Brüt Kâr oranı {format_percent_tr(oran_pct)} -- düşük olması "
+        "operasyonel disiplin/dayanıklı rekabet avantajı göstergesidir (02/FORMÜL-02)."
+    )
+
+
+def _skor_rd_orani(oran_pct: Decimal | None) -> tuple[Decimal | None, str]:
+    """02/FORMÜL-03 -- Ar-Ge/Brüt Kâr, DÜŞÜK=iyi (ters yön). Eşik (spec_
+    mercek_kalite.md satır 141): %0 en iyi (10), ~%30 sürdürmek zorunda/
+    kırılgan sınırı (5), tavan %50+ (0-2).
+
+    GERİLİM notu (spec_yeni_bilesenler_agirliklandirma.md §1, ÇÖZÜLMEZ,
+    BİLİNÇLİ tutulur -- persona kural 4): Buffett'ın çerçevesi DÜŞÜK Ar-Ge
+    oranını dayanıklı rekabet avantajı sinyali sayar (Coca-Cola %0 vs Intel
+    %16,8 örneği), Fisher'ın çerçevesi (HENÜZ İŞLENMEDİ) muhtemelen TERS
+    yönde okurdu (yüksek ama verimli Ar-Ge bir moat-İNŞA aracı, özellikle
+    NASDAQ'ın teknoloji ağırlıklı evreninde) -- bu gerilim ağırlığın
+    BİLEREK en düşük tutulmasıyla (%3) VE kart notuyla yansıtılır."""
+    if oran_pct is None:
+        return None, (
+            "Ar-Ge/Brüt Kâr oranı hesaplanamadı (bu veri sadece NASDAQ şirketlerinde mevcut, BİST'te henüz "
+            "çekilmiyor -- araştırma gerekiyor), bileşen atlandı."
+        )
+    esik_kirilgan = Decimal(30)
+    if oran_pct <= esik_kirilgan:
+        skor = _lerp_score(oran_pct, Decimal(0), esik_kirilgan, Decimal(10), Decimal(5))
+    else:
+        skor = _lerp_score(oran_pct, esik_kirilgan, Decimal(50), Decimal(5), Decimal(0))
+    aciklama = (
+        f"Ar-Ge/Brüt Kâr oranı {format_percent_tr(oran_pct)} -- Buffett çerçevesinde düşük oran dayanıklı "
+        "rekabet avantajı göstergesi sayılır (02/FORMÜL-03)."
+    )
+    if oran_pct > esik_kirilgan:
+        aciklama += (
+            " Yüksek Ar-Ge oranı bu NASDAQ teknoloji şirketinde OTOMATİK olumsuz sayılmamalı -- Fisher merceği "
+            "eklendiğinde bu yön yeniden değerlendirilecek (bilinen gerilim, henüz çözülmedi)."
+        )
+    return skor, aciklama
+
+
+def _skor_faiz_gideri_orani(oran_pct: Decimal | None) -> tuple[Decimal | None, str]:
+    """01/FORMÜL-18, 02/FORMÜL-05, BAYRAK-06 -- Faiz Gideri/Faaliyet Kârı,
+    DÜŞÜK=iyi (ters yön). Eşik (spec_mercek_kalite.md satır 142, spec_yeni_
+    bilesenler_agirliklandirma.md §1): <%15 güçlü (Buffett'ın tüketici
+    ürünleri sektörü tipik üst sınırı, 9-10), %15-40 orta (kademeli 8->3),
+    >%40 zayıf (0-3). Spec bu bölgede sabit bir tavan sayısı VERMEDİ
+    ("uydurma tavan" riskinden kaçınmak için) -- bunun yerine asimptotik
+    olarak 0'a yaklaşan bir kuyruk kullanılır (`_asymptote_to`, mevcut
+    FAVÖK marjı motorunun "eşik ötesi" tekniğiyle AYNI, sadece yön TERS).
+
+    K3-tipi net faiz geliri riski (spec §1 Kenar Durumlar): bazı NASDAQ
+    şirketlerinde `interest_expense` NET (gider-gelir birleşik) raporlanmış
+    olabilir -- negatif oran çıkarsa (fiilen "en düşük/en iyi" ucuna
+    kırpılır) kart bunu AÇIKÇA bir uyarı notuyla işaretler."""
+    if oran_pct is None:
+        return None, (
+            "Faiz Gideri/Faaliyet Kârı oranı hesaplanamadı (bu veri sadece NASDAQ şirketlerinde mevcut, BİST "
+            "sanayi haritasında henüz çekilmiyor -- araştırma gerekiyor), bileşen atlandı."
+        )
+    esik_guclu, esik_orta = Decimal(15), Decimal(40)
+    if oran_pct < esik_guclu:
+        skor = _lerp_score(oran_pct, Decimal(0), esik_guclu, Decimal(10), Decimal(9))
+    elif oran_pct <= esik_orta:
+        skor = _lerp_score(oran_pct, esik_guclu, esik_orta, Decimal(8), Decimal(3))
+    else:
+        yari_omur = (esik_orta - esik_guclu) / 2
+        skor = _asymptote_to(oran_pct - esik_orta, yari_omur, Decimal(3), Decimal(0))
+    aciklama = (
+        f"Faiz Gideri/Faaliyet Kârı oranı {format_percent_tr(oran_pct)} -- Buffett'ın tüketici ürünleri sektörü "
+        "tipik üst sınırı %15 (02/FORMÜL-05)."
+    )
+    if oran_pct < 0:
+        aciklama += " Negatif oran -- net faiz geliri/gideri birleşik raporlanmış olabilir, dikkatli yorumlanmalı."
+    return skor, aciklama
+
+
 def hesapla_kalite_mercegi(girdi: KaliteGirdisi) -> LensSonucu:
     """`sanayi`/`abd_sanayi` şablonu için 7 bileşenli tam Kalite Merceği."""
     r = girdi.analysis.ratios
@@ -154,15 +277,21 @@ def hesapla_kalite_mercegi(girdi: KaliteGirdisi) -> LensSonucu:
     roc = _skor_greenblatt_roc(girdi.greenblatt)
     roa = _skor_roa(girdi.analysis)
     nakit_kalitesi = _skor_nakit_kar_kalitesi(girdi.operating_cash_flow_ttm, r.ttm_net_income)
+    sga_orani = _skor_sga_orani(r.sga_to_gross_profit_pct)
+    rd_orani = _skor_rd_orani(r.rd_to_gross_profit_pct)
+    faiz_gideri_orani = _skor_faiz_gideri_orani(r.interest_expense_to_operating_profit_pct)
 
     bilesenler = [
-        ("Nakit Üretimi (FAVÖK marjı)", Decimal("25"), nakit_uretimi),
-        ("Özkaynak Kârlılığı (ROE)", Decimal("20"), roe),
-        ("Kârlılık (Net Marj)", Decimal("15"), net_marj),
-        ("Brüt Kâr Marjı", Decimal("15"), brut_marj),
-        ("Greenblatt Sermaye Getirisi (ROC)", Decimal("10"), roc),
-        ("Aktif Kârlılığı (ROA)", Decimal("5"), roa),
-        ("Nakit Kâr Kalitesi (OCF/Net Kâr)", Decimal("10"), nakit_kalitesi),
+        ("Nakit Üretimi (FAVÖK marjı)", Decimal("20"), nakit_uretimi),
+        ("Özkaynak Kârlılığı (ROE)", Decimal("18"), roe),
+        ("Kârlılık (Net Marj)", Decimal("13"), net_marj),
+        ("Brüt Kâr Marjı", Decimal("13"), brut_marj),
+        ("Greenblatt Sermaye Getirisi (ROC)", Decimal("8"), roc),
+        ("Aktif Kârlılığı (ROA)", Decimal("4"), roa),
+        ("Nakit Kâr Kalitesi (OCF/Net Kâr)", Decimal("9"), nakit_kalitesi),
+        ("SG&A/Brüt Kâr", Decimal("5"), sga_orani),
+        ("Ar-Ge/Brüt Kâr", Decimal("3"), rd_orani),
+        ("Faiz Gideri/Faaliyet Kârı", Decimal("7"), faiz_gideri_orani),
     ]
     return _agirlik_dagit_ve_hesapla(girdi.analysis.ticker, girdi.analysis.latest_period, "kalite", bilesenler)
 

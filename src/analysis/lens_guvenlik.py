@@ -5,18 +5,26 @@
 Ölçtüğü soru: muhasebe hilesi + bilanço riski -- bu şirket YAKINDA ZOR
 duruma düşer mi, raporlanan rakamlara GÜVENİLEBİLİR mi?
 
-Ağırlıklar (spec §Eşikler ve ağırlıklar, `sanayi`/`abd_sanayi`, toplam %100):
-    Kaldıraç (Net Borç/FAVÖK)                  %30  -- kalibre edilmiş çekirdek (v1'den taşınır)
-    Bilanço Kalitesi (Cari Oran+Özkaynak/Varlık) %20  -- kalibre edilmiş çekirdek (v1'den taşınır)
-    Piotroski F-Skoru                          %25  -- Piotroski (2000)
-    Toplam Yükümlülük/Özkaynak (geniş tanım)   %15  -- 02/FORMÜL-16, İLKE-30 [YENİ]
-    Merton Temerrüt Olasılığı (EDF)            %10  -- 03/İLKE-441-444 [YENİ orkestrasyon, BAYRAK-79/80]
+Ağırlıklar (spec §Eşikler ve ağırlıklar, `sanayi`/`abd_sanayi`, toplam %100
+-- docs/spec/spec_yeni_bilesenler_agirliklandirma.md §2 turunda GÜNCELLENDİ,
+Faiz Karşılama Oranı "yer tutucu"dan GERÇEK skorlanan bileşene yükseltildi):
+    Kaldıraç (Net Borç/FAVÖK)                  %29  -- kalibre edilmiş çekirdek (eski %30, -1)
+    Bilanço Kalitesi (Cari Oran+Özkaynak/Varlık) %18  -- kalibre edilmiş çekirdek (eski %20, -2)
+    Piotroski F-Skoru                          %24  -- Piotroski (2000) (eski %25, -1)
+    Toplam Yükümlülük/Özkaynak (geniş tanım)   %12  -- 02/FORMÜL-16, İLKE-30 (eski %15, -3)
+    Merton Temerrüt Olasılığı (EDF)             %7  -- 03/İLKE-441-444, BAYRAK-79/80 (eski %10, -3)
+    Faiz Karşılama Oranı (YENİ)                %10  -- 03/Tablo 2.4, FORMÜL-19; 01/FORMÜL-18; 02/FORMÜL-05 -- SADECE NASDAQ'ta dolu
 
 `financials_by_period` girdisi SADECE Toplam Yükümlülük/Özkaynak (geniş
 tanım, `short_term_liabilities`+`long_term_liabilities` ham alanları
 `calculator.AnalysisResult`'ta YOKTUR) için gerekir -- `fundamental_
 screens.py` ile AYNI "ham dict + aritmetik" deseni, katman kuralını
 İHLAL ETMEZ.
+
+Faiz Karşılama Oranı BİST'te HER ZAMAN `None` döner (girdisi olan
+`interest_expense_to_operating_profit_pct` BİST XI_29 haritasında hiç
+çekilmiyor, KALİTE merceğinin §1 bileşeniyle AYNI asimetri) -- ağırlığı
+diğer 5 bileşene ORANTISAL yeniden dağıtılır.
 """
 
 from __future__ import annotations
@@ -125,6 +133,72 @@ def _skor_merton(merton: MertonResult | None) -> tuple[Decimal | None, str]:
     )
 
 
+# --- Faiz Karşılama Oranı (docs/spec/spec_yeni_bilesenler_agirliklandirma.md §2) -----------------------------------------------------
+#
+# Damodaran Tablo 2.4 (03/Tablo 2.4, FORMÜL-19) -- 14-kademeli sentetik
+# kredi notu bant tablosu, CANLI kitap metninden BİREBİR alındı (spec §2
+# Formüller bölümü). (alt sınır, üst sınır, alt puan, üst puan, kredi notu
+# etiketi) -- küçükten büyüğe SIRALI, ardışık bantlar arasında `_lerp_score`
+# ile YUMUŞATILIR (mevcut motorun sürekli-skor felsefesiyle TUTARLI).
+_DAMODARAN_FAIZ_KARSILAMA_BANTLARI: tuple[tuple[Decimal, Decimal, Decimal, Decimal, str], ...] = (
+    (Decimal(0), Decimal("0.50"), Decimal("0.0"), Decimal("0.5"), "D"),
+    (Decimal("0.50"), Decimal("0.80"), Decimal("0.5"), Decimal("1.0"), "C"),
+    (Decimal("0.80"), Decimal("1.25"), Decimal("1.0"), Decimal("1.5"), "CC"),
+    (Decimal("1.25"), Decimal("1.50"), Decimal("1.5"), Decimal("2.0"), "CCC"),
+    (Decimal("1.50"), Decimal("2.00"), Decimal("2.0"), Decimal("3.0"), "B-"),
+    (Decimal("2.00"), Decimal("2.50"), Decimal("3.0"), Decimal("4.0"), "B"),
+    (Decimal("2.50"), Decimal("3.00"), Decimal("4.0"), Decimal("5.0"), "B+"),
+    (Decimal("3.00"), Decimal("3.50"), Decimal("5.0"), Decimal("5.5"), "BB"),  # Graham sanayi "en kötü 5x" ALTI burada başlar
+    (Decimal("3.50"), Decimal("4.00"), Decimal("5.5"), Decimal("6.0"), "BB+"),
+    (Decimal("4.00"), Decimal("4.50"), Decimal("6.0"), Decimal("6.5"), "BBB"),
+    (Decimal("4.50"), Decimal("6.00"), Decimal("6.5"), Decimal("7.5"), "A-"),
+    (Decimal("6.00"), Decimal("7.50"), Decimal("7.5"), Decimal("8.0"), "A"),  # Graham sanayi "en iyi 7x" ile ÇAPRAZ TUTARLI
+    (Decimal("7.50"), Decimal("9.50"), Decimal("8.0"), Decimal("9.0"), "A+"),
+    (Decimal("9.50"), Decimal("12.50"), Decimal("9.0"), Decimal("10.0"), "AA"),
+)
+
+
+def _skor_faiz_karsilama(interest_expense_to_operating_profit_pct: Decimal | None) -> tuple[Decimal | None, str]:
+    """03/Tablo 2.4, FORMÜL-19 (Interest Coverage Ratio) -- Faiz Karşılama
+    Oranı = FVÖK (Faaliyet Kârı ile YAKLAŞIK)/Faiz Gideri, KALİTE merceğinin
+    §1 bileşeni olan `interest_expense_to_operating_profit_pct`'in (AYNI ham
+    veri, FARKLI formül -- TERS çevrilmiş hali) üzerinden türetilir; yeni
+    bir fetcher/alan GEREKMEZ (spec §2 Formüller bölümü).
+
+    Kaynak: 03/Tablo 2.4, FORMÜL-19; 01/FORMÜL-18 (Graham'ın sanayi 7x/5x
+    bandı, ÇAPRAZ referans olarak bant etiketlerinde anılır); 02/FORMÜL-05
+    (Buffett <%15 -- KALİTE'deki §1 bileşeniyle AYNI ham veri, FARKLI
+    formül, çift-sayma SAYILMAZ -- "TEK satırda BİRLEŞTİRİLDİ" ilkesi).
+
+    Damodaran Tablo 2.4'ün kendisi "2004, küçük sanayi şirketleri" için
+    kalibre edilmiştir (kitap metninde AÇIKÇA yazılı) -- mega-cap NASDAQ
+    şirketlerinde bu bantlar KATI olmayabilir, kart bu sınırlamayı AÇIKÇA
+    taşır (uydurma yapılmadan, kitabın KENDİ sınırlaması aktarılır)."""
+    if interest_expense_to_operating_profit_pct is None or interest_expense_to_operating_profit_pct <= 0:
+        return None, (
+            "faiz karşılama oranı hesaplanamadı (faiz gideri sıfır/negatif/net faiz geliri olarak birleşik "
+            "raporlanmış olabilir -- oran anlamsız -- veya bu veri sadece NASDAQ şirketlerinde mevcut), "
+            "bileşen atlandı."
+        )
+    oran = Decimal(100) / interest_expense_to_operating_profit_pct
+    if oran > Decimal("12.50"):
+        skor, etiket = Decimal("10.0"), "AAA"
+    else:
+        skor, etiket = None, None
+        for alt, ust, puan_alt, puan_ust, bant_etiketi in _DAMODARAN_FAIZ_KARSILAMA_BANTLARI:
+            if oran <= ust:
+                skor = _lerp_score(oran, alt, ust, puan_alt, puan_ust)
+                etiket = bant_etiketi
+                break
+        if skor is None:  # oran < 0 -- fiilen imkansız (guard yukarıda), guvence icin
+            skor, etiket = Decimal("0.0"), "D"
+    return skor, (
+        f"faiz karşılama oranı (FVÖK/faiz gideri, Faiz Gideri/Faaliyet Kârı oranından türetilmiş) {oran_str(oran)} "
+        f"-- Damodaran Tablo 2.4 sentetik kredi notu bandı: {etiket}. Bu bant (2004, küçük/orta ölçekli sanayi "
+        "şirketleri için kalibre edilmiştir) mega-cap şirketlerde gevşek yorumlanmalıdır."
+    )
+
+
 def hesapla_guvenlik_mercegi(girdi: GuvenlikGirdisi) -> LensSonucu:
     cfg = scorer.CONFIG[girdi.template]
     r = girdi.analysis.ratios
@@ -136,13 +210,15 @@ def hesapla_guvenlik_mercegi(girdi: GuvenlikGirdisi) -> LensSonucu:
     piotroski = _skor_piotroski(girdi.piotroski)
     tyo = _skor_toplam_yukumluluk_ozkaynak(girdi.analysis, girdi.financials_by_period)
     merton = _skor_merton(girdi.merton)
+    faiz_karsilama = _skor_faiz_karsilama(r.interest_expense_to_operating_profit_pct)
 
     bilesenler = [
-        ("Kaldıraç (Net Borç/FAVÖK)", Decimal("30"), kaldirac),
-        ("Bilanço Kalitesi (Cari Oran + Özkaynak/Varlık)", Decimal("20"), bilanco),
-        ("Piotroski F-Skoru", Decimal("25"), piotroski),
-        ("Toplam Yükümlülük/Özkaynak (geniş tanım)", Decimal("15"), tyo),
-        ("Merton Temerrüt Olasılığı (EDF)", Decimal("10"), merton),
+        ("Kaldıraç (Net Borç/FAVÖK)", Decimal("29"), kaldirac),
+        ("Bilanço Kalitesi (Cari Oran + Özkaynak/Varlık)", Decimal("18"), bilanco),
+        ("Piotroski F-Skoru", Decimal("24"), piotroski),
+        ("Toplam Yükümlülük/Özkaynak (geniş tanım)", Decimal("12"), tyo),
+        ("Merton Temerrüt Olasılığı (EDF)", Decimal("7"), merton),
+        ("Faiz Karşılama Oranı", Decimal("10"), faiz_karsilama),
     ]
     return _agirlik_dagit_ve_hesapla(girdi.analysis.ticker, girdi.analysis.latest_period, "güvenlik", bilesenler)
 

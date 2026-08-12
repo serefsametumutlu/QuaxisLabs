@@ -6,10 +6,19 @@ UYARI (spec'in kendi üst notu, AYNEN taşınır): bu mercek Fisher/Lynch
 HENÜZ İŞLENMEDİĞİ için ZAYIF TEMELLENMİŞTİR -- bileşen sayısı (3) BİLİNÇLİ
 olarak AZ tutulmuştur.
 
-Ağırlıklar (spec §Eşikler ve ağırlıklar, `sanayi`/`abd_sanayi`, toplam %100):
-    Hasılat Büyümesi (reel, seviye+trend)         %55  -- kalibre edilmiş çekirdek (v1'den taşınır)
-    PEG Oranı (Lynch)                              %25  -- Lynch GARP felsefesi
-    Marjinal ROE + Verimlilik Kaynaklı Büyüme      %20  -- 03/İLKE-85,86 (Damodaran FORMÜL-42,43)
+Ağırlıklar (spec §Eşikler ve ağırlıklar, `sanayi`/`abd_sanayi`, toplam %100
+-- docs/spec/spec_yeni_bilesenler_agirliklandirma.md §3 turunda GÜNCELLENDİ,
+iki YENİ bileşen eklendi, payın çoğu PEG'den çekildi -- PEG'in KENDİSİ
+"BİLİNEN TANIM SAPMASI" ile zaten kusurlu işaretliydi):
+    Hasılat Büyümesi (reel, seviye+trend)          %55  -- kalibre edilmiş çekirdek (DEĞİŞMEDİ)
+    PEG Oranı (Lynch)                              %15  -- Lynch GARP felsefesi (eski %25, -10)
+    Marjinal ROE + Verimlilik Kaynaklı Büyüme      %17  -- 03/İLKE-85,86 (Damodaran FORMÜL-42,43) (eski %20, -3)
+    Capex/Net Kâr (Yeniden Yatırım Kalitesi, YENİ)  %8  -- 02/FORMÜL-25,28 -- BİST+NASDAQ'ta EŞİT kapsam
+    Payout Oranı (Temettü Disiplini, YENİ)          %5  -- 01/İLKE-177,178,180,181 -- BİST+NASDAQ'ta EŞİT kapsam
+
+Capex/Net Kâr ve Payout Oranı, mercek çoğunluğundan (KALİTE §1/GÜVENLİK §2
+bileşenleri, SADECE NASDAQ) FARKLI olarak PİYASA-SİMETRİKTİR -- BİST XI_29
+şirketlerinde de dolu olur (isyatirim.py "4CAI"/"4CBB" itemCode'ları).
 
 `financials_by_period` girdisi (SADECE bu mercekte gerekli -- Marjinal
 ROE'nin `equity_t-1` ve TTM `net_income_t-1` girdileri `calculator.
@@ -154,16 +163,74 @@ def _skor_marjinal_roe_ve_verimlilik(analysis: AnalysisResult, fbp: FinancialsBy
     return skor, ", ".join(parcalar) + "."
 
 
+# --- YENİ bileşenler (docs/spec/spec_yeni_bilesenler_agirliklandirma.md §3) -----------------------------------------------------
+#
+# İkisi de PİYASA-SİMETRİK (BİST+NASDAQ'ta EŞİT kapsam) -- mercek
+# çoğunluğundan (KALİTE §1/GÜVENLİK §2, SADECE NASDAQ) FARKLI olarak BİST
+# XI_29 şirketlerinde de dolu olur ("4CAI"/"4CBB" itemCode'ları).
+
+
+def _skor_capex_orani(oran_pct: Decimal | None) -> tuple[Decimal | None, str]:
+    """02/FORMÜL-25,28 -- Capex/Net Kâr (Yeniden Yatırım Kalitesi), DÜŞÜK=
+    iyi (ters yön). Eşik (FORMÜL-28, s.175-176, kitaptan BİREBİR): <%25
+    mükemmel (9-10), %25-50 kabul edilebilir/dayanıklı avantaj olası
+    (kademeli 8->5), >%50 zayıf/sermaye-yoğun (kademeli 4->0, tavan %100)."""
+    if oran_pct is None:
+        return None, "Capex/Net Kâr oranı hesaplanamadı (TTM yatırım harcaması veya TTM net kâr eksik/negatif), bileşen atlandı."
+    esik_mukemmel, esik_kabul = Decimal(25), Decimal(50)
+    if oran_pct < esik_mukemmel:
+        skor = _lerp_score(oran_pct, Decimal(0), esik_mukemmel, Decimal(10), Decimal(9))
+    elif oran_pct <= esik_kabul:
+        skor = _lerp_score(oran_pct, esik_mukemmel, esik_kabul, Decimal(8), Decimal(5))
+    else:
+        skor = _lerp_score(oran_pct, esik_kabul, Decimal(100), Decimal(4), Decimal(0))
+    return skor, (
+        f"Capex/Net Kâr oranı (yeniden yatırım kalitesi) {format_percent_tr(oran_pct)} -- düşük oran dayanıklı "
+        "rekabet avantajlı, az sermaye-yoğun şirketlerde tipik bir göstergedir (02/FORMÜL-25,28); "
+        "BİST+NASDAQ'ta eşit kapsam."
+    )
+
+
+def _skor_payout_orani(payout_pct: Decimal | None) -> tuple[Decimal | None, str]:
+    """01/İLKE-177,178,180,181 -- Payout Oranı (Temettü Disiplini), BANTLI
+    (monotonik DEĞİL -- PEG'in U-şekli sorunuyla AYNI TÜRDEN, iki-taraflı
+    lerp; formül spec_yeni_bilesenler_agirliklandirma.md §3'ten BİREBİR).
+
+    ATIF HİJYENİ notu (spec §3 GERİLİM, ÖNEMLİ DÜZELTME): Buffett'ın
+    "equity bond" kuponu (İLKE-52) vergi öncesi KÂR'dır, TEMETTÜ DEĞİL
+    (s.182-183) -- bu bileşen o aileye ATIFLA GEREKÇELENDİRİLMEMİŞTİR
+    (DEĞER merceğinin Kazanç Getirisi bileşeni zaten o aileyi DOĞRU
+    kullanır), SADECE İLKE-177/178/180/181'e (Böl.45, GERÇEKTEN temettü
+    hakkında konuşan bölüm) atıfla kurulmuştur."""
+    if payout_pct is None:
+        return None, "Payout oranı hesaplanamadı (TTM ödenen temettü veya TTM net kâr eksik/negatif), bileşen atlandı."
+    if Decimal(60) <= payout_pct <= Decimal(75):
+        skor = _lerp_score(abs(payout_pct - Decimal("67.5")), Decimal(0), Decimal("7.5"), Decimal(10), Decimal(9))
+    elif payout_pct < Decimal(60):
+        skor = _lerp_score(payout_pct, Decimal(0), Decimal(60), Decimal(4), Decimal(9))
+    else:  # payout_pct > 75
+        skor = _lerp_score(payout_pct, Decimal(75), Decimal(100), Decimal(9), Decimal(3))
+    return skor, (
+        f"payout oranı (ödenen temettü/TTM net kâr) {format_percent_tr(payout_pct)} -- Graham'ın tercih bandı "
+        "%60-75 (İLKE-178); düşük payout gelecek kazanç büyümesinde hafif ceza (İLKE-180), aşırı yüksek payout "
+        "sürdürülebilirlik riski taşır (İLKE-177); BİST+NASDAQ'ta eşit kapsam (hisse-başına DPS gerektirmez)."
+    )
+
+
 def hesapla_buyume_mercegi(girdi: BuyumeGirdisi) -> LensSonucu:
     buyume_cfg = scorer.CONFIG[girdi.template]["buyume"]
     hasilat = _skor_hasilat_buyumesi(girdi.analysis.ratios.revenue_growth_yoy_pct, girdi.enflasyon_yoy_pct, buyume_cfg)
     peg = _skor_peg(girdi.own_pe, girdi.analysis.ratios.revenue_growth_yoy_pct)
     marjinal = _skor_marjinal_roe_ve_verimlilik(girdi.analysis, girdi.financials_by_period)
+    capex = _skor_capex_orani(girdi.analysis.ratios.capex_to_net_income_pct)
+    payout = _skor_payout_orani(girdi.analysis.ratios.payout_ratio_pct)
 
     bilesenler = [
         ("Hasılat Büyümesi (reel, seviye+trend)", Decimal("55"), hasilat),
-        ("PEG Oranı (Lynch)", Decimal("25"), peg),
-        ("Marjinal ROE + Verimlilik Kaynaklı Büyüme", Decimal("20"), marjinal),
+        ("PEG Oranı (Lynch)", Decimal("15"), peg),
+        ("Marjinal ROE + Verimlilik Kaynaklı Büyüme", Decimal("17"), marjinal),
+        ("Capex/Net Kâr (Yeniden Yatırım Kalitesi)", Decimal("8"), capex),
+        ("Payout Oranı (Temettü Disiplini)", Decimal("5"), payout),
     ]
     return _agirlik_dagit_ve_hesapla(girdi.analysis.ticker, girdi.analysis.latest_period, "büyüme", bilesenler)
 

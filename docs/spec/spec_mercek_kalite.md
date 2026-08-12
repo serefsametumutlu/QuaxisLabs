@@ -110,17 +110,26 @@ nakit_kar_kalitesi_orani = operating_cash_flow / net_income   # ideal ~1'e yakı
 
 ## Eşikler ve ağırlıklar
 
-**KALİTE merceği iç ağırlıkları (`sanayi`/`abd_sanayi`, toplam %100):**
+**KALİTE merceği iç ağırlıkları (`sanayi`/`abd_sanayi`, toplam %100 —
+docs/spec/spec_yeni_bilesenler_agirliklandirma.md §1 turunda GÜNCELLENDİ,
+2026-08-12: üç YENİ bileşen eklendi, SG&A/Ar-Ge/Faiz Gideri "VERİ EKSİK"
+yer tutucudan GERÇEK skorlanan bileşenlere yükseltildi; payın çoğu FAVÖK
+marjından çekildi — gerekçe: bu bileşen zaten Buffett'ın FAVÖK/EBITDA
+eleştirisiyle [İLKE-06] GERİLİM içinde, üç yeni bileşen ise kitabın
+ÇEKİŞMESİZ önerdiği metrikler):**
 
 | Bileşen | Ağırlık | Eşikler | Gerekçe / kaynak |
 |---|---|---|---|
-| Nakit Üretimi (FAVÖK marjı) | %25 | Mevcut scorer.py `nakit_uretimi` cfg AYNEN taşınır (güçlü≥20, orta≥10, tavan30) | Kalibre edilmiş, canlı doğrulanmış çekirdek KORUNUR (persona kural 8), kaynağı 02/İLKE-01 (Warren gelir tablosunun HER kalemini kazanç KALİTESİ için inceler). **DÜZELTME (kullanıcı denetimi, 2026-08-12 — önceki "02/İLKE-01-06" ARALIK atıfı YANLIŞTI):** bu aralığın İÇİNDEKİ 02/İLKE-06 ("Amortisman gerçek bir ekonomik maliyettir; Wall Street'in FAVÖK mantığıyla bunu göz ardı etmesi bir YANILSAMADIR", s.67-68) FAVÖK/EBITDA kullanımını AÇIKÇA ELEŞTİRİR — yani kitabın kendisi bu bileşenin YÖNTEMİNE TERS düşer. Bu bir kod hatası DEĞİL, spec'in ATIF HİJYENİ hatasıdır (aralık ataması, tek tek kontrol edilmeden yapılmış): FAVÖK marjı bileşeni GERÇEKTE v1 Radar Skoru'ndan (scorer.py, kalibre/doğrulanmış) MİRAS alınan bir metriktir, Buffett kitabından DOĞRUDAN türetilmemiştir — kitap sadece "gelir tablosunun her kalemini incele" genel felsefesiyle (İLKE-01) gevşek bir bağlam sağlar. Bu GERİLİM (proje FAVÖK kullanıyor, Buffett FAVÖK'ü yanılsama sayıyor) `spec_bilesik_skor.md`'deki "GERİLİM ÇÖZÜLMEZ, BİLİNÇLİ TUTULUR" ilkesiyle AYNI şekilde burada da ÇÖZÜLMEDEN, AÇIKÇA belgelenir — kart/dashboard'da bu bileşenin kaynak atıfı SADECE "02/İLKE-01" olmalı, İLKE-06 ayrı bir "bilinen gerilim" notu olarak gösterilmelidir. |
-| Özkaynak Kârlılığı (ROE) | %20 | Mevcut scorer.py `ozkaynak_karliligi` cfg AYNEN taşınır (güçlü≥15, orta≥10, tavan25) | 02/FORMÜL-22, İLKE-40,41 — kitabın Böl.47-48'de EN ÇOK vurguladığı formül; Graham/Buffett/Munger/Lynch/O'Neil ORTAK kesişimi (00_sentez.md §1.3). |
-| Kârlılık (Net Marj) | %15 | Mevcut scorer.py `karlilik` cfg AYNEN taşınır | 02/FORMÜL-07, İLKE-13 — net marj>%20 dayanıklı avantaj olasılığı yüksek (Coca-Cola %21, Moody's %31), <%10 rekabetçi sektör göstergesi (istisna: banka/finansta TERS kural, bkz. Kenar Durumlar). |
-| Brüt Kâr Marjı (seviye+trend, YENİ) | %15 | güçlü≥%40, orta≥%20, tavan%70 (Coca-Cola %60+, Moody's %73 örnekleri; ≤%20 "sürdürülebilir avantajı olmayan, aşırı rekabetçi sektör") | 02/FORMÜL-01, İLKE-02,03 — Buffett'ın "dayanıklılık testinin özü" (en az 10 yıllık TUTARLILIK, tek yıl YETERSİZ — QuaxisLabs'ta 12 çeyrek/~3 yıl trend penceresiyle KISMİ karşılanır, kart bu sınırı belirtir). |
-| Greenblatt ROC (EBIT/Yatırılan Sermaye) | %10 | Mevcut fundamental_screens.py bantları (Yüksek≥25, Düşük≤10) AYNEN taşınır | Greenblatt'ın "Sihirli Formül"ünün KALİTE bacağı — sermaye verimliliği; Damodaran'ın ROC-cost of capital farkı ilkesiyle (03/İLKE-203,208,212 — **DÜZELTME, kullanıcı denetimi 2026-08-12: önceki "İLKE-201-213" 13 maddelik ARALIK ataması gereğinden GENİŞTİ, en doğrudan ilgili 3 maddeye DARALTILDI**) KAVRAMSAL OLARAK örtüşür (fazla getiri = değer yaratan büyüme koşulu, bkz. `spec_mercek_buyume.md`) — bu GEVŞEK bir bağlam notudur, Greenblatt'ın KENDİ formülünün BİREBİR kaynağı DEĞİLDİR (asıl kaynak: Greenblatt, Sihirli Formül, kitap-bilgi-bankası dışı). |
-| ROA (YENİ) | %5 | güçlü≥%8, orta≥%3, tavan%20 (BIST/NASDAQ sanayi ortalamalarına göre KABACA, gerçek veriyle kalibrasyon BEKLEMEDE — bkz. Kenar Durumlar) | 02/FORMÜL-13, İLKE-26 — DİKKAT: çok yüksek ROA (düşük varlık tabanı) TEK BAŞINA "iyi" değildir, düşük sermaye giriş bariyeri riskini TAŞIYABİLİR (02/İLKE-26, BAYRAK-20) — bu yüzden ağırlık DÜŞÜK tutuldu, tek başına belirleyici DEĞİL. |
-| Nakit Kâr Kalitesi (OCF/Net Kâr, YENİ — x-katı oran, bkz. Formüller-6 birim uyarısı) | %10 | ≥1,0 güçlü, 0,7-1,0 orta, <0,7 zayıf (kaba, Piotroski'nin ikili OCF>NetKâr kriterinin SÜREKLİ versiyonu) | Tahakkuk/nakit ayrışması — kazanç KALİTESİNİN doğrudan göstergesi (01/Ch.12 KONTROL L, kısmen Schilit'in konusu ÖNCÜLÜ — Schilit eklendiğinde bu bileşen GENİŞLETİLECEK). |
+| Nakit Üretimi (FAVÖK marjı) | %20 (eski %25, -5) | Mevcut scorer.py `nakit_uretimi` cfg AYNEN taşınır (güçlü≥20, orta≥10, tavan30) | Kalibre edilmiş, canlı doğrulanmış çekirdek KORUNUR (persona kural 8), kaynağı 02/İLKE-01 (Warren gelir tablosunun HER kalemini kazanç KALİTESİ için inceler). **DÜZELTME (kullanıcı denetimi, 2026-08-12 — önceki "02/İLKE-01-06" ARALIK atıfı YANLIŞTI):** bu aralığın İÇİNDEKİ 02/İLKE-06 ("Amortisman gerçek bir ekonomik maliyettir; Wall Street'in FAVÖK mantığıyla bunu göz ardı etmesi bir YANILSAMADIR", s.67-68) FAVÖK/EBITDA kullanımını AÇIKÇA ELEŞTİRİR — yani kitabın kendisi bu bileşenin YÖNTEMİNE TERS düşer. Bu bir kod hatası DEĞİL, spec'in ATIF HİJYENİ hatasıdır (aralık ataması, tek tek kontrol edilmeden yapılmış): FAVÖK marjı bileşeni GERÇEKTE v1 Radar Skoru'ndan (scorer.py, kalibre/doğrulanmış) MİRAS alınan bir metriktir, Buffett kitabından DOĞRUDAN türetilmemiştir — kitap sadece "gelir tablosunun her kalemini incele" genel felsefesiyle (İLKE-01) gevşek bir bağlam sağlar. Bu GERİLİM (proje FAVÖK kullanıyor, Buffett FAVÖK'ü yanılsama sayıyor) `spec_bilesik_skor.md`'deki "GERİLİM ÇÖZÜLMEZ, BİLİNÇLİ TUTULUR" ilkesiyle AYNI şekilde burada da ÇÖZÜLMEDEN, AÇIKÇA belgelenir — kart/dashboard'da bu bileşenin kaynak atıfı SADECE "02/İLKE-01" olmalı, İLKE-06 ayrı bir "bilinen gerilim" notu olarak gösterilmelidir. Bu GERİLİM, payının bilinçli olarak KÜÇÜLTÜLMESİNİN de gerekçesidir (spec_yeni_bilesenler_agirliklandirma.md §1). |
+| Özkaynak Kârlılığı (ROE) | %18 (eski %20, -2) | Mevcut scorer.py `ozkaynak_karliligi` cfg AYNEN taşınır (güçlü≥15, orta≥10, tavan25) | 02/FORMÜL-22, İLKE-40,41 — kitabın Böl.47-48'de EN ÇOK vurguladığı formül; Graham/Buffett/Munger/Lynch/O'Neil ORTAK kesişimi (00_sentez.md §1.3). |
+| Kârlılık (Net Marj) | %13 (eski %15, -2) | Mevcut scorer.py `karlilik` cfg AYNEN taşınır | 02/FORMÜL-07, İLKE-13 — net marj>%20 dayanıklı avantaj olasılığı yüksek (Coca-Cola %21, Moody's %31), <%10 rekabetçi sektör göstergesi (istisna: banka/finansta TERS kural, bkz. Kenar Durumlar). |
+| Brüt Kâr Marjı (seviye+trend) | %13 (eski %15, -2) | güçlü≥%40, orta≥%20, tavan%70 (Coca-Cola %60+, Moody's %73 örnekleri; ≤%20 "sürdürülebilir avantajı olmayan, aşırı rekabetçi sektör") | 02/FORMÜL-01, İLKE-02,03 — Buffett'ın "dayanıklılık testinin özü" (en az 10 yıllık TUTARLILIK, tek yıl YETERSİZ — QuaxisLabs'ta 12 çeyrek/~3 yıl trend penceresiyle KISMİ karşılanır, kart bu sınırı belirtir). |
+| Greenblatt ROC (EBIT/Yatırılan Sermaye) | %8 (eski %10, -2) | Mevcut fundamental_screens.py bantları (Yüksek≥25, Düşük≤10) AYNEN taşınır | Greenblatt'ın "Sihirli Formül"ünün KALİTE bacağı — sermaye verimliliği; Damodaran'ın ROC-cost of capital farkı ilkesiyle (03/İLKE-203,208,212 — **DÜZELTME, kullanıcı denetimi 2026-08-12: önceki "İLKE-201-213" 13 maddelik ARALIK ataması gereğinden GENİŞTİ, en doğrudan ilgili 3 maddeye DARALTILDI**) KAVRAMSAL OLARAK örtüşür (fazla getiri = değer yaratan büyüme koşulu, bkz. `spec_mercek_buyume.md`) — bu GEVŞEK bir bağlam notudur, Greenblatt'ın KENDİ formülünün BİREBİR kaynağı DEĞİLDİR (asıl kaynak: Greenblatt, Sihirli Formül, kitap-bilgi-bankası dışı). |
+| ROA | %4 (eski %5, -1) | güçlü≥%8, orta≥%3, tavan%20 (BIST/NASDAQ sanayi ortalamalarına göre KABACA, gerçek veriyle kalibrasyon BEKLEMEDE — bkz. Kenar Durumlar) | 02/FORMÜL-13, İLKE-26 — DİKKAT: çok yüksek ROA (düşük varlık tabanı) TEK BAŞINA "iyi" değildir, düşük sermaye giriş bariyeri riskini TAŞIYABİLİR (02/İLKE-26, BAYRAK-20) — bu yüzden ağırlık DÜŞÜK tutuldu, tek başına belirleyici DEĞİL. |
+| Nakit Kâr Kalitesi (OCF/Net Kâr — x-katı oran, bkz. Formüller-6 birim uyarısı) | %9 (eski %10, -1) | ≥1,0 güçlü, 0,7-1,0 orta, <0,7 zayıf (kaba, Piotroski'nin ikili OCF>NetKâr kriterinin SÜREKLİ versiyonu) | Tahakkuk/nakit ayrışması — kazanç KALİTESİNİN doğrudan göstergesi (01/Ch.12 KONTROL L, kısmen Schilit'in konusu ÖNCÜLÜ — Schilit eklendiğinde bu bileşen GENİŞLETİLECEK). |
+| **SG&A/Brüt Kâr (YENİ)** | **%5** | <%30 fantastik (9-10), %30-80 mümkün (kademeli 8→3), ~%100+ tekrarlayan=kırmızı bayrak (0-2) — DÜŞÜK=iyi | 02/FORMÜL-02, Eşikler tablosu. SADECE NASDAQ'ta dolu (BİST XI_29 haritasında bu ham alan hiç çekilmiyor) — ağırlığı diğer 7 bileşene ORANTISAL dağıtılır. |
+| **Ar-Ge/Brüt Kâr (YENİ, gerilim notlu)** | **%3** | %0 en iyi (10), ~%30 sürdürmek zorunda/kırılgan sınırı (5), tavan %50+ (0-2) — DÜŞÜK=iyi | 02/FORMÜL-03. GERİLİM (ÇÖZÜLMEZ, BİLİNÇLİ tutulur): Buffett düşük Ar-Ge'yi dayanıklı avantaj sayar, Fisher (HENÜZ İŞLENMEDİ) muhtemelen TERS okurdu (yüksek-verimli Ar-Ge = moat-inşa) — bu yüzden ağırlık BİLEREK en düşük tutuldu. SADECE NASDAQ'ta dolu. |
+| **Faiz Gideri/Faaliyet Kârı (YENİ)** | **%7** | <%15 güçlü (Buffett tüketici ürünleri üst sınırı, 9-10), %15-40 orta (kademeli 8→3), >%40 zayıf (asimptotik 3→0) — DÜŞÜK=iyi | 02/FORMÜL-05, BAYRAK-06; 01/FORMÜL-18. Kitaplar arası EN SIK tekrarlanan açık (6+ kez) — üç yeni bileşenin en yükseği. SADECE NASDAQ'ta dolu; GÜVENLİK merceğinin Faiz Karşılama Oranı bileşeniyle AYNI ham veri, FARKLI formül/soru (çift-sayma SAYILMAZ, bkz. `spec_mercek_guvenlik.md`). |
 
 **Toplam: %100.** Marjinal ROE ve Verimlilik Kaynaklı Ek Büyüme
 bileşenleri BU mercekte SKORLANMAZ (ağırlık taşımaz) — bunlar `spec_
@@ -128,18 +137,12 @@ mercek_buyume.md`'de "büyüme kalitesi" alt-bileşenleri olarak yaşar (bkz.
 Uygulama notu, çift-sayma önleme); burada SADECE veri kaynağı olarak
 listelenmiştir çünkü ham verisi ROE ile aynıdır.
 
-**SG&A/Brüt Kâr, Ar-Ge/Brüt Kâr, Faiz Gideri/Faaliyet Kârı:** VERİ EKSİK
-olduğu için şimdilik SKORLANMAZ (piyasa kırılımı için bkz. Girdiler
-tablosu — NASDAQ tarafında bu üç kalemin standart `us-gaap:*` tag'lerle
-DÜŞÜK maliyetle açılabileceği, BİST tarafında araştırma gerektirdiği
-doğrulandı). Eşik tabloları (gelecekte veri gelirse kullanılmak üzere)
-belgelenir:
-
-| Gösterge | Eşik | Kaynak |
-|---|---|---|
-| SG&A/Brüt Kâr | <%30 fantastik, %30-80 mümkün, ~%100+ tekrarlayan=kırmızı bayrak | 02/FORMÜL-02, Eşikler tablosu |
-| Ar-Ge/Brüt Kâr | %0 en iyi, ~%30 sürdürmek zorunda/kırılgan | 02/FORMÜL-03 |
-| Faiz Gideri/Faaliyet Kârı | <%15 (tüketici ürünleri sektörü tipik üst sınır) | 02/FORMÜL-05, BAYRAK-06 |
+**BİST asimetrisi (Kural 3 gereği AÇIKÇA belirtilir):** SG&A/Ar-Ge/Faiz
+Gideri BİST XI_29 sanayi haritasında hiç çekilmiyor, bu üç bileşen BİST'te
+HER ZAMAN `None` döner — BİST kartı fiilen v1'e YAKIN 7-bileşenli KALİTE
+görür, NASDAQ kartı 10-bileşenli. Kart bu asimetriyi "SG&A/Ar-Ge/Faiz
+Gideri verisi BİST'te henüz mevcut değil (araştırma gerekiyor)" notuyla
+belirtir.
 
 ---
 

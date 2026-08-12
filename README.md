@@ -1890,6 +1890,65 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       tutar) — bir SONRAKİ tarama turunda otomatik devreye girer. 24 yeni
       test (`test_pipeline_historical_scores.py` + `test_tarama_toplu.py`/
       `test_company_detail.py` eklemeleri) — tam suite 1510 test yeşil.
+- [x] **Yeni Bileşenlerin Ağırlıklandırılması (İkinci Tur) + Sektör
+      İnceltme** — (2026-08-12, `docs/spec/spec_yeni_bilesenler_
+      agirliklandirma.md` + `docs/spec/spec_sektor_inceltme.md` onaylandı,
+      aynı gün uygulandı):
+      1. **KALİTE merceği** (`src/analysis/lens_kalite.py`) +3 bileşen:
+         SG&A/Brüt Kâr (%5), Ar-Ge/Brüt Kâr (%3, Fisher-gerilim notlu),
+         Faiz Gideri/Faaliyet Kârı (%7) — toplam +%15, payın çoğu (-5) FAVÖK
+         marjından (Buffett'ın kendi FAVÖK eleştirisiyle GERİLİM halindeki
+         bileşen) çekildi. Ağırlık tablosu 25/20/15/15/10/5/10 →
+         20/18/13/13/8/4/9 + yeni 5/3/7 (toplam yine %100).
+      2. **GÜVENLİK merceği** (`src/analysis/lens_guvenlik.py`) +1 bileşen:
+         Faiz Karşılama Oranı (%10, Damodaran Tablo 2.4'ün 14-kademeli
+         sentetik kredi notu bandı, `interest_expense_to_operating_profit_
+         pct`'in TERS çevrilmiş hali — yeni fetcher GEREKMEDİ) — "yer
+         tutucu" satırdan GERÇEK skorlanan bileşene YÜKSELTİLDİ, payın
+         çoğu (-3) hiç çağrılmayan Merton'dan çekildi. 30/20/25/15/10 →
+         29/18/24/12/7 + yeni 10.
+      3. **BÜYÜME merceği** (`src/analysis/lens_buyume.py`) +2 bileşen:
+         Capex/Net Kâr (%8, DÜŞÜK=iyi) ve Payout Oranı (%5, banded İLKE-
+         177/178/180/181) — İKİSİ de BİST+NASDAQ'ta EŞİT kapsam (mercek
+         çoğunluğundan FARKLI, piyasa-simetrik). Payın çoğu (-10) kusurlu-
+         tanımlı PEG'den çekildi (Hasılat Büyümesi %55 DOKUNULMADI). 55/25/
+         20 → 55/15/17 + yeni 8/5.
+      4. **Sektör inceltme** (`src/fetchers/kap.py::KAP_TICKER_SECTOR_
+         OVERRIDES`): TAVHL "Finans"tan "Sanayi"ye (TUPRS ile AYNI desen —
+         THYAO/PGSUS/CLEBI ile aynı havuz), DEVA/GENKM/SANFM/ONCSM/MEDTR
+         (5 ilaç üreticisi, n=5) "Ana Metaller ve Madencilik"ten "Sağlık"a
+         taşındı — GERÇEK istatistiksel kazanım (n≥5 eşiği tam karşılanır).
+         YENİ `KAP_TICKER_EKOSISTEM_ETIKETI` + `ekosistem_etiketi_for_
+         ticker()`: THYAO/PGSUS/CLEBI/TAVHL için SADECE-görsel "Havacılık"
+         rozeti (`src/render/dashboard.py`/`company_detail.py`, dashboard.
+         html/company_detail.html'de altın renkli çip) — istatistiksel
+         `ust_sektor`/sektöre-göreli karşılaştırma (n=4<5) BUNDAN HİÇ
+         ETKİLENMEZ (Seçenek B, spec'in kendi önerisi). Kod-geliştirici
+         BİLİNÇLİ sapma: spec'in önerdiği `Company.ekosistem_etiketi` DB
+         sütunu/migration YERİNE (arka planda süren iki uzun tarama
+         süreciyle REKABET ETMEME kısıtı altında) SAF ticker→etiket statik
+         sözlüğü kullanıldı — TUPRS/TAVHL override deseniyle AYNI ilke,
+         DB şeması DEĞİŞMEDİ.
+      Tüm 6 yeni bileşen mevcut `_agirlik_dagit_ve_hesapla`/`seviye_trend_
+      skoru_v2`/`_lerp_score`/`_asymptote_to` ortak motorlarını kullanır
+      (yeni bir skorlama mekanizması İCAT EDİLMEDİ). 6 kalem (Temettü
+      Verimi, Efektif Vergi Oranı, Devir Hızı/Amihud, Ödenen Temettü+
+      Finansman Faaliyetleri, Opsiyon Seyreltme) BİLİNÇLİ OLARAK
+      skorlanmadı, kart notu olarak kaldı (spec'in kendi gerekçesiyle).
+      `docs/spec/spec_mercek_{kalite,guvenlik,buyume}.md` ağırlık tabloları
+      GÜNCELLENDİ. **CANLI DOĞRULANDI**: THYAO (BİST sanayi, DB'deki
+      cached `financials_by_period` ile) üç mercekte de ağırlık toplamı
+      TAM %100 (10/6/5 bileşenli), BİST-only bileşenler (SG&A/Ar-Ge/Faiz
+      Gideri/Faiz Karşılama) doğru şekilde `None`+orantısal-dağıtım; AAPL
+      (NASDAQ abd_sanayi) ile aynı doğrulama tekrarlandı. `company_detail.
+      build_company_detail_data()`/`dashboard.build_dashboard_data()` gerçek
+      DB satırlarıyla çağrılarak THYAO/PGSUS/CLEBI/TAVHL için `ekosistem_
+      etiketi="Havacılık"` üretildiği, `render_dashboard_html()` çıktısında
+      "Havacılık" rozetinin gerçekten göründüğü, `ust_sektor`in "Sanayi"/
+      "Finans" olarak DEĞİŞMEDİĞİ (regresyon) doğrulandı. 30 yeni test
+      eklendi (`test_lens_kalite.py`/`test_lens_guvenlik.py`/`test_lens_
+      buyume.py`/`test_sector_universe.py`/`test_dashboard.py`/`test_
+      company_detail.py`) — tam suite 1540 test yeşil.
 
 ## Dizin Yapisi
 

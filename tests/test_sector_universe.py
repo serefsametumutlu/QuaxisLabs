@@ -303,6 +303,42 @@ def test_sirket_turu_on_tahmin_from_kap_kesin_kategoriler() -> None:
     assert kap.sirket_turu_on_tahmin_from_kap("GAYRİMENKUL YATIRIM ORTAKLIKLARI") == "gyo"
 
 
+# --- docs/spec/spec_sektor_inceltme.md -- TAVHL/ilaç override + ekosistem etiketi -----------------------------------------------------
+
+
+def test_ust_sektor_for_kap_tavhl_override_sanayi_doner() -> None:
+    # TAVHL ince sektörde "HOLDİNGLER VE YATIRIM ŞİRKETLERİ" (varsayılan
+    # eşleme -> Finans) olsa bile override "Sanayi" verir (THYAO/PGSUS/CLEBI
+    # ile AYNI havuz -- Bulgu 2, spec_sektor_inceltme.md).
+    assert kap.ust_sektor_for_kap("TAVHL", "HOLDİNGLER VE YATIRIM ŞİRKETLERİ") == "Sanayi"
+    # override YOKKEN varsayılan eşleme (ör. gerçek çok-sektörlü bir holding):
+    assert kap.ust_sektor_for_kap("KCHOL", "HOLDİNGLER VE YATIRIM ŞİRKETLERİ") == "Finans"
+
+
+def test_ust_sektor_for_kap_ilac_sirketleri_override_saglik_doner() -> None:
+    # DEVA/GENKM/SANFM/ONCSM/MEDTR ince sektörde "KİMYA İLAÇ PETROL LASTİK
+    # VE PLASTİK ÜRÜNLER" (varsayılan -> Ana Metaller ve Madencilik) olsa
+    # bile override "Sağlık" verir (spec "Benzer potansiyel iyileştirmeler"
+    # madde 2 -- n=5, GERÇEK istatistiksel kazanım).
+    for ticker in ("DEVA", "GENKM", "SANFM", "ONCSM", "MEDTR"):
+        assert kap.ust_sektor_for_kap(ticker, "KİMYA İLAÇ PETROL LASTİK VE PLASTİK ÜRÜNLER") == "Sağlık"
+    # override YOKKEN (ör. gerçek bir kimyasal/petrol üreticisi) varsayılan eşleme KORUNUR:
+    assert kap.ust_sektor_for_kap("PETKM", "KİMYA İLAÇ PETROL LASTİK VE PLASTİK ÜRÜNLER") == "Ana Metaller ve Madencilik"
+
+
+def test_ekosistem_etiketi_for_ticker_havacilik_dortlusu() -> None:
+    for ticker in ("THYAO", "PGSUS", "CLEBI", "TAVHL"):
+        assert kap.ekosistem_etiketi_for_ticker(ticker) == "Havacılık"
+    # normalize (kucuk harf/bosluk) davranisi -- KAP_TICKER_SECTOR_OVERRIDES ile AYNI ilke.
+    assert kap.ekosistem_etiketi_for_ticker(" thyao ") == "Havacılık"
+
+
+def test_ekosistem_etiketi_for_ticker_bilinmeyen_ticker_none_doner() -> None:
+    # Kural 3 -- uydurma etiket YOK, 636 diger BIST sirketi None doner.
+    assert kap.ekosistem_etiketi_for_ticker("AKBNK") is None
+    assert kap.ekosistem_etiketi_for_ticker("UYDURMA_TICKER") is None
+
+
 def test_sirket_turu_on_tahmin_from_kap_sanayi_ust_sektorde_sanayi_doner() -> None:
     assert kap.sirket_turu_on_tahmin_from_kap("ULAŞTIRMA VE DEPOLAMA") == "sanayi"
 

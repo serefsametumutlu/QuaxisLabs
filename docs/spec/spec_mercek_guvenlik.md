@@ -108,15 +108,22 @@ temerrut_olasiligi_pct = merton_sonucu.default_probability_pct
 
 ## Eşikler ve ağırlıklar
 
-**GÜVENLİK merceği iç ağırlıkları (`sanayi`/`abd_sanayi`, toplam %100):**
+**GÜVENLİK merceği iç ağırlıkları (`sanayi`/`abd_sanayi`, toplam %100 —
+docs/spec/spec_yeni_bilesenler_agirliklandirma.md §2 turunda GÜNCELLENDİ,
+2026-08-12: Faiz Karşılama Oranı "yer tutucu"dan GERÇEK skorlanan bileşene
+yükseltildi; en büyük pay Merton'dan çekildi çünkü Merton PROJENİN HİÇBİR
+yerinde henüz çağrılmıyor — fiilen sıfır üreten bir ağırlığı, üç kitapta
+BAĞIMSIZ doğrulanmış olgun bir metriğe kaydırmak "kalibre edilmiş
+çekirdeği koru" ilkesini İHLAL ETMEZ):**
 
 | Bileşen | Ağırlık | Eşikler | Gerekçe / kaynak |
 |---|---|---|---|
-| Kaldıraç (Net Borç/FAVÖK) | %30 | Mevcut scorer.py `kaldirac` cfg AYNEN taşınır (çok iyi<1, iyi<2,5, orta<4, tavan8) | Kalibre edilmiş, canlı doğrulanmış çekirdek KORUNUR. Moody's/S&P kaldıraç bantlarıyla UYUMLU (evrensel kredi analizi pratiği, SCORING_METHODOLOGY.md). |
-| Bilanço Kalitesi (Cari Oran + Özkaynak/Varlık) | %20 | Mevcut scorer.py `bilanco_kalitesi` cfg AYNEN taşınır (cari oran iyi≥1,5/orta≥1; özkaynak/varlık iyi≥%40/orta≥%25) | 01/FORMÜL-26 (cari oran≥2,0 SANAYİ, Ch.14), 01/İLKE-154 (girişimci≥1,5, Ch.15) — mevcut eşikler Buffett'ın istisna bulgusuyla (İLKE-20) GERİLİM İÇİNDEDİR, bu GERİLİM ÇÖZÜLMEZ, BİLİNÇLİ olarak burada TUTULUR (bkz. Kenar Durumlar). |
-| Piotroski F-Skoru (finansal sağlık) | %25 | 9 kriterden ≥5'i değerlendirilebiliyorsa: oran≥%78 güçlü, %44-78 orta, <%44 zayıf | Joseph Piotroski (2000) — mevcut `fundamental_screens.py` çekirdeği, KALDIRAÇ ve KALİTE'yi (tahakkuk/nakit ayrışması dahil) TEK bir sayıda BİRLEŞTİRİR, bu yüzden GÜVENLİK merceğinde AĞIRLIKLI bir bileşen. |
-| Toplam Yükümlülük/Özkaynak (geniş tanım) | %15 | **DÜZELTME (quant_denetim_01.md K3b — spec içi çelişki ÇÖZÜLDÜ):** bu bileşen GERÇEKTEN 0-10 skora dönüştürülüp `_agirlik_dagit_ve_hesapla`'nın %15'lik payına DAHİL edilir (önceki taslaktaki "AYRI eşiklendirilmez" ifadesi KALDIRILDI — o ifade ile AYNI satırdaki %15 ağırlık/bant tablosu birbirini dışlıyordu). Somut dönüşüm: kaba bant (<1 güçlü, 1-2 orta, >2 zayıf — Buffett'ın hazine-hissesi-düzeltmesiz "ham" versiyonu, ~0,80 altı finansal kuruluş-dışı şirketlerde "dayanıklı avantaj olasılığı yüksek" [FORMÜL-17] EŞİĞİNE YAKLAŞTIRILMIŞ) `_lerp_score`/eşdeğer bir sürekli fonksiyonla 0-10'a çevrilir; `equity<=0` iken (bkz. Formüller-4) `None` döner, ağırlık diğer 4 bileşene yeniden dağıtılır. | 02/FORMÜL-16, İLKE-30 — "Toplam Yükümlülük/Özkaynak" (ticari borç+tahakkuk+ertelenmiş vergi DAHİL) mevcut dar `debt_to_equity`'den (SADECE finansal borç) YAPISAL OLARAK FARKLI bir soruya cevap verir (00_sentez.md §2.3: üç farklı "borç/özkaynak" kavramı var, hepsi meşru). |
-| Merton Temerrüt Olasılığı (EDF) | %10 | Düşük EDF (≤%1-2) güçlü, orta (%2-10) izlenmeli, yüksek (>%10) risk sinyali (kaba bant, Damodaran Tablo 17.1 kredi notu-temerrüt eşleşmesiyle KABACA hizalı: BBB 10y kümülatif %4,27, B 10y %32,75) | 03/İLKE-441-444, FORMÜL-171/172 — Merton'un opsiyon-teorik özkaynak çerçevesi; **mevcut `merton.py` modülü ZATEN kodda var, sadece skorlama motoruna BAĞLANMASI gerekiyor** (BAYRAK-79, kitap genelinde tespit edilen en düşük maliyetli/en yüksek etkili bulgu, bu turda TEKRAR doğrulandı — bkz. Girdiler tablosu). Veri yoksa (Merton hesaplanamıyorsa — fiyat oynaklığı serisi eksikse) bileşen ATLANIR, ağırlığı diğerlerine dağıtılır. |
+| Kaldıraç (Net Borç/FAVÖK) | %29 (eski %30, -1) | Mevcut scorer.py `kaldirac` cfg AYNEN taşınır (çok iyi<1, iyi<2,5, orta<4, tavan8) | Kalibre edilmiş, canlı doğrulanmış çekirdek KORUNUR. Moody's/S&P kaldıraç bantlarıyla UYUMLU (evrensel kredi analizi pratiği, SCORING_METHODOLOGY.md). |
+| Bilanço Kalitesi (Cari Oran + Özkaynak/Varlık) | %18 (eski %20, -2) | Mevcut scorer.py `bilanco_kalitesi` cfg AYNEN taşınır (cari oran iyi≥1,5/orta≥1; özkaynak/varlık iyi≥%40/orta≥%25) | 01/FORMÜL-26 (cari oran≥2,0 SANAYİ, Ch.14), 01/İLKE-154 (girişimci≥1,5, Ch.15) — mevcut eşikler Buffett'ın istisna bulgusuyla (İLKE-20) GERİLİM İÇİNDEDİR, bu GERİLİM ÇÖZÜLMEZ, BİLİNÇLİ olarak burada TUTULUR (bkz. Kenar Durumlar). |
+| Piotroski F-Skoru (finansal sağlık) | %24 (eski %25, -1) | 9 kriterden ≥5'i değerlendirilebiliyorsa: oran≥%78 güçlü, %44-78 orta, <%44 zayıf | Joseph Piotroski (2000) — mevcut `fundamental_screens.py` çekirdeği, KALDIRAÇ ve KALİTE'yi (tahakkuk/nakit ayrışması dahil) TEK bir sayıda BİRLEŞTİRİR, bu yüzden GÜVENLİK merceğinde AĞIRLIKLI bir bileşen. |
+| Toplam Yükümlülük/Özkaynak (geniş tanım) | %12 (eski %15, -3) | **DÜZELTME (quant_denetim_01.md K3b — spec içi çelişki ÇÖZÜLDÜ):** bu bileşen GERÇEKTEN 0-10 skora dönüştürülüp `_agirlik_dagit_ve_hesapla`'nın payına DAHİL edilir (önceki taslaktaki "AYRI eşiklendirilmez" ifadesi KALDIRILDI). Somut dönüşüm: kaba bant (<1 güçlü, 1-2 orta, >2 zayıf — Buffett'ın hazine-hissesi-düzeltmesiz "ham" versiyonu, ~0,80 altı finansal kuruluş-dışı şirketlerde "dayanıklı avantaj olasılığı yüksek" [FORMÜL-17] EŞİĞİNE YAKLAŞTIRILMIŞ) `_lerp_score`/eşdeğer bir sürekli fonksiyonla 0-10'a çevrilir; `equity<=0` iken (bkz. Formüller-4) `None` döner, ağırlık diğer bileşenlere yeniden dağıtılır. | 02/FORMÜL-16, İLKE-30 — "Toplam Yükümlülük/Özkaynak" (ticari borç+tahakkuk+ertelenmiş vergi DAHİL) mevcut dar `debt_to_equity`'den (SADECE finansal borç) YAPISAL OLARAK FARKLI bir soruya cevap verir (00_sentez.md §2.3: üç farklı "borç/özkaynak" kavramı var, hepsi meşru). |
+| Merton Temerrüt Olasılığı (EDF) | %7 (eski %10, -3) | Düşük EDF (≤%1-2) güçlü, orta (%2-10) izlenmeli, yüksek (>%10) risk sinyali (kaba bant, Damodaran Tablo 17.1 kredi notu-temerrüt eşleşmesiyle KABACA hizalı: BBB 10y kümülatif %4,27, B 10y %32,75) | 03/İLKE-441-444, FORMÜL-171/172 — Merton'un opsiyon-teorik özkaynak çerçevesi; **mevcut `merton.py` modülü ZATEN kodda var, sadece skorlama motoruna BAĞLANMASI gerekiyor** (BAYRAK-79, kitap genelinde tespit edilen en düşük maliyetli/en yüksek etkili bulgu). Veri yoksa (Merton hesaplanamıyorsa — fiyat oynaklığı serisi eksikse) bileşen ATLANIR, ağırlığı diğerlerine dağıtılır. |
+| **Faiz Karşılama Oranı (YENİ — "yer tutucu" satırdan YÜKSELTİLDİ)** | **%10** | Damodaran Tablo 2.4, 14-kademeli sentetik kredi notu bandı (>12,50 AAA=10,0 … <0,50 D=0,0-0,5), CANLI kitap metninden BİREBİR (bkz. aşağı) | 03/Tablo 2.4, FORMÜL-19; 01/FORMÜL-18 (Graham'ın sanayi 7x/5x bandı, ÇAPRAZ referans); 02/FORMÜL-05 (Buffett <%15, KALİTE'deki §1 bileşeniyle AYNI ham veri, çift-sayma SAYILMAZ). Kitaplar arası EN SIK tekrarlanan tekil açık (6+ kez) VE ÜÇ kitabın BAĞIMSIZ olarak kendi HAZIR eşik tablosunu ürettiği tek metrik — proje şu ana kadar bağladığı en olgun/en çok-kaynaklı bileşenlerden biri. SADECE NASDAQ'ta dolu (BİST XI_29 haritasında `interest_expense_to_operating_profit_pct` girdisi hiç çekilmiyor) — ağırlığı diğer 5 bileşene ORANTISAL dağıtılır. |
 
 **Toplam: %100.**
 
@@ -127,18 +134,35 @@ temerrut_olasiligi_pct = merton_sonucu.default_probability_pct
 | Sıkıntı sinyali (BAYRAK-76) | F/K veya PD/DD `None` AMA FD/FAVÖK veya FD/Hasılat geçerli | 03/İLKE-435 |
 | Derin sıkıntı/opsiyon karakteri (BAYRAK-83) | `equity<0` | 03/İLKE-441-442 |
 | Nakit Yakma Oranı | `ebitda<0` | 03/FORMÜL-164 |
-| Faiz Karşılama Oranı yer tutucu | HER ZAMAN (veri eksik) | 01/FORMÜL-18, 02/FORMÜL-05, 03/Tablo 2.4 — eşik tablosu HAZIR tutulur (bkz. aşağı), veri gelince DOĞRUDAN skorlanan bileşene YÜKSELTİLİR |
 
-**Faiz Karşılama Oranı — HAZIR eşik tablosu (veri gelene kadar UYGULANAMAZ,
-sadece belgelenir):**
+**Faiz Karşılama Oranı — Damodaran Tablo 2.4 (kredi notu bandı, GERÇEK
+skorlanan bileşen olarak UYGULANDI, spec_yeni_bilesenler_agirliklandirma.md
+§2):**
 
-| Sektör | Ort.-7-yıl / En-kötü-yıl | Kaynak |
-|---|---|---|
-| Sanayi | 7x / 5x | 01/FORMÜL-18 |
-| Perakende | 5x / 4x | 01/FORMÜL-18 |
-| Kamu hizmeti | 4x / 3x | 01/FORMÜL-18 |
-| Tüketici ürünleri (Buffett üst sınır) | <%15 (Faiz Gideri/Faaliyet Kârı) | 02/FORMÜL-05 |
-| Damodaran sentetik kredi notu (>12,5 AAA … <0,5 D) | Tablo 2.4, 14 kademe | 03/Tablo 2.4 |
+```
+oran > 12,50           -> 10,0  (AAA)
+oran 9,50 - 12,50      -> 9,0-10,0  (AA)
+oran 7,50 - 9,50       -> 8,0-9,0   (A+)
+oran 6,00 - 7,50       -> 7,5-8,0   (A)   <- Graham'ın sanayi "en iyi 7x" ile ÇAPRAZ TUTARLI
+oran 4,50 - 6,00       -> 6,5-7,5   (A-)
+oran 4,00 - 4,50       -> 6,0-6,5   (BBB)
+oran 3,50 - 4,00       -> 5,5-6,0   (BB+)
+oran 3,00 - 3,50       -> 5,0-5,5   (BB)   <- Graham'ın sanayi "en kötü 5x" ALTI burada başlar
+oran 2,50 - 3,00       -> 4,0-5,0   (B+)
+oran 2,00 - 2,50       -> 3,0-4,0   (B)
+oran 1,50 - 2,00       -> 2,0-3,0   (B-)
+oran 1,25 - 1,50       -> 1,5-2,0   (CCC)
+oran 0,80 - 1,25       -> 1,0-1,5   (CC)
+oran 0,50 - 0,80       -> 0,5-1,0   (C)
+oran < 0,50            -> 0,0-0,5   (D)
+```
+
+`interest_expense_to_operating_profit_pct` (KALİTE'nin §1 bileşeni, AYNI
+ham veri) TERS çevrilerek türetilir (`oran = 100 / faiz_gideri_orani`) —
+yeni bir fetcher/alan GEREKMEZ. Bu bant "2004, küçük sanayi şirketleri"
+için kalibre edilmiştir (kitap metninde AÇIKÇA yazılı) — mega-cap NASDAQ
+şirketlerinde kart "bu bant küçük/orta ölçekli sanayi şirketleri için
+kalibre edilmiştir, mega-cap şirketlerde gevşek yorumlanmalı" notu taşır.
 
 ---
 

@@ -545,10 +545,68 @@ KAP_SEKTOR_TO_UST_SEKTOR: dict[str, str] = {
 # Ticker-düzeyi override (spec "Ticker-düzeyi override (KAP)" notu BİREBİR):
 # TUPRS "KİMYA İLAÇ PETROL LASTİK VE PLASTİK ÜRÜNLER" ince kategorisinde ama
 # GERÇEK iş modeli rafineri (Enerji) -- varsayılan eşlemeden İSTİSNA.
+#
+# docs/spec/spec_sektor_inceltme.md (2026-08-12, CANLI kap_sektor_map.json
+# doğrulamalı) -- İKİ YENİ istisna, TUPRS ile AYNI desen:
+#
+# TAVHL (Bulgu 2, öncelik YÜKSEK): KAP'ta "HOLDİNGLER VE YATIRIM ŞİRKETLERİ"
+# ince kategorisinde (-> ust_sektor="Finans"), TAV Havalimanları Holding'in
+# GERÇEK iş modeli TEK-iş (havalimanı işletmeciliği) -- hukuki KABUK
+# (holding yapısı) ile GERÇEK iş modeli arasındaki fark burada somutlaşıyor
+# (KCHOL/SAHOL'un AKSİNE, onlar GERÇEKTEN çok-sektörlü). "Sanayi"ye taşınır
+# (THYAO/PGSUS/CLEBI ile AYNI havuz -- Bulgu 1'in "havacılık ekosistemi"
+# üçlüsü, istatistiksel n büyür).
+#
+# DEVA/GENKM/SANFM/ONCSM/MEDTR (spec "Benzer potansiyel iyileştirmeler"
+# madde 2, GERÇEK istatistiksel kazanım -- n=5, sektor-siniflandirma skill
+# madde 1'in n≥5 eşiğini TAM karşılar): "KİMYA İLAÇ PETROL LASTİK VE
+# PLASTİK ÜRÜNLER" ince kategorisi kimyasal/petrol/lastik/plastik
+# ÜRETİCİLERİ (AKSA, PETKM, BRISA gibi -- GERÇEKTEN "Ana Metaller ve
+# Madencilik") ile ilaç ÜRETİCİLERİ'ni (bu 5 şirket) AYNI kovada tutuyor --
+# GICS'te ilaç üretimi AÇIKÇA "Sağlık" (Health Care) sektörüdür.
 KAP_TICKER_SECTOR_OVERRIDES: dict[str, str] = {
     "TUPRS": "Enerji",  # rafineri — KAP'ın "Kimya İlaç Petrol..." ince kategorisi
     # bu şirketi ilaç/kimya şirketleriyle aynı kovaya koyuyor
+    "TAVHL": "Sanayi",  # TAV Havalimanları Holding — hukuki kabuk "Holding", gerçek iş tek-kollu havalimanı işletmeciliği
+    "DEVA": "Sağlık",  # Deva Holding — ilaç üreticisi
+    "GENKM": "Sağlık",  # Gen İlaç — ilaç üreticisi
+    "SANFM": "Sağlık",  # Sanifarma — ilaç üreticisi
+    "ONCSM": "Sağlık",  # Oncosem Onkoloji — ilaç üreticisi
+    "MEDTR": "Sağlık",  # Meditera — ilaç üreticisi
 }
+
+# docs/spec/spec_sektor_inceltme.md "Seçenek B" (görsel-amaçlı alt-etiket,
+# ÖNERİLEN çözüm) -- THYAO/PGSUS/CLEBI/TAVHL kullanıcı gözünde "aynı
+# sektör" olarak algılanıyor ama n=4 (sektor-siniflandirma skill madde 1'in
+# n≥5 kısıtının ALTINDA) -- istatistiksel sektöre-göreli karşılaştırma
+# (ust_sektor, `valuation.py`'nin peer havuzu) BU sözlükten ETKİLENMEZ,
+# HİÇBİR sorguya karışmaz (SADECE görüntüleme amaçlı, Kural 3: n=4 ile
+# istatistik ÜRETİLMEZ, sadece İSİMLENDİRME iyileştirilir).
+#
+# DB ŞEMASI/migration/refresh_universe.py'ye BİLEREK DOKUNULMADI (spec'in
+# önerdiği `Company.ekosistem_etiketi` sütunu YERİNE, TUPRS/TAVHL'deki
+# `KAP_TICKER_SECTOR_OVERRIDES` deseniyle AYNI ilkeyle SAF ticker->etiket
+# statik sözlüğü kullanılır) -- gerekçe: (a) statik/ticker-anahtarlı bir
+# eşleme için DB'de ayrı bir sütun/migration/senkronizasyon adımı GEREKMEZ
+# (aynı bilginin iki kopyası, biri kod-içi biri DB'de, senkron kalma riski
+# taşırdı), (b) bu turda DB şemasına dokunmama kısıtı (arka planda süren
+# iki uzun tarama süreciyle REKABET ETMEME) uygulandı. Dashboard/detay
+# sayfası render katmanı (SAF I/O'suz okuma) bu sözlüğü DOĞRUDAN import
+# eder (bkz. src/render/dashboard.py, src/render/company_detail.py).
+KAP_TICKER_EKOSISTEM_ETIKETI: dict[str, str] = {
+    "THYAO": "Havacılık",
+    "PGSUS": "Havacılık",
+    "CLEBI": "Havacılık",
+    "TAVHL": "Havacılık",
+}
+
+
+def ekosistem_etiketi_for_ticker(ticker: str) -> str | None:
+    """`KAP_TICKER_EKOSISTEM_ETIKETI`'nin ticker normalizasyonlu sarmalayıcısı
+    -- görsel-amaçlı, İSTATİSTİKSEL `ust_sektor`'e ASLA karışmaz (bkz. sözlük
+    üstü not). Bilinmeyen ticker için `None` döner (Kural 3, uydurma etiket
+    YOK)."""
+    return KAP_TICKER_EKOSISTEM_ETIKETI.get(ticker.strip().upper())
 
 
 def ust_sektor_for_kap(ticker: str, fine_sector: str) -> str | None:

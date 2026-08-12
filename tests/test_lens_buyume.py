@@ -10,7 +10,9 @@ from src.analysis.lens_buyume import (
     BuyumeGirdisiFinans,
     hesapla_buyume_mercegi,
     hesapla_buyume_mercegi_finans,
+    _skor_capex_orani,
     _skor_marjinal_roe_ve_verimlilik,
+    _skor_payout_orani,
     _skor_peg,
 )
 
@@ -58,7 +60,10 @@ def test_buyume_mercegi_tum_veriyle_calisir() -> None:
     sonuc = hesapla_buyume_mercegi(girdi)
     assert sonuc.data_sufficient
     isimler = {c.name for c in sonuc.components}
-    assert isimler == {"Hasılat Büyümesi (reel, seviye+trend)", "PEG Oranı (Lynch)", "Marjinal ROE + Verimlilik Kaynaklı Büyüme"}
+    assert isimler == {
+        "Hasılat Büyümesi (reel, seviye+trend)", "PEG Oranı (Lynch)", "Marjinal ROE + Verimlilik Kaynaklı Büyüme",
+        "Capex/Net Kâr (Yeniden Yatırım Kalitesi)", "Payout Oranı (Temettü Disiplini)",
+    }
 
 
 def test_buyume_mercegi_own_pe_yoksa_peg_atlanir() -> None:
@@ -202,6 +207,101 @@ def test_buyume_mercegi_finans_banka_kredi_buyumesi_bileseni_uretir() -> None:
     assert "Kredi Büyümesi (reel, seviye+trend)" in isimler
     assert isimler["Kredi Büyümesi (reel, seviye+trend)"].score is not None
     assert isimler["Marjinal ROE + Verimlilik Kaynaklı Büyüme"].score is not None
+
+
+# --- YENİ bileşenler (docs/spec/spec_yeni_bilesenler_agirliklandirma.md §3) -----------------------------------------------------
+
+
+def test_buyume_mercegi_agirlik_toplami_her_zaman_yuz() -> None:
+    """Nominal ağırlıklar (veri durumundan BAĞIMSIZ, statik) HER ZAMAN
+    %100'e tamamlanmalı -- 3 eski + 2 yeni bileşen (55+15+17+8+5)."""
+    analysis = _analysis()
+    fbp = _sample_financials()
+    girdi = BuyumeGirdisi(analysis=analysis, financials_by_period=fbp, own_pe=Decimal("8"))
+    sonuc = hesapla_buyume_mercegi(girdi)
+    toplam_nominal = sum((c.weight_nominal for c in sonuc.components), Decimal(0))
+    assert toplam_nominal == Decimal(100)
+
+
+def test_buyume_mercegi_capex_payout_veri_eksikse_none_agirlik_dagitilir() -> None:
+    """Fixture'da capex_cum/dividends_paid_cum YOK -- iki yeni bileşen de
+    None döner, ağırlığı diğer 3 bileşene ORANTISAL dağıtılır, mercek YİNE
+    'YETERSİZ VERİ' düşmez."""
+    analysis = _analysis()
+    fbp = _sample_financials()
+    girdi = BuyumeGirdisi(analysis=analysis, financials_by_period=fbp, own_pe=Decimal("8"))
+    sonuc = hesapla_buyume_mercegi(girdi)
+    isimler = {c.name: c for c in sonuc.components}
+    assert isimler["Capex/Net Kâr (Yeniden Yatırım Kalitesi)"].score is None
+    assert isimler["Payout Oranı (Temettü Disiplini)"].score is None
+    assert sonuc.data_sufficient
+    assert sonuc.total_score > Decimal("0")
+
+
+def test_buyume_mercegi_capex_payout_verilerle_hesaplanir_bist_nasdaq_simetrik() -> None:
+    """Capex/Net Kâr ve Payout Oranı, mercek çoğunluğundan (KALİTE §1/
+    GÜVENLİK §2, SADECE NASDAQ) FARKLI olarak BİST'te de dolu olur --
+    isyatirim.py '4CAI'/'4CBB' itemCode'ları PİYASA-BAĞIMSIZ."""
+    finansallar = _sample_financials()
+    # ttm_net_income = net_income_cum(_LATEST) + net_income_cum(_QOQ_PRIOR) - net_income_cum(_YOY_PRIOR)
+    # = 15 + 18 - 10 = 23 (calculator._trailing_12m_from_cumulative -- year_ago(latest)=_YOY_PRIOR,
+    # latest yilin bir onceki tam yili=_QOQ_PRIOR (2025,12)).
+    finansallar[_LATEST]["capex_cum"] = Decimal("2")
+    finansallar[_QOQ_PRIOR]["capex_cum"] = Decimal("6")
+    finansallar[_YOY_PRIOR]["capex_cum"] = Decimal("3")
+    finansallar[_LATEST]["dividends_paid_cum"] = Decimal("4")
+    finansallar[_QOQ_PRIOR]["dividends_paid_cum"] = Decimal("18")
+    finansallar[_YOY_PRIOR]["dividends_paid_cum"] = Decimal("6")
+    analysis = calculator.analyze("TESTBIST", finansallar)
+    girdi = BuyumeGirdisi(analysis=analysis, financials_by_period=finansallar, own_pe=Decimal("8"))
+    sonuc = hesapla_buyume_mercegi(girdi)
+    isimler = {c.name: c for c in sonuc.components}
+    # ttm_net_income=23 -- ttm_capex=5 (2+6-3) -> %21,7 (mukemmel bandi)
+    assert isimler["Capex/Net Kâr (Yeniden Yatırım Kalitesi)"].score is not None
+    assert isimler["Capex/Net Kâr (Yeniden Yatırım Kalitesi)"].score > Decimal("8")
+    # ttm_dividends_paid=16 (4+18-6) -> %69,57 (60-75 bandı ortasına yakın, yuksek puan)
+    assert isimler["Payout Oranı (Temettü Disiplini)"].score is not None
+    assert isimler["Payout Oranı (Temettü Disiplini)"].score > Decimal("8")
+    assert sonuc.data_sufficient
+
+
+def test_skor_capex_orani_dusuk_oranda_yuksek_puan_yuksek_oranda_dusuk_puan() -> None:
+    dusuk_skor, _ = _skor_capex_orani(Decimal("10"))
+    yuksek_skor, _ = _skor_capex_orani(Decimal("90"))
+    assert dusuk_skor > yuksek_skor
+
+
+def test_skor_capex_orani_none_ise_atlanir() -> None:
+    skor, gerekce = _skor_capex_orani(None)
+    assert skor is None
+    assert "atlandı" in gerekce
+
+
+def test_skor_payout_orani_bant_ortasinda_yuksek_puan() -> None:
+    skor, gerekce = _skor_payout_orani(Decimal("67.5"))
+    assert skor is not None
+    assert skor >= Decimal("9")
+    assert "%60-75" in gerekce
+
+
+def test_skor_payout_orani_dusuk_payoutta_hafif_ceza() -> None:
+    dusuk_skor, _ = _skor_payout_orani(Decimal("10"))
+    bant_skor, _ = _skor_payout_orani(Decimal("67.5"))
+    assert dusuk_skor < bant_skor
+    assert dusuk_skor > Decimal("0")  # İLKE-180 hafif ceza, SIFIRA vurmaz
+
+
+def test_skor_payout_orani_asiri_yuksekte_dusuk_puan() -> None:
+    skor, _ = _skor_payout_orani(Decimal("95"))
+    bant_skor, _ = _skor_payout_orani(Decimal("67.5"))
+    assert skor is not None
+    assert skor < bant_skor
+
+
+def test_skor_payout_orani_none_ise_atlanir() -> None:
+    skor, gerekce = _skor_payout_orani(None)
+    assert skor is None
+    assert "atlandı" in gerekce
 
 
 def test_buyume_mercegi_finans_buyume_verisi_yoksa_atlanir_diger_bilesenler_calisir() -> None:

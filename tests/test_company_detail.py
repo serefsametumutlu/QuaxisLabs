@@ -147,6 +147,20 @@ def test_ust_seviye_kimlik_alanlari(session) -> None:
     assert data["bilesik"]["badge"] == "SAĞLAM"
 
 
+def test_ekosistem_etiketi_thyao_havacilik_diger_sirket_none(session) -> None:
+    """docs/spec/spec_sektor_inceltme.md 'Seçenek B' -- SADECE görsel rozet,
+    `ust_sektor` (istatistiksel havuz) 'Sanayi' olarak KALIR (regresyon)."""
+    _add_ok_row(session, ticker="THYAO")
+    _add_ok_row(session, ticker="SISE")
+    session.commit()
+
+    thyao = company_detail.build_company_detail_data(session, "THYAO", "BIST")
+    sise = company_detail.build_company_detail_data(session, "SISE", "BIST")
+    assert thyao["ekosistem_etiketi"] == "Havacılık"
+    assert thyao["ust_sektor"] == "Sanayi"
+    assert sise["ekosistem_etiketi"] is None
+
+
 def test_mercekler_detay_tum_bilesenleri_tasir(session) -> None:
     """Görevin EN ÖNEMLİ kısmı -- mercekler_detay'daki HER bileşen (skor,
     ağırlık, katkı, reasoning_tr) sızmadan/eksilmeden data'ya geçmeli."""

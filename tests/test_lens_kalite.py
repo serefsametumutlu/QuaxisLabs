@@ -66,6 +66,7 @@ def test_kalite_mercegi_tum_veriyle_calisir_ve_veri_yeterli() -> None:
     assert isimler == {
         "Nakit Üretimi (FAVÖK marjı)", "Özkaynak Kârlılığı (ROE)", "Kârlılık (Net Marj)", "Brüt Kâr Marjı",
         "Greenblatt Sermaye Getirisi (ROC)", "Aktif Kârlılığı (ROA)", "Nakit Kâr Kalitesi (OCF/Net Kâr)",
+        "SG&A/Brüt Kâr", "Ar-Ge/Brüt Kâr", "Faiz Gideri/Faaliyet Kârı",
     }
 
 
@@ -117,7 +118,7 @@ def test_kalite_mercegi_treasury_stock_verilirse_duzeltmeli_roe_kullanilir() -> 
     isimler = {c.name: c for c in sonuc.components}
     roe_bileseni = isimler["Özkaynak Kârlılığı (ROE)"]
     assert roe_bileseni.score is not None
-    assert roe_bileseni.weight_nominal == Decimal("20")
+    assert roe_bileseni.weight_nominal == Decimal("18")
     assert "hazine hissesi düzeltmeli" in roe_bileseni.reasoning_tr
     assert "FORMÜL-21" in roe_bileseni.reasoning_tr
 
@@ -233,3 +234,97 @@ def test_kalite_mercegi_sigorta_roa_yoksa_keyerror_atmaz_yedek_esik_kullanir() -
     isimler = {c.name: c for c in sonuc.components}
     assert isimler["Aktif Kârlılığı (ROA)"].score is None
     assert isimler["Özkaynak Kârlılığı (ROE)"].weight_effective == Decimal(100)
+
+
+# --- YENİ bileşenler (docs/spec/spec_yeni_bilesenler_agirliklandirma.md §1) -----------------------------------------------------
+
+
+def test_kalite_mercegi_agirlik_toplami_her_zaman_yuz() -> None:
+    """Nominal ağırlıklar (veri durumundan BAĞIMSIZ, statik) HER ZAMAN
+    %100'e tamamlanmalı -- 7 eski + 3 yeni bileşen (20+18+13+13+8+4+9+5+3+7)."""
+    analysis = _analysis()
+    girdi = KaliteGirdisi(analysis=analysis)
+    sonuc = hesapla_kalite_mercegi(girdi)
+    toplam_nominal = sum((c.weight_nominal for c in sonuc.components), Decimal(0))
+    assert toplam_nominal == Decimal(100)
+
+
+def test_kalite_mercegi_bist_yeni_uc_bilesen_none_agirlik_dagitilir() -> None:
+    """BİST sanayi haritasında sga_expense/research_development_expense/
+    interest_expense hiç çekilmiyor -- bu 3 bileşen HER ZAMAN None döner,
+    ağırlığı diğer 7 bileşene ORANTISAL dağıtılır, mercek YİNE de
+    'YETERSİZ VERİ' düşmez (7-bileşenli v1'e yakın davranış korunur)."""
+    analysis = _analysis()  # sga_expense/research_development_expense/interest_expense fixture'da YOK
+    girdi = KaliteGirdisi(analysis=analysis)
+    sonuc = hesapla_kalite_mercegi(girdi)
+    isimler = {c.name: c for c in sonuc.components}
+    assert isimler["SG&A/Brüt Kâr"].score is None
+    assert isimler["Ar-Ge/Brüt Kâr"].score is None
+    assert isimler["Faiz Gideri/Faaliyet Kârı"].score is None
+    assert "NASDAQ" in isimler["SG&A/Brüt Kâr"].reasoning_tr
+    assert sonuc.data_sufficient
+    assert sonuc.total_score > Decimal("0")
+
+
+def test_kalite_mercegi_nasdaq_benzeri_veriyle_yeni_uc_bilesen_hesaplanir() -> None:
+    """NASDAQ tipi bir fixture (sga_expense/research_development_expense/
+    interest_expense DOLU) -- 3 yeni bileşen skorlanır, mercek 10-bileşenli
+    çalışır."""
+    finansallar = _sample_financials()
+    finansallar[_LATEST]["sga_expense"] = Decimal("10")  # SG&A/Brüt Kâr = 10/60 ~ %16,7 (fantastik bandı)
+    finansallar[_LATEST]["research_development_expense"] = Decimal("3")  # Ar-Ge/Brüt Kâr = 3/60 = %5
+    finansallar[_LATEST]["interest_expense"] = Decimal("2")  # Faiz Gideri/Faaliyet Kârı = 2/20 = %10
+    analysis = calculator.analyze("TESTUS", finansallar)
+    girdi = KaliteGirdisi(analysis=analysis)
+    sonuc = hesapla_kalite_mercegi(girdi)
+    isimler = {c.name: c for c in sonuc.components}
+    assert isimler["SG&A/Brüt Kâr"].score is not None
+    assert isimler["Ar-Ge/Brüt Kâr"].score is not None
+    assert isimler["Faiz Gideri/Faaliyet Kârı"].score is not None
+    # düşük oranlar -- düşük=iyi yönünde YÜKSEK puan bekleniyor
+    assert isimler["SG&A/Brüt Kâr"].score > Decimal("7")
+    assert isimler["Ar-Ge/Brüt Kâr"].score > Decimal("7")
+    assert isimler["Faiz Gideri/Faaliyet Kârı"].score > Decimal("7")
+    assert sonuc.data_sufficient
+
+
+def test_skor_sga_orani_yuksek_oranda_dusuk_puan() -> None:
+    from src.analysis.lens_kalite import _skor_sga_orani
+
+    dusuk_skor, _ = _skor_sga_orani(Decimal("15"))
+    yuksek_skor, _ = _skor_sga_orani(Decimal("95"))
+    assert dusuk_skor > yuksek_skor
+
+
+def test_skor_rd_orani_gerilim_notu_yuksek_oranda_eklenir() -> None:
+    from src.analysis.lens_kalite import _skor_rd_orani
+
+    skor, gerekce = _skor_rd_orani(Decimal("40"))
+    assert skor is not None
+    assert "Fisher merceği" in gerekce
+
+
+def test_skor_rd_orani_dusuk_oranda_gerilim_notu_eklenmez() -> None:
+    from src.analysis.lens_kalite import _skor_rd_orani
+
+    skor, gerekce = _skor_rd_orani(Decimal("5"))
+    assert skor is not None
+    assert "Fisher merceği" not in gerekce
+
+
+def test_skor_faiz_gideri_orani_negatifse_uyari_notu_eklenir() -> None:
+    """interest_expense NET (gider-gelir birleşik) raporlanmış olabilir --
+    negatif oran çıkarsa kart bunu AÇIKÇA işaretler."""
+    from src.analysis.lens_kalite import _skor_faiz_gideri_orani
+
+    skor, gerekce = _skor_faiz_gideri_orani(Decimal("-5"))
+    assert skor is not None
+    assert "net faiz geliri" in gerekce
+
+
+def test_skor_faiz_gideri_orani_none_ise_atlanir() -> None:
+    from src.analysis.lens_kalite import _skor_faiz_gideri_orani
+
+    skor, gerekce = _skor_faiz_gideri_orani(None)
+    assert skor is None
+    assert "atlandı" in gerekce

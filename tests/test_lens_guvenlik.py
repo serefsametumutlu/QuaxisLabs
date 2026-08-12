@@ -8,6 +8,7 @@ from src.analysis import calculator
 from src.analysis.fundamental_screens import PiotroskiResult
 from src.analysis.lens_guvenlik import (
     GuvenlikGirdisi,
+    _skor_faiz_karsilama,
     _skor_merton,
     _skor_ozkaynak_aktif_orani,
     _skor_piotroski,
@@ -72,7 +73,7 @@ def test_guvenlik_mercegi_tum_veriyle_calisir() -> None:
     isimler = {c.name for c in sonuc.components}
     assert isimler == {
         "Kaldıraç (Net Borç/FAVÖK)", "Bilanço Kalitesi (Cari Oran + Özkaynak/Varlık)", "Piotroski F-Skoru",
-        "Toplam Yükümlülük/Özkaynak (geniş tanım)", "Merton Temerrüt Olasılığı (EDF)",
+        "Toplam Yükümlülük/Özkaynak (geniş tanım)", "Merton Temerrüt Olasılığı (EDF)", "Faiz Karşılama Oranı",
     }
 
 
@@ -203,3 +204,68 @@ def test_guvenlik_mercegi_finans_sigorta_veri_yoksa_yetersiz_veri() -> None:
     sonuc = hesapla_guvenlik_mercegi_finans("XSIGORTA", (2026, 3), ozkaynak_aktif_orani_pct=None, piotroski=None)
     assert not sonuc.data_sufficient
     assert sonuc.total_score == Decimal("0")
+
+
+# --- Faiz Karşılama Oranı (docs/spec/spec_yeni_bilesenler_agirliklandirma.md §2) -----------------------------------------------------
+
+
+def test_guvenlik_mercegi_agirlik_toplami_her_zaman_yuz() -> None:
+    """Nominal ağırlıklar (veri durumundan BAĞIMSIZ, statik) HER ZAMAN
+    %100'e tamamlanmalı -- 5 eski + 1 yeni bileşen (29+18+24+12+7+10)."""
+    analysis = _analysis()
+    fbp = _sample_financials()
+    girdi = GuvenlikGirdisi(analysis=analysis, financials_by_period=fbp)
+    sonuc = hesapla_guvenlik_mercegi(girdi)
+    toplam_nominal = sum((c.weight_nominal for c in sonuc.components), Decimal(0))
+    assert toplam_nominal == Decimal(100)
+
+
+def test_guvenlik_mercegi_bist_faiz_karsilama_none_agirlik_dagitilir() -> None:
+    """BİST sanayi haritasında interest_expense hiç çekilmiyor -- Faiz
+    Karşılama Oranı HER ZAMAN None döner, ağırlığı diğer 5 bileşene
+    ORANTISAL dağıtılır."""
+    analysis = _analysis()  # interest_expense fixture'da YOK
+    fbp = _sample_financials()
+    girdi = GuvenlikGirdisi(analysis=analysis, financials_by_period=fbp)
+    sonuc = hesapla_guvenlik_mercegi(girdi)
+    isimler = {c.name: c for c in sonuc.components}
+    assert isimler["Faiz Karşılama Oranı"].score is None
+    assert sonuc.data_sufficient
+    assert sonuc.total_score > Decimal("0")
+
+
+def test_guvenlik_mercegi_nasdaq_benzeri_veriyle_faiz_karsilama_hesaplanir() -> None:
+    finansallar = _sample_financials()
+    finansallar[_LATEST]["operating_profit"] = Decimal("20")
+    finansallar[_LATEST]["interest_expense"] = Decimal("1")  # oran = 1/20*100 = %5 -- coverage = 100/5 = 20x (AAA)
+    analysis = calculator.analyze("TESTUS", finansallar)
+    girdi = GuvenlikGirdisi(analysis=analysis, financials_by_period=finansallar)
+    sonuc = hesapla_guvenlik_mercegi(girdi)
+    isimler = {c.name: c for c in sonuc.components}
+    assert isimler["Faiz Karşılama Oranı"].score == Decimal("10.0")
+    assert "AAA" in isimler["Faiz Karşılama Oranı"].reasoning_tr
+
+
+def test_skor_faiz_karsilama_none_veya_sifir_faiz_giderinde_atlanir() -> None:
+    skor, gerekce = _skor_faiz_karsilama(None)
+    assert skor is None
+    assert "atlandı" in gerekce
+    skor2, _ = _skor_faiz_karsilama(Decimal("0"))
+    assert skor2 is None
+
+
+def test_skor_faiz_karsilama_dusuk_kaldirac_dusuk_puan_damodaran_bandi() -> None:
+    """oran = 100/faiz_gideri_orani -- faiz_gideri_orani=%80 -> coverage=1,25x
+    -- Damodaran Tablo 2.4 sınırında (CC/CCC), düşük puan."""
+    skor, gerekce = _skor_faiz_karsilama(Decimal("80"))
+    assert skor is not None
+    assert skor < Decimal("2")
+    assert "Damodaran" in gerekce
+
+
+def test_skor_faiz_karsilama_guclu_kaldirac_yuksek_puan() -> None:
+    """faiz_gideri_orani=%5 -> coverage=20x -- Damodaran'ın AAA (>12,5x)
+    tavanının üstünde, sabit 10,0."""
+    skor, gerekce = _skor_faiz_karsilama(Decimal("5"))
+    assert skor == Decimal("10.0")
+    assert "AAA" in gerekce

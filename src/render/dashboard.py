@@ -39,6 +39,7 @@ from src.analysis.lens_common import MIN_SECTOR_N
 from src.analysis.scorer import YETERSIZ_VERI_ROZETI
 from src.db import repository
 from src.db.models import MarketScanResult, utcnow_naive
+from src.fetchers.kap import ekosistem_etiketi_for_ticker
 from src.formatting import format_currency_short, format_number_tr, format_percent_tr
 from src.render import company_detail
 from src.render.render_common import mercek_bilesen_sayimi, mercek_score_display
@@ -462,6 +463,12 @@ def _serialize_row(row: MarketScanResult) -> dict[str, Any]:
         "company_name": row.company_name or row.ticker,
         "market": row.market,
         "ust_sektor": row.ust_sektor,
+        # docs/spec/spec_sektor_inceltme.md "Seçenek B" -- SADECE görsel amaçlı
+        # ekosistem rozeti (örn. "Havacılık": THYAO/PGSUS/CLEBI/TAVHL), n<5
+        # olduğu için istatistiksel `ust_sektor` peer havuzuna ASLA karışmaz
+        # (bu satır SADECE görüntüleme, `_build_sectors()` gruplaması HALA
+        # `row.ust_sektor` okur, DEĞİŞMEDİ).
+        "ekosistem_etiketi": ekosistem_etiketi_for_ticker(row.ticker),
         "sirket_turu": row.sirket_turu,
         "sirket_turu_display": _SIRKET_TURU_DISPLAY.get(row.sirket_turu, row.sirket_turu or "—"),
         "template": row.template,

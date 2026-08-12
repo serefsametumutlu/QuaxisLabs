@@ -48,6 +48,7 @@ from src.ai.kar_kaynagi import KarKaynagiBulgulari
 from src.analysis import calculator
 from src.db import repository
 from src.db.models import Company, MarketScanResult, utcnow_naive
+from src.fetchers.kap import ekosistem_etiketi_for_ticker
 from src.formatting import format_currency_short, format_number_tr, format_percent_tr
 from src.render.render_common import mercek_bilesen_sayimi, mercek_score_display
 
@@ -475,6 +476,10 @@ def build_company_detail_data(session: Session, ticker: str, market: str, *, now
         "company_name": row.company_name or row.ticker,
         "market": row.market,
         "ust_sektor": row.ust_sektor or "Sınıflandırılmamış",
+        # docs/spec/spec_sektor_inceltme.md "Seçenek B" -- dashboard.py ile
+        # AYNI SADECE-görsel rozet (bkz. o modülün üst notu), istatistiksel
+        # `ust_sektor`'e karışmaz.
+        "ekosistem_etiketi": ekosistem_etiketi_for_ticker(row.ticker),
         "sirket_turu_display": _SIRKET_TURU_DISPLAY.get(row.sirket_turu, row.sirket_turu or "—"),
         "template": row.template,
         "period_display": f"{row.year}/{row.period}" if row.year is not None and row.period is not None else "—",

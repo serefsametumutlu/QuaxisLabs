@@ -65,6 +65,12 @@
     border-radius: var(--radius-pill);
     padding: 2px var(--space-3);
   }
+  .meta-chip.eco-chip {
+    color: var(--brand-gold);
+    background: transparent;
+    border: 1px solid var(--brand-gold);
+    cursor: help;
+  }
 
   .score-hero { text-align: right; }
   .score-hero .score-num { font-family: var(--font-mono); font-size: var(--text-display); font-weight: var(--weight-black); line-height: 1; }
@@ -253,6 +259,7 @@
     <div class="company-name">{{ data.company_name }}</div>
     <div class="identity-meta">
       <span class="meta-chip">{{ data.ust_sektor }}</span>
+      {% if data.ekosistem_etiketi %}<span class="meta-chip eco-chip" title="Görsel gruplama, istatistiksel sektör karşılaştırmasını etkilemez (n&lt;5, hala {{ data.ust_sektor }} havuzunda karşılaştırılır)">{{ data.ekosistem_etiketi }}</span>{% endif %}
       <span class="meta-chip">{{ data.sirket_turu_display }}</span>
       <span class="meta-chip">{{ data.market }}</span>
       <span class="meta-chip">Dönem: {{ data.period_display }}</span>

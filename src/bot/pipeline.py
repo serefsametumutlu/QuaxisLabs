@@ -81,6 +81,11 @@ _QUARTERLY_FIELDS: tuple[str, ...] = (
     "net_income",
     "depreciation_amortization",
     "operating_cash_flow",  # Faz 21 (Degerleme ekrani) -- Piotroski F-Skoru kriter 2/4
+    # Faz "Veri Tamlığı" V-07 (docs/spec/spec_veri_tamlik_yol_haritasi.md) --
+    # isyatirim.STANDARD_ITEM_MAP_XI_29'a YENI eklenen "pretax_profit"/
+    # "tax_provision" ("3I"/"3IA") whitelist'e eklendi.
+    "pretax_profit",
+    "tax_provision",
 )
 _STOCK_FIELDS: tuple[str, ...] = (
     "total_assets",

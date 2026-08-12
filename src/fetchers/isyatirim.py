@@ -204,6 +204,17 @@ STANDARD_ITEM_MAP_XI_29: dict[str, str] = {
     # dogrulandi -- raw.items'ta description_tr taranarak bulundu):
     "tangible_fixed_assets": "1BG",  # Maddi Duran Varliklar (Greenblatt "Net Fixed Assets" bileseni -- 1AK/"Duran Varliklar" TOPLAMI DEGIL, sadece bu alt kalem: goodwill/mali yatirim/ertelenmis vergi varligi gibi operasyonel OLMAYAN kalemleri DISLAR)
     "operating_cash_flow": "4C",  # Isletme Faaliyetlerinden Kaynaklanan Net Nakit (Piotroski kriter 2/4 -- KUMULATIF, bkz. CUMULATIVE_FIELDS)
+    # Faz "Veri Tamlığı" V-07 (docs/spec/spec_veri_tamlik_yol_haritasi.md) --
+    # STANDARD_ITEM_MAP_FINANSMAN'daki "pretax_profit"/"tax_provision"
+    # isimlendirme emsali XI_29 (sanayi) semasina TASINDI -- YENI kavram
+    # DEGIL. CANLI dogrulandi (data/exploration/thyao_items_readable.txt
+    # satir 98-99 VE BIMAS_XI_29_get_*.json, IKI BAGIMSIZ XI_29 sirketinde
+    # AYNI itemCode): "3I" = "SÜRDÜRÜLEN FAALİYETLER VERGİ ÖNCESİ KARI
+    # (ZARARI)" (PROFIT BEFORE TAX FROM CONTINUING OPERATIONS) -- FINANSMAN
+    # semasindaki "A3AK" (X. Surdurulen Faaliyetler Vergi Oncesi K/Z) ile
+    # KAVRAMSAL OLARAK AYNI satir, SADECE itemCode farkli.
+    "pretax_profit": "3I",  # SÜRDÜRÜLEN FAALİYETLER VERGİ ÖNCESİ KARI (ZARARI)
+    "tax_provision": "3IA",  # Sürdürülen Faaliyetler Vergi Geliri (Gideri) -- CANLI THYAO ornegi POZITIF (vergi GELIRI/karsilik iadesi) degeriyle geldi, isaret sirketten sirkete DEGISEBILIR (donem vergi geliri/gideri netidir) -- FINANSMAN semasindaki "A3AL" ("(-)" ibaresiyle ACIKCA GIDER isaretli) ile BIREBIR AYNI isaret kuralini VARSAYMA
 }
 
 # Gelir tablosu / nakit akis alanlari kumulatiftir (yil icinde YTD toplanir).
@@ -219,6 +230,7 @@ CUMULATIVE_FIELDS: frozenset[str] = frozenset(
         "net_income_total",
         "depreciation_amortization",
         "operating_cash_flow",  # Nakit akis tablosu kalemi de KUMULATIF (YTD) basilir, digerleriyle AYNI kural
+        "pretax_profit", "tax_provision",  # V-07 -- gelir tablosu kalemleri, digerleriyle AYNI KUMULATIF ilke
     }
 )
 

@@ -65,6 +65,36 @@ def test_standard_item_map_share_capital_dogru_kod() -> None:
     assert STANDARD_ITEM_MAP_XI_29["share_capital"] == "2OA"
 
 
+def test_standard_item_map_pretax_profit_dogru_kod() -> None:
+    """V-07 (docs/spec/spec_veri_tamlik_yol_haritasi.md) -- "3I" ("SÜRDÜRÜLEN
+    FAALİYETLER VERGİ ÖNCESİ KARI (ZARARI)"), THYAO VE BIMAS (İKİ BAĞIMSIZ
+    XI_29 şirketi) canlı kesif yanitiyla dogrulandi (bkz.
+    data/exploration/thyao_items_readable.txt satir 98, BIMAS_XI_29_get_*.json)."""
+    assert STANDARD_ITEM_MAP_XI_29["pretax_profit"] == "3I"
+
+
+def test_standard_item_map_tax_provision_dogru_kod() -> None:
+    assert STANDARD_ITEM_MAP_XI_29["tax_provision"] == "3IA"
+
+
+def test_pretax_profit_xi_29_ceyreklestirme_diger_alanlarla_ayni_ilkeyi_kullanir() -> None:
+    """V-07 -- "3I" digerleri (Satislar/Brut Kar) gibi KUMULATIF (YTD)
+    -- quarterly_standardized_value() ile AYNI cikarma ilkesiyle
+    ceyreklestirilebilmeli (regresyon: CUMULATIVE_FIELDS'e eklenmedi ise
+    bu test HAM kumulatif degeri yanlislikla doner)."""
+    items = {
+        STANDARD_ITEM_MAP_XI_29["pretax_profit"]: FinancialItem(
+            item_code=STANDARD_ITEM_MAP_XI_29["pretax_profit"], description_tr="Vergi Öncesi Kâr",
+            values_by_period={(2026, 6): Decimal("300"), (2026, 3): Decimal("120")},
+        ),
+    }
+    raw = RawFinancials(ticker="THYAO", company_code="THYAO", financial_group="XI_29", periods=[(2026, 6), (2026, 3)], items=items)
+    from src.fetchers.isyatirim import quarterly_standardized_value, standardized_value
+
+    assert standardized_value(raw, "pretax_profit", (2026, 6)) == Decimal("300")
+    assert quarterly_standardized_value(raw, "pretax_profit", (2026, 6)) == Decimal("300") - Decimal("120")
+
+
 def test_normalize_company_code_strips_suffix_and_uppercases() -> None:
     assert normalize_company_code("THYAO.IS") == "THYAO"
     assert normalize_company_code("thyao") == "THYAO"

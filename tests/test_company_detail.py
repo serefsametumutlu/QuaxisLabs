@@ -274,6 +274,56 @@ def test_faaliyet_raporu_placeholder_dogru_ve_dahil(session) -> None:
     session.commit()
     data = company_detail.build_company_detail_data(session, "THYAO", "BIST")
     assert "henüz araştırılmadı" in data["faaliyet_raporu_placeholder"]
+    assert data["faaliyet_raporu"] is None
+
+
+# --- faaliyet_raporu (docs/spec/spec_veri_tamlik_yol_haritasi.md §Faaliyet
+# Raporu, 2026-08-12) ---------------------------------------------------------------
+
+
+def _faaliyet_raporu_bulgulari_fixture() -> dict:
+    return {
+        "kaynak_baslik": "2025 Faaliyet Raporu",
+        "kaynak_tarih_display": "04.03.2026",
+        "kaynak_url": "https://kap.org.tr/tr/Bildirim/1566094",
+        "kar_kaynagi_ozeti": "Kâr artışı satış hacminden kaynaklandı.",
+        "arge_yatirim_notu": "Ar-Ge harcamaları %10 arttı.",
+        "faiz_finansman_notu": "Faiz gideri kârı sınırlı etkiledi.",
+        "risk_faktorleri": ["Kur riski", "Akaryakıt maliyeti riski"],
+        "source": "llm",
+        "generated_at": "2026-08-12T10:00:00",
+    }
+
+
+def test_faaliyet_raporu_bulgulari_varsa_taniniyor(session) -> None:
+    _add_ok_row(session)
+    session.commit()
+    row = session.get(MarketScanResult, "THYAO")
+    row.faaliyet_raporu_bulgulari = _faaliyet_raporu_bulgulari_fixture()
+    session.commit()
+
+    data = company_detail.build_company_detail_data(session, "THYAO", "BIST")
+
+    assert data["faaliyet_raporu"] is not None
+    assert data["faaliyet_raporu"]["kar_kaynagi_ozeti"] == "Kâr artışı satış hacminden kaynaklandı."
+    assert data["faaliyet_raporu"]["risk_faktorleri"] == ["Kur riski", "Akaryakıt maliyeti riski"]
+    assert "skor" in data["faaliyet_raporu"]["kaynak_etiket"].lower() or "gemini" in data["faaliyet_raporu"]["kaynak_etiket"].lower()
+
+
+def test_render_html_faaliyet_raporu_bulgulari_gorunur_ve_skor_degildir_uyarisi_var(session) -> None:
+    _add_ok_row(session)
+    session.commit()
+    row = session.get(MarketScanResult, "THYAO")
+    row.faaliyet_raporu_bulgulari = _faaliyet_raporu_bulgulari_fixture()
+    session.commit()
+
+    data = company_detail.build_company_detail_data(session, "THYAO", "BIST")
+    html = company_detail.render_company_detail_html(data)
+
+    assert "Kâr artışı satış hacminden kaynaklandı." in html
+    assert "Akaryakıt maliyeti riski" in html
+    assert "SKOR/PUAN DEĞİLDİR" in html
+    assert "henüz araştırılmadı" not in html  # placeholder ARTIK gösterilmemeli
 
 
 # --- render_company_detail_html() ---------------------------------------------------------------

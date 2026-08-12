@@ -44,6 +44,7 @@ import jinja2
 from sqlalchemy.orm import Session
 
 import config
+from src.ai.kar_kaynagi import KarKaynagiBulgulari
 from src.analysis import calculator
 from src.db import repository
 from src.db.models import Company, MarketScanResult, utcnow_naive
@@ -152,6 +153,15 @@ FAALIYET_RAPORU_PLACEHOLDER = (
     "Bu bölüm henüz araştırılmadı -- gelecek bir fazda faaliyet raporu/dipnot "
     "analizinden doldurulacak. Şu an burada gösterilecek gerçek bir bulgu yok."
 )
+
+# docs/spec/spec_veri_tamlik_yol_haritasi.md §Faaliyet Raporu (2026-08-12):
+# `KarKaynagiBulgulari.source` -> kullanıcıya gösterilecek dürüst kaynak
+# etiketi (Kural 2: "LLM asla sayı üretmez" ilkesiyle AYNI ruhla, bu bölümün
+# bir SKOR değil METİN ANALİZİ olduğu HER ZAMAN açıkça belirtilir).
+_FAALIYET_RAPORU_KAYNAK_ETIKET: dict[str, str] = {
+    "llm": "Gemini ile faaliyet raporu metninden çıkarılmış nitel bulgu (skor DEĞİLDİR)",
+    "fallback": "Otomatik metin analizi şu an kullanılamıyor -- kural tabanlı yedek not",
+}
 
 
 def detail_relative_path(ticker: str, market: str) -> str:
@@ -367,6 +377,31 @@ def _build_financials_block(session: Session, row: MarketScanResult) -> dict[str
     }
 
 
+def _faaliyet_raporu_block(row: MarketScanResult) -> dict[str, Any] | None:
+    """docs/spec/spec_veri_tamlik_yol_haritasi.md §Faaliyet Raporu, Adım 4:
+    `row.faaliyet_raporu_bulgulari` (JSON, `src/ai/kar_kaynagi.py::
+    KarKaynagiBulgulari.to_dict()` çıktısı) VARSA gerçek bulguları TAŞIR;
+    henüz analiz edilmemiş bir şirkette (sütun NULL) `None` döner -- çağıran
+    taraf (`build_company_detail_data`) bu durumda MEVCUT dürüst
+    `FAALIYET_RAPORU_PLACEHOLDER`'ı KORUR (Kural 3). Bu fonksiyon HİÇBİR
+    yeni sayı/skor ÜRETMEZ -- sadece ZATEN Türkçe biçimlenmiş alanları
+    tabloya/şablona hazır bir sözlüğe taşır."""
+    if not row.faaliyet_raporu_bulgulari:
+        return None
+    bulgular = KarKaynagiBulgulari.from_dict(row.faaliyet_raporu_bulgulari)
+    return {
+        "kaynak_baslik": bulgular.kaynak_baslik,
+        "kaynak_tarih_display": bulgular.kaynak_tarih_display,
+        "kaynak_url": bulgular.kaynak_url,
+        "kar_kaynagi_ozeti": bulgular.kar_kaynagi_ozeti,
+        "arge_yatirim_notu": bulgular.arge_yatirim_notu,
+        "faiz_finansman_notu": bulgular.faiz_finansman_notu,
+        "risk_faktorleri": bulgular.risk_faktorleri,
+        "source": bulgular.source,
+        "kaynak_etiket": _FAALIYET_RAPORU_KAYNAK_ETIKET.get(bulgular.source, bulgular.source),
+    }
+
+
 def build_company_detail_data(session: Session, ticker: str, market: str, *, now: datetime | None = None) -> dict[str, Any] | None:
     """`MarketScanResult` + `mercekler_detay` + `get_financials()`'ı company
     detay sayfası şemasına çevirir. Satır YOKSA veya piyasa uyuşmuyorsa
@@ -418,6 +453,7 @@ def build_company_detail_data(session: Session, ticker: str, market: str, *, now
         "mercekler": mercekler,
         "carpanlar": _carpanlar_block(row),
         "financials": _build_financials_block(session, row),
+        "faaliyet_raporu": _faaliyet_raporu_block(row),
         "faaliyet_raporu_placeholder": FAALIYET_RAPORU_PLACEHOLDER,
         "dashboard_relative_url": "../dashboard.html",
     }

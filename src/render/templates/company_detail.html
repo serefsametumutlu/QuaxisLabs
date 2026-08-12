@@ -194,6 +194,37 @@
     line-height: var(--leading-relaxed);
   }
 
+  /* ---- Faaliyet raporu Nitel Bulgular (docs/spec/spec_veri_tamlik_yol_
+     haritasi.md §Faaliyet Raporu) -- SKOR DEĞİLDİR, mercek kartlarından
+     görsel olarak AYRIŞTIRILMIŞ (border rengi teal DEĞİL, nötr) bir metin
+     kartı ------------------------------------------------------------ */
+  .nitel-disclaimer {
+    font-size: var(--text-micro);
+    color: var(--clr-warning);
+    margin-bottom: var(--space-3);
+    font-style: italic;
+  }
+  .nitel-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+  }
+  .nitel-kaynak {
+    font-size: var(--text-micro);
+    color: var(--ink-tertiary);
+    padding-bottom: var(--space-3);
+    margin-bottom: var(--space-4);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .nitel-kaynak a { color: var(--brand-teal); }
+  .nitel-madde { margin-bottom: var(--space-4); }
+  .nitel-madde:last-child { margin-bottom: 0; }
+  .nitel-madde h3 { font-size: var(--text-caption); text-transform: uppercase; letter-spacing: var(--tracking-wide); color: var(--ink-tertiary); margin-bottom: var(--space-2); }
+  .nitel-madde p { font-size: var(--text-body); color: var(--ink-primary); line-height: var(--leading-relaxed); }
+  .nitel-madde ul { padding-left: var(--space-5); }
+  .nitel-madde li { font-size: var(--text-body); color: var(--ink-primary); line-height: var(--leading-relaxed); margin-bottom: var(--space-1); }
+
   .footer-note {
     margin-top: var(--space-7);
     padding-top: var(--space-4);
@@ -358,8 +389,40 @@
 <p class="financial-unavailable">{{ data.financials.note }}</p>
 {% endif %}
 
-<h2 class="section-title">Faaliyet Raporu Bulguları</h2>
+<h2 class="section-title">Faaliyet Raporu Bulguları -- Nitel Bulgular</h2>
+{% if data.faaliyet_raporu %}
+<div class="nitel-disclaimer">Bu bölüm bir SKOR/PUAN DEĞİLDİR -- faaliyet raporu metninden çıkarılmış nitel bulgular, mercek skorlarına dahil edilmez.</div>
+<div class="nitel-card">
+  <div class="nitel-kaynak">
+    Kaynak: <a href="{{ data.faaliyet_raporu.kaynak_url }}" target="_blank" rel="noopener">{{ data.faaliyet_raporu.kaynak_baslik }}</a>
+    ({{ data.faaliyet_raporu.kaynak_tarih_display }}) -- {{ data.faaliyet_raporu.kaynak_etiket }}
+  </div>
+  <div class="nitel-madde">
+    <h3>Kâr/Zarar Nereden Geliyor?</h3>
+    <p>{{ data.faaliyet_raporu.kar_kaynagi_ozeti }}</p>
+  </div>
+  <div class="nitel-madde">
+    <h3>Ar-Ge / Yatırım Harcaması Notu</h3>
+    <p>{{ data.faaliyet_raporu.arge_yatirim_notu }}</p>
+  </div>
+  <div class="nitel-madde">
+    <h3>Faiz / Finansman Etkisi</h3>
+    <p>{{ data.faaliyet_raporu.faiz_finansman_notu }}</p>
+  </div>
+  {% if data.faaliyet_raporu.risk_faktorleri %}
+  <div class="nitel-madde">
+    <h3>Yönetimin Belirttiği Risk/Belirsizlik Faktörleri</h3>
+    <ul>
+      {% for r in data.faaliyet_raporu.risk_faktorleri %}
+      <li>{{ r }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+{% else %}
 <div class="placeholder-box">{{ data.faaliyet_raporu_placeholder }}</div>
+{% endif %}
 
 <p class="footer-note">
   Bu içerik yatırım tavsiyesi değildir; yatırım kararı için profesyonel danışmanlık alınmalıdır.

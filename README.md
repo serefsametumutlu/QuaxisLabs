@@ -1696,6 +1696,50 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       37 yeni test (`test_sec_edgar.py`, `test_calculator_us.py`,
       `test_lens_kalite.py`, `test_isyatirim.py`, `test_liquidity.py`) —
       tam suite 1395 test yeşil. 3 ayrı commit (nasdaq/bist/likidite).
+- [x] **Düzeltme — "Sektöre Göreli Konum" HER ZAMAN N/A gösteriyordu** —
+      (2026-08-12, kullanıcı raporu: hisse detay sayfasında bu bileşen
+      sektörde 10-20+ şirket taranmış olsa BİLE hep "yetersiz örneklem"
+      gösteriyordu) **Kök neden doğrulandı:** `pipeline.py::
+      compute_multi_lens_score_for_ticker()` `lens_deger.DegerGirdisi(...)`
+      çağırırken `sektor_pe`/`sektor_pb` parametrelerini HİÇ GEÇMİYORDU
+      (varsayılan `None` kalıyordu) — `SectorMetricCache` tablosu VE
+      `get_sector_metric_cache`/`save_sector_metric_cache` (repository.py)
+      ZATEN vardı ama `lens_common.SektorIstatistigi` docstring'inin vaat
+      ettiği `get_sector_metric_distribution()` HİÇ YAZILMAMIŞTI — cache
+      hiçbir yerden BESLENMİYORDU. `scripts/refresh_sector_cache.py`
+      (Faz 16) BAŞKA bir işi yapar (`Company.sector`'ı KAP'tan günceller),
+      bu tabloya hiç dokunmaz — ilk teşhisteki varsayım (bu script'in
+      cache'i doldurduğu) YANLIŞ çıktı. **Düzeltme:** (1) YENİ
+      `repository.get_sector_metric_distribution()` — `MarketScanResult`
+      (scripts/tarama_toplu.py'nin ZATEN doldurduğu tablo)'tan
+      `(ust_sektor, sirket_turu)` grubunun `pe_ratio`/`pb_ratio`
+      dağılımını okur (scan_status="ok", None hariç). (2) `pipeline.py`'ye
+      YENİ `_sektor_istatistigi_getir()` — önce `SectorMetricCache`'i
+      (taze ise, 12 saat) okur, yoksa/eskiyse dağılımı çekip SADECE
+      pozitif değerleri (own_pe>0 ile AYNI ilke) `lens_common.
+      robust_istatistik()`'e (YENİDEN YAZILMADI, mevcut fonksiyon
+      kullanıldı) verir, sonucu önbelleğe YAZAR. Şema/DB migrasyonu
+      YOK (tablo zaten vardı). **Tazeleme stratejisi:** AYRI bir
+      cron/script GEREKMEZ — cache tamamen TEMBEL (lazy) ve
+      kendi-kendini-onaran: `compute_multi_lens_score_for_ticker()`
+      HER çağrıldığında (tarama_toplu.py'nin toplu taraması VEYA canlı
+      bot komutu) ilgili `(ust_sektor, sirket_turu, metric)` grubunun
+      cache'i 12 saatten eskiyse otomatik yeniden hesaplanır — `tarama_
+      toplu.py`'ye ayrı bir "tarama sonu cache tazele" adımı EKLENMEDİ
+      (gereksiz karmaşıklık, zaten her taramada kendiliğinden tazeleniyor).
+      **Canlı doğrulama:** EREGL (Ana Metaller ve Madencilik/sanayi, DB'de
+      129 taranmış peer) yeniden tarandı — düzeltme ÖNCESİ üretilmiş
+      `output/detay/BIST_EREGL.html`'de bileşen "yetersiz örneklem"
+      gösteriyordu; düzeltme SONRASI aynı sayfa "Sektöre Göreli Konum:
+      5,7/10" ile "F/K sektör medyanından (n=62) %0,5 sapıyor ... PD/DD
+      sektör medyanından (n=127) %-41,0 sapıyor" gösterdi.
+      `SectorMetricCache`'te 2 yeni satır oluştu (pe_ratio n=62,
+      pb_ratio n=127). 15 yeni test (`test_sector_metric_cache.py`:
+      `get_sector_metric_distribution` — ok/hata filtreleme, None
+      dışlama, market/exclude_ticker filtresi, desteklenmeyen metric
+      hatası; `test_pipeline_multi_lens.py`: uçtan uca peer≥5 ve peer<5
+      senaryoları) — tam suite 1404 test yeşil. 2 ayrı commit
+      (repository katmanı / pipeline kablolaması).
 
 ## Dizin Yapisi
 

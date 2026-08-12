@@ -335,6 +335,65 @@ def test_compute_multi_lens_score_katilim_bankasi_da_calisir(izole_db, monkeypat
     assert kalite_isimler == {"Özkaynak Kârlılığı (ROE)", "Aktif Kârlılığı (ROA)"}
 
 
+# --- Sektöre Göreli Konum kablolaması -----------------------------------------------------
+# DÜZELTME (kod-geliştirici turu, 2026-08-12): `compute_multi_lens_score_for_ticker()`
+# `lens_deger.DegerGirdisi(...)`'yi `sektor_pe`/`sektor_pb` HİÇ VERMEDEN
+# çağırıyordu -- bileşen kaç peer taranmış olursa olsun DAİMA "yetersiz
+# örneklem" gösteriyordu. Bkz. `src/bot/pipeline.py::_sektor_istatistigi_getir`.
+
+
+def test_compute_multi_lens_score_sektore_goreli_konum_peer_varsa_hesaplanir(izole_db, monkeypatch) -> None:
+    monkeypatch.setattr(isyatirim, "fetch_financials", _make_fake_fetch(_fake_raw_zengin("TESTAS")))
+    monkeypatch.setattr(isyatirim, "fetch_price_history", _fake_price_history(10))
+
+    with repository.get_session() as session:
+        repository.upsert_sector_taxonomy(session, "TESTAS", market="BIST", ust_sektor="Sanayi", sirket_turu="sanayi")
+        for i, pe in enumerate([Decimal("8"), Decimal("10"), Decimal("12"), Decimal("15"), Decimal("20")]):
+            repository.upsert_market_scan_result(
+                session, f"PEER{i}", "BIST", scan_status="ok",
+                ust_sektor="Sanayi", sirket_turu="sanayi", pe_ratio=pe, pb_ratio=pe / 4,
+            )
+        session.commit()
+
+    sonuc = pipeline.compute_multi_lens_score_for_ticker("TESTAS", market="BIST")
+
+    deger = sonuc.bilesik.mercekler.deger
+    bilesen = next(c for c in deger.components if c.name == "Sektöre Göreli Konum")
+    assert bilesen.score is not None
+    assert "yetersiz örneklem" not in bilesen.reasoning_tr
+
+    # önbellek gerçekten yazılmış olmalı (SectorMetricCache) -- ikinci çağrı
+    # aynı sonucu tazeden okumalı, bir sonraki turda TEKRAR ham dağılım
+    # sorgusuna gitmesi ZORUNLU DEĞİL (davranış aynı kalır, burada SADECE
+    # cache satırının var olduğu doğrulanır).
+    with repository.get_session() as session:
+        cached = repository.get_sector_metric_cache(session, "Sanayi", "sanayi", "pe_ratio", (2026, 3))
+        assert cached is not None
+        assert cached.n == 5
+
+
+def test_compute_multi_lens_score_sektore_goreli_konum_yetersiz_peer_ile_atlanir(izole_db, monkeypatch) -> None:
+    """`ust_sektor` dolu ama n<5 (MIN_SECTOR_N) ise bileşen mevcut davranışla
+    (hata FIRLATMADAN) atlanmaya devam eder."""
+    monkeypatch.setattr(isyatirim, "fetch_financials", _make_fake_fetch(_fake_raw_zengin("TESTAS")))
+    monkeypatch.setattr(isyatirim, "fetch_price_history", _fake_price_history(10))
+
+    with repository.get_session() as session:
+        repository.upsert_sector_taxonomy(session, "TESTAS", market="BIST", ust_sektor="Sanayi", sirket_turu="sanayi")
+        for i, pe in enumerate([Decimal("8"), Decimal("10")]):
+            repository.upsert_market_scan_result(
+                session, f"PEER{i}", "BIST", scan_status="ok", ust_sektor="Sanayi", sirket_turu="sanayi", pe_ratio=pe,
+            )
+        session.commit()
+
+    sonuc = pipeline.compute_multi_lens_score_for_ticker("TESTAS", market="BIST")
+
+    deger = sonuc.bilesik.mercekler.deger
+    bilesen = next(c for c in deger.components if c.name == "Sektöre Göreli Konum")
+    assert bilesen.score is None
+    assert "yetersiz örneklem" in bilesen.reasoning_tr
+
+
 def test_compute_multi_lens_score_ticker_bulunamazsa_hata_firlatir(izole_db, monkeypatch) -> None:
     def patlayan_fetch(ticker, periods=None, financial_group=None):
         raise isyatirim.CompanyNotFoundError(f"{ticker} bulunamadi")

@@ -63,7 +63,7 @@ from sqlalchemy.orm import Session
 import config
 from src.ai import commentary as commentary_module
 from src.analysis import calculator, fundamental_screens, scorer, valuation
-from src.analysis import lens_bilesik_skor, lens_buyume, lens_deger, lens_guvenlik, lens_kalite
+from src.analysis import lens_bilesik_skor, lens_buyume, lens_common, lens_deger, lens_guvenlik, lens_kalite
 from src.analysis import merton as merton_module
 from src.db import models, repository
 from src.fetchers import earnings_calendar, isyatirim, kap, kap_financials, price_history, sec_edgar, stockanalysis
@@ -1592,6 +1592,50 @@ class MultiLensScoreResult:
     template: str | None = None
 
 
+def _sektor_istatistigi_getir(
+    ust_sektor: str | None, sirket_turu: str | None, metric: str, period: Period, exclude_ticker: str
+) -> lens_common.SektorIstatistigi | None:
+    """🚨 KÖK NEDEN DÜZELTMESİ (kod-geliştirici turu, 2026-08-12):
+    `compute_multi_lens_score_for_ticker()` `lens_deger.DegerGirdisi(...)`
+    çağırırken `sektor_pe`/`sektor_pb` parametreleri HİÇ GEÇİLMİYORDU --
+    varsayılan `None` kaldığı için `lens_deger._skor_sektore_goreli()`
+    (`sektor_pe is not None and sektor_pe.n >= MIN_SECTOR_N` koşulu)
+    HİÇBİR ZAMAN geçemiyordu, "Sektöre Göreli Konum" bileşeni kaç peer
+    taranmış olursa olsun DAİMA atlanıyordu. `SectorMetricCache` tablosu
+    (models.py) VE `get_sector_metric_cache`/`save_sector_metric_cache`
+    (repository.py) ZATEN vardı ama hiçbir yerden BESLENMİYORDU --
+    `scripts/refresh_sector_cache.py` (Faz 16) BAŞKA bir işi yapar
+    (`Company.sector`'ı KAP'tan günceller), bu tabloya HİÇ dokunmaz.
+
+    Bu fonksiyon eksik halkayı tamamlar: önce `SectorMetricCache`'i
+    (taze ise) okur; yoksa/eskiyse `repository.get_sector_metric_distribution()`
+    ile `MarketScanResult`'tan (scripts/tarama_toplu.py'nin ZATEN doldurduğu
+    tablo) ham F/K veya PD/DD dağılımını çeker, SADECE pozitif değerleri
+    (own_pe>0 ile AYNI ilke -- negatif/zarar eden şirketler F/K
+    karşılaştırmasında anlamsızdır) `lens_common.robust_istatistik()`'e
+    verir, sonucu önbelleğe YAZAR ve döner. `ust_sektor`/`sirket_turu`
+    NULL ise (taksonomi henüz bu ticker'ı işlemediyse) VEYA yeterli/pozitif
+    peer verisi yoksa `None` döner -- HATA FIRLATILMAZ, `lens_deger`
+    bileşeni zaten `None` girdiyle "yetersiz örneklem" olarak ATLAR (Kural:
+    eksik veri = None yayılımı, sessizce 0 varsayılmaz)."""
+    if not ust_sektor or not sirket_turu:
+        return None
+    with repository.get_session() as session:
+        cached = repository.get_sector_metric_cache(session, ust_sektor, sirket_turu, metric, period)
+        if cached is not None:
+            return lens_common.SektorIstatistigi(n=cached.n, medyan=cached.medyan, mad=cached.mad)
+
+        degerler = repository.get_sector_metric_distribution(session, ust_sektor, sirket_turu, metric, exclude_ticker=exclude_ticker)
+        pozitif_degerler = [d for d in degerler if d > 0]
+        sonuc = lens_common.robust_istatistik(pozitif_degerler)
+        if sonuc is None:
+            return None
+        medyan, mad, n = sonuc
+        repository.save_sector_metric_cache(session, ust_sektor, sirket_turu, metric, period, n=n, medyan=medyan, mad=mad)
+        session.commit()
+        return lens_common.SektorIstatistigi(n=n, medyan=medyan, mad=mad)
+
+
 def compute_multi_lens_score_for_ticker(ticker: str, market: str = "BIST") -> MultiLensScoreResult:
     """v2 çok-mercekli skorlamayı (`docs/spec/spec_bilesik_skor.md`) BAĞIMSIZ
     bir giriş noktası olarak orkestre eder -- v1'in `run_pipeline()`/
@@ -1623,6 +1667,8 @@ def compute_multi_lens_score_for_ticker(ticker: str, market: str = "BIST") -> Mu
         financials_by_period = repository.get_financials(session, ticker, n_periods=8)
         company_name = company_row.name if company_row and company_row.name else None
         financial_group = company_row.financial_group if company_row else None
+        ust_sektor = company_row.ust_sektor if company_row else None
+        sirket_turu = company_row.sirket_turu if company_row else None
 
     if not financials_by_period:
         raise TickerNotFoundError(f"'{ticker}' icin veritabaninda finansal veri bulunamadi.")
@@ -1684,10 +1730,13 @@ def compute_multi_lens_score_for_ticker(ticker: str, market: str = "BIST") -> Mu
 
     risk_free_rate_pct = valuation._RISK_FREE_RATE_PCT.get(currency)
 
+    sektor_pe = _sektor_istatistigi_getir(ust_sektor, sirket_turu, "pe_ratio", analysis.latest_period, ticker)
+    sektor_pb = _sektor_istatistigi_getir(ust_sektor, sirket_turu, "pb_ratio", analysis.latest_period, ticker)
+
     deger = lens_deger.hesapla_deger_mercegi(
         lens_deger.DegerGirdisi(
             analysis=analysis, valuation=valuation_metrics, fundamental=fundamental,
-            risk_free_rate_pct=risk_free_rate_pct, template=template,
+            risk_free_rate_pct=risk_free_rate_pct, sektor_pe=sektor_pe, sektor_pb=sektor_pb, template=template,
         )
     )
 

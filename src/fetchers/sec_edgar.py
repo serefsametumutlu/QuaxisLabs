@@ -309,7 +309,29 @@ STANDARD_ITEM_MAP_US_GAAP: dict[str, list[str]] = {
     # JPM'de (banka) HIC raporlanmiyor -- current_assets ile AYNI sebep
     # (bankalar donen/duran ayrimi YAPMAZ, BIST UFRS'te de bu alan YOK).
     "short_term_liabilities": ["us-gaap:LiabilitiesCurrent", "ifrs-full:CurrentLiabilities"],
-    "equity": ["us-gaap:StockholdersEquity", "ifrs-full:Equity"],
+    # CANLI hata arastirmasi (kullanici raporu, SAHOL PD/DD -- bkz.
+    # isyatirim.STANDARD_ITEM_MAP_XI_29["equity"] yorumu, BIST tarafindaki
+    # AYNI kok neden): "us-gaap:StockholdersEquity" US GAAP taksonomisinde
+    # ZATEN ana ortaklik-only tanimlidir (FASB element tanimi: "equity ...
+    # attributable to the parent"; TOPLAM -- azinlik/kontrol gucu olmayan
+    # paylar DAHIL -- icin AYRI bir tag olan "us-gaap:StockholdersEquity
+    # IncludingPortionAttributableToNoncontrollingInterest" kullanilir, CANLI
+    # JPM companyfacts'inde HER IKI tag de MEVCUT). Yani AAPL/NVDA/JPM gibi
+    # US GAAP dosyalayan sirketlerde bu alan ZATEN DOGRUYDU, DUZELTME
+    # GEREKMEDI. B21 (ADR/yabanci ozel ihracci -- NVO/TSM/SHEL/BABA gibi 20-F
+    # dosyalayan sirketler) icin ise "ifrs-full:Equity" fallback'i IFRS
+    # taksonomisinde TAM TERSINE TOPLAM (azinlik dahil) anlamina gelir --
+    # BIST KAP tarafindaki "ifrs-full_Equity" ile AYNI tuzak (bkz.
+    # kap_financials.py STANDARD_ITEM_MAP_KAP_XI_29_BALANCE["equity"] yorumu).
+    # Bu yuzden IFRS icin ONCE ana ortaklik-only "ifrs-full:Equity
+    # AttributableToOwnersOfParent" denenir; sirket bu ayrimi HIC
+    # raporlamiyorsa (cogunlukla NCI'si onemsiz/yok demektir) SON care
+    # "ifrs-full:Equity" (TOPLAM) fallback'i kalir -- bu, NCI'si BUYUK ama
+    # SADECE toplami raporlayan (nadir) bir 20-F sirkette YANLIS (ama
+    # makul gorunen) bir deger uretme riski tasir; N/A'ya dusmek yerine bu
+    # risk kabul edildi (digerlerinin -- us-gaap semasinin -- TAMAMI icin bu
+    # risk ZATEN yoktu).
+    "equity": ["us-gaap:StockholdersEquity", "ifrs-full:EquityAttributableToOwnersOfParent", "ifrs-full:Equity"],
     # Faz 10 icin eklendi (BIST XI_29'daki "Ticari Alacaklar" karsiligi) --
     # AAPL FY2024 ile CANLI dogrulandi: $33.410 mr, Apple'in FY2024 10-K'sindeki
     # "Accounts receivable, net" rakamiyla BIREBIR eslesiyor. JPM'de (banka)

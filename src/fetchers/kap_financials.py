@@ -220,7 +220,20 @@ STANDARD_ITEM_MAP_KAP_XI_29_BALANCE: dict[str, str] = {
     "short_term_liabilities": "ifrs-full_CurrentLiabilities",
     "long_term_liabilities": "ifrs-full_NoncurrentLiabilities",
     "share_capital": "ifrs-full_IssuedCapital",
-    "equity": "ifrs-full_Equity",
+    # CANLI hata duzeltmesi (kullanici raporu, SAHOL PD/DD -- bkz.
+    # isyatirim.py STANDARD_ITEM_MAP_XI_29["equity"] yorumu, AYNI kok neden).
+    # "ifrs-full_Equity" IFRS taksonomisinde TOPLAM ozkaynak tag'idir (azinlik/
+    # kontrol gucu olmayan paylar DAHIL) -- "ifrs-full_EquityAttributableTo
+    # OwnersOfParent" (ANA ORTAKLIK-ONLY) VE "ifrs-full_NoncontrollingInterests"
+    # (azinlik payi) AYRI, kendi basina raporlanan tag'lerdir (CANLI
+    # dogrulandi: TUPRS_kap_1643116.html'de UCU de sayfada MEVCUT, IAS 1
+    # geregi Equity = EquityAttributableToOwnersOfParent + NoncontrollingInterests
+    # ozdesligi evrenseldir). Bu yuzden "equity" ARTIK parent-only tag'e
+    # eslenir; TOPLAM deger "equity_total" olarak AYRICA saklanir (Kural 8:
+    # bilgi CIKARILMAZ).
+    "equity": "ifrs-full_EquityAttributableToOwnersOfParent",
+    "equity_total": "ifrs-full_Equity",
+    "minority_interest": "ifrs-full_NoncontrollingInterests",
     "long_term_financial_debt": "ifrs-full_LongtermBorrowings",
     # bkz. isyatirim.py STANDARD_ITEM_MAP_XI_29["financial_investments"]
     # yorumu (canli TERA/Fintables karsilastirmasi) -- net borcun nakit-
@@ -292,7 +305,11 @@ STANDARD_ITEM_MAP_KAP_UFRS_BALANCE: dict[str, str] = {
     "deposits": "kap-fr_Deposits",
     "provisions": "kap-fr_AllowanceForExpectedCreditLosses",
     "total_assets": "ifrs-full_Assets",
-    "equity": "ifrs-full_Equity",
+    # bkz. STANDARD_ITEM_MAP_KAP_XI_29_BALANCE["equity"] yorumu (SAHOL PD/DD
+    # hata duzeltmesi, AYNI IFRS tag ayrimi/AYNI kok neden).
+    "equity": "ifrs-full_EquityAttributableToOwnersOfParent",
+    "equity_total": "ifrs-full_Equity",
+    "minority_interest": "ifrs-full_NoncontrollingInterests",
     "share_capital": "ifrs-full_IssuedCapital",
 }
 
@@ -342,7 +359,11 @@ STANDARD_ITEM_MAP_KAP_FINANSMAN_BALANCE: dict[str, str] = {
     "cash": "kap-fr_CashAndCashBalancesAtCentralBanks",
     "overdue_receivables": "kap-fr_NonPerformingReceivables",
     "total_assets": "ifrs-full_Assets",
-    "equity": "ifrs-full_Equity",
+    # bkz. STANDARD_ITEM_MAP_KAP_XI_29_BALANCE["equity"] yorumu (SAHOL PD/DD
+    # hata duzeltmesi, AYNI IFRS tag ayrimi/AYNI kok neden).
+    "equity": "ifrs-full_EquityAttributableToOwnersOfParent",
+    "equity_total": "ifrs-full_Equity",
+    "minority_interest": "ifrs-full_NoncontrollingInterests",
     "share_capital": "ifrs-full_IssuedCapital",
 }
 
@@ -380,7 +401,11 @@ STANDARD_ITEM_MAP_KAP_FINANSMAN_INCOME: dict[str, str] = {
 # _cash_and_equivalents_ufrs_k/_financial_assets_ufrs_k/
 # _technical_provisions_noncurrent_ufrs_k/_technical_balance_*_ufrs_k.
 STANDARD_ITEM_MAP_KAP_UFRS_K_BALANCE: dict[str, str] = {
-    "equity": "ifrs-full_Equity",
+    # bkz. STANDARD_ITEM_MAP_KAP_XI_29_BALANCE["equity"] yorumu (SAHOL PD/DD
+    # hata duzeltmesi, AYNI IFRS tag ayrimi/AYNI kok neden).
+    "equity": "ifrs-full_EquityAttributableToOwnersOfParent",
+    "equity_total": "ifrs-full_Equity",
+    "minority_interest": "ifrs-full_NoncontrollingInterests",
     "share_capital": "ifrs-full_IssuedCapital",
     "receivables_from_operations": "kap-fr_CurrentReceivablesFromMainOperations",
     "payables_from_operations": "kap-fr_ShortTermPayablesFromMainOperations",

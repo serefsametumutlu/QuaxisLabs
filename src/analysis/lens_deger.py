@@ -200,7 +200,16 @@ def _skor_ncav_bonus(analysis: AnalysisResult, valuation: ValuationMetrics | Non
     sanayi'de %52,1 [86/165], NASDAQ sanayi'de %71,4 [15/21] şirkette
     `net_isletme_sermayesi<=0` koşulu tetiklenir): bu SİSTEMİK bir guard'dır,
     "nadir bir kenar durum" DEĞİL -- `net_isletme_sermayesi<=0` ise bonus
-    HİÇ TETİKLENMEZ, 0 katkı (CEZA yok), bileşen ATLANIR."""
+    HİÇ TETİKLENMEZ, 0 katkı (CEZA yok), bileşen ATLANIR.
+
+    CANLI hata düzeltmesi (kullanıcı raporu, SAHOL PD/DD -- bkz.
+    isyatirim.STANDARD_ITEM_MAP_XI_29["equity"] yorumu): `equity` ARTIK ana
+    ortaklık-only (azınlık payı HARİÇ). `total_liabilities = total_assets -
+    equity` satırı bu yüzden azınlık payı büyük şirketlerde (SAHOL gibi)
+    azınlık payını da "yükümlülük gibi" DIŞLAR -- bu Graham'ın NCAV
+    felsefesiyle (bir kontrol gücü hissedarının GERÇEKTE tasfiyede eline
+    geçecek pay) TUTARLIDIR/DAHA MUHAFAZAKARDIR, hata DEĞİLDİR: azınlık
+    paylarına ait varlık payı zaten ana ortaklık hissedarına AİT DEĞİLDİR."""
     ca = analysis.balance_sheet.current_assets.current
     total_assets = analysis.balance_sheet.total_assets.current
     equity = analysis.balance_sheet.equity.current

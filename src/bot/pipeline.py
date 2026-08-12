@@ -110,6 +110,15 @@ _STOCK_FIELDS: tuple[str, ...] = (
     "share_capital",
     "tangible_fixed_assets",  # Faz 21 (Degerleme ekrani) -- Greenblatt "Net Fixed Assets" bileseni
     "long_term_financial_debt",  # Faz 21 -- Piotroski "uzun vadeli kaldirac degisimi" kriteri (2BA zaten esleniyordu, sadece _STOCK_FIELDS'e eklendi)
+    # CANLI hata duzeltmesi (kullanici raporu, SAHOL PD/DD -- bkz.
+    # isyatirim.STANDARD_ITEM_MAP_XI_29["equity"] yorumu): "equity" ARTIK
+    # ana ortaklik-only -- eski TOPLAM (azinlik dahil) deger + azinlik payinin
+    # kendisi de AYRICA DB'ye yazilsin diye whitelist'e eklendi (Kural 8:
+    # bilgi CIKARILMAZ; _kap_patch_records_for_xi29 zaten values.items()
+    # uzerinden TUM alanlari otomatik yaziyordu, bu whitelist'in AYNI
+    # tutarlilikta olmasi icin eklendi).
+    "equity_total",
+    "minority_interest",
 )
 
 # Banka (UFRS) alanlari -- bkz. isyatirim.STANDARD_ITEM_MAP_UFRS.
@@ -127,6 +136,10 @@ _UFRS_STOCK_FIELDS: tuple[str, ...] = (
     "total_assets",
     "equity",
     "share_capital",
+    # bkz. _STOCK_FIELDS yorumu (SAHOL PD/DD hata duzeltmesi) -- AYNI
+    # tutarlilik ilkesi UFRS/UFRS_KATILIM icin de gecerli.
+    "equity_total",
+    "minority_interest",
 )
 
 # Sigorta (UFRS_K) alanlari -- bkz. isyatirim.STANDARD_ITEM_MAP_UFRS_K.
@@ -141,6 +154,10 @@ _UFRS_K_STOCK_FIELDS: tuple[str, ...] = (
     "payables_from_operations",
     "equity",
     "share_capital",
+    # bkz. _STOCK_FIELDS yorumu (SAHOL PD/DD hata duzeltmesi) -- AYNI
+    # tutarlilik ilkesi UFRS_K (sigorta) icin de gecerli.
+    "equity_total",
+    "minority_interest",
 )
 
 # Tasarruf Finansman Sirketleri (XI_29K, orn. KTLEV) alanlari -- bkz.
@@ -157,6 +174,10 @@ _FINANSMAN_STOCK_FIELDS: tuple[str, ...] = (
     "total_assets",
     "equity",
     "share_capital",
+    # bkz. _STOCK_FIELDS yorumu (SAHOL PD/DD hata duzeltmesi) -- AYNI
+    # tutarlilik ilkesi XI_29K (Tasarruf Finansman Sirketleri) icin de gecerli.
+    "equity_total",
+    "minority_interest",
 )
 
 # NASDAQ/ABD (US_GAAP) alanlari -- bkz. sec_edgar.STANDARD_ITEM_MAP_US_GAAP.

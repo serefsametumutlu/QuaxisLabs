@@ -263,6 +263,41 @@ def test_standardized_record_values_ufrs_tum_alanlari_uretir() -> None:
         assert values[field] == Decimal(200)
 
 
+# --- CANLI hata duzeltmesi (kullanici raporu, SAHOL PD/DD -- bkz.
+# STANDARD_ITEM_MAP_KAP_XI_29_BALANCE["equity"] yorumu): IFRS taksonomisinde
+# "ifrs-full_Equity" TOPLAM (azinlik dahil) ozkaynak tag'idir --
+# "ifrs-full_EquityAttributableToOwnersOfParent" (ana ortaklik-only) VE
+# "ifrs-full_NoncontrollingInterests" (azinlik payi) AYRI tag'lerdir (CANLI
+# dogrulandi: TUPRS_kap_1643116.html'de UCU de MEVCUT) -----------------------------------------------------
+
+
+def test_standard_item_map_kap_xi_29_equity_artik_ana_ortaklik_only_tagi() -> None:
+    from src.fetchers.kap_financials import STANDARD_ITEM_MAP_KAP_XI_29_BALANCE
+
+    assert STANDARD_ITEM_MAP_KAP_XI_29_BALANCE["equity"] == "ifrs-full_EquityAttributableToOwnersOfParent"
+    assert STANDARD_ITEM_MAP_KAP_XI_29_BALANCE["equity_total"] == "ifrs-full_Equity"
+    assert STANDARD_ITEM_MAP_KAP_XI_29_BALANCE["minority_interest"] == "ifrs-full_NoncontrollingInterests"
+
+
+def test_standardized_record_values_equity_parent_only_ve_total_ayri_okunur() -> None:
+    """SAHOL benzeri (buyuk azinlik payli) bir sirket senaryosu: parent-only
+    ve TOPLAM ozkaynak tag'leri FARKLI degerler tasidiginda birbirine
+    KARISMAMALI."""
+    from src.fetchers.kap_financials import STANDARD_ITEM_MAP_KAP_XI_29_BALANCE, RawKapFinancials, standardized_record_values
+
+    balance_items = {
+        "ifrs-full_EquityAttributableToOwnersOfParent": [Decimal(382411470000), Decimal(0)],
+        "ifrs-full_Equity": [Decimal(625852441000), Decimal(0)],
+        "ifrs-full_NoncontrollingInterests": [Decimal(243440971000), Decimal(0)],
+    }
+    raw = RawKapFinancials(ticker="SAHOL", disclosure_index=1, period=(2026, 3), balance_sheet_items=balance_items, income_statement_items={})
+
+    values = standardized_record_values(raw)
+    assert values["equity"] == Decimal(382411470000)
+    assert values["equity_total"] == Decimal(625852441000)
+    assert values["minority_interest"] == Decimal(243440971000)
+
+
 # --- operating_profit_ebitda_base (FAVOK'un dar-kavram girdisi, canli OTKAR/TERA hatasinin regresyon testi) -----------------------------------------------------
 #
 # Degerler CANLI TOASO 2026/6 Finansal Rapor'undan (disclosure_index=1639026)

@@ -739,6 +739,14 @@ def score_industrial(
     """
     cfg = CONFIG[template]
     r = analysis.ratios
+    # CANLI hata duzeltmesi (kullanici raporu, SAHOL PD/DD -- bkz.
+    # isyatirim.STANDARD_ITEM_MAP_XI_29["equity"] yorumu): "equity" ARTIK ana
+    # ortaklik-only -- asagidaki Bilanco Kalitesi bileseninin "Ozkaynak/Aktif"
+    # oranini (_safe_pct(equity, assets)) azinlik payi buyuk sirketlerde
+    # (SAHOL gibi) BIRAZ DUSURUR (payda -- total_assets -- degismedi, pay
+    # kuculdu) -- kontrol gucu olan hissedarin varliklara gore GERCEK
+    # ozkaynak orani, hata degildir (bkz. calculator.py roe_annualized/
+    # lens_deger.py NCAV/lens_guvenlik.py K4 ile AYNI ilke).
     equity = analysis.balance_sheet.equity.current
     assets = analysis.balance_sheet.total_assets.current
 

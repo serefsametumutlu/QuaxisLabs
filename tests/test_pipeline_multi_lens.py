@@ -172,7 +172,16 @@ def _build_fake_raw_from_map(ticker: str, values_by_period: dict, item_map: dict
     values_by_item_code: dict[str, dict[tuple[int, int], Decimal]] = {}
     for period, field_values in values_by_period.items():
         for field, value in field_values.items():
-            item_code = item_map[field]
+            # bkz. isyatirim.py STANDARD_ITEM_MAP_UFRS/_KATILIM/_K["equity_total"]
+            # yorumu (SAHOL PD/DD hata duzeltmesi): bu uc semada "equity"
+            # ARTIK dogrudan bir itemCode DEGIL, standardized_value_ufrs*()
+            # icinde "equity_total - minority_interest" olarak HESAPLANIR --
+            # bu test yardimcisi "equity" anahtarini GERIYE UYUMLU olarak
+            # "equity_total" itemCode'una yazar (minority_interest item'i
+            # OLUSTURULMAZ, bu yuzden _equity_parent_only() onu 0 varsayar),
+            # boylece MEVCUT test verileri/beklenen sayilar DEGISMEDEN calisir.
+            lookup_field = "equity_total" if field == "equity" and field not in item_map else field
+            item_code = item_map[lookup_field]
             values_by_item_code.setdefault(item_code, {})[period] = value
     items = {
         code: isyatirim.FinancialItem(item_code=code, description_tr="", values_by_period=vals)

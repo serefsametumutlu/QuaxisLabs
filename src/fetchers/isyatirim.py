@@ -182,7 +182,30 @@ STANDARD_ITEM_MAP_XI_29: dict[str, str] = {
     "total_assets": "1BL",  # TOPLAM VARLIKLAR
     "current_assets": "1A",  # Donen Varliklar (cari oran bileseni)
     "trade_receivables": "1AC",  # Ticari Alacaklar (Donen Varliklar alti, KISA VADELI)
-    "equity": "2N",  # Ozkaynaklar (toplam, azinlik payi dahil)
+    # CANLI hata duzeltmesi (kullanici raporu, SAHOL PD/DD Fintables/Matriks'e
+    # gore YANLIS cikiyordu -- kok neden ANALIZI): "equity" ESKIDEN "2N"
+    # (Ozkaynaklar, TOPLAM -- azinlik/kontrol gucu olmayan paylar DAHIL)
+    # eslenmisti. PD/DD gibi piyasa degeri bazli oranlarin PAYI (market_cap =
+    # fiyat x SADECE ana ortaklik pay sayisi) SADECE ana ortakliga aittir --
+    # payda TOPLAM ozkaynak (azinlik dahil) olunca oran YAPAY DUSUK cikiyordu
+    # (buyuk azinlik payli holdinglerde/konsolide gruplarda EN COK gorulur,
+    # bkz. asagidaki CANLI SAHOL dogrulamasi). CANLI dogrulandi (thyao_items_
+    # readable.txt satir 58-69 VE 2026-08-12 canli SAHOL XI_29 yaniti,
+    # data/exploration/SAHOL_XI_29_get_20260812_190310.json): "2O" =
+    # "Ana Ortaklığa Ait Özkaynaklar" (Parent Shareholders Capital), "2N"nin
+    # (Ozkaynaklar TOPLAM) DOGRUDAN alt kalemidir -- "2N" = "2O" + "2ODA"
+    # (Azinlik Paylari) ozdesligi HEM THYAO (966.388mn + (-25mn) = 966.363mn)
+    # HEM SAHOL (382.411mn + 243.441mn = 625.852mn) icin TL'ye kadar
+    # dogrulandi. SAHOL'de azinlik payi TOPLAM ozkaynagin ~%39'u -- eski "2N"
+    # ile PD/DD=0,294 (Fintables/Matriks'in gosterdiginden YAPAY DUSUK)
+    # cikarken, dogru "2O" ile PD/DD=0,481 (market_cap=183.992.937.600 /
+    # 382.411.470.000, ayni piyasa degeri/ayni tarih) -- gercekci araliga
+    # YAKINSAR. Eski TOPLAM deger "equity_total" olarak ASAGIDA AYRICA
+    # tutulur (Kural 8: bilgi CIKARILMAZ, sadece 'equity' alaninin ANLAMI
+    # duzeltilir).
+    "equity": "2O",  # Ana Ortakliga Ait Ozkaynaklar (PARENT-ONLY -- PD/DD/ROE/NCAV/Graham Sayisi vb. TUM piyasa-degeri-bazli oranlarin payda kaynagi)
+    "equity_total": "2N",  # Ozkaynaklar (TOPLAM, azinlik payi DAHIL) -- eski "equity" degeri, GERI UYUMLULUK/gelecekte lazim olabilir diye AYRICA saklanir
+    "minority_interest": "2ODA",  # Azinlik Paylari (Kontrol Gucu Olmayan Paylar) -- equity_total - equity = bu deger (THYAO/SAHOL ile dogrulandi)
     "cash": "1AA",  # Nakit ve Nakit Benzerleri
     # Net borc hesabinin nakit-benzeri ikinci bileseni (bkz. calculator.py
     # net_debt notu, canli TERA/Fintables karsilastirmasi): kisa vadeli
@@ -328,7 +351,22 @@ STANDARD_ITEM_MAP_UFRS: dict[str, str] = {
     # olunmayan bir kalemi varsayimsal DOLDURMA).
     "provisions": "2L",  # XII. KARSILIKLAR (toplam)
     "total_assets": "1Z",  # AKTIF TOPLAMI
-    "equity": "2O",  # XVI. OZKAYNAKLAR
+    # CANLI hata duzeltmesi (kullanici raporu, SAHOL PD/DD -- bkz.
+    # STANDARD_ITEM_MAP_XI_29["equity"] yorumu, AYNI kok neden). XI_29'un
+    # AKSINE bankada "2O" (XVI. OZKAYNAKLAR) itemCode HIYERARSISI FARKLIDIR:
+    # "2O" burada bizzat TOPLAM'dir, "16.5 Azinlik Paylari" (2OVA) onun bir
+    # ALT kalemidir (sibling DEGIL) -- CANLI AKBNK/GARAN item listesiyle
+    # dogrulandi (data/exploration/akbnk_ufrs_items_readable.txt satir 108-129,
+    # GARAN_UFRS_get_*.json): 2OA+2OB+2OM+2OT+2OVA alt kalemleri "2O"nun
+    # PARCASIdir. Bu yuzden burada "equity" DOGRUDAN bir itemCode DEGIL,
+    # ASAGIDAKI standardized_value_ufrs() icinde "2O - 2OVA" olarak
+    # HESAPLANIR (bkz. _equity_parent_only fonksiyonu). AKBNK/GARAN'da
+    # azinlik payi (2OVA) HER IKISINDE de 0 oldugu icin bu iki sirkette
+    # sayisal fark GORULMEZ -- duzeltme minority-interest'i OLAN
+    # bankalar/banka gruplari icin gecerlidir (XI_29/FINANSMAN semasindaki
+    # SAHOL/KTLEV canli kanitiyla AYNI yapisal ilke, bkz. yukarida).
+    "equity_total": "2O",  # XVI. OZKAYNAKLAR (TOPLAM, azinlik payi DAHIL)
+    "minority_interest": "2OVA",  # 16.5 Azinlik Paylari
     "share_capital": "2OA",  # 16.1 Odenmis Sermaye -- XI_29'daki ile AYNI itemCode (canli GARAN verisiyle dogrulandi)
 }
 
@@ -374,7 +412,20 @@ STANDARD_ITEM_MAP_UFRS_K: dict[str, str] = {
     "payables_from_operations": "2B",  # B- Esas Faaliyetlerden Borclar
     "technical_provisions_current": "2E",  # E- Sigortacilik Teknik Karsiliklari (kisa vadeli) -- SADECE technical_provisions bileseni
     "technical_provisions_noncurrent": "2MD",  # E- Sigortacilik Teknik Karsiliklari (uzun vadeli) -- SADECE technical_provisions bileseni
-    "equity": "2O",  # Ozsermaye Toplami
+    # CANLI hata duzeltmesi (kullanici raporu, SAHOL PD/DD -- bkz.
+    # STANDARD_ITEM_MAP_UFRS["equity_total"] yorumu, AYNI kok neden/AYNI
+    # itemCode HIYERARSISI). ANSGR canli item listesiyle dogrulandi
+    # (data/exploration/ANSGR_UFRS_K_get_20260730_195513.json): "2O"
+    # ("Ozsermaye Toplami") = 2MEA+2MEF+2MEL+2MET+2MEV+2MEZ+2MEZD
+    # ("G-Azinlik Paylari") TOPLAMIDIR (TL'ye kadar dogrulandi: 40.045.701.921).
+    # "equity" bu yuzden ASAGIDAKI standardized_value_ufrs_k() icinde
+    # "2O - 2MEZD" olarak HESAPLANIR (bkz. _equity_parent_only). Dikkat:
+    # "3Z" ("Ana Ortaklık Payları") gelir tablosu kalemidir (net kar), bilanco
+    # ozkaynak kalemiyle KARISTIRILMAMALI -- sigorta semasinda ayri bir
+    # bilanco "ana ortaklik ozkaynagi" toplam-kalemi YOKTUR (ANSGR'de 0 olan
+    # azinlik payi nedeniyle bu duzeltme ANSGR icin sayisal fark YARATMAZ).
+    "equity_total": "2O",  # Ozsermaye Toplami (TOPLAM, azinlik payi DAHIL)
+    "minority_interest": "2MEZD",  # G-Azinlik Paylari
     "share_capital": "2MEA",  # A- Odenmis Sermaye
 }
 
@@ -432,7 +483,19 @@ STANDARD_ITEM_MAP_UFRS_KATILIM: dict[str, str] = {
     "deposits": "2A",  # I. TOPLANAN FONLAR
     "provisions": "2AAR",  # X. KARSILIKLAR (toplam)
     "total_assets": "1Z",  # AKTIF TOPLAMI
-    "equity": "2O",  # OZKAYNAK
+    # CANLI hata duzeltmesi (kullanici raporu, SAHOL PD/DD -- bkz.
+    # STANDARD_ITEM_MAP_UFRS["equity_total"] yorumu, AYNI kok neden/AYNI
+    # itemCode HIYERARSISI). CANLI ALBRK verisiyle (fetch_financials('ALBRK'),
+    # financial_group=UFRS_KATILIM olarak COZUMLENIR) dogrulandi: "2O"
+    # ("ÖZKAYNAK") altinda "14.1..14.4" (2NA/2NAL/2NAR/.., ana ortaklik
+    # bilesenleri) VE "14.5 Azınlık Payları" (2NAU) alt kalemlerini
+    # barindirir -- konvansiyonel bankadaki "16.5 Azinlik Paylari" (2OVA)
+    # ile AYNI konumsal yapi. ALBRK'nin TUM tarihsel donemlerinde 2NAU=0
+    # (azinlik payi yok/konsolide alt ortaklik yok) -- bu yuzden sayisal
+    # etkisi ALBRK icin GORULMEZ, ama itemCode HIYERARSISI (kalem adi "14.5"
+    # -- "14."un alt kalemi) yapisal olarak DOGRULANDI.
+    "equity_total": "2O",  # OZKAYNAK (TOPLAM, azinlik payi DAHIL)
+    "minority_interest": "2NAU",  # 14.5 Azinlik Paylari
     "share_capital": "2NA",  # 14.1 Odenmis Sermaye
 }
 
@@ -473,7 +536,15 @@ STANDARD_ITEM_MAP_FINANSMAN: dict[str, str] = {
     "cash": "1A",  # I. Nakit Degerler
     "overdue_receivables": "A1AH",  # VII. Takipteki Alacaklar
     "total_assets": "A1AK",  # AKTIF TOPLAMI
-    "equity": "2N",  # Ozkaynaklar (toplam, azinlik payi dahil)
+    # bkz. STANDARD_ITEM_MAP_XI_29["equity"] yorumu (SAHOL PD/DD hata
+    # duzeltmesi) -- AYNI yapisal desen (2N=toplam, 2O=alt kalem ana
+    # ortaklik-only) KTLEV'in CANLI verisiyle de dogrulandi (data/exploration/
+    # KTLEV_XI_29K_raw_2026Q1.json): 2N=15.819.301.983, 2O=14.753.674.798,
+    # A2OE ("13.5 Azinlik Paylari")=1.065.627.185, 2O+A2OE=2N (TL'ye kadar
+    # eslesiyor).
+    "equity": "2O",  # Ana Ortakliga Ait Ozkaynaklar (PARENT-ONLY)
+    "equity_total": "2N",  # Ozkaynaklar (TOPLAM, azinlik payi DAHIL)
+    "minority_interest": "A2OE",  # 13.5 Azinlik Paylari
     "share_capital": "2OA",  # 13.1 Odenmis Sermaye
 }
 
@@ -979,6 +1050,29 @@ def total_debt(raw: RawFinancials, period: Period) -> Decimal | None:
     return (short_debt or Decimal(0)) + (long_debt or Decimal(0))
 
 
+# CANLI hata duzeltmesi (kullanici raporu, SAHOL PD/DD -- bkz.
+# STANDARD_ITEM_MAP_UFRS["equity_total"] yorumu). UFRS/UFRS_KATILIM/UFRS_K
+# semalarinin UCUNDE de "equity" (ana ortaklik-only ozkaynak) icin TEK bir
+# raw itemCode YOK -- toplam ozkaynak kaleminin ("equity_total") bir ALT
+# kalemi olarak "azinlik payi" ("minority_interest") raporlaniyor (XI_29/
+# FINANSMAN semalarindaki, "equity"nin DOGRUDAN bir itemCode oldugu yapidan
+# FARKLI). Bu yuzden bu UC semada "equity" DOGRUDAN bir sozluk anahtari
+# DEGIL, bu fonksiyonla (equity_total - minority_interest) HESAPLANIR.
+def _equity_parent_only(raw: RawFinancials, period: Period, item_map: dict[str, str]) -> Decimal | None:
+    """Toplam ozkaynaktan (item_map['equity_total']) azinlik payini
+    (item_map['minority_interest']) dusup ana ortaklik-only ozkaynagi
+    hesaplar. Azinlik payi kalemi o donem icin raporlanmamissa (None) 0
+    varsayilir (AKBNK/GARAN/ALBRK/ANSGR canli verisinde COGUNLUKLA 0 --
+    yani cogu sirket icin sayisal etki YOKTUR); ama TOPLAM ozkaynagin
+    KENDISI None ise (Kural 3: eksik veri = None yayilimi) SONUC da None
+    doner -- 0 varsayilmaz."""
+    total = raw.value(item_map["equity_total"], period)
+    if total is None:
+        return None
+    minority = raw.value(item_map["minority_interest"], period)
+    return total - (minority or Decimal(0))
+
+
 # --- Standart alan erisimi (SADECE UFRS - banka) -----------------------------------------------------
 
 
@@ -996,8 +1090,13 @@ def standardized_value_ufrs(raw: RawFinancials, field_name: str, period: Period)
     """standardized_value()'nin UFRS (banka) karsiligi. HAM (kumulatif olabilen)
     degeri doner; 'interest_expense' ozel olarak NEGATIFE cevrilir (ham
     veride pozitif buyukluk olarak gelir, ama kart/rapor gelenekte gider
-    satiri eksi gosterilir -- bkz. STANDARD_ITEM_MAP_UFRS yorumu)."""
+    satiri eksi gosterilir -- bkz. STANDARD_ITEM_MAP_UFRS yorumu). 'equity'
+    DOGRUDAN bir itemCode DEGIL, _equity_parent_only() ile (equity_total -
+    minority_interest) HESAPLANIR (bkz. STANDARD_ITEM_MAP_UFRS["equity_total"]
+    yorumu, SAHOL PD/DD hata duzeltmesi)."""
     _require_ufrs(raw)
+    if field_name == "equity":
+        return _equity_parent_only(raw, period, STANDARD_ITEM_MAP_UFRS)
     item_code = STANDARD_ITEM_MAP_UFRS.get(field_name)
     if item_code is None:
         raise KeyError(f"Bilinmeyen banka alan adi: '{field_name}'")
@@ -1010,8 +1109,12 @@ def standardized_value_ufrs(raw: RawFinancials, field_name: str, period: Period)
 def quarterly_standardized_value_ufrs(raw: RawFinancials, field_name: str, period: Period) -> Decimal | None:
     """quarterly_standardized_value()'nin UFRS (banka) karsiligi: gelir
     tablosu kalemleri icin kumulatiften ceyreklik turetme uygular; bilanco
-    (STOK) kalemleri icin standardized_value_ufrs ile ayni sonucu doner."""
+    (STOK) kalemleri icin standardized_value_ufrs ile ayni sonucu doner.
+    'equity' STOK bir hesaplamadir (bkz. standardized_value_ufrs), ceyreklik
+    turetmeye TABI DEGILDIR."""
     _require_ufrs(raw)
+    if field_name == "equity":
+        return _equity_parent_only(raw, period, STANDARD_ITEM_MAP_UFRS)
     item_code = STANDARD_ITEM_MAP_UFRS.get(field_name)
     if item_code is None:
         raise KeyError(f"Bilinmeyen banka alan adi: '{field_name}'")
@@ -1043,8 +1146,13 @@ def _require_ufrs_katilim(raw: RawFinancials) -> None:
 def standardized_value_ufrs_katilim(raw: RawFinancials, field_name: str, period: Period) -> Decimal | None:
     """standardized_value()'nin katilim bankasi karsiligi. 'interest_expense'
     (Kar Payi Giderleri) ham veride POZITIF gelir, konvansiyonel bankadaki
-    gibi NEGATIFE cevrilir."""
+    gibi NEGATIFE cevrilir. 'equity' DOGRUDAN bir itemCode DEGIL,
+    _equity_parent_only() ile (equity_total - minority_interest) HESAPLANIR
+    (bkz. STANDARD_ITEM_MAP_UFRS_KATILIM["equity_total"] yorumu, SAHOL PD/DD
+    hata duzeltmesi)."""
     _require_ufrs_katilim(raw)
+    if field_name == "equity":
+        return _equity_parent_only(raw, period, STANDARD_ITEM_MAP_UFRS_KATILIM)
     item_code = STANDARD_ITEM_MAP_UFRS_KATILIM.get(field_name)
     if item_code is None:
         raise KeyError(f"Bilinmeyen katilim bankasi alan adi: '{field_name}'")
@@ -1055,8 +1163,12 @@ def standardized_value_ufrs_katilim(raw: RawFinancials, field_name: str, period:
 
 
 def quarterly_standardized_value_ufrs_katilim(raw: RawFinancials, field_name: str, period: Period) -> Decimal | None:
-    """quarterly_standardized_value()'nin katilim bankasi karsiligi."""
+    """quarterly_standardized_value()'nin katilim bankasi karsiligi. 'equity'
+    STOK bir hesaplamadir (bkz. standardized_value_ufrs_katilim), ceyreklik
+    turetmeye TABI DEGILDIR."""
     _require_ufrs_katilim(raw)
+    if field_name == "equity":
+        return _equity_parent_only(raw, period, STANDARD_ITEM_MAP_UFRS_KATILIM)
     item_code = STANDARD_ITEM_MAP_UFRS_KATILIM.get(field_name)
     if item_code is None:
         raise KeyError(f"Bilinmeyen katilim bankasi alan adi: '{field_name}'")
@@ -1089,8 +1201,13 @@ def _require_ufrs_k(raw: RawFinancials) -> None:
 
 def standardized_value_ufrs_k(raw: RawFinancials, field_name: str, period: Period) -> Decimal | None:
     """standardized_value()'nin UFRS_K (sigorta) karsiligi. HAM (kumulatif
-    olabilen) degeri doner."""
+    olabilen) degeri doner. 'equity' DOGRUDAN bir itemCode DEGIL,
+    _equity_parent_only() ile (equity_total - minority_interest) HESAPLANIR
+    (bkz. STANDARD_ITEM_MAP_UFRS_K["equity_total"] yorumu, SAHOL PD/DD hata
+    duzeltmesi)."""
     _require_ufrs_k(raw)
+    if field_name == "equity":
+        return _equity_parent_only(raw, period, STANDARD_ITEM_MAP_UFRS_K)
     if field_name not in STANDARD_ITEM_MAP_UFRS_K:
         raise KeyError(f"Bilinmeyen sigorta alan adi: '{field_name}'")
     item_code = _net_income_item_code_ufrs_k(raw) if field_name == "net_income" else STANDARD_ITEM_MAP_UFRS_K[field_name]
@@ -1098,8 +1215,12 @@ def standardized_value_ufrs_k(raw: RawFinancials, field_name: str, period: Perio
 
 
 def quarterly_standardized_value_ufrs_k(raw: RawFinancials, field_name: str, period: Period) -> Decimal | None:
-    """quarterly_standardized_value()'nin UFRS_K (sigorta) karsiligi."""
+    """quarterly_standardized_value()'nin UFRS_K (sigorta) karsiligi. 'equity'
+    STOK bir hesaplamadir (bkz. standardized_value_ufrs_k), ceyreklik
+    turetmeye TABI DEGILDIR."""
     _require_ufrs_k(raw)
+    if field_name == "equity":
+        return _equity_parent_only(raw, period, STANDARD_ITEM_MAP_UFRS_K)
     if field_name not in STANDARD_ITEM_MAP_UFRS_K:
         raise KeyError(f"Bilinmeyen sigorta alan adi: '{field_name}'")
     item_code = _net_income_item_code_ufrs_k(raw) if field_name == "net_income" else STANDARD_ITEM_MAP_UFRS_K[field_name]

@@ -724,6 +724,41 @@ def test_standardized_value_ifrs_full_net_income_nci_ayrimi_yoksa_profitloss_kul
     assert standardized_value_us_gaap(raw, "net_income", (2025, 12)) == Decimal("102434000000")
 
 
+def test_standardized_value_ifrs_full_equity_ana_ortaklik_payi_oncelikli() -> None:
+    """CANLI hata duzeltmesi (kullanici raporu, SAHOL PD/DD -- bkz.
+    isyatirim.STANDARD_ITEM_MAP_XI_29["equity"] yorumu, AYNI kok neden):
+    IFRS taksonomisinde "ifrs-full:Equity" TOPLAM (azinlik dahil) tag'idir --
+    "ifrs-full:EquityAttributableToOwnersOfParent" (ana ortaklik-only) VARSA
+    O ONCE denenmeli, "net_income" ile AYNI oncelik ilkesi."""
+    facts_by_tag = {
+        "ifrs-full:EquityAttributableToOwnersOfParent": [_ifrs_fy_fact("382411470000", 2026, "2026-01-01")],
+        "ifrs-full:Equity": [_ifrs_fy_fact("625852441000", 2026, "2026-01-01")],
+    }
+    raw = RawUsFinancials(ticker="TEST", cik10="0", company_name=None, periods=[(2026, 12)], facts_by_tag=facts_by_tag)
+    assert standardized_value_us_gaap(raw, "equity", (2026, 12)) == Decimal("382411470000")
+
+
+def test_standardized_value_ifrs_full_equity_nci_ayrimi_yoksa_toplam_kullanilir() -> None:
+    """NVO tipi sirket: SADECE ifrs-full:Equity var (onemli bir NCI'si yok) --
+    N/A donmek yerine SON care olarak bu fallback kullanilir (bkz.
+    STANDARD_ITEM_MAP_US_GAAP["equity"] yorumu)."""
+    facts_by_tag = {"ifrs-full:Equity": [_ifrs_fy_fact("50000000000", 2025, "2025-01-01")]}
+    raw = RawUsFinancials(ticker="NVO", cik10="0", company_name=None, periods=[(2025, 12)], facts_by_tag=facts_by_tag)
+    assert standardized_value_us_gaap(raw, "equity", (2025, 12)) == Decimal("50000000000")
+
+
+def test_standardized_value_us_gaap_equity_stockholdersequity_ifrs_uzerinde_oncelikli() -> None:
+    """AAPL/JPM tipi sirket (us-gaap dosyalayici): "us-gaap:StockholdersEquity"
+    ZATEN ana ortaklik-only'dir (FASB tanimi) -- ifrs-full aday tag'lerinden
+    ONCE denenmeli."""
+    facts_by_tag = {
+        "us-gaap:StockholdersEquity": [_ifrs_fy_fact("74100000000", 2024, "2024-09-28")],
+        "ifrs-full:Equity": [_ifrs_fy_fact("999", 2024, "2024-09-28")],
+    }
+    raw = RawUsFinancials(ticker="AAPL", cik10="0", company_name=None, periods=[(2024, 12)], facts_by_tag=facts_by_tag)
+    assert standardized_value_us_gaap(raw, "equity", (2024, 12)) == Decimal("74100000000")
+
+
 @pytest.mark.parametrize(
     "field,tag",
     [

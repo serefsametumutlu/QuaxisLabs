@@ -68,7 +68,15 @@ def _skor_toplam_yukumluluk_ozkaynak(analysis: AnalysisResult, fbp: FinancialsBy
     min=-39,70 gibi BÜYÜK NEGATİF değerler üretip YANLIŞLIKLA "<1 güçlü"
     bandına düşüyordu (derin sıkıntıdaki şirket EN YÜKSEK puanı alıyordu) --
     `equity<=0` ise None döner. K4 BİRİM UYARISI: x-katı oran, `oran_str`
-    ile formatlanır (YÜZDE DEĞİL)."""
+    ile formatlanır (YÜZDE DEĞİL).
+
+    CANLI hata düzeltmesi (kullanıcı raporu, SAHOL PD/DD -- bkz.
+    isyatirim.STANDARD_ITEM_MAP_XI_29["equity"] yorumu): `equity` ARTIK ana
+    ortaklık-only; payda küçüldüğü için azınlık payı büyük şirketlerde
+    (SAHOL gibi) bu oran BİRAZ ARTAR (daha muhafazakar/YÜKSEK kaldıraç
+    gösterir) -- kontrol gücü olan hissedarın gerçek yükümlülük/özkaynak
+    maruziyetini yansıtır, hata değildir (bkz. NCAV/ROE ile AYNI ilke,
+    calculator.py roe_annualized yorumu)."""
     equity = analysis.balance_sheet.equity.current
     if equity is None or equity <= 0:
         return None, "özkaynak negatif/sıfır, toplam yükümlülük/özkaynak oranı işaretsiz/anlamsız, bileşen atlandı."

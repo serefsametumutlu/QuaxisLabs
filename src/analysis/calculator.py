@@ -73,6 +73,15 @@ FIELD_LABELS_TR: dict[str, str] = {
     "non_current_assets": "Duran Varlıklar",
     "net_debt": "Net Borç",
     "equity": "Özkaynaklar",
+    # CANLI hata duzeltmesi (kullanici raporu, SAHOL PD/DD -- bkz.
+    # src/fetchers/isyatirim.py STANDARD_ITEM_MAP_XI_29["equity"] yorumu):
+    # "equity" ARTIK ana ortaklik-only doner (PD/DD/ROE/NCAV/Graham Sayisi vb.
+    # payi/paydasi AYNI kapsamda olsun diye); eski TOPLAM (azinlik payi
+    # dahil) deger + azinlik payinin kendisi bilgi kaybi olmasin diye ayrica
+    # bu iki alanda saklanir (henuz hicbir kart/lens tarafindan DOGRUDAN
+    # gosterilmiyor -- Kural 8: gelecekte lazim olabilir diye CIKARILMADI).
+    "equity_total": "Özkaynaklar (Toplam, Azınlık Payı Dahil)",
+    "minority_interest": "Azınlık Payları (Kontrol Gücü Olmayan Paylar)",
     "share_capital": "Ödenmiş Sermaye",
     # Kumulatif (YTD, Fintables/Matriks/İş Yatırım'ın varsayılan gösterdiği
     # ham) karsiliklari -- bkz. src/bot/pipeline.py _standardize_to_records.
@@ -833,6 +842,21 @@ def _build_analysis_result(
         net_margin_change_points=_points_diff(net_margin_current, net_margin_prior_year),
         net_debt_to_ebitda=_safe_div(net_debt, ttm_ebitda),
         current_ratio=_safe_div(current.get("current_assets"), current.get("short_term_liabilities")),
+        # CANLI hata duzeltmesi (kullanici raporu, SAHOL PD/DD -- bkz.
+        # isyatirim.STANDARD_ITEM_MAP_XI_29["equity"] yorumu): "equity" ARTIK
+        # ana ortaklik-only (azinlik payi HARIC). "ttm_net_income" (kaynak
+        # itemCode '3Z'/'3ZA') ZATEN ana ortaklik-only'ydi (EPS'e esas rakam)
+        # -- ROE'nin PAYI/PAYDASI SIMDI AYNI kapsamda (ikisi de parent-only),
+        # eskiden PAYDA (toplam ozkaynak) daha BUYUK oldugu icin ROE
+        # AZINLIK PAYI BUYUK sirketlerde OLMASI GEREKENDEN DUSUK cikiyordu --
+        # bu duzeltmeyle ROE bu tur sirketlerde (SAHOL gibi) BIRAZ ARTAR,
+        # bu BEKLENEN ve DOGRU bir yan etkidir. "debt_to_equity" (dar
+        # kaldirac -- SADECE finansal borc) icin de AYNI parent-only equity
+        # kullanilir (bu satirdaki "financial_debt" konsolide TOPLAM sirket
+        # borcu, azinlik/ana ortaklik ayrimi TASIMAZ -- parent-only equity ile
+        # oranlamak, kontrol gucu olan hissedarin ustlendigi kaldiraci daha
+        # KONSERVATIF gosterir, Graham/analist gelenegindeki YAYGIN pratikle
+        # tutarlidir).
         roe_annualized=_margin_pct(ttm_net_income, current.get("equity")),
         debt_to_equity=_safe_div(current.get("financial_debt"), current.get("equity")),
         net_debt=net_debt,

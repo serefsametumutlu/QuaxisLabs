@@ -270,15 +270,32 @@ belgeli, TEKRAR YAZILMAZ.
   §4'e 14. madde olarak eklenmesi önerilir. BİST tarafında (opsiyon bazlı
   ücretlendirme KAP'ta standart bir XBRL etiketiyle raporlanmıyor) TAM
   bloker olarak KALIR.
-- **Azınlık payı kirliliği (BAYRAK-28/29):** Konsolide holding şirketlerinde
-  `pb_ratio`'nun paydası (`equity`, azınlık payı DAHİL) ile payı
-  (`market_cap`, ana ortaklık-only) AYNI kapsamı YANSITMAZ — bu YAPISAL
-  bir tutarsızlıktır (veri eksikliği DEĞİL, TANIM sorunu). Önemli-azınlık-
-  paylı BIST holdinglerinde (KAP ince sektör "HOLDİNGLER VE YATIRIM
-  ŞİRKETLERİ") kartta "bu şirkette PD/DD azınlık payı nedeniyle yapay
-  düşük çıkabilir" UYARISI eklenmelidir (veri eksikliği giderilene kadar).
-  `pe_ratio` bu sorunu TAŞIMAZ (hem `market_cap` hem `net_income` ana-
-  ortaklık-only) — bu ASİMETRİ kart dokümantasyonunda AÇIKÇA belirtilmeli.
+- **Azınlık payı kirliliği (BAYRAK-28/29) — DÜZELTİLDİ (2026-08-12,
+  kullanıcı raporu SAHOL PD/DD Fintables/Matriks'e göre yanlış):** Kök
+  neden, kart seviyesinde bir UYARI eksikliği DEĞİL, `equity` alanının
+  KENDİSİNİN yanlış kapsamda (toplam, azınlık payı DAHİL) tanımlanmasıydı
+  — `src/fetchers/isyatirim.py` (STANDARD_ITEM_MAP_XI_29/_UFRS/_UFRS_K/
+  _UFRS_KATILIM/_FINANSMAN) ve `src/fetchers/kap_financials.py`
+  (STANDARD_ITEM_MAP_KAP_XI_29/_UFRS/_UFRS_K/_FINANSMAN_BALANCE) VE
+  `src/fetchers/sec_edgar.py` (ifrs-full ADR fallback'i) düzeltildi:
+  `equity` artık HER YERDE ana ortaklık-only döner (XI_29/XI_29K'de
+  doğrudan ayrı bir itemCode — "2O"; UFRS/UFRS_KATILIM/UFRS_K'de
+  `equity_total - minority_interest` olarak hesaplanır, çünkü bu
+  şemalarda toplam kalem "2O" kendisi ve azınlık payı onun bir ALT
+  kalemidir). Eski TOPLAM değer + azınlık payının kendisi `equity_total`/
+  `minority_interest` adlarıyla AYRICA saklanır (bilgi kaybı yok). CANLI
+  SAHOL doğrulaması (2026-08-12, `data/exploration/
+  SAHOL_XI_29_get_20260812_190310.json`): `pb_ratio` eski (yanlış, toplam
+  özkaynakla) 0,294 iken düzeltilmiş (ana ortaklık-only) 0,481 —
+  Fintables/Matriks'in gösterdiği aralığa YAKINSAR. `pb_ratio`'nun payı
+  (`market_cap`) VE paydası (`equity`) ARTIK AYNI kapsamda (ikisi de ana
+  ortaklık-only), `pe_ratio` ile SİMETRİK. ROE/NCAV/Bilanço Kalitesi
+  (Özkaynak/Aktif)/Kaldıraç (Toplam Yükümlülük/Özkaynak) bileşenleri de
+  AYNI düzeltilmiş `equity` alanını kullanır — bu bileşenlerde azınlık
+  payı büyük şirketlerde küçük (BEKLENEN, dokümante edilmiş) sayısal
+  kaymalar oluşur, bkz. `calculator.py`/`lens_deger.py`/`lens_guvenlik.py`/
+  `scorer.py` ilgili kod yorumları. Artık kart seviyesinde AYRI bir UYARI
+  METNİNE gerek YOKTUR (veri zaten doğru kapsamda).
 - **PD/EFK tanım hatası (BAYRAK-19):** `price_to_operating_profit`
   (`market_cap/ttm_operating_profit`) pay-özkaynak/payda-firma-geneli
   TUTARSIZLIĞI taşır — yüksek borçlu şirketler bu metrikte YAPAY ucuz
@@ -325,10 +342,13 @@ belgeli, TEKRAR YAZILMAZ.
    SCORING_METHODOLOGY.md bilinen sınırı) TAŞIR; NCAV testi ANLAMSIZ
    (ABD teknoloji şirketleri net-net bandının ÇOK ÜZERİNDE), bu yüzden
    NCAV bonusu hiç TETİKLENMEZ (0 katkı, ceza YOK).
-4. **KAP holding şirketi (yüksek azınlık payı, örn. büyük bir BIST
-   holding):** PD/DD hesaplanır ama BAYRAK-28/29 notu kartta GÖRÜNÜR —
-   test, notun DOĞRU KOŞULDA (KAP ince sektör = "HOLDİNGLER VE YATIRIM
-   ŞİRKETLERİ") tetiklendiğini doğrular.
+4. **KAP holding şirketi (yüksek azınlık payı, örn. SAHOL):** PD/DD artık
+   `equity` (ana ortaklık-only) ile hesaplanır — BAYRAK-28/29 DÜZELTİLDİ
+   (yukarıdaki "Kenar Durumlar" notuna bkz.), test SAHOL'ün gerçek
+   `equity`/`equity_total`/`minority_interest` üçlüsünün (`2O`/`2N`/`2ODA`)
+   TL'ye kadar tutarlılığını (`equity + minority_interest == equity_total`)
+   ve düzeltilmiş `pb_ratio`'nun eski (yanlış, toplam özkaynaklı) değerden
+   BELİRGİN şekilde yüksek çıktığını doğrular.
 5. **n=4 sektör (BİST Sağlık):** Sektöre Göreli Konum bileşeni ATLANIR,
    "yetersiz örneklem (n=4)" notu görünür, ağırlık Mutlak Ucuzluğa
    devredilir — toplam DEĞER skoru YİNE de üretilir (sadece o alt-bileşen

@@ -65,6 +65,53 @@ def test_standard_item_map_share_capital_dogru_kod() -> None:
     assert STANDARD_ITEM_MAP_XI_29["share_capital"] == "2OA"
 
 
+# --- CANLI hata duzeltmesi (kullanici raporu, SAHOL PD/DD Fintables/Matriks'e
+# gore YANLIS cikiyordu): "equity" TOPLAM ozkaynak (azinlik dahil, "2N")
+# yerine ARTIK ana ortaklik-only ("2O") doner (bkz. data/exploration/
+# SAHOL_XI_29_get_20260812_190310.json ve thyao_items_readable.txt satir
+# 58-69 canli dogrulamasi: 2N = 2O + 2ODA ozdesligi) -----------------------------------------------------
+
+
+def test_standard_item_map_equity_artik_ana_ortaklik_only() -> None:
+    assert STANDARD_ITEM_MAP_XI_29["equity"] == "2O"
+
+
+def test_standard_item_map_equity_total_toplam_ozkaynagi_korur() -> None:
+    """Eski "equity" degeri (TOPLAM, azinlik dahil) bilgi kaybi olmasin diye
+    "equity_total" adiyla AYRICA saklanir (Kural 8)."""
+    assert STANDARD_ITEM_MAP_XI_29["equity_total"] == "2N"
+
+
+def test_standard_item_map_minority_interest_dogru_kod() -> None:
+    assert STANDARD_ITEM_MAP_XI_29["minority_interest"] == "2ODA"
+
+
+def test_standardized_value_xi_29_equity_sahol_canli_degerleriyle_dogrulanir() -> None:
+    """CANLI dogrulandi (2026-08-12, data/exploration/SAHOL_XI_29_get_20260812_190310.json):
+    2N (Ozkaynaklar TOPLAM) = 625.852.441.000, 2O (Ana Ortakliga Ait
+    Ozkaynaklar) = 382.411.470.000, 2ODA (Azinlik Paylari) = 243.440.971.000
+    -- 2O + 2ODA == 2N ozdesligi TL'ye kadar dogrulandi. Bu, kullanicinin
+    raporladigi PD/DD hatasinin (eski "equity"=2N ile PD/DD=0,294 iken
+    duzeltilmis "equity"=2O ile PD/DD=0,481 -- Fintables/Matriks'e daha
+    YAKIN) kok nedenidir."""
+    period = (2026, 3)
+    items = {
+        "2N": FinancialItem("2N", "Özkaynaklar", {period: Decimal("625852441000")}),
+        "2O": FinancialItem("2O", "Ana Ortaklığa Ait Özkaynaklar", {period: Decimal("382411470000")}),
+        "2ODA": FinancialItem("2ODA", "Azınlık Payları", {period: Decimal("243440971000")}),
+    }
+    raw = RawFinancials(ticker="SAHOL", company_code="SAHOL", financial_group="XI_29", periods=[period], items=items)
+    from src.fetchers.isyatirim import standardized_value
+
+    assert standardized_value(raw, "equity", period) == Decimal("382411470000")
+    assert standardized_value(raw, "equity_total", period) == Decimal("625852441000")
+    assert standardized_value(raw, "minority_interest", period) == Decimal("243440971000")
+    # Ozdeslik: equity + minority_interest == equity_total
+    assert standardized_value(raw, "equity", period) + standardized_value(raw, "minority_interest", period) == standardized_value(
+        raw, "equity_total", period
+    )
+
+
 def test_standard_item_map_pretax_profit_dogru_kod() -> None:
     """V-07 (docs/spec/spec_veri_tamlik_yol_haritasi.md) -- "3I" ("SÜRDÜRÜLEN
     FAALİYETLER VERGİ ÖNCESİ KARI (ZARARI)"), THYAO VE BIMAS (İKİ BAĞIMSIZ
@@ -393,6 +440,65 @@ def test_standardized_value_ufrs_xi_29_semasinda_hata_firlatir() -> None:
         standardized_value_ufrs(raw, "loans", (2026, 6))
 
 
+# --- CANLI hata duzeltmesi (kullanici raporu, SAHOL PD/DD -- bkz.
+# STANDARD_ITEM_MAP_UFRS["equity_total"] yorumu): bankada "2O" (XVI.
+# OZKAYNAKLAR) TOPLAMdir, "16.5 Azinlik Paylari" (2OVA) onun ALT kalemidir
+# -- "equity" bu yuzden equity_total - minority_interest olarak HESAPLANIR -----------------------------------------------------
+
+
+def test_standard_item_map_ufrs_equity_total_dogru_kod() -> None:
+    assert STANDARD_ITEM_MAP_UFRS["equity_total"] == "2O"
+
+
+def test_standard_item_map_ufrs_minority_interest_dogru_kod() -> None:
+    assert STANDARD_ITEM_MAP_UFRS["minority_interest"] == "2OVA"
+
+
+def test_standardized_value_ufrs_equity_azinlik_payini_dusurur() -> None:
+    period = (2026, 6)
+    total_code = STANDARD_ITEM_MAP_UFRS["equity_total"]
+    minority_code = STANDARD_ITEM_MAP_UFRS["minority_interest"]
+    raw = _raw_ufrs(
+        {
+            total_code: FinancialItem(total_code, "XVI. ÖZKAYNAKLAR", {period: Decimal("487168000000")}),
+            minority_code: FinancialItem(minority_code, "16.5 Azınlık Payları", {period: Decimal("5000000000")}),
+        }
+    )
+    assert standardized_value_ufrs(raw, "equity", period) == Decimal("482168000000")
+
+
+def test_standardized_value_ufrs_equity_azinlik_yoksa_toplama_esittir() -> None:
+    """AKBNK/GARAN canli veride azinlik payi (2OVA) 0 -- minority_interest
+    item'i hic raporlanmamissa (None/eksik) equity == equity_total olmali."""
+    period = (2026, 6)
+    total_code = STANDARD_ITEM_MAP_UFRS["equity_total"]
+    raw = _raw_ufrs({total_code: FinancialItem(total_code, "XVI. ÖZKAYNAKLAR", {period: Decimal("302597564000")})})
+    assert standardized_value_ufrs(raw, "equity", period) == Decimal("302597564000")
+
+
+def test_standardized_value_ufrs_equity_toplam_yoksa_none_doner() -> None:
+    """Kural 3: eksik veri = None yayilimi, 0 varsayilmaz."""
+    period = (2026, 6)
+    raw = _raw_ufrs({})
+    assert standardized_value_ufrs(raw, "equity", period) is None
+
+
+def test_quarterly_standardized_value_ufrs_equity_ceyreklestirilmez() -> None:
+    """'equity' STOK bir hesaplamadir -- quarterly_standardized_value_ufrs
+    ile standardized_value_ufrs AYNI sonucu dondurmeli (ceyreklik turetme
+    UYGULANMAZ)."""
+    period = (2026, 6)
+    total_code = STANDARD_ITEM_MAP_UFRS["equity_total"]
+    minority_code = STANDARD_ITEM_MAP_UFRS["minority_interest"]
+    raw = _raw_ufrs(
+        {
+            total_code: FinancialItem(total_code, "XVI. ÖZKAYNAKLAR", {period: Decimal("487168000000")}),
+            minority_code: FinancialItem(minority_code, "16.5 Azınlık Payları", {period: Decimal("5000000000")}),
+        }
+    )
+    assert quarterly_standardized_value_ufrs(raw, "equity", period) == Decimal("482168000000")
+
+
 # --- STANDARD_ITEM_MAP_FINANSMAN (Tasarruf Finansman Sirketi/XI_29K): KTLEV
 # canli kesif yanitiyla dogrulanan kodlar (bkz. data/exploration/
 # KTLEV_XI_29K_raw_2026Q1.json, KAP disclosure_index=1605385 ile net kar
@@ -420,6 +526,30 @@ def test_standardized_value_financing_operating_expenses_isaret_degistirilmez() 
         {item_code: FinancialItem(item_code, "ESAS FAALIYET GIDERLERI (-)", {period: Decimal("-1725631994")})}
     )
     assert standardized_value_financing(raw, "operating_expenses", period) == Decimal("-1725631994")
+
+
+def test_standard_item_map_financing_equity_artik_ana_ortaklik_only() -> None:
+    """CANLI dogrulandi (data/exploration/KTLEV_XI_29K_raw_2026Q1.json):
+    2N (Ozkaynaklar, TOPLAM) = 15.819.301.983, 2O (Ana Ortaklığa Ait
+    Özkaynaklar) = 14.753.674.798, A2OE (13.5 Azinlik Paylari) =
+    1.065.627.185 -- 2O + A2OE == 2N ozdesligi TL'ye kadar dogrulandi."""
+    assert STANDARD_ITEM_MAP_FINANSMAN["equity"] == "2O"
+    assert STANDARD_ITEM_MAP_FINANSMAN["equity_total"] == "2N"
+    assert STANDARD_ITEM_MAP_FINANSMAN["minority_interest"] == "A2OE"
+
+
+def test_standardized_value_financing_equity_ktlev_canli_degerleriyle_dogrulanir() -> None:
+    period = (2026, 3)
+    raw = _raw_financing(
+        {
+            "2N": FinancialItem("2N", "Özkaynaklar", {period: Decimal("15819301983")}),
+            "2O": FinancialItem("2O", "Ana Ortaklığa Ait Özkaynaklar", {period: Decimal("14753674798")}),
+            "A2OE": FinancialItem("A2OE", "13.5 Azınlık Payları", {period: Decimal("1065627185")}),
+        }
+    )
+    assert standardized_value_financing(raw, "equity", period) == Decimal("14753674798")
+    assert standardized_value_financing(raw, "equity_total", period) == Decimal("15819301983")
+    assert standardized_value_financing(raw, "minority_interest", period) == Decimal("1065627185")
 
 
 def test_quarterly_standardized_value_financing_bilanco_kalemi_ceyreklestirilmez() -> None:
@@ -531,6 +661,43 @@ def test_standardized_value_ufrs_k_yanlis_semada_hata_firlatir() -> None:
         standardized_value_ufrs_k(raw, "gross_written_premiums", (2026, 6))
 
 
+# --- CANLI hata duzeltmesi (kullanici raporu, SAHOL PD/DD -- bkz.
+# STANDARD_ITEM_MAP_UFRS_K["equity_total"] yorumu): sigortada "2O" (Ozsermaye
+# Toplami) TOPLAMdir, "G-Azinlik Paylari" (2MEZD) onun ALT kalemidir -----------------------------------------------------
+
+
+def test_standard_item_map_ufrs_k_equity_total_dogru_kod() -> None:
+    assert STANDARD_ITEM_MAP_UFRS_K["equity_total"] == "2O"
+
+
+def test_standard_item_map_ufrs_k_minority_interest_dogru_kod() -> None:
+    assert STANDARD_ITEM_MAP_UFRS_K["minority_interest"] == "2MEZD"
+
+
+def test_standardized_value_ufrs_k_equity_ansgr_canli_degerleriyle_dogrulanir() -> None:
+    """CANLI dogrulandi (data/exploration/ANSGR_UFRS_K_get_20260730_195513.json):
+    2O (Ozsermaye Toplami) = 40.045.701.921, azinlik payi (2MEZD) ANSGR'de
+    0 -- bu yuzden equity == equity_total olmali."""
+    period = (2026, 6)
+    total_code = STANDARD_ITEM_MAP_UFRS_K["equity_total"]
+    raw = _raw_ufrs_k({total_code: FinancialItem(total_code, "Özsermaye Toplamı", {period: Decimal("40045701921")})})
+    assert standardized_value_ufrs_k(raw, "equity", period) == Decimal("40045701921")
+    assert standardized_value_ufrs_k(raw, "equity_total", period) == Decimal("40045701921")
+
+
+def test_standardized_value_ufrs_k_equity_azinlik_payini_dusurur() -> None:
+    period = (2026, 6)
+    total_code = STANDARD_ITEM_MAP_UFRS_K["equity_total"]
+    minority_code = STANDARD_ITEM_MAP_UFRS_K["minority_interest"]
+    raw = _raw_ufrs_k(
+        {
+            total_code: FinancialItem(total_code, "Özsermaye Toplamı", {period: Decimal("40045701921")}),
+            minority_code: FinancialItem(minority_code, "G-Azınlık Payları", {period: Decimal("1000000000")}),
+        }
+    )
+    assert standardized_value_ufrs_k(raw, "equity", period) == Decimal("39045701921")
+
+
 # --- STANDARD_ITEM_MAP_UFRS_KATILIM (katilim bankasi): ALBRK canli kesif
 # yanitiyla dogrulanan kodlar (bkz. data/exploration/ALBRK_UFRS_get_*.json) -----------------------------------------------------
 
@@ -570,6 +737,43 @@ def test_standardized_value_ufrs_katilim_yanlis_semada_hata_firlatir() -> None:
     raw = RawFinancials(ticker="GARAN", company_code="GARAN", financial_group="UFRS", periods=[], items={})
     with pytest.raises(UnsupportedFinancialGroupError):
         standardized_value_ufrs_katilim(raw, "interest_income", (2026, 6))
+
+
+# --- CANLI hata duzeltmesi (kullanici raporu, SAHOL PD/DD -- bkz.
+# STANDARD_ITEM_MAP_UFRS_KATILIM["equity_total"] yorumu): katilim bankasinda
+# "2O" (OZKAYNAK) TOPLAMdir, "14.5 Azinlik Paylari" (2NAU) onun ALT
+# kalemidir (CANLI ALBRK verisiyle -- fetch_financials('ALBRK') -- dogrulandi,
+# TUM tarihsel donemlerinde 2NAU=0) -----------------------------------------------------
+
+
+def test_standard_item_map_ufrs_katilim_equity_total_dogru_kod() -> None:
+    assert STANDARD_ITEM_MAP_UFRS_KATILIM["equity_total"] == "2O"
+
+
+def test_standard_item_map_ufrs_katilim_minority_interest_dogru_kod() -> None:
+    assert STANDARD_ITEM_MAP_UFRS_KATILIM["minority_interest"] == "2NAU"
+
+
+def test_standardized_value_ufrs_katilim_equity_azinlik_payini_dusurur() -> None:
+    period = (2026, 3)
+    total_code = STANDARD_ITEM_MAP_UFRS_KATILIM["equity_total"]
+    minority_code = STANDARD_ITEM_MAP_UFRS_KATILIM["minority_interest"]
+    raw = _raw_ufrs_katilim(
+        {
+            total_code: FinancialItem(total_code, "ÖZKAYNAK", {period: Decimal("25578285000")}),
+            minority_code: FinancialItem(minority_code, "14.5 Azınlık Payları", {period: Decimal("1000000000")}),
+        }
+    )
+    assert standardized_value_ufrs_katilim(raw, "equity", period) == Decimal("24578285000")
+
+
+def test_standardized_value_ufrs_katilim_equity_albrk_canli_degeriyle_dogrulanir() -> None:
+    """CANLI dogrulandi (fetch_financials('ALBRK'), 2026Ç1): 2O (ÖZKAYNAK) =
+    25.578.285.000, 2NAU (14.5 Azınlık Payları) = 0 -- equity == equity_total."""
+    period = (2026, 3)
+    total_code = STANDARD_ITEM_MAP_UFRS_KATILIM["equity_total"]
+    raw = _raw_ufrs_katilim({total_code: FinancialItem(total_code, "ÖZKAYNAK", {period: Decimal("25578285000")})})
+    assert standardized_value_ufrs_katilim(raw, "equity", period) == Decimal("25578285000")
 
 
 # --- _resolve_actual_group: katilim bankasi tespiti (canli ALBRK yanitiyla

@@ -1652,6 +1652,50 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       BAĞIMSIZ, eşzamanlı geliştirilmekte olan bir capex/temettü oranı
       özelliğine ait 2 test kırık kalmıştı, BU FAZIN kapsamı/dokunduğu
       dosyalar DIŞINDA).
+- [x] **Veri Tamlığı İlk Dalga** — (2026-08-12, `docs/spec/
+      spec_veri_tamlik_yol_haritasi.md` onaylandı, kod-geliştirici'ye
+      devredilen 9 görevden 8'i bu oturumda tamamlandı) NASDAQ (SEC EDGAR
+      `us-gaap:*`, AAPL/JPM companyfacts fixture'larıyla CANLI kayıtlı
+      doğrulandı) ve BİST (İş Yatırım) tarafında daha önce "VERİ EKSİK"
+      işaretli ham kalemler açıldı:
+      1. **V-04 (skorlanan)** — `sec_edgar.STANDARD_ITEM_MAP_US_GAAP`'a
+         `us-gaap:TreasuryStockValue` eklendi; `lens_kalite.py`'nin
+         "Özkaynak Kârlılığı (ROE)" bileşeni artık `treasury_stock`
+         mevcutsa (JPM gibi hazine hissesi TUTAN şirketlerde) 02/FORMÜL-21
+         (Net Kâr/(Özkaynak+Hazine Hissesi)) ile beslenir — AYNI %20
+         ağırlık, YENİ ağırlık İCAT EDİLMEDİ. AAPL (payları İPTAL ediyor,
+         hazine hissesi TUTMUYOR) davranışı DEĞİŞMEDİ (regresyon kilidi).
+      2. **V-01/V-02/V-03/V-08/V-09 (bilgi amaçlı, BİLİNÇLİ SKORLANMADI)** —
+         `sga_expense`, `research_development_expense`, `interest_expense`,
+         `capex`, `dividend_per_share` NASDAQ tarafında DB'ye yazılıyor;
+         `calculator.Ratios`'a `sga_to_gross_profit_pct`/
+         `rd_to_gross_profit_pct`/`interest_expense_to_operating_profit_pct`/
+         `capex_to_net_income_pct`/`ttm_dividend_per_share` eklendi. Bu
+         alanlar BİLİNÇLİ olarak `lens_kalite.py`/`lens_deger.py`/
+         `lens_buyume.py`/`lens_guvenlik.py`'nin ağırlıklı `bilesenler`
+         listesine EKLENMEDİ — ilgili mercek spec'lerinin KENDİ metni
+         ("şimdilik SKORLANMAZ", "yer tutucu — veri gelince skorlanan
+         bileşene YÜKSELTİLİR") bu ağırlık kararının bir SONRAKİ
+         mercek-spec revizyonuna bırakıldığını AÇIKÇA belirtiyor (ağırlık
+         İCAT ETMEK persona kuralı ihlali olurdu).
+      3. **V-07** — `isyatirim.STANDARD_ITEM_MAP_XI_29`'a `pretax_profit`
+         ("3I") + `tax_provision` ("3IA") eklendi — THYAO VE BIMAS (iki
+         bağımsız XI_29 şirketi) canlı kayıtlı yanıtlarıyla doğrulandı,
+         `STANDARD_ITEM_MAP_FINANSMAN`'daki emsalin genişletilmesi.
+      4. **V-05** — Yeni `src/analysis/liquidity.py` (sıfır yeni fetcher):
+         `price_history.py`'nin hacim serisi + piyasa değeri arasında
+         devir hızı (03/Ch.14) + Amihud (2002) illikidite köprüsü. Aynı
+         gerekçeyle (hangi mercege ekleneceği henüz KARARLAŞTIRILMADI)
+         SKORLAMAYA BAĞLANMADI.
+      **Blocker'la kalan görevler:** V-10 (BİST Capex/Net Kâr, KAP XBRL
+      `ifrs-full_PurchaseOfPropertyPlantAndEquipment`) bu turda YAPILMADI
+      — gerçek canlı KAP isteğiyle doğrulama + İş Yatırım'ın nakit akış
+      tablosu (Capex) itemCode'unun AYRICA araştırılması gerekiyor (spec'in
+      kendi "ORTA maliyet" etiketiyle tutarlı, zaman bütçesi nedeniyle bir
+      sonraki dalgaya bırakıldı).
+      37 yeni test (`test_sec_edgar.py`, `test_calculator_us.py`,
+      `test_lens_kalite.py`, `test_isyatirim.py`, `test_liquidity.py`) —
+      tam suite 1395 test yeşil. 3 ayrı commit (nasdaq/bist/likidite).
 
 ## Dizin Yapisi
 

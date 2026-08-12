@@ -744,6 +744,61 @@ def save_sector_metric_cache(
     return row
 
 
+_SECTOR_METRIC_DISTRIBUTION_COLUMNS = {"pe_ratio": MarketScanResult.pe_ratio, "pb_ratio": MarketScanResult.pb_ratio}
+
+
+def get_sector_metric_distribution(
+    session: Session,
+    ust_sektor: str,
+    sirket_turu: str,
+    metric: str,
+    market: str | None = None,
+    exclude_ticker: str | None = None,
+) -> list[Decimal]:
+    """DÜZELTME (kod-geliştirici turu, 2026-08-12): `get_sector_metric_cache`/
+    `save_sector_metric_cache` şimdiye kadar hiçbir yerden BESLENMİYORDU --
+    `lens_common.SektorIstatistigi` docstring'inin vaat ettiği
+    `get_sector_metric_distribution` HİÇ YAZILMAMIŞTI, bu yüzden Değer
+    merceğinin "Sektöre Göreli Konum" bileşeni `pipeline.py`'de HER ZAMAN
+    `sektor_pe=None, sektor_pb=None` ile çağrılıyor, kaç peer taranmış
+    olursa olsun bileşen DAİMA atlanıyordu. Bu fonksiyon o eksik halkadır:
+    `MarketScanResult` (scripts/tarama_toplu.py'nin ZATEN doldurduğu, ticker
+    başına TEK güncel satır tutan tablo) üzerinden `(ust_sektor,
+    sirket_turu)` grubundaki `scan_status="ok"` satırların ham
+    `pe_ratio`/`pb_ratio` değerlerini döner -- HESAPLAMA YAPMAZ (medyan/MAD
+    çağıran tarafın `lens_common.robust_istatistik()`'idir, quaxis-mimari
+    anayasa: repository SADECE CRUD/okuma).
+
+    `MarketScanResult` ticker başına TEK (en güncel) satır tuttuğu için
+    (bkz. o modelin docstring'i) peer'lerin KENDİ raporlama dönemi burada
+    AYRICA süzülmez -- süzülseydi n neredeyse HER ZAMAN sıfıra düşerdi
+    (farklı şirketler farklı tarihlerde bilanço açıklar); F/K ve PD/DD
+    zaten GÜNCEL fiyata dayalı çapraz-kesit karşılaştırmalardır (dönem
+    hizalaması KALİTE/BÜYÜME gibi büyüme-oranı bazlı metriklerde daha
+    kritiktir, bu fonksiyon SADECE `pe_ratio`/`pb_ratio` içindir).
+
+    `None` değerler (hesaplanamamış) DIŞLANIR -- pozitif/negatif filtresi
+    BURADA YAPILMAZ (çağıran taraf -- `pipeline.py` -- own_pe>0 ile AYNI
+    ilkeyle F/K ve PD/DD için sadece pozitif değerleri robust_istatistik'e
+    verir, bkz. `lens_deger._skor_sektore_goreli`)."""
+    column = _SECTOR_METRIC_DISTRIBUTION_COLUMNS.get(metric)
+    if column is None:
+        raise ValueError(f"desteklenmeyen metric: '{metric}' (beklenen: {sorted(_SECTOR_METRIC_DISTRIBUTION_COLUMNS)})")
+
+    conditions = [
+        MarketScanResult.ust_sektor == ust_sektor,
+        MarketScanResult.sirket_turu == sirket_turu,
+        MarketScanResult.scan_status == "ok",
+        column.is_not(None),
+    ]
+    if market is not None:
+        conditions.append(MarketScanResult.market == market)
+    if exclude_ticker is not None:
+        conditions.append(MarketScanResult.ticker != exclude_ticker)
+    rows = session.execute(select(column).where(*conditions)).scalars().all()
+    return list(rows)
+
+
 # --- Faz 12: Yaklaşan Bilanço Tarihleri (earnings_calendar) -----------------------------------------------------
 
 

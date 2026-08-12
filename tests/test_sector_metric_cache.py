@@ -112,3 +112,69 @@ def test_sector_metric_cache_farkli_metric_farkli_satir(session) -> None:
     favok = repository.get_sector_metric_cache(session, "Sanayi", "sanayi", "ebitda_margin_current", (2026, 3))
     assert roe.medyan == Decimal("10")
     assert favok.medyan == Decimal("20")
+
+
+# --- get_sector_metric_distribution -----------------------------------------------------
+# DÜZELTME (kod-geliştirici turu, 2026-08-12): bu fonksiyon eksik halkaydı --
+# `SectorMetricCache`'i BESLEYEN gerçek veri kaynağı (`MarketScanResult`)
+# hiçbir yerden okunmuyordu, bu yüzden Değer merceğinin "Sektöre Göreli
+# Konum" bileşeni DAİMA "yetersiz örneklem" gösteriyordu (kaç şirket
+# taranmış olursa olsun). Bkz. `src/bot/pipeline.py::_sektor_istatistigi_getir`.
+
+
+def test_get_sector_metric_distribution_ok_satirlarini_toplar(session) -> None:
+    for peer, pe in (("A", Decimal("10")), ("B", Decimal("15")), ("C", Decimal("20"))):
+        repository.upsert_market_scan_result(session, peer, "BIST", scan_status="ok", ust_sektor="Sanayi", sirket_turu="sanayi", pe_ratio=pe)
+    session.commit()
+
+    degerler = repository.get_sector_metric_distribution(session, "Sanayi", "sanayi", "pe_ratio")
+    assert sorted(degerler) == [Decimal("10"), Decimal("15"), Decimal("20")]
+
+
+def test_get_sector_metric_distribution_none_degerleri_disler(session) -> None:
+    repository.upsert_market_scan_result(session, "A", "BIST", scan_status="ok", ust_sektor="Sanayi", sirket_turu="sanayi", pe_ratio=None)
+    repository.upsert_market_scan_result(session, "B", "BIST", scan_status="ok", ust_sektor="Sanayi", sirket_turu="sanayi", pe_ratio=Decimal("12"))
+    session.commit()
+
+    degerler = repository.get_sector_metric_distribution(session, "Sanayi", "sanayi", "pe_ratio")
+    assert degerler == [Decimal("12")]
+
+
+def test_get_sector_metric_distribution_basarisiz_taramalari_disler(session) -> None:
+    repository.upsert_market_scan_result(session, "A", "BIST", scan_status="hata", ust_sektor="Sanayi", sirket_turu="sanayi", pe_ratio=Decimal("12"))
+    repository.upsert_market_scan_result(session, "B", "BIST", scan_status="desteklenmiyor", ust_sektor="Sanayi", sirket_turu="sanayi")
+    session.commit()
+
+    degerler = repository.get_sector_metric_distribution(session, "Sanayi", "sanayi", "pe_ratio")
+    assert degerler == []
+
+
+def test_get_sector_metric_distribution_exclude_ticker(session) -> None:
+    repository.upsert_market_scan_result(session, "A", "BIST", scan_status="ok", ust_sektor="Sanayi", sirket_turu="sanayi", pe_ratio=Decimal("12"))
+    repository.upsert_market_scan_result(session, "B", "BIST", scan_status="ok", ust_sektor="Sanayi", sirket_turu="sanayi", pe_ratio=Decimal("14"))
+    session.commit()
+
+    degerler = repository.get_sector_metric_distribution(session, "Sanayi", "sanayi", "pe_ratio", exclude_ticker="A")
+    assert degerler == [Decimal("14")]
+
+
+def test_get_sector_metric_distribution_market_filtresi(session) -> None:
+    repository.upsert_market_scan_result(session, "A", "BIST", scan_status="ok", ust_sektor="Teknoloji", sirket_turu="sanayi", pe_ratio=Decimal("12"))
+    repository.upsert_market_scan_result(session, "AAPL", "NASDAQ", scan_status="ok", ust_sektor="Teknoloji", sirket_turu="sanayi", pe_ratio=Decimal("30"))
+    session.commit()
+
+    degerler = repository.get_sector_metric_distribution(session, "Teknoloji", "sanayi", "pe_ratio", market="BIST")
+    assert degerler == [Decimal("12")]
+
+
+def test_get_sector_metric_distribution_pb_ratio_calisir(session) -> None:
+    repository.upsert_market_scan_result(session, "A", "BIST", scan_status="ok", ust_sektor="Sanayi", sirket_turu="sanayi", pb_ratio=Decimal("1.5"))
+    session.commit()
+
+    degerler = repository.get_sector_metric_distribution(session, "Sanayi", "sanayi", "pb_ratio")
+    assert degerler == [Decimal("1.5")]
+
+
+def test_get_sector_metric_distribution_desteklenmeyen_metric_hata_firlatir(session) -> None:
+    with pytest.raises(ValueError):
+        repository.get_sector_metric_distribution(session, "Sanayi", "sanayi", "roe_annualized")

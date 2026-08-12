@@ -923,6 +923,7 @@ def upsert_market_scan_result(
     ev_ebitda: Decimal | None = None,
     currency: str | None = None,
     mercekler_detay: dict | None = None,
+    tarihsel_skorlar: list | None = None,
     financial_data_as_of: datetime | None = None,
     computed_at: datetime | None = None,
 ) -> MarketScanResult:
@@ -995,6 +996,13 @@ def upsert_market_scan_result(
     row.ev_ebitda = ev_ebitda
     row.currency = currency
     row.mercekler_detay = mercekler_detay
+    # docs/spec/spec_veri_tamlik_yol_haritasi.md §Skor Geçmişi (2026-08-12):
+    # `mercekler_detay` ile AYNI kaynak/zamanlama (scripts/tarama_toplu.py
+    # ::_scan_one() HER taramada yazar) -- `faaliyet_raporu_bulgulari`'nin
+    # AKSİNE (AYRI bir pilot script tarafından yazılır, bu fonksiyonun
+    # parametre listesinde YOKTUR) bu alan burada "ok" yolunda HER ZAMAN
+    # (verilmezse NULL'a) EZİLİR -- tıpkı diğer skor sütunları gibi.
+    row.tarihsel_skorlar = tarihsel_skorlar
     row.financial_data_as_of = financial_data_as_of
     row.computed_at = computed_at if computed_at is not None else utcnow_naive()
     return row

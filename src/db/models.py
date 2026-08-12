@@ -390,6 +390,20 @@ class MarketScanResult(Base):
     # tarama_toplu.py'nin ana v2 skor motorunun BİR PARÇASI DEĞİL).
     faaliyet_raporu_bulgulari: Mapped[dict | None] = mapped_column(JSON)
 
+    # docs/spec/spec_veri_tamlik_yol_haritasi.md §Skor Geçmişi (2026-08-12):
+    # `src/bot/pipeline.py::compute_historical_lens_scores_for_ticker()`
+    # çıktısı -- GÜNCEL dönem + en fazla `MAX_HISTORICAL_PERIODS` (3) geçmiş
+    # dönemin 4 mercek + Bileşik Skor ÖZETİ (score+badge, TAM
+    # `mercekler_detay` DEĞİL -- disk/DB şişmesin), ESKİDEN YENİYE sıralı
+    # bir liste: `[{"donem": "2026/6", "donem_label": "2Ç26", "deger_score":
+    # ..., "deger_badge": ..., ...}, ...]` (Decimal alanlar `mercekler_detay`
+    # ile AYNI ilkeyle `str()` olarak saklanır, bkz. scripts/tarama_toplu.py
+    # ::_tarihsel_skorlar_to_list). `scripts/tarama_toplu.py::_scan_one()`
+    # HER taramada YAZAR (mercekler_detay ile AYNI zamanlama/kaynak --
+    # faaliyet_raporu_bulgulari'nden FARKLI olarak AYRI bir script/pilot
+    # gerektirmez, bkz. o alanın üst notu).
+    tarihsel_skorlar: Mapped[list | None] = mapped_column(JSON)
+
     computed_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow_naive)     # bu SATIRIN en son ne zaman hesaplandigi (SCAN tazelik anchor'i)
     financial_data_as_of: Mapped[datetime | None] = mapped_column(DateTime)           # Company.last_updated'in tarama anındaki KOPYASI (bkz. Tazelik)
 
@@ -544,6 +558,25 @@ def _migrate_add_faaliyet_raporu_bulgulari_column(engine: Engine) -> None:
         connection.execute(text("ALTER TABLE market_scan_result ADD COLUMN faaliyet_raporu_bulgulari JSON"))
 
 
+def _migrate_add_tarihsel_skorlar_column(engine: Engine) -> None:
+    """docs/spec/spec_veri_tamlik_yol_haritasi.md §Skor Geçmişi (2026-08-12)
+    ÖNCESİ oluşturulmuş veritabanlarında 'market_scan_result' tablosu zaten
+    var ama 'tarihsel_skorlar' sütunu YOK -- _migrate_add_faaliyet_raporu_
+    bulgulari_column ile BİREBİR AYNI idempotent ALTER TABLE deseni: sütun
+    zaten varsa hiçbir şey yapılmaz. Nullable/JSON -- eski satırlar NULL
+    kalır, render katmanı bunu boş bir "Skor Geçmişi" bölümü olarak gösterir
+    (bir SONRAKİ tarama turu doldurur)."""
+    inspector = inspect(engine)
+    if "market_scan_result" not in inspector.get_table_names():
+        return  # create_all() zaten dogru sekilde (yeni sutun DAHIL) olusturacak
+    existing_columns = {col["name"] for col in inspector.get_columns("market_scan_result")}
+    if "tarihsel_skorlar" in existing_columns:
+        return
+    logger.info("Migration: 'market_scan_result' tablosuna 'tarihsel_skorlar' sutunu ekleniyor.")
+    with engine.begin() as connection:
+        connection.execute(text("ALTER TABLE market_scan_result ADD COLUMN tarihsel_skorlar JSON"))
+
+
 def init_db(engine: Engine | None = None) -> None:
     """Tablolari olusturur (varsa dokunmaz -- create_all idempotenttir) VE
     var olan tablolarda eksik sutunlari migrate eder (bkz. _migrate_add_market_column,
@@ -561,6 +594,7 @@ def init_db(engine: Engine | None = None) -> None:
     _migrate_add_sector_taxonomy_columns(target_engine)
     _migrate_add_filer_category_column(target_engine)
     _migrate_add_faaliyet_raporu_bulgulari_column(target_engine)
+    _migrate_add_tarihsel_skorlar_column(target_engine)
 
 
 # Uygulamanin varsayilan (production) baglantisi. Testler bunu KULLANMAZ;

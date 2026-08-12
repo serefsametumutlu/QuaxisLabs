@@ -130,6 +130,44 @@ def ocr_pdf_text(pdf_bytes: bytes, max_pages: int = _MAX_OCR_PAGES, dpi: int = _
         return ""
 
 
+def extract_native_pages(pdf_bytes: bytes, max_pages: int | None = None) -> list[str]:
+    """PyMuPDF `get_text()` ile PDF'in HER sayfasını AYRI bir string olarak
+    döner -- kitap-bilgi-cikarma prosedüründeki AYNI araç (bkz. modül üst
+    notu), ama burada OCR'a hiç DÜŞMEDEN sadece native metin katmanı okunur.
+
+    docs/spec/spec_veri_tamlik_yol_haritasi.md §Faaliyet Raporu için eklendi
+    (2026-08-12): KAP faaliyet raporu PDF'leri CANLI doğrulandı (THYAO,
+    263 sayfalık "Entegre Faaliyet Raporu" VE 26 sayfalık üç aylık "Yönetim
+    Kurulu Faaliyet Raporu") native metin katmanı taşıyor -- izahname/Fiyat
+    Tespit Raporu'nun aksine (bkz. `ocr_pdf_text()` üst notu) OCR'a GEREK
+    YOK. Sayfa sınırları KORUNUR (tek bir birleşik string DEĞİL) ki çağıran
+    taraf (`src/ai/kar_kaynagi.py`) sayfa bazında anahtar-kelime skorlaması
+    yapıp SADECE ilgili sayfaları LLM'e gönderebilsin (ham PDF'in TAMAMI
+    ASLA LLM'e verilmez).
+
+    `max_pages` verilirse SADECE ilk o kadar sayfa okunur (çok büyük -- 200+
+    sayfalık -- belgelerde latansı sınırlamak için); `None` ise TÜM sayfalar
+    okunur.
+
+    Herhangi bir hata durumunda (Kural 9 -- bu ikincil bir zenginleştirme
+    kaynağıdır) boş liste döner, İSTİSNA FIRLATMAZ."""
+    try:
+        import fitz  # PyMuPDF -- ocr_pdf_text() ile AYNI bağımlılık, ekstra kurulum GEREKMEZ
+    except ImportError:
+        logger.warning("PyMuPDF (fitz) kurulu değil, native sayfa metni çıkarılamadı.")
+        return []
+    try:
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        try:
+            page_count = doc.page_count if max_pages is None else min(max_pages, doc.page_count)
+            return [doc[i].get_text() for i in range(page_count)]
+        finally:
+            doc.close()
+    except Exception:  # noqa: BLE001 -- Kural 9: ikincil bir yol, hata TÜM akışı ÇÖKERTMEMELİ
+        logger.warning("PDF native sayfa metni çıkarma başarısız oldu.", exc_info=True)
+        return []
+
+
 def extract_text_with_ocr_fallback(pdf_bytes: bytes, pdfplumber_text: str, max_pages: int = _MAX_OCR_PAGES) -> str:
     """`pdfplumber_text` (çağıranın ZATEN `pdfplumber` ile ürettiği metin)
     `_PDFPLUMBER_TEXT_THRESHOLD`'un ALTINDAYSA (taranmış/OCR'siz belge

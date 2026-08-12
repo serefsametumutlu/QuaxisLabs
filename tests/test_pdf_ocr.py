@@ -61,3 +61,44 @@ def test_ocr_pdf_text_tesseract_yoksa_bos_doner(monkeypatch) -> None:
     monkeypatch.setattr(pdf_ocr, "is_available", lambda: False)
 
     assert pdf_ocr.ocr_pdf_text(b"sahte-pdf-bytes") == ""
+
+
+# --- extract_native_pages (docs/spec/spec_veri_tamlik_yol_haritasi.md
+# §Faaliyet Raporu, 2026-08-12) ------------------------------------------
+
+
+def _fake_pdf_bytes(page_texts: list[str]) -> bytes:
+    """PyMuPDF'in KENDİSİYLE (fixture dosyası/reportlab GEREKMEDEN) minik,
+    gerçek bir PDF üretir -- her sayfaya verilen metni yazar."""
+    import fitz
+
+    doc = fitz.open()
+    try:
+        for text in page_texts:
+            page = doc.new_page()
+            page.insert_text((72, 72), text)
+        return doc.tobytes()
+    finally:
+        doc.close()
+
+
+def test_extract_native_pages_her_sayfayi_ayri_string_olarak_doner() -> None:
+    pdf_bytes = _fake_pdf_bytes(["Birinci Sayfa Metni", "Ikinci Sayfa Metni"])
+
+    pages = pdf_ocr.extract_native_pages(pdf_bytes)
+
+    assert len(pages) == 2
+    assert "Birinci Sayfa" in pages[0]
+    assert "Ikinci Sayfa" in pages[1]
+
+
+def test_extract_native_pages_max_pages_sinirlar() -> None:
+    pdf_bytes = _fake_pdf_bytes(["Sayfa 1", "Sayfa 2", "Sayfa 3"])
+
+    pages = pdf_ocr.extract_native_pages(pdf_bytes, max_pages=2)
+
+    assert len(pages) == 2
+
+
+def test_extract_native_pages_gecersiz_pdfde_bos_liste_doner() -> None:
+    assert pdf_ocr.extract_native_pages(b"gecersiz-bayt-dizisi") == []

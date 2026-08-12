@@ -56,7 +56,7 @@ def _mercekler_detay_fixture() -> dict:
     }
 
 
-def _add_ok_row(session, ticker="THYAO", market="BIST") -> None:
+def _add_ok_row(session, ticker="THYAO", market="BIST", tarihsel_skorlar=None) -> None:
     session.add(Company(ticker=ticker, name=f"{ticker} A.Ş.", market=market, ust_sektor="Sanayi", sirket_turu="sanayi"))
     session.add(MarketScanResult(
         ticker=ticker, market=market, company_name=f"{ticker} A.Ş.", ust_sektor="Sanayi", sirket_turu="sanayi",
@@ -70,8 +70,32 @@ def _add_ok_row(session, ticker="THYAO", market="BIST") -> None:
         current_price=Decimal("300"), market_cap=Decimal("400000000000"), pe_ratio=Decimal("5.2"),
         pb_ratio=Decimal("1.8"), ev_ebitda=Decimal("4.1"), currency="TRY",
         mercekler_detay=_mercekler_detay_fixture(),
+        tarihsel_skorlar=tarihsel_skorlar,
         computed_at=utcnow_naive(),
     ))
+
+
+def _tarihsel_skorlar_fixture() -> list[dict]:
+    """docs/spec/spec_veri_tamlik_yol_haritasi.md §Skor Geçmişi -- ESKİDEN
+    YENİYE sıralı (bkz. scripts/tarama_toplu.py::_tarihsel_skorlar_to_list)."""
+    return [
+        {
+            "donem": "2025/12", "donem_label": "4Ç25",
+            "deger_score": "6.5", "deger_badge": "DENGELİ",
+            "kalite_score": "7.0", "kalite_badge": "SAĞLAM",
+            "buyume_score": "5.0", "buyume_badge": "DENGELİ",
+            "guvenlik_score": "8.0", "guvenlik_badge": "SAĞLAM",
+            "bilesik_score": "6.6", "bilesik_badge": "DENGELİ",
+        },
+        {
+            "donem": "2026/6", "donem_label": "2Ç26",
+            "deger_score": "7.0", "deger_badge": "SAĞLAM",
+            "kalite_score": "8.0", "kalite_badge": "SAĞLAM",
+            "buyume_score": "6.0", "buyume_badge": "DENGELİ",
+            "guvenlik_score": "9.0", "guvenlik_badge": "SAĞLAM",
+            "bilesik_score": "7.5", "bilesik_badge": "SAĞLAM",
+        },
+    ]
 
 
 def _add_financials(session, ticker="THYAO") -> None:
@@ -236,6 +260,62 @@ def test_carpanlar_bloku(session) -> None:
     data = company_detail.build_company_detail_data(session, "THYAO", "BIST")
     assert data["carpanlar"]["pe_ratio_display"] == "5,2"
     assert "₺" in data["carpanlar"]["price_display"]
+
+
+# --- Skor Geçmişi (docs/spec/spec_veri_tamlik_yol_haritasi.md §Skor Geçmişi) ----------------------
+
+
+def test_skor_gecmisi_yoksa_bos_liste_doner(session) -> None:
+    _add_ok_row(session, tarihsel_skorlar=None)
+    session.commit()
+    data = company_detail.build_company_detail_data(session, "THYAO", "BIST")
+    assert data["skor_gecmisi"] == []
+
+
+def test_skor_gecmisi_donem_biciminde_ve_skorlar_decimal_donusumlu(session) -> None:
+    _add_ok_row(session, tarihsel_skorlar=_tarihsel_skorlar_fixture())
+    session.commit()
+    data = company_detail.build_company_detail_data(session, "THYAO", "BIST")
+
+    gecmis = data["skor_gecmisi"]
+    assert len(gecmis) == 2
+    assert gecmis[0]["donem_label"] == "4Ç25"
+    assert gecmis[0]["bilesik"]["display"] == "6,6"
+    assert gecmis[0]["bilesik"]["badge_class"] == "dengeli"
+    assert gecmis[1]["donem_label"] == "2Ç26"
+    assert gecmis[1]["deger"]["display"] == "7,0"
+    assert gecmis[1]["deger"]["badge_class"] == "saglam"
+
+
+def test_skor_gecmisi_eksik_alan_na_gosterir(session) -> None:
+    eksik = [{
+        "donem": "2025/12", "donem_label": "4Ç25",
+        "deger_score": None, "deger_badge": None,
+        "kalite_score": "7.0", "kalite_badge": "SAĞLAM",
+        "buyume_score": None, "buyume_badge": None,
+        "guvenlik_score": None, "guvenlik_badge": None,
+        "bilesik_score": None, "bilesik_badge": "YETERSİZ VERİ",
+    }]
+    _add_ok_row(session, tarihsel_skorlar=eksik)
+    session.commit()
+    data = company_detail.build_company_detail_data(session, "THYAO", "BIST")
+
+    gecmis = data["skor_gecmisi"][0]
+    assert gecmis["deger"]["display"] == "N/A"
+    assert gecmis["bilesik"]["badge_class"] == "yetersiz"
+
+
+def test_render_html_skor_gecmisi_tablosu_gorunur(session) -> None:
+    _add_ok_row(session, tarihsel_skorlar=_tarihsel_skorlar_fixture())
+    _add_financials(session)
+    session.commit()
+
+    data = company_detail.build_company_detail_data(session, "THYAO", "BIST")
+    html = company_detail.render_company_detail_html(data)
+
+    assert "Skor Geçmişi" in html
+    assert "4Ç25" in html
+    assert "2Ç26" in html
 
 
 # --- Finansal tablo özeti -----------------------------------------------------------------------

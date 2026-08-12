@@ -255,6 +255,38 @@ def _mercek_components(row: MarketScanResult, key: str) -> list[dict[str, str]]:
     return rows
 
 
+def _skor_hucre(score: Decimal | None, badge: str | None) -> dict[str, str]:
+    return {
+        "display": format_number_tr(score, decimals=1) if score is not None else "N/A",
+        "badge_class": _BADGE_CLASS.get(badge or "", "yetersiz"),
+    }
+
+
+def _skor_gecmisi_block(row: MarketScanResult) -> list[dict[str, Any]]:
+    """docs/spec/spec_veri_tamlik_yol_haritasi.md §Skor Geçmişi (2026-08-12):
+    `row.tarihsel_skorlar` (bkz. scripts/tarama_toplu.py::
+    _tarihsel_skorlar_to_list, ESKİDEN YENİYE sıralı JSON) çıktısını tabloya
+    hazır satırlara çevirir -- Decimal alanlar `_decimal_or_none` (bu
+    modülde ZATEN `mercekler_detay` için kullanılan AYNI yardımcı) ile geri
+    çevrilip `format_number_tr` ile Türkçe biçimlendirilir (Kural 4: şablon
+    HİÇBİR hesaplama yapmaz, sadece hazır string basar). Sütun YOKSA/henüz
+    hiç tarama yapılmadıysa (eski satır, migration ÖNCESİ) boş liste döner
+    -- şablon bu durumda dürüst bir "henüz veri yok" notu gösterir."""
+    if not row.tarihsel_skorlar:
+        return []
+    rows: list[dict[str, Any]] = []
+    for s in row.tarihsel_skorlar:
+        rows.append({
+            "donem_label": s.get("donem_label") or s.get("donem") or "—",
+            "deger": _skor_hucre(_decimal_or_none(s.get("deger_score")), s.get("deger_badge")),
+            "kalite": _skor_hucre(_decimal_or_none(s.get("kalite_score")), s.get("kalite_badge")),
+            "buyume": _skor_hucre(_decimal_or_none(s.get("buyume_score")), s.get("buyume_badge")),
+            "guvenlik": _skor_hucre(_decimal_or_none(s.get("guvenlik_score")), s.get("guvenlik_badge")),
+            "bilesik": _skor_hucre(_decimal_or_none(s.get("bilesik_score")), s.get("bilesik_badge")),
+        })
+    return rows
+
+
 def _carpanlar_block(row: MarketScanResult) -> dict[str, Any] | None:
     if row.current_price is None and row.market_cap is None and row.pe_ratio is None:
         return None
@@ -451,6 +483,7 @@ def build_company_detail_data(session: Session, ticker: str, market: str, *, now
         "generated_at_display": _tr_datetime(now),
         "bilesik": bilesik,
         "mercekler": mercekler,
+        "skor_gecmisi": _skor_gecmisi_block(row),
         "carpanlar": _carpanlar_block(row),
         "financials": _build_financials_block(session, row),
         "faaliyet_raporu": _faaliyet_raporu_block(row),

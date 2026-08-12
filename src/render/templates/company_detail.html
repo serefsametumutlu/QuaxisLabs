@@ -337,6 +337,43 @@
 <p class="lens-empty">Bu şirket için henüz bir skor anlık görüntüsü yok.</p>
 {% endif %}
 
+<h2 class="section-title">Skor Geçmişi (Son Dönemler)</h2>
+{% if data.skor_gecmisi %}
+<div class="financial-card" style="margin-bottom: var(--space-6);">
+  <table class="financial-table">
+    <thead>
+      <tr>
+        <th class="col-left">Dönem</th>
+        <th>Değer</th>
+        <th>Kalite</th>
+        <th>Büyüme</th>
+        <th>Güvenlik</th>
+        <th>Bileşik</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in data.skor_gecmisi %}
+      <tr>
+        <td class="col-left">{{ r.donem_label }}</td>
+        <td class="badge-text {{ r.deger.badge_class }}">{{ r.deger.display }}</td>
+        <td class="badge-text {{ r.kalite.badge_class }}">{{ r.kalite.display }}</td>
+        <td class="badge-text {{ r.buyume.badge_class }}">{{ r.buyume.display }}</td>
+        <td class="badge-text {{ r.guvenlik.badge_class }}">{{ r.guvenlik.display }}</td>
+        <td class="badge-text {{ r.bilesik.badge_class }}" style="font-weight: var(--weight-bold);">{{ r.bilesik.display }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="lens-kapsam-notu" style="background: transparent; padding: 0; margin-bottom: var(--space-6);">
+  Not: geçmiş dönem anlık görüntülerinde "Sektöre Göreli Konum" (Değer) ve "Merton Temerrüt Olasılığı (EDF)" (Güvenlik)
+  bileşenleri hesaplanmaz -- güncel sektör medyanını/fiyat oynaklığını geçmiş bir dönemle kıyaslamak kavramsal olarak
+  yanlış olur; bu bileşenlerin ağırlığı diğer bileşenlere orantısal olarak yeniden dağıtılmıştır.
+</p>
+{% else %}
+<p class="lens-empty">Bu şirket için henüz bir skor geçmişi anlık görüntüsü yok.</p>
+{% endif %}
+
 <h2 class="section-title">Finansal Tablo Özeti</h2>
 {% if data.financials.available %}
 <p class="meta-chip" style="margin-bottom: var(--space-4); display:inline-block;">Güncel dönem: {{ data.financials.latest_period_display }}</p>

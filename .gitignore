@@ -23,3 +23,7 @@ kitaplar/*.pdf
 # (+ base64 gomulu fontlarla ~1.5MB) tasiyan build ciktisi -- data/cards/*.png
 # ile AYNI ilke (uretilen dosya, kaynak DEGIL), git'e COMMIT EDILMEZ.
 output/*.html
+# Kullanici istegi (2026-08-12): src/render/company_detail.py::build_and_write_all_company_details()
+# HER taranmis sirket icin ayri bir dosya uretir (yuzlerce dosya) -- AYNI
+# ilke, uretilen ciktidir, kaynak DEGIL.
+output/detay/

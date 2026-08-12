@@ -54,7 +54,7 @@ import logging
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
@@ -1628,6 +1628,22 @@ class MultiLensScoreResult:
         | None
     ) = None
     template: str | None = None
+    # docs/spec/spec_veri_tamlik_yol_haritasi.md §Skor Geçmişi (2026-08-12):
+    # bu ÜÇ alan fonksiyon İÇİNDE zaten hesaplanan/çekilen HAM girdilerdir --
+    # `compute_historical_lens_scores_for_ticker()`'ın AYNI ticker için
+    # GEÇMİŞ dönem anlık görüntülerini üretebilmesi için (Kural: "Ağ isteği
+    # TEKRARLANMAMALI") DIŞARI taşındı -- `valuation_metrics`/`template`'in
+    # Faz 5'te AYNI gerekçeyle (tarama_toplu.py kod tekrarını önleme)
+    # dışarı taşınmasıyla BİREBİR AYNI ilke. `financials_by_period`/`own_bars`
+    # BOŞ TUTULMAZ (compute_multi_lens_score_for_ticker HER ZAMAN doldurur);
+    # varsayılanlar SADECE tests/test_tarama_toplu.py'deki (mevcut, bu turdan
+    # ÖNCE yazılmış) `_fake_sonuc()` gibi elle inşa edilen fixture'ların
+    # GERİYE UYUMLU kalması içindir.
+    financials_by_period: calculator.FinancialsByPeriod = field(default_factory=dict)
+    own_bars: list["price_history.OhlcvBar"] = field(default_factory=list)
+    financial_group: str | None = None
+    ust_sektor: str | None = None
+    sirket_turu: str | None = None
 
 
 def _sektor_istatistigi_getir(
@@ -1674,73 +1690,72 @@ def _sektor_istatistigi_getir(
         return lens_common.SektorIstatistigi(n=n, medyan=medyan, mad=mad)
 
 
-def compute_multi_lens_score_for_ticker(ticker: str, market: str = "BIST") -> MultiLensScoreResult:
-    """v2 çok-mercekli skorlamayı (`docs/spec/spec_bilesik_skor.md`) BAĞIMSIZ
-    bir giriş noktası olarak orkestre eder -- v1'in `run_pipeline()`/
-    `scorer.score_industrial()` akışını HİÇ ÇAĞIRMAZ/ETKİLEMEZ (persona
-    kural 8: "v1 davranışı ASLA değişmeyecek"). `src/bot/telegram_bot.py`
-    henüz bu fonksiyonu ÇAĞIRMAZ (geçiş bayrağı `config`/çağıran taraf
-    kararına bırakıldı, bkz. `scripts/demo_v2_skor.py`) -- bu fonksiyonun
-    KENDİSİ zaten "bayrak" rolü görür: v1 ayrı, v2 ayrı, hiçbiri diğerini
-    bozmaz.
+def _hesapla_mercek_anlik_goruntu(
+    ticker: str,
+    financials_by_period: calculator.FinancialsByPeriod,
+    template: str,
+    financial_group: str | None,
+    current_price: Decimal | None,
+    own_bars: list[price_history.OhlcvBar],
+    ust_sektor: str | None,
+    sirket_turu: str | None,
+    *,
+    apply_sector_relative: bool = True,
+    apply_merton: bool = True,
+) -> tuple[
+    calculator.AnalysisResult
+    | calculator.BankAnalysisResult
+    | calculator.InsuranceAnalysisResult
+    | calculator.FinancingAnalysisResult,
+    calculator.ValuationMetrics
+    | calculator.BankValuationMetrics
+    | calculator.InsuranceValuationMetrics
+    | calculator.FinancingValuationMetrics
+    | None,
+    lens_bilesik_skor.BilesikSkorSonucu,
+]:
+    """`compute_multi_lens_score_for_ticker()`'ın 4-mercek + Bileşik Skor
+    hesaplama ÇEKİRDEĞİ -- ORİJİNAL fonksiyonun GÖVDESİNDEN (davranış
+    BİREBİR AYNI kalacak şekilde) buraya ÇIKARILDI ki `docs/spec/
+    spec_veri_tamlik_yol_haritasi.md` §Skor Geçmişi'nin istediği
+    `compute_historical_lens_scores_for_ticker()` AYNI hesaplama mantığını
+    KOPYALAMADAN, SADECE farklı (`financials_by_period`, `current_price`)
+    çiftleriyle (GEÇMİŞ dönemlere KIRPILMIŞ girdiler) TEKRAR ÇAĞIRABİLSİN
+    (Kural: hesaplama mantığı asla iki yerde AYRI AYRI YAŞAMAZ/driftlenmez).
 
-    Desteklenen şablonlar: `sanayi` (BİST XI_29), `abd_sanayi` (NASDAQ
-    US_GAAP), `banka` (UFRS konvansiyonel + UFRS_KATILIM katılım bankası),
-    `sigorta` (UFRS_K), `finansman` (XI_29K Tasarruf Finansman Şirketleri)
-    -- bu turda banka/sigorta/finansman DE eklendi (bkz. `docs/spec/
-    spec_mercek_deger.md`/`spec_mercek_kalite.md`/`spec_mercek_buyume.md`/
-    `spec_mercek_guvenlik.md` "Sektör ayarlaması" bölümleri): KALİTE
-    merceği SADECE ROE+ROA'dan, GÜVENLİK merceği kaldıraç YERİNE özkaynak/
-    aktif oranından (+ henüz kodlanmamış Piotroski-benzeri iskelet)
-    oluşur, BÜYÜME merceğinde Hasılat Büyümesi bileşeni Prim/Kredi/
-    Finansman Geliri büyümesiyle DEĞİŞTİRİLİR. Gerçekten HİÇ desteklenmeyen
-    bir `financial_group` gelirse (yukarıdaki 5 türün dışında)
-    `UnsupportedCompanyTypeError` AÇIKÇA fırlatılır, sessizce yanlış bir
-    şablona DÜŞÜLMEZ (Kural 3)."""
-    ticker = ticker.strip().upper()
-    _ensure_financials_cached(ticker, market, periods=None)
+    `template`/`financial_group` çağıran taraf tarafından ÖNCEDEN
+    çözülmüş/doğrulanmış olarak gelir (`UnsupportedCompanyTypeError` fırlatma
+    sorumluluğu BURADA DEĞİL, `compute_multi_lens_score_for_ticker()`'da
+    kalır -- geçmiş dönem çağrılarında zaten GÜNCEL dönem için bir kez
+    doğrulanmış template tekrar kullanılır, ikinci bir doğrulama GEREKMEZ).
 
-    with repository.get_session() as session:
-        company_row = session.get(models.Company, ticker)
-        financials_by_period = repository.get_financials(session, ticker, n_periods=8)
-        company_name = company_row.name if company_row and company_row.name else None
-        financial_group = company_row.financial_group if company_row else None
-        ust_sektor = company_row.ust_sektor if company_row else None
-        sirket_turu = company_row.sirket_turu if company_row else None
+    `apply_sector_relative=False`/`apply_merton=False` (SADECE GEÇMİŞ dönem
+    anlık görüntüleri için, bkz. `compute_historical_lens_scores_for_ticker`
+    docstring'i): GÜNCEL sektör medyanını GEÇMİŞ bir dönemle kıyaslamak
+    kavramsal olarak YANLIŞ olur (`SectorMetricCache`/`MarketScanResult`
+    HER ZAMAN "şu an"ın anlık görüntüsüdür, geçmiş dönemler için AYRI bir
+    sektör dağılımı SAKLANMAZ) -- bu yüzden GEÇMİŞ anlık görüntülerde
+    Sektöre Göreli Konum / Merton Temerrüt Olasılığı (EDF) bileşenleri
+    BİLİNÇLİ olarak None geçilir; `_agirlik_dagit_ve_hesapla` (mevcut, v1'den
+    İTHAL edilen orantısal yeniden-dağıtım motoru) zaten bu durumda ağırlığı
+    KALAN bileşenlere orantısal dağıtır (Kural 6: eksik bileşen -> ağırlık
+    orantısal olarak dağıtılır, sessizce sıfır varsayılmaz)."""
+    is_us = template == "abd_sanayi"
+    share_field = "shares_outstanding" if is_us else "share_capital"
+    currency = "USD" if is_us else "TRY"
 
-    if not financials_by_period:
-        raise TickerNotFoundError(f"'{ticker}' icin veritabaninda finansal veri bulunamadi.")
-
-    is_us = market == "NASDAQ"
     if is_us:
         analysis = calculator.analyze_us(ticker, financials_by_period)
-        template = "abd_sanayi"
-        share_field = "shares_outstanding"
-        currency = "USD"
+    elif template == "banka":
+        bank_variant = "participation" if financial_group == "UFRS_KATILIM" else "conventional"
+        analysis = calculator.analyze_bank(ticker, financials_by_period, bank_variant=bank_variant)
+    elif template == "sigorta":
+        analysis = calculator.analyze_insurance(ticker, financials_by_period)
+    elif template == "finansman":
+        analysis = calculator.analyze_financing(ticker, financials_by_period)
     else:
-        if financial_group not in (None, "XI_29", "UFRS", "UFRS_KATILIM", "UFRS_K", "XI_29K"):
-            raise UnsupportedCompanyTypeError(
-                f"'{ticker}' (financial_group={financial_group}) -- v2 çok-mercekli skorlama bu şirket türü "
-                "için henüz kodlanmadı (spec'lerde tanımlı değil)."
-            )
-        share_field = "share_capital"
-        currency = "TRY"
-        if financial_group in ("UFRS", "UFRS_KATILIM"):
-            bank_variant = "participation" if financial_group == "UFRS_KATILIM" else "conventional"
-            analysis = calculator.analyze_bank(ticker, financials_by_period, bank_variant=bank_variant)
-            template = "banka"
-        elif financial_group == "UFRS_K":
-            analysis = calculator.analyze_insurance(ticker, financials_by_period)
-            template = "sigorta"
-        elif financial_group == "XI_29K":
-            analysis = calculator.analyze_financing(ticker, financials_by_period)
-            template = "finansman"
-        else:
-            analysis = calculator.analyze(ticker, financials_by_period)
-            template = "sanayi"
+        analysis = calculator.analyze(ticker, financials_by_period)
 
-    own_bars = price_history.fetch_ohlcv(ticker, market, days=400)
-    current_price = own_bars[-1].close if own_bars else None
     latest_raw = financials_by_period.get(analysis.latest_period, {})
     share_capital = latest_raw.get(share_field)
     if template == "banka":
@@ -1768,8 +1783,12 @@ def compute_multi_lens_score_for_ticker(ticker: str, market: str = "BIST") -> Mu
 
     risk_free_rate_pct = valuation._RISK_FREE_RATE_PCT.get(currency)
 
-    sektor_pe = _sektor_istatistigi_getir(ust_sektor, sirket_turu, "pe_ratio", analysis.latest_period, ticker)
-    sektor_pb = _sektor_istatistigi_getir(ust_sektor, sirket_turu, "pb_ratio", analysis.latest_period, ticker)
+    if apply_sector_relative:
+        sektor_pe = _sektor_istatistigi_getir(ust_sektor, sirket_turu, "pe_ratio", analysis.latest_period, ticker)
+        sektor_pb = _sektor_istatistigi_getir(ust_sektor, sirket_turu, "pb_ratio", analysis.latest_period, ticker)
+    else:
+        sektor_pe = None
+        sektor_pb = None
 
     deger = lens_deger.hesapla_deger_mercegi(
         lens_deger.DegerGirdisi(
@@ -1844,7 +1863,8 @@ def compute_multi_lens_score_for_ticker(ticker: str, market: str = "BIST") -> Mu
         short_term_liabilities = latest_raw.get("short_term_liabilities")
         long_term_financial_debt = latest_raw.get("long_term_financial_debt")
         if (
-            current_price is not None
+            apply_merton
+            and current_price is not None
             and share_capital is not None
             and short_term_liabilities is not None
             and risk_free_rate_pct is not None
@@ -1879,10 +1899,246 @@ def compute_multi_lens_score_for_ticker(ticker: str, market: str = "BIST") -> Mu
         )
 
     bilesik = lens_bilesik_skor.hesapla_bilesik_skor(ticker, analysis.latest_period, deger, kalite, buyume, guvenlik)
+    return analysis, valuation_metrics, bilesik
+
+
+def compute_multi_lens_score_for_ticker(ticker: str, market: str = "BIST") -> MultiLensScoreResult:
+    """v2 çok-mercekli skorlamayı (`docs/spec/spec_bilesik_skor.md`) BAĞIMSIZ
+    bir giriş noktası olarak orkestre eder -- v1'in `run_pipeline()`/
+    `scorer.score_industrial()` akışını HİÇ ÇAĞIRMAZ/ETKİLEMEZ (persona
+    kural 8: "v1 davranışı ASLA değişmeyecek"). `src/bot/telegram_bot.py`
+    henüz bu fonksiyonu ÇAĞIRMAZ (geçiş bayrağı `config`/çağıran taraf
+    kararına bırakıldı, bkz. `scripts/demo_v2_skor.py`) -- bu fonksiyonun
+    KENDİSİ zaten "bayrak" rolü görür: v1 ayrı, v2 ayrı, hiçbiri diğerini
+    bozmaz.
+
+    Desteklenen şablonlar: `sanayi` (BİST XI_29), `abd_sanayi` (NASDAQ
+    US_GAAP), `banka` (UFRS konvansiyonel + UFRS_KATILIM katılım bankası),
+    `sigorta` (UFRS_K), `finansman` (XI_29K Tasarruf Finansman Şirketleri)
+    -- bu turda banka/sigorta/finansman DE eklendi (bkz. `docs/spec/
+    spec_mercek_deger.md`/`spec_mercek_kalite.md`/`spec_mercek_buyume.md`/
+    `spec_mercek_guvenlik.md` "Sektör ayarlaması" bölümleri): KALİTE
+    merceği SADECE ROE+ROA'dan, GÜVENLİK merceği kaldıraç YERİNE özkaynak/
+    aktif oranından (+ henüz kodlanmamış Piotroski-benzeri iskelet)
+    oluşur, BÜYÜME merceğinde Hasılat Büyümesi bileşeni Prim/Kredi/
+    Finansman Geliri büyümesiyle DEĞİŞTİRİLİR. Gerçekten HİÇ desteklenmeyen
+    bir `financial_group` gelirse (yukarıdaki 5 türün dışında)
+    `UnsupportedCompanyTypeError` AÇIKÇA fırlatılır, sessizce yanlış bir
+    şablona DÜŞÜLMEZ (Kural 3)."""
+    ticker = ticker.strip().upper()
+    _ensure_financials_cached(ticker, market, periods=None)
+
+    with repository.get_session() as session:
+        company_row = session.get(models.Company, ticker)
+        financials_by_period = repository.get_financials(session, ticker, n_periods=8)
+        company_name = company_row.name if company_row and company_row.name else None
+        financial_group = company_row.financial_group if company_row else None
+        ust_sektor = company_row.ust_sektor if company_row else None
+        sirket_turu = company_row.sirket_turu if company_row else None
+
+    if not financials_by_period:
+        raise TickerNotFoundError(f"'{ticker}' icin veritabaninda finansal veri bulunamadi.")
+
+    is_us = market == "NASDAQ"
+    if is_us:
+        template = "abd_sanayi"
+    else:
+        if financial_group not in (None, "XI_29", "UFRS", "UFRS_KATILIM", "UFRS_K", "XI_29K"):
+            raise UnsupportedCompanyTypeError(
+                f"'{ticker}' (financial_group={financial_group}) -- v2 çok-mercekli skorlama bu şirket türü "
+                "için henüz kodlanmadı (spec'lerde tanımlı değil)."
+            )
+        if financial_group in ("UFRS", "UFRS_KATILIM"):
+            template = "banka"
+        elif financial_group == "UFRS_K":
+            template = "sigorta"
+        elif financial_group == "XI_29K":
+            template = "finansman"
+        else:
+            template = "sanayi"
+
+    own_bars = price_history.fetch_ohlcv(ticker, market, days=400)
+    current_price = own_bars[-1].close if own_bars else None
+
+    analysis, valuation_metrics, bilesik = _hesapla_mercek_anlik_goruntu(
+        ticker, financials_by_period, template, financial_group, current_price, own_bars, ust_sektor, sirket_turu,
+    )
     return MultiLensScoreResult(
         ticker=ticker, market=market, period=analysis.latest_period, company_name=company_name,
         price=current_price, bilesik=bilesik, valuation_metrics=valuation_metrics, template=template,
+        financials_by_period=financials_by_period, own_bars=own_bars,
+        financial_group=financial_group, ust_sektor=ust_sektor, sirket_turu=sirket_turu,
     )
+
+
+# docs/spec/spec_veri_tamlik_yol_haritasi.md §Skor Geçmişi (2026-08-12):
+# GÜNCEL + bu kadar GEÇMİŞ dönem üretilir (varsayılan) -- kullanıcı isteği
+# "son 3+ dönem"in TAM karşılığı. `compute_historical_lens_scores_for_ticker`
+# docstring'indeki "Performans notu" BÖLÜMÜNDE gerekçelendirildiği gibi CPU
+# maliyeti nedeniyle BİLİNÇLİ olarak sınırlandırıldı (görev talimatının
+# "gerekirse SADECE ilk 3 ile sınırla" yedeği BAŞTAN uygulandı) -- veri
+# gerçekten daha fazla döneme izin verse bile varsayılan olarak DAHA FAZLASI
+# ÜRETİLMEZ (çağıran taraf `max_historical` ile isteyerek artırabilir).
+MAX_HISTORICAL_PERIODS = 3
+
+
+def _price_at_period_end(own_bars: list[price_history.OhlcvBar], period: Period) -> Decimal | None:
+    """`own_bars` (artan tarih sırasında, bkz. `price_history.fetch_ohlcv`)
+    içinde `period` döneminin BİTİŞ tarihine (bkz. `_QUARTER_END_MONTH_DAY`)
+    en yakın -- o tarihten SONRAKİ değil, o tarihte VEYA ONDAN ÖNCEKİ en
+    son -- kapanış fiyatını döner. `own_bars` tipik olarak SADECE ~400
+    günlük (13 aylık) bir pencere kapsadığı için (bkz.
+    `compute_multi_lens_score_for_ticker`'ın `days=400` çağrısı -- burada
+    YENİDEN bir ağ isteği YAPILMADAN AYNEN yeniden kullanılır) yeterince
+    ESKİ bir dönem için `None` dönmesi BEKLENEN/NORMAL bir durumdur -- o
+    dönemin Değer merceği (F/K, PD/DD, NCAV vb. fiyata bağlı bileşenler)
+    bu durumda dürüstçe None/atlandı olur (Kural 3), TÜM anlık görüntü
+    ÇÖKMEZ (`lens_deger.hesapla_deger_mercegi` zaten `valuation=None`
+    girdisiyle çalışacak şekilde None-güvenlidir)."""
+    year, quarter = period
+    month, day = _QUARTER_END_MONTH_DAY[quarter]
+    cutoff = date(year, month, day)
+    en_yakin_kapanis: Decimal | None = None
+    for bar in own_bars:  # own_bars ARTAN tarih sırasındadır (bkz. price_history.fetch_ohlcv)
+        if bar.trade_date > cutoff:
+            break
+        en_yakin_kapanis = bar.close
+    return en_yakin_kapanis
+
+
+@dataclass(frozen=True)
+class HistoricalLensSnapshot:
+    """`compute_historical_lens_scores_for_ticker()` çıktısının TEK bir
+    dönemlik satırı -- `MultiLensScoreResult`'IN AKSİNE `mercekler_detay`
+    (bileşen bazlı `reasoning_tr`) TAŞIMAZ, SADECE 4 mercek + Bileşik Skor
+    ÖZETİ (skor+rozet) -- görev talimatı: "TAM mercekler_detay DEĞİL,
+    sadece özet -- disk/DB şişmesin"."""
+
+    period: Period
+    period_label: str
+    deger_score: Decimal | None
+    deger_badge: str | None
+    kalite_score: Decimal | None
+    kalite_badge: str | None
+    buyume_score: Decimal | None
+    buyume_badge: str | None
+    guvenlik_score: Decimal | None
+    guvenlik_badge: str | None
+    bilesik_score: Decimal | None
+    bilesik_badge: str | None
+
+
+def compute_historical_lens_scores_for_ticker(
+    sonuc: MultiLensScoreResult, max_historical: int = MAX_HISTORICAL_PERIODS
+) -> list[HistoricalLensSnapshot]:
+    """docs/spec/spec_veri_tamlik_yol_haritasi.md §Skor Geçmişi: GÜNCEL
+    dönem (`sonuc.bilesik`, ZATEN hesaplanmış -- TEKRAR hesaplanmaz, bkz.
+    performans notu) + en fazla `max_historical` GEÇMİŞ dönemin 4-mercek +
+    Bileşik Skor ÖZETİNİ üretir. `sonuc`, `compute_multi_lens_score_for_
+    ticker()`'ın DÖNDÜRDÜĞÜ nesnenin KENDİSİDİR -- `financials_by_period`/
+    `own_bars` ZATEN o çağrı içinde (ağa giden) fetch edilmiş veridir, bu
+    fonksiyon HİÇBİR AĞ İSTEĞİ ATMAZ (Kural: "Ağ isteği TEKRARLANMAMALI").
+
+    GEÇMİŞ dönemler `sonuc.financials_by_period` sözlüğünün KENDİ
+    anahtarlarından (şirketin GERÇEKTEN raporladığı çeyrekler) alınır --
+    tahmini/varsayımsal bir çeyrek aritmetiği YAPILMAZ. Her hedef dönem
+    için `financials_by_period` o dönem VE ÖNCESİNE KIRPILIR (`{k: v for
+    k, v in ... if k <= hedef_donem}`) ve AYNI `analyze()`/`hesapla_*_
+    mercegi()` çekirdeği (`_hesapla_mercek_anlik_goruntu`) TEKRAR çağrılır
+    -- YENİ bir formül İCAT EDİLMEZ (mimari anayasa: hesaplama mantığı
+    SADECE `src/analysis/*`'te YAŞAR, bu fonksiyon SADECE farklı bir
+    zaman penceresiyle onu TEKRAR çağıran bir orkestrasyon katmanıdır).
+
+    İKİ bileşen GEÇMİŞ dönemlerde BİLİNÇLİ olarak None geçilir (bkz.
+    `_hesapla_mercek_anlik_goruntu`'nun `apply_sector_relative`/
+    `apply_merton` parametreleri):
+      - Sektöre Göreli Konum (Değer merceği): `SectorMetricCache`/
+        `MarketScanResult` HER ZAMAN GÜNCEL bir anlık görüntüdür, geçmiş
+        dönemler için AYRI bir sektör medyanı SAKLANMAZ -- GÜNCEL medyanı
+        GEÇMİŞ bir dönemle kıyaslamak kavramsal olarak YANLIŞ olurdu.
+      - Merton Temerrüt Olasılığı (EDF, Güvenlik merceği): doğru hesap o
+        dönemin SONUNDA biten bir hisse-fiyatı-oynaklığı penceresi
+        gerektirir -- bu ilk sürümde YAPILMADI (karmaşıklık/risk dengesi,
+        `own_bars` zaten SADECE ~400 günlük bir pencere kapsıyor), bileşen
+        dürüstçe atlanır (ağırlığı diğer Güvenlik bileşenlerine dağılır).
+
+    Fiyata bağlı diğer bileşenler (F/K, PD/DD, NCAV, PEG vb.) için `own_bars`
+    (ZATEN elde, YENİDEN fetch EDİLMEZ) içinde o dönemin BİTİŞ tarihine en
+    yakın kapanış kullanılır (bkz. `_price_at_period_end`) -- `own_bars`'ın
+    ~400 günlük penceresi dışında kalan (çok eski) dönemlerde fiyat `None`
+    kalır, o durumda bu bileşenler dürüstçe atlanır (Kural 3).
+
+    Risksiz faiz oranı (`valuation._RISK_FREE_RATE_PCT`) HER dönem için
+    AYNI GÜNCEL sabit kullanılır -- projede TARİHSEL bir risksiz faiz serisi
+    YOK (bilinen bir basitleştirme, GÜNCEL dönem hesaplamasıyla TUTARLI).
+
+    Performans notu (görev talimatı): bu, `max_historical` kadar EK
+    `_hesapla_mercek_anlik_goruntu` çağrısı demektir (CPU-bağımlı, AĞ
+    DEĞİL) -- `max_historical=3` varsayılanıyla toplam maliyet ~4 katına
+    çıkar (güncel + 3 geçmiş). `scripts/tarama_toplu.py::_scan_one()`'a
+    bağlandığında TÜM taramanın CPU maliyetini ölçülebilir şekilde artırır,
+    bu YÜZDEN `MAX_HISTORICAL_PERIODS` bilinçli olarak 3'te SINIRLANDI.
+
+    Veri yetersizse (şirket `max_historical`'dan az geçmiş dönem
+    raporlamışsa) daha AZ (hatta SADECE güncel dönem) satır döner -- HATA
+    FIRLATILMAZ, eksik dönem sessizce atlanır (Kural 3: uydurma yapılmaz)."""
+    periods_desc = sorted(sonuc.financials_by_period.keys(), reverse=True)
+    if sonuc.period in periods_desc:
+        # sonuc.period (compute_multi_lens_score_for_ticker'ın GÜNCEL
+        # kabul ettiği dönem) en başa alınır -- financials_by_period'daki
+        # en büyük anahtarla HER ZAMAN aynı olması BEKLENİR, ama örn. elle
+        # inşa edilmiş bir test fixture'ında farklı olabilir (Kural 3:
+        # sessizce yanlış bir dönem eşlemesi YAPILMAZ, sonuc.period'a SADIK
+        # kalınır).
+        periods_desc = [sonuc.period, *[p for p in periods_desc if p != sonuc.period]]
+
+    hedef_donemler = periods_desc[: 1 + max_historical]
+    sonuclar: list[HistoricalLensSnapshot] = []
+
+    for i, donem in enumerate(hedef_donemler):
+        if donem == sonuc.period:
+            # Güncel dönem -- ZATEN hesaplanmış, TEKRAR hesaplanmaz (CPU
+            # maliyeti azaltma, bkz. docstring "Performans notu").
+            bilesik = sonuc.bilesik
+        else:
+            trimmed = {k: v for k, v in sonuc.financials_by_period.items() if k <= donem}
+            if not trimmed:
+                continue
+            fiyat = _price_at_period_end(sonuc.own_bars, donem)
+            try:
+                _analysis, _valuation, bilesik = _hesapla_mercek_anlik_goruntu(
+                    sonuc.ticker, trimmed, sonuc.template, sonuc.financial_group, fiyat, sonuc.own_bars,
+                    sonuc.ust_sektor, sonuc.sirket_turu, apply_sector_relative=False, apply_merton=False,
+                )
+            except Exception:
+                # Kural 9 ilkesi (ikincil/ek veri): bu EK bir tarihsel anlık
+                # görüntüdür, GÜNCEL dönem skorunu/tarama akışını ASLA
+                # BLOKE ETMEMELİDİR -- açıkça loglanır, o dönem ATLANIR.
+                logger.warning(
+                    "%s icin %s donemi tarihsel skor anlik goruntusu hesaplanamadi, atlaniyor.",
+                    sonuc.ticker, quarter_label(donem), exc_info=True,
+                )
+                continue
+
+        profil = bilesik.mercekler
+        sonuclar.append(
+            HistoricalLensSnapshot(
+                period=donem,
+                period_label=quarter_label(donem),
+                deger_score=profil.deger.total_score if profil.deger is not None else None,
+                deger_badge=profil.deger.badge if profil.deger is not None else None,
+                kalite_score=profil.kalite.total_score if profil.kalite is not None else None,
+                kalite_badge=profil.kalite.badge if profil.kalite is not None else None,
+                buyume_score=profil.buyume.total_score if profil.buyume is not None else None,
+                buyume_badge=profil.buyume.badge if profil.buyume is not None else None,
+                guvenlik_score=profil.guvenlik.total_score if profil.guvenlik is not None else None,
+                guvenlik_badge=profil.guvenlik.badge if profil.guvenlik is not None else None,
+                bilesik_score=bilesik.total_score if bilesik.data_sufficient else None,
+                bilesik_badge=bilesik.badge,
+            )
+        )
+
+    return sonuclar
 
 
 def run_pipeline(ticker: str, *, periods: list[Period] | None = None, market: str = "BIST") -> PipelineResult:

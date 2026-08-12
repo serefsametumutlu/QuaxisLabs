@@ -28,7 +28,7 @@
   }
 
   .q-num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
-  .container { max-width: 1180px; margin: 0 auto; }
+  .container { max-width: 1560px; margin: 0 auto; }
 
   .back-link {
     display: inline-block;
@@ -116,7 +116,12 @@
   }
 
   /* ---- Mercek kartları/tabloları ------------------------------------- */
-  .lens-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(520px, 1fr)); gap: var(--space-5); }
+  /* DÜZELTME (kullanıcı denetimi, 2026-08-12): 2-kolonlu ızgara 7 sütunlu
+     bileşen tablosunu ~580px'e SIKIŞTIRIYORDU ("Bu Hissede Nasıl Hesaplandı"
+     sütunu sığmıyordu) -- tablo bu kadar veri yoğunken TEK kolon (tam
+     konteyner genişliği) daha DOĞRU, kompakt 2-kolon yerleşimi feda edilir. */
+  .lens-grid { display: grid; grid-template-columns: 1fr; gap: var(--space-5); }
+  .component-table-scroll { overflow-x: auto; }
   .lens-card {
     background: var(--bg-surface);
     border: 1px solid var(--border-subtle);
@@ -158,8 +163,8 @@
   }
   table.component-table td.col-left { text-align: left; color: var(--ink-primary); font-weight: var(--weight-medium); }
   table.component-table td.q-num { font-family: var(--font-mono); white-space: nowrap; }
-  table.component-table td.reasoning { text-align: left; color: var(--ink-secondary); line-height: var(--leading-normal); max-width: 320px; }
-  table.component-table td.formula { text-align: left; color: var(--ink-tertiary); font-family: var(--font-mono); font-size: var(--text-micro); line-height: var(--leading-normal); max-width: 260px; }
+  table.component-table td.reasoning { text-align: left; color: var(--ink-secondary); line-height: var(--leading-normal); min-width: 320px; max-width: 480px; }
+  table.component-table td.formula { text-align: left; color: var(--ink-tertiary); font-family: var(--font-mono); font-size: var(--text-micro); line-height: var(--leading-normal); min-width: 240px; max-width: 340px; }
   table.component-table tr:last-child td { border-bottom: none; }
   .veri-eksik-flag { color: var(--clr-warning); font-size: var(--text-micro); margin-left: 4px; }
 
@@ -256,6 +261,7 @@
       {% endif %}
     </div>
     {% if lens and lens.components %}
+    <div class="component-table-scroll">
     <table class="component-table">
       <thead>
         <tr>
@@ -282,6 +288,7 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
     {% else %}
     <p class="lens-empty">Bu mercek için veri yok/yetersiz -- bileşen detayı gösterilemiyor.</p>
     {% endif %}

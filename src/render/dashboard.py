@@ -352,6 +352,22 @@ def _mercek_block(row: MarketScanResult, key: str) -> dict[str, Any] | None:
     if score is None and badge is None:
         return None
     dusuk_kapsam = coverage is not None and coverage < LOW_COVERAGE_THRESHOLD_PCT
+    # DÜZELTME (kullanıcı denetimi, 2026-08-12 -- AYES canlı örneği: kapsam
+    # %25'ken KALİTE 9,2 gösteriliyordu, badge zaten "YETERSİZ VERİ" idi ama
+    # SAYI hâlâ güven verici görünüyordu). Kural 3 ("yanlış rakamdan iyidir"):
+    # badge zaten YETERSİZ VERİ ise (coverage<%50 ile TANIM gereği AYNI şey)
+    # sayısal skor HİÇ gösterilmez/sıralanmaz -- sadece 1-2 bileşenden
+    # şişirilmiş bir sayının "güvenilir" okunmasını KÖKTEN engeller.
+    if badge == YETERSIZ_VERI_ROZETI:
+        return {
+            "score": None,
+            "score_display": "N/A",
+            "badge": badge,
+            "badge_class": _BADGE_CLASS.get(badge or "", "yetersiz"),
+            "data_coverage_pct": _num(coverage),
+            "data_coverage_pct_display": format_percent_tr(coverage, decimals=0) if coverage is not None else "—",
+            "dusuk_kapsam": dusuk_kapsam,
+        }
     return {
         "score": _num(score),
         "score_display": format_number_tr(score, decimals=1) if score is not None else "N/A",

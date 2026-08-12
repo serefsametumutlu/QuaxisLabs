@@ -110,6 +110,32 @@ def test_build_dashboard_data_satir_semasi(session) -> None:
     assert company["in_bist100"] is True
 
 
+def test_dusuk_kapsamli_mercek_skoru_gosterilmez(session) -> None:
+    """DÜZELTME (kullanıcı denetimi, 2026-08-12 -- AYES canlı örneği): bir
+    mercek 1-2 bileşenden şişirilmiş yüksek bir skora sahip olsa BİLE
+    (badge zaten "YETERSİZ VERİ" ise, coverage<%50 ile TANIM gereği AYNI
+    şey) score_display "N/A" olmalı -- sayı asla güven verici GÖRÜNMEMELİ
+    (Kural 3: yanlış rakamdan iyidir)."""
+    _add_company(session, "AYES", "BIST", "Diğer", "sanayi")
+    session.add(MarketScanResult(
+        ticker="AYES", market="BIST", company_name="AYES A.Ş.", ust_sektor="Diğer", sirket_turu="sanayi",
+        template="sanayi", year=2026, period=6, scan_status="ok",
+        deger_score=Decimal("8.0"), deger_badge="SAĞLAM", deger_coverage_pct=Decimal("80"),
+        kalite_score=Decimal("9.21"), kalite_badge="YETERSİZ VERİ", kalite_coverage_pct=Decimal("25"),
+        currency="TRY", computed_at=utcnow_naive(),
+    ))
+    session.commit()
+
+    data = dashboard.build_dashboard_data(session)
+    company = data["markets"]["BIST"]["sectors"][0]["companies"][0]
+    kalite = company["mercekler"]["kalite"]
+    assert kalite["badge"] == "YETERSİZ VERİ"
+    assert kalite["score"] is None
+    assert kalite["score_display"] == "N/A"
+    # Sağlam kapsamlı diğer mercek ETKİLENMEMELİ.
+    assert company["mercekler"]["değer"]["score_display"] != "N/A"
+
+
 def test_bist30_bist100_uyelik_bayraklari(session) -> None:
     _add_ok_row(session, "THYAO")  # BIST30 + BIST100 üyesi
     _add_ok_row(session, "HALKB", ust_sektor="Bankacılık", sirket_turu="banka")  # SADECE BIST100 üyesi

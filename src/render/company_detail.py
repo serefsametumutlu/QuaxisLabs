@@ -193,8 +193,13 @@ def _mercek_summary(row: MarketScanResult, key: str) -> dict[str, Any] | None:
     coverage = getattr(row, f"{key}_coverage_pct")
     if score is None and badge is None:
         return None
+    # DÜZELTME (kullanıcı denetimi, 2026-08-12 -- AYES: kapsam %25, badge
+    # zaten "YETERSİZ VERİ" ama skor hâlâ "9,2" olarak GÖSTERİLİYORDU --
+    # dashboard.py::_mercek_block ile AYNI düzeltme: badge YETERSİZ VERİ ise
+    # sayı HİÇ gösterilmez, Kural 3 "yanlış rakamdan iyidir").
+    score_display = "N/A" if badge == "YETERSİZ VERİ" else (format_number_tr(score, decimals=1) if score is not None else "N/A")
     return {
-        "score_display": format_number_tr(score, decimals=1) if score is not None else "N/A",
+        "score_display": score_display,
         "badge": badge,
         "badge_class": _BADGE_CLASS.get(badge or "", "yetersiz"),
         "data_coverage_pct_display": format_percent_tr(coverage, decimals=0) if coverage is not None else "—",

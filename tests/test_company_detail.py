@@ -149,6 +149,25 @@ def test_mercekler_detay_tum_bilesenleri_tasir(session) -> None:
     assert kalite["components"][0]["reasoning_tr"].startswith("FAVÖK marjı")
 
 
+def test_dusuk_kapsamli_mercek_skoru_na_gosterir(session) -> None:
+    """DÜZELTME (kullanıcı denetimi, 2026-08-12 -- AYES canlı örneği): badge
+    "YETERSİZ VERİ" ise (coverage<%50 ile TANIM gereği AYNI) score_display
+    "N/A" olmalı, altta yatan sayı ne olursa olsun (Kural 3)."""
+    session.add(Company(ticker="AYES", name="AYES A.Ş.", market="BIST", ust_sektor="Diğer", sirket_turu="sanayi"))
+    session.add(MarketScanResult(
+        ticker="AYES", market="BIST", company_name="AYES A.Ş.", ust_sektor="Diğer", sirket_turu="sanayi",
+        template="sanayi", year=2026, period=6, scan_status="ok",
+        kalite_score=Decimal("9.21"), kalite_badge="YETERSİZ VERİ", kalite_coverage_pct=Decimal("25"),
+        currency="TRY", computed_at=utcnow_naive(),
+    ))
+    session.commit()
+
+    data = company_detail.build_company_detail_data(session, "AYES", "BIST")
+    kalite = data["mercekler"]["kalite"]
+    assert kalite["badge"] == "YETERSİZ VERİ"
+    assert kalite["score_display"] == "N/A"
+
+
 def test_mercek_veri_yoksa_none_doner(session) -> None:
     _add_ok_row(session)
     session.commit()

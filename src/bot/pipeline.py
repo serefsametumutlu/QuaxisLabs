@@ -86,6 +86,15 @@ _QUARTERLY_FIELDS: tuple[str, ...] = (
     # "tax_provision" ("3I"/"3IA") whitelist'e eklendi.
     "pretax_profit",
     "tax_provision",
+    # Faz "Veri Tamlığı" V-10/V-11/V-12 -- isyatirim.STANDARD_ITEM_MAP_XI_29'a
+    # YENI eklenen "capex"/"dividends_paid"/"net_financing_debt_change"
+    # ("4CAI"/"4CBB"/"4CBA") whitelist'e eklendi. "capex"/"dividends_paid"
+    # NASDAQ (US_GAAP) ile AYNI alan adini kullanir -- calculator.py'nin
+    # ttm_capex/capex_to_net_income_pct VE YENI payout_ratio_pct rasyolari
+    # PIYASA-BAGIMSIZ oldugu icin ekstra kod GEREKMEDEN BIST'te de calisir.
+    "capex",
+    "dividends_paid",
+    "net_financing_debt_change",
 )
 _STOCK_FIELDS: tuple[str, ...] = (
     "total_assets",
@@ -174,6 +183,10 @@ _US_GAAP_QUARTERLY_FIELDS: tuple[str, ...] = (
     "interest_expense",
     "capex",
     "dividend_per_share",
+    # Faz "Veri Tamlığı" V-12 (docs/spec/spec_veri_tamlik_yol_haritasi.md) --
+    # bkz. sec_edgar.STANDARD_ITEM_MAP_US_GAAP ilgili alan yorumları.
+    "dividends_paid",
+    "share_buyback",
 )
 _US_GAAP_STOCK_FIELDS: tuple[str, ...] = (
     "total_assets",
@@ -185,6 +198,10 @@ _US_GAAP_STOCK_FIELDS: tuple[str, ...] = (
     "shares_outstanding",
     # Faz "Veri Tamlığı" V-04 -- Hazine Hissesi Düzeltmeli ROE bileşeninin girdisi.
     "treasury_stock",
+    # Faz "Veri Tamlığı" V-13 -- bkz. sec_edgar.STANDARD_ITEM_MAP_US_GAAP
+    # ilgili alan yorumları.
+    "diluted_shares_weighted_avg",
+    "basic_shares_weighted_avg",
 )
 
 

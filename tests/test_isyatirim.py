@@ -95,6 +95,83 @@ def test_pretax_profit_xi_29_ceyreklestirme_diger_alanlarla_ayni_ilkeyi_kullanir
     assert quarterly_standardized_value(raw, "pretax_profit", (2026, 6)) == Decimal("300") - Decimal("120")
 
 
+# --- V-10/V-11/V-12 (docs/spec/spec_veri_tamlik_yol_haritasi.md) -- BIST
+# Capex/Temettu/Finansman Faaliyetleri, thyao_items_readable.txt (satir
+# 132/136/137) ile CANLI dogrulanan itemCode'lar -----------------------------------------------------
+
+
+def test_standard_item_map_capex_dogru_kod() -> None:
+    assert STANDARD_ITEM_MAP_XI_29["capex"] == "4CAI"
+
+
+def test_standard_item_map_dividends_paid_dogru_kod() -> None:
+    assert STANDARD_ITEM_MAP_XI_29["dividends_paid"] == "4CBB"
+
+
+def test_standard_item_map_net_financing_debt_change_dogru_kod() -> None:
+    assert STANDARD_ITEM_MAP_XI_29["net_financing_debt_change"] == "4CBA"
+
+
+def test_standardized_value_capex_negatiften_pozitife_cevrilir() -> None:
+    """Is Yatirim capex'i nakit CIKISI icin NEGATIF isaretle raporlar
+    (THYAO CANLI: -20.125.000.000) -- NASDAQ'taki "us-gaap:PaymentsTo
+    AcquirePropertyPlantAndEquipment" POZITIF buyukluk kullandigi icin
+    (calculator.py'nin PIYASA-BAGIMSIZ capex_to_net_income_pct rasyosunun
+    TUTARLI calismasi icin) BURADA pozitife cevrilir."""
+    period = (2026, 6)
+    item_code = STANDARD_ITEM_MAP_XI_29["capex"]
+    raw = RawFinancials(
+        ticker="THYAO", company_code="THYAO", financial_group="XI_29", periods=[period],
+        items={item_code: FinancialItem(item_code, "Sabit Sermaye Yatırımları", {period: Decimal("-20125000000")})},
+    )
+    from src.fetchers.isyatirim import standardized_value
+
+    assert standardized_value(raw, "capex", period) == Decimal("20125000000")
+
+
+def test_standardized_value_dividends_paid_negatiften_pozitife_cevrilir() -> None:
+    period = (2026, 6)
+    item_code = STANDARD_ITEM_MAP_XI_29["dividends_paid"]
+    raw = RawFinancials(
+        ticker="TUPRS", company_code="TUPRS", financial_group="XI_29", periods=[period],
+        items={item_code: FinancialItem(item_code, "Temettü Ödemeleri", {period: Decimal("-21402951")})},
+    )
+    from src.fetchers.isyatirim import standardized_value
+
+    assert standardized_value(raw, "dividends_paid", period) == Decimal("21402951")
+
+
+def test_standardized_value_net_financing_debt_change_isareti_korunur() -> None:
+    """"4CBA" ZATEN NET (ihrac - geri odeme) bir rakamdir, isareti
+    ANLAMLIDIR -- capex/dividends_paid'in AKSINE negatife/pozitife
+    CEVRILMEMELI (Kural 8: emin olunmayan bir isaret varsayimi UYDURULMAZ)."""
+    period = (2026, 6)
+    item_code = STANDARD_ITEM_MAP_XI_29["net_financing_debt_change"]
+    raw = RawFinancials(
+        ticker="THYAO", company_code="THYAO", financial_group="XI_29", periods=[period],
+        items={item_code: FinancialItem(item_code, "Finansal Borçlardaki Değişim", {period: Decimal("-9558000000")})},
+    )
+    from src.fetchers.isyatirim import standardized_value
+
+    assert standardized_value(raw, "net_financing_debt_change", period) == Decimal("-9558000000")
+
+
+def test_quarterly_standardized_value_capex_kumulatiften_ceyreklik_ve_pozitif() -> None:
+    """Kumulatiften ceyreklik turetilirken de pozitif isaret korunmali
+    (negatiflemeyle cikarma islemi degismez, bkz. quarterly_standardized_value
+    docstring'i)."""
+    q1, q2 = (2026, 3), (2026, 6)
+    item_code = STANDARD_ITEM_MAP_XI_29["capex"]
+    raw = RawFinancials(
+        ticker="THYAO", company_code="THYAO", financial_group="XI_29", periods=[q1, q2],
+        items={item_code: FinancialItem(item_code, "Sabit Sermaye Yatırımları", {q1: Decimal("-35408000000"), q2: Decimal("-51663000000")})},
+    )
+    from src.fetchers.isyatirim import quarterly_standardized_value
+
+    # Ceyreklik (ham) = -51.663mn - (-35.408mn) = -16.255mn, pozitife cevrilmis hali +16.255mn
+    assert quarterly_standardized_value(raw, "capex", q2) == Decimal("16255000000")
+
+
 def test_normalize_company_code_strips_suffix_and_uppercases() -> None:
     assert normalize_company_code("THYAO.IS") == "THYAO"
     assert normalize_company_code("thyao") == "THYAO"

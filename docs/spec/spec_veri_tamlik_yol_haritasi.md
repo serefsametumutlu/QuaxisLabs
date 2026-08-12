@@ -336,3 +336,67 @@ KARIŞTIRILMAZ, ayrı bir "Nitel Bulgular" kart bölümü olarak sunulur.
   altyapıyla (ORTA maliyet) başlatılabilir, NASDAQ tarafı YENİ fetcher
   gerektirir (ORTA-YÜKSEK maliyet) ve BİST deneyiminden SONRAYA
   bırakılması önerilir.
+
+---
+
+## Spec-eki: GRUP 2 (ORTA) İkinci Dalga — V-10/V-11/V-12/V-13 uygulama notu
+
+**Kod-geliştirici devir notu (2026-08-12, kod-gelistirici ajanı tarafından
+eklendi):** V-08/V-09 (NASDAQ, İlk Dalga'da BİTTİ) İNCELENDİĞİNDE ortaya
+çıkan gerçek: bu iki kalem `calculator.Ratios`'a SADECE bilgi amaçlı (ham
+oran) eklendi, HİÇBİR mercek bileşenine (lens_kalite.py/lens_buyume.py)
+BAĞLANMADI — sebep KENDİ kod yorumunda AÇIKÇA yazılı: ilgili mercek
+spec'lerinin (`spec_mercek_buyume.md` §Eşikler ve ağırlıklar) ağırlık
+tablosu ZATEN %100 dağıtılmış, yeni bir bileşen için ağırlık İCAT ETMEK
+persona kuralını (Global Direktif: "spec'te olmayan eşik/ağırlık uydurma")
+İHLAL ederdi. **Bu ikinci dalga (V-10/V-11/V-12/V-13) AYNI deseni izler**
+— tüm yeni alanlar `calculator.Ratios`'a bilgi amaçlı eklendi, HİÇBİR yeni
+skorlanan (ağırlık taşıyan) mercek bileşeni OLUŞTURULMADI.
+
+**V-10 (BİST Capex) — kaynak KARARI değişti:** Spec'in önerdiği KAP XBRL
+etiketi (`ifrs-full_PurchaseOfPropertyPlantAndEquipment...`) CANLI
+doğrulandı (TATGD/BORSK/TUPRS KAP sayfaları) AMA `kap_financials.py`
+SADECE en güncel TEK çeyreği "tazelik yaması" olarak çeker (bkz. o modülün
+kendi docstring'i) — TTM (`_trailing_12m_from_cumulative`, en az 3 kümülatif
+veri noktası gerektirir) bu yolla ÇALIŞMAZDI. Bunun yerine `isyatirim.py`
+(birincil TOPLU 8-çeyrek kaynağı) içinde CANLI keşfedilen bir itemCode
+kullanıldı: `"4CAI"` = "Sabit Sermaye Yatırımları" / "Capital Expenditures
+(CapEx)" (bkz. `data/exploration/thyao_items_readable.txt` satır 132) —
+V-07'nin (`pretax_profit`) AYNI "isyatirim.py'ye ekle" deseni. Alan adı
+BİLEREK NASDAQ ile AYNI ("capex") tutuldu ki `calculator.py`'nin PİYASA-
+BAĞIMSIZ `ttm_capex`/`capex_to_net_income_pct` rasyosu HİÇBİR ek kod
+GEREKMEDEN BİST için de çalışsın.
+
+**V-11 (BİST DPS/Payout) — kapsam küçültüldü:** 3 canlı KAP sayfası (TATGD/
+BORSK/TUPRS) taranarak doğrulandı ki BİST'te HİÇBİR XI_29 şirketinde
+hisse-başına (per-share) bir DPS XBRL etiketi YOK (`veri_tamlik_notu.md`
+bulgusuyla TUTARLI) — bu GERÇEK bir yapısal kısıt olarak KALIR. Bunun
+yerine `isyatirim.py` "4CBB" ("Temettü Ödemeleri") — TOPLAM nakit temettü
+ödemesi — kullanıldı; Graham'ın "%60-75 payout" ilkesi (01/İLKE-178) için
+`payout_ratio_pct = dividends_paid_ttm/net_income_ttm` hisse-başına kırılım
+GEREKTİRMEZ. Alan adı ("dividends_paid") NASDAQ ile ORTAK tutuldu (V-12 ile
+BİRLEŞTİ, bkz. aşağı) — DPS-per-share'in kendisi (BİST) hâlâ AÇIK, gelecek
+bir turda ayrıca ele alınmalı.
+
+**V-12 — küçük karar (görev talimatı gereği belgelenir):** "Ödenen Temettü +
+Finansman Faaliyetleri" kaleminin hangi mercek bileşenine bağlanacağı
+sorusu için — bu turda bilgi amaçlı (skorsuz) bırakıldığı için bir ağırlık
+kararı GEREKMEDİ, ama kalemin KANONİK gelecekteki evi olarak **Güvenlik
+merceği** (V-04'ün hazine hissesi düzeltmeli ROE mantığıyla AYNI ruh —
+sermaye tahsisi disiplini sinyali, Buffett Böl.50-52/İLKE-50) seçildi;
+**Değer** merceği (buyback verimi) ikincil aday olarak not düşülür.
+Gerekçe: hazine hissesi (V-04) ZATEN mevcut bir bileşenin (ROE) GİRDİSİNİ
+düzeltiyor, ağırlık İCAT ETMİYOR — net temettü/buyback/borç verisi de
+benzer şekilde GELECEKTE mevcut bir Güvenlik bileşeninin (ör. Kaldıraç
+trendi) girdisini zenginleştirebilir, YENİ bir ağırlık gerektirmeden. Kapsam
+notu: BİST'te hisse geri alımı (buyback) için standart bir itemCode/XBRL
+etiketi 3 canlı şirkette de BULUNAMADI (sadece "Finansal Borçlardaki
+Değişim" — "4CBA" — net bir rakam olarak mevcut) — bu GERÇEK bir bloker
+olarak kalır, NASDAQ tarafında ise `us-gaap:PaymentsForRepurchaseOfCommonStock`
+CANLI (AAPL) doğrulandı ve eklendi.
+
+**V-13 — dipnot okuma GEREKMEDİ, task talimatıyla TUTARLI:** `us-gaap:
+WeightedAverageNumberOfSharesOutstandingBasic` eklendi, mevcut
+`WeightedAverageNumberOfDilutedSharesOutstanding` ile FARKI
+`calculator.Ratios.diluted_dilution_pct` olarak AYRI bir alan adı altında
+(mevcut `shares_outstanding` zincirini BOZMADAN) hesaplanıyor.

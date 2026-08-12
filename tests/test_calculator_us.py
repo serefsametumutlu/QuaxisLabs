@@ -299,17 +299,25 @@ def _sample_us_financials_ile_veri_tamlik_alanlari() -> dict:
         capex=Decimal("2455000000"), capex_cum=Decimal("6799000000"),
         dividend_per_share=Decimal("0.27"), dividend_per_share_cum=Decimal("0.79"),
         treasury_stock=Decimal("5000000000"),
+        # V-12 -- BİST'in "4CBB"/"4CBA" ile AYNI piyasa-bağımsız alan adı.
+        dividends_paid=Decimal("3800000000"), dividends_paid_cum=Decimal("11400000000"),
+        share_buyback=Decimal("20000000000"), share_buyback_cum=Decimal("60000000000"),
+        # V-13 -- kaba seyreltme vekili.
+        diluted_shares_weighted_avg=Decimal("14700000000"), basic_shares_weighted_avg=Decimal("14600000000"),
     )
     base[_YOY_PRIOR] = dict(
         base[_YOY_PRIOR],
         net_income_cum=Decimal("84544000000"), revenue_cum=Decimal("313695000000"),
         capex_cum=Decimal("5000000000"), dividend_per_share_cum=Decimal("0.70"),
+        dividends_paid_cum=Decimal("10500000000"), share_buyback_cum=Decimal("55000000000"),
     )
     base[prior_year_full] = {
         "net_income_cum": Decimal("112010000000"),
         "revenue_cum": Decimal("413431000000"),
         "capex_cum": Decimal("9450000000"),
         "dividend_per_share_cum": Decimal("1.02"),
+        "dividends_paid_cum": Decimal("15200000000"),
+        "share_buyback_cum": Decimal("75000000000"),
     }
     return base
 
@@ -341,6 +349,33 @@ def test_analyze_us_ttm_dividend_per_share_kumulatiften_turetilir() -> None:
     assert result.ratios.ttm_dividend_per_share is not None
 
 
+def test_analyze_us_payout_orani_ttm_temettu_net_kar_uzerinden_hesaplanir() -> None:
+    """V-12 -- Graham'in %60-75 payout kurali (01/İLKE-178) icin toplam
+    nakit temettu/TTM net kar (hisse basina kirilim GEREKMEZ)."""
+    result = analyze_us("AAPL", _sample_us_financials_ile_veri_tamlik_alanlari())
+    assert result.ratios.ttm_dividends_paid is not None
+    assert result.ratios.payout_ratio_pct is not None
+    beklenen = result.ratios.ttm_dividends_paid / result.ratios.ttm_net_income * 100
+    assert result.ratios.payout_ratio_pct == beklenen
+
+
+def test_analyze_us_ttm_share_buyback_dolu_net_financing_debt_change_bos() -> None:
+    """V-12 -- NASDAQ'ta hisse geri alimi (buyback) standart bir US GAAP
+    tag'iyle mevcut; "net_financing_debt_change" ise SADECE BIST icin
+    eklendi (bkz. isyatirim.py) -- NASDAQ finansal verisinde hic cekilmiyor,
+    Kural 3 geregi None kalmali."""
+    result = analyze_us("AAPL", _sample_us_financials_ile_veri_tamlik_alanlari())
+    assert result.ratios.ttm_share_buyback is not None
+    assert result.ratios.ttm_net_financing_debt_change is None
+
+
+def test_analyze_us_diluted_dilution_pct_seyreltilmis_ve_adi_pay_sayisi_farkindan_hesaplanir() -> None:
+    """V-13 -- (seyreltilmis - adi) / adi * 100."""
+    result = analyze_us("AAPL", _sample_us_financials_ile_veri_tamlik_alanlari())
+    beklenen = (Decimal("14700000000") - Decimal("14600000000")) / Decimal("14600000000") * 100
+    assert result.ratios.diluted_dilution_pct == beklenen
+
+
 def test_analyze_us_veri_tamlik_alanlari_veri_yoksa_none_doner() -> None:
     """Regresyon kilidi -- bu yeni alanlar EKLENMEDEN once BIST/NASDAQ
     kayitlari etkilenmemeli, ham alan yoksa None doner (Kural 3)."""
@@ -350,6 +385,9 @@ def test_analyze_us_veri_tamlik_alanlari_veri_yoksa_none_doner() -> None:
     assert result.ratios.interest_expense_to_operating_profit_pct is None
     assert result.ratios.capex_to_net_income_pct is None
     assert result.ratios.ttm_dividend_per_share is None
+    assert result.ratios.payout_ratio_pct is None
+    assert result.ratios.ttm_share_buyback is None
+    assert result.ratios.diluted_dilution_pct is None
 
 
 def test_analyze_bist_veri_tamlik_alanlari_hep_none_doner() -> None:
@@ -361,3 +399,36 @@ def test_analyze_bist_veri_tamlik_alanlari_hep_none_doner() -> None:
     assert result.ratios.interest_expense_to_operating_profit_pct is None
     assert result.ratios.capex_to_net_income_pct is None
     assert result.ratios.ttm_dividend_per_share is None
+    assert result.ratios.payout_ratio_pct is None
+    assert result.ratios.diluted_dilution_pct is None
+
+
+def test_analyze_bist_capex_ve_payout_orani_ttm_veriyle_calisir() -> None:
+    """V-10/V-11 -- isyatirim.py "capex"/"dividends_paid" alanlari BIST
+    financials_by_period sozlugune girdiginde, calculator.py'nin
+    PIYASA-BAGIMSIZ ttm_capex/capex_to_net_income_pct VE ttm_dividends_paid/
+    payout_ratio_pct rasyolari NASDAQ ile AYNI kod yoluyla (ekstra kod
+    GEREKMEDEN) BIST icin de calismali."""
+    prior_year_full = (2025, 12)
+    financials = {
+        _LATEST: {
+            "revenue_cum": Decimal("100"), "net_income_cum": Decimal("400"),
+            "capex_cum": Decimal("60"), "dividends_paid_cum": Decimal("80"), "net_financing_debt_change_cum": Decimal("-20"),
+        },
+        _YOY_PRIOR: {
+            "net_income_cum": Decimal("300"), "capex_cum": Decimal("40"), "dividends_paid_cum": Decimal("55"),
+            "net_financing_debt_change_cum": Decimal("-10"),
+        },
+        prior_year_full: {
+            "net_income_cum": Decimal("420"), "capex_cum": Decimal("55"), "dividends_paid_cum": Decimal("75"),
+            "net_financing_debt_change_cum": Decimal("-15"),
+        },
+    }
+    result = analyze("THYAO", financials)
+    assert result.ratios.ttm_capex is not None
+    assert result.ratios.capex_to_net_income_pct is not None
+    assert result.ratios.ttm_dividends_paid is not None
+    assert result.ratios.payout_ratio_pct is not None
+    assert result.ratios.ttm_net_financing_debt_change is not None
+    beklenen_capex = result.ratios.ttm_capex / result.ratios.ttm_net_income * 100
+    assert result.ratios.capex_to_net_income_pct == beklenen_capex

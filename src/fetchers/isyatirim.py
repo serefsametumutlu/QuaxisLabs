@@ -215,7 +215,67 @@ STANDARD_ITEM_MAP_XI_29: dict[str, str] = {
     # KAVRAMSAL OLARAK AYNI satir, SADECE itemCode farkli.
     "pretax_profit": "3I",  # SÜRDÜRÜLEN FAALİYETLER VERGİ ÖNCESİ KARI (ZARARI)
     "tax_provision": "3IA",  # Sürdürülen Faaliyetler Vergi Geliri (Gideri) -- CANLI THYAO ornegi POZITIF (vergi GELIRI/karsilik iadesi) degeriyle geldi, isaret sirketten sirkete DEGISEBILIR (donem vergi geliri/gideri netidir) -- FINANSMAN semasindaki "A3AL" ("(-)" ibaresiyle ACIKCA GIDER isaretli) ile BIREBIR AYNI isaret kuralini VARSAYMA
+    # Faz "Veri Tamlığı" V-10 (docs/spec/spec_veri_tamlik_yol_haritasi.md) --
+    # BÜYÜME merceğinin Capex/Net Kâr (yeniden yatırım kalitesi) bileşeninin
+    # BİST girdisi. CANLI dogrulandi (data/exploration/thyao_items_readable.txt
+    # satir 132): itemCode "4CAI" = "Sabit Sermaye Yatırımları" / "Capital
+    # Expenditures (CapEx)" -- Is Yatirim'in OZET NAKIT AKIS bolumunde
+    # (KAP XBRL'e kiyasla TUM 8 ceyrek icin TEK istekte hazir, "4*" onekli
+    # diger kalemlerle AYNI KUMULATIF/YTD ilke) dogrudan raporlaniyor. Alan
+    # adi BILEREK "capex" (NASDAQ/sec_edgar.py V-09 ile AYNI ad, calculator.
+    # py'nin ttm_capex/capex_to_net_income_pct rasyosu PIYASA-BAGIMSIZ oldugu
+    # icin TEK bir hesaplama HER IKI piyasada da otomatik calisir). Ham
+    # deger nakit CIKISI icin NEGATIF isaretle gelir (THYAO: -20.125.000.000)
+    # -- NASDAQ'taki "us-gaap:PaymentsToAcquirePropertyPlantAndEquipment"
+    # POZITIF buyukluk kullandigi icin (CANLI dogrulandi, AAPL) standardized_
+    # value()/quarterly_standardized_value() BURADA POZITIFE cevirir (bkz.
+    # _NEGATE_TO_POSITIVE_FIELDS), UFRS'teki interest_expense negatiflemesiyle
+    # AYNI teknik, TERS yonde.
+    "capex": "4CAI",
+    # Faz "Veri Tamlığı" V-11/V-12 -- DEĞER (Kazanç Getirisi/güvenlik marjı)
+    # VE BÜYÜME (payout/tutma oranı) merceklerinin BİST DPS/Payout girdisi +
+    # 00_sentez §4 madde 7 (Ödenen Temettü + Finansman Faaliyetleri). CANLI
+    # dogrulandi (thyao_items_readable.txt satir 137, TUPRS 2Ç26 KAP XBRL
+    # ifrs-full_DividendsPaidClassifiedAsFinancingActivities ile CAPRAZ
+    # dogrulama -- ayni kavram, isaret AYNI): itemCode "4CBB" = "Temettü
+    # Ödemeleri" / "Dividends Paid". KAP'ta HİÇBİR XI_29 sirketinde per-share
+    # (hisse basina) bir DPS XBRL etiketi BULUNAMADI (3 canli sirket -- TATGD/
+    # BORSK/TUPRS -- taranarak dogrulandi, veri_tamlik_notu.md bulgusuyla
+    # TUTARLI) -- bu yuzden NASDAQ'taki gibi DOGRUDAN "hisse basina temettu"
+    # DEGIL, TOPLAM nakit temettu odemesi cekiliyor; Graham'in "%60-75 payout"
+    # ilkesi (01/İLKE-178) icin Payout Oranı = dividends_paid_ttm/net_income_ttm
+    # ZATEN yeterli (hisse basina kirilim GEREKMEZ). NASDAQ tarafinda da (V-12,
+    # bkz. sec_edgar.py "us-gaap:PaymentsOfDividends") AYNI alan adi kullanilir
+    # ki calculator.py'de TEK bir payout_ratio_pct rasyosu HER IKI piyasada
+    # otomatik calissin. Ham deger nakit CIKISI icin NEGATIF (THYAO: -9,85 mr,
+    # -8,95 mr, -4,46 mr) -- capex ile AYNI sekilde standardized_value()
+    # POZITIFE cevirir.
+    "dividends_paid": "4CBB",
+    # Faz "Veri Tamlığı" V-12 -- "Nakit Akışı Finansman Faaliyetleri (borç
+    # ihracı/geri ödemesi net)" bileseni. CANLI dogrulandi (thyao_items_
+    # readable.txt satir 136): itemCode "4CBA" = "Finansal Borçlardaki
+    # Değişim" / "Change in Financial Debt" -- ZATEN NET (ihrac - geri odeme)
+    # bir rakam, isaret ANLAMLIDIR (pozitif=net yeni borclanma, negatif=net
+    # geri odeme) -- capex/dividends_paid'in AKSINE BURADA NEGATIFE/POZITIFE
+    # CEVRILMEZ (Kural 8: emin olunmayan bir isaret varsayimi UYDURULMAZ,
+    # Is Yatirim'in kendi netlestirdigi rakam OLDUGU GIBI tasinir). BİST'te
+    # hisse geri alımı (buyback) icin standart bir itemCode/XBRL etiketi
+    # BULUNAMADI (3 canli KAP sirketinde de "Repurchase"/"Treasury" nakit
+    # akis kalemi YOK, sadece ozkaynak degisim tablosu kalemleri var) --
+    # bu GERCEK bir bloker olarak KALIR (dashboard'da ayrica NOT dusulur).
+    "net_financing_debt_change": "4CBA",
 }
+
+# Faz "Veri Tamlığı" V-10/V-11/V-12: Is Yatirim'in nakit akis kalemleri
+# (capex, dividends_paid) nakit CIKISINI NEGATIF isaretle raporlar (bkz.
+# yukaridaki alan yorumlari) -- ama NASDAQ/sec_edgar.py karsiliklari
+# (PaymentsToAcquirePropertyPlantAndEquipment, PaymentsOfDividends) US GAAP
+# XBRL konvansiyonunda POZITIF BUYUKLUK olarak raporlanir (CANLI dogrulandi,
+# AAPL companyfacts). calculator.py'nin PIYASA-BAGIMSIZ rasyo hesaplarinin
+# (capex_to_net_income_pct, payout_ratio_pct) TUTARLI calismasi icin BURADA
+# POZITIFE cevrilir -- UFRS semasindaki "interest_expense" negatiflemesiyle
+# (standardized_value_ufrs) AYNI teknik, TERS yonde.
+_NEGATE_TO_POSITIVE_FIELDS: frozenset[str] = frozenset({"capex", "dividends_paid"})
 
 # Gelir tablosu / nakit akis alanlari kumulatiftir (yil icinde YTD toplanir).
 # Bilanco alanlari (total_assets, equity, cash, *_liabilities, *_financial_debt)
@@ -231,6 +291,7 @@ CUMULATIVE_FIELDS: frozenset[str] = frozenset(
         "depreciation_amortization",
         "operating_cash_flow",  # Nakit akis tablosu kalemi de KUMULATIF (YTD) basilir, digerleriyle AYNI kural
         "pretax_profit", "tax_provision",  # V-07 -- gelir tablosu kalemleri, digerleriyle AYNI KUMULATIF ilke
+        "capex", "dividends_paid", "net_financing_debt_change",  # V-10/V-11/V-12 -- nakit akis kalemleri, ayni KUMULATIF ilke
     }
 )
 
@@ -825,7 +886,10 @@ def standardized_value(raw: RawFinancials, field_name: str, period: Period) -> D
     item_code = STANDARD_ITEM_MAP_XI_29.get(field_name)
     if item_code is None:
         raise KeyError(f"Bilinmeyen standart alan adi: '{field_name}'")
-    return raw.value(item_code, period)
+    value = raw.value(item_code, period)
+    if value is not None and field_name in _NEGATE_TO_POSITIVE_FIELDS:
+        return -value
+    return value
 
 
 def quarterly_standardized_value(raw: RawFinancials, field_name: str, period: Period) -> Decimal | None:
@@ -833,7 +897,11 @@ def quarterly_standardized_value(raw: RawFinancials, field_name: str, period: Pe
 
     Gelir tablosu/nakit akis alanlari (CUMULATIVE_FIELDS icinde) icin
     kumulatiften ceyreklik turetme uygulanir. Bilanco alanlari icin
-    (STOK deger) dogrudan standardized_value() ile aynidir.
+    (STOK deger) dogrudan standardized_value() ile aynidir. V-10/V-11/V-12:
+    "capex"/"dividends_paid" icin (bkz. _NEGATE_TO_POSITIVE_FIELDS) ceyreklik
+    turetme HAM (negatif) degerler uzerinde yapilir, SONUCTA pozitife
+    cevrilir -- cikarma islemi negatiflemeyle DEGISMEZ (-(a-b) = (-a)-(-b)),
+    bu yuzden sira ONEMLI DEGIL ama okunabilirlik icin boyle yapilir.
     """
     _require_xi_29(raw)
     item_code = STANDARD_ITEM_MAP_XI_29.get(field_name)
@@ -845,9 +913,13 @@ def quarterly_standardized_value(raw: RawFinancials, field_name: str, period: Pe
         return None
 
     if field_name not in CUMULATIVE_FIELDS:
-        return item.values_by_period.get(period)
+        value = item.values_by_period.get(period)
+    else:
+        value = quarterly_value_from_cumulative(item.values_by_period, period)
 
-    return quarterly_value_from_cumulative(item.values_by_period, period)
+    if value is not None and field_name in _NEGATE_TO_POSITIVE_FIELDS:
+        return -value
+    return value
 
 
 _FINANCE_SECTOR_INCOME_ITEM_CODE = "3CAC"  # "Faiz, Ucret, Prim, Komisyon ve Diger Gelirler"

@@ -607,6 +607,42 @@ def test_treasury_stock_stok_deger_sentetik_fixture_ile_cozulur() -> None:
     assert standardized_value_us_gaap(raw, "treasury_stock", (2026, 3)) == Decimal("106914000000")
 
 
+def test_aapl_dividends_paid_fixture_ile_cozulur() -> None:
+    """V-12 -- us-gaap:PaymentsOfDividends, AAPL fixture'ında KÜMÜLATİF
+    desende MEVCUT (isyatirim.py "4CBB" ile AYNI alan adı -- piyasa-bağımsız
+    payout_ratio_pct rasyosunun girdisi)."""
+    raw = _build_raw("AAPL")
+    period = raw.periods[0]
+    assert standardized_value_us_gaap(raw, "dividends_paid", period) is not None
+    assert quarterly_standardized_value_us_gaap(raw, "dividends_paid", period) is not None
+
+
+def test_aapl_share_buyback_fixture_ile_cozulur() -> None:
+    """V-12 -- us-gaap:PaymentsForRepurchaseOfCommonStock, AAPL fixture'ında
+    KÜMÜLATİF desende MEVCUT (BİST'te standart bir karşılığı BULUNAMADI,
+    bkz. isyatirim.py "net_financing_debt_change" yorumu)."""
+    raw = _build_raw("AAPL")
+    period = raw.periods[0]
+    assert standardized_value_us_gaap(raw, "share_buyback", period) is not None
+    assert quarterly_standardized_value_us_gaap(raw, "share_buyback", period) is not None
+
+
+def test_aapl_diluted_ve_basic_shares_fixture_ile_cozulur() -> None:
+    """V-13 -- us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding /
+    WeightedAverageNumberOfSharesOutstandingBasic, AAPL fixture'ında İKİSİ
+    de MEVCUT -- kaba seyreltme yüzdesinin (calculator.diluted_dilution_pct)
+    girdisi."""
+    raw = _build_raw("AAPL")
+    period = raw.periods[0]
+    diluted = standardized_value_us_gaap(raw, "diluted_shares_weighted_avg", period)
+    basic = standardized_value_us_gaap(raw, "basic_shares_weighted_avg", period)
+    assert diluted is not None
+    assert basic is not None
+    # STOK alan (WeightedAverage bir "an" degeri gibi ele alinir) -- ceyreklik
+    # turetme DENENMEZ, quarterly_standardized_value_us_gaap AYNI degeri doner.
+    assert quarterly_standardized_value_us_gaap(raw, "diluted_shares_weighted_avg", period) == diluted
+
+
 def test_interest_expense_us_gaap_kumulatif_desende_cozulur() -> None:
     """V-08 -- us-gaap:InterestExpense, KÜMÜLATİF (YTD) desende (AAPL/JPM
     canlı fixture'larıyla dogrulandi -- bkz. veri_tamlik_notu.md K5:

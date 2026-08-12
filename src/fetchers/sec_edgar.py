@@ -439,6 +439,37 @@ STANDARD_ITEM_MAP_US_GAAP: dict[str, list[str]] = {
     # RETIRE ediyor) -- bu durumda bileşen None döner (Kural 8), ROE
     # düzeltmesi UYGULANMAZ, mevcut ham ROE'ye devam edilir.
     "treasury_stock": ["us-gaap:TreasuryStockValue"],
+    # Faz "Veri Tamlığı" V-11/V-12 -- BİST (isyatirim.py "4CBB") ile AYNI
+    # alan adı ("dividends_paid") -- calculator.py'nin piyasa-bağımsız
+    # payout_ratio_pct rasyosu (Graham 01/İLKE-178, %60-75 payout kuralı)
+    # HER İKİ piyasada TEK hesaplamayla çalışsın diye. AAPL CANLI doğrulandı
+    # (data/exploration/AAPL_companyfacts_*.json): "PaymentsOfDividends"
+    # revenue/capex ile AYNI kümülatif (YTD) desende, POZİTİF büyüklük
+    # (nakit çıkışı) olarak raporlanıyor -- BİST'in aksine BURADA negatife
+    # ÇEVİRME GEREKMEZ (isyatirim.py'de "4CBB" ZATEN negatif geldiği için
+    # pozitife çevrilir, US GAAP tag'i zaten pozitif). İKİNCİL aday
+    # "PaymentsOfDividendsCommonStock" -- AAPL'de HER İKİSİ de mevcut, bazı
+    # şirketlerde SADECE biri raporlanabilir (aday-liste ilkesi, diğer
+    # alanlarla AYNI).
+    "dividends_paid": ["us-gaap:PaymentsOfDividends", "us-gaap:PaymentsOfDividendsCommonStock"],
+    # 00_sentez §4 madde 7 -- hisse geri alımı (buyback) NASDAQ'ta standart
+    # bir US GAAP tag'iyle mevcuttur (BİST'in aksine, bkz. isyatirim.py
+    # "net_financing_debt_change" yorumu -- BİST'te buyback için karşılık
+    # BULUNAMADI). AAPL CANLI doğrulandı: "PaymentsForRepurchaseOfCommonStock"
+    # aynı kümülatif desende, pozitif büyüklük.
+    "share_buyback": ["us-gaap:PaymentsForRepurchaseOfCommonStock"],
+    # Faz "Veri Tamlığı" V-13 -- 03/İLKE-167-169, docs/spec/veri_tamlik_notu.md
+    # D3: opsiyon/warrant/dönüştürülebilir seyreltmenin KABA vekili. Mevcut
+    # "shares_outstanding" zincirinin (satır ~395) ÜÇÜNCÜL yedeği olan
+    # "us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding" İLE AYNI
+    # KAVRAM ama BURADA AYRI bir alan adı altında (o zincir "ilk bulunan
+    # kullanılır" ilkesiyle piyasa değeri girdisi için ÇALIŞMAYA devam
+    # etmeli, bu YENİ alan ADI ÇAKIŞMAZ) -- "diluted_shares_weighted_avg" ile
+    # "basic_shares_weighted_avg" FARKI seyreltme yüzdesini verir (bkz.
+    # calculator.py diluted_dilution_pct). AAPL CANLI doğrulandı: her ikisi
+    # de "shares" biriminde, AYNI (fy,fp) için raporlanıyor.
+    "diluted_shares_weighted_avg": ["us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding"],
+    "basic_shares_weighted_avg": ["us-gaap:WeightedAverageNumberOfSharesOutstandingBasic"],
 }
 
 # Gelir tablosu / nakit akis alanlari kumulatiftir (mali yil icinde YTD
@@ -453,6 +484,8 @@ CUMULATIVE_FIELDS_US_GAAP: frozenset[str] = frozenset(
         # companyfacts fixture'ıyla CANLI doğrulandı: hepsi revenue ile AYNI
         # kümülatif (YTD) desende raporlanıyor.
         "sga_expense", "research_development_expense", "interest_expense", "capex", "dividend_per_share",
+        # Faz "Veri Tamlığı" V-12 -- AAPL CANLI doğrulandı, AYNI kümülatif desen.
+        "dividends_paid", "share_buyback",
     }
 )
 
@@ -469,6 +502,14 @@ _STOCK_FIELDS_US_GAAP: frozenset[str] = frozenset(
         "short_term_financial_debt",
         "long_term_financial_debt",
         "shares_outstanding",
+        # Faz "Veri Tamlığı" V-13 -- ağırlıklı ortalama pay sayıları, "shares_
+        # outstanding" zincirindeki WeightedAverage yedeğiyle AYNI teknik
+        # nedenle (duration/süre kavramı ama TOPLANMAMASI gereken bir
+        # "an" değeri gibi ele alınır) STOK alan olarak sınıflandırılır --
+        # _select_best_fact zaten DURATION facts'i beklenen çeyrek uzunluğuna
+        # filtreler, ekstra kod GEREKMEZ (bkz. modul ust notu).
+        "diluted_shares_weighted_avg",
+        "basic_shares_weighted_avg",
     }
 )
 

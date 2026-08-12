@@ -132,6 +132,22 @@ FIELD_LABELS_TR: dict[str, str] = {
     "dividend_per_share": "Hisse Başına Temettü",
     "dividend_per_share_cum": "Hisse Başına Temettü",
     "treasury_stock": "Hazine Hisseleri",
+    # --- Faz "Veri Tamlığı" V-11/V-12 (docs/spec/spec_veri_tamlik_yol_haritasi.md)
+    # -- BİST (isyatirim.py "4CBB"/"4CBA") VE NASDAQ (sec_edgar.py
+    # "us-gaap:PaymentsOfDividends"/"PaymentsForRepurchaseOfCommonStock")
+    # ORTAK alan adları -- piyasa-bağımsız payout_ratio_pct rasyosunun girdisi.
+    "dividends_paid": "Ödenen Temettü (Nakit Akış)",
+    "dividends_paid_cum": "Ödenen Temettü (Nakit Akış)",
+    "net_financing_debt_change": "Net Finansal Borç Değişimi (Nakit Akış)",
+    "net_financing_debt_change_cum": "Net Finansal Borç Değişimi (Nakit Akış)",
+    "share_buyback": "Hisse Geri Alımı (Nakit Akış)",
+    "share_buyback_cum": "Hisse Geri Alımı (Nakit Akış)",
+    # --- Faz "Veri Tamlığı" V-13 -- NASDAQ opsiyon/warrant seyreltme kaba
+    # vekili (sec_edgar.py "us-gaap:WeightedAverageNumberOfSharesOutstandingBasic",
+    # mevcut "shares_outstanding" zincirindeki
+    # "us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding" ile FARKI).
+    "diluted_shares_weighted_avg": "Seyreltilmiş Ağırlıklı Ortalama Pay Sayısı",
+    "basic_shares_weighted_avg": "Adi Ağırlıklı Ortalama Pay Sayısı",
 }
 
 
@@ -218,6 +234,22 @@ class Ratios:
     ttm_capex: Decimal | None = None
     capex_to_net_income_pct: Decimal | None = None  # 02/FORMÜL-25,28 (reinvestment/yeniden yatırım kalitesi)
     ttm_dividend_per_share: Decimal | None = None  # V-03 -- DPS TTM (kümülatif alanlardan teleskopik türetim)
+    # V-11/V-12 (docs/spec/spec_veri_tamlik_yol_haritasi.md) -- "dividends_paid"/
+    # "share_buyback"/"net_financing_debt_change" alanları PİYASA-BAĞIMSIZ
+    # (BİST: isyatirim.py "4CBB"/"4CBA"; NASDAQ: sec_edgar.py "us-gaap:
+    # PaymentsOfDividends"/"PaymentsForRepurchaseOfCommonStock") -- capex ile
+    # AYNI gerekçeyle (persona kural: spec'te ağırlığı olmayan bileşen için
+    # ağırlık İCAT EDİLMEZ) BİLİNÇLİ OLARAK skorlanmayan, sadece bilgi amaçlı
+    # ham oranlardır. Payout Oranı (01/İLKE-178, Graham'ın %60-75 kuralı)
+    # hisse başına DPS gerektirmez -- toplam nakit temettü/TTM net kâr yeterli.
+    ttm_dividends_paid: Decimal | None = None
+    payout_ratio_pct: Decimal | None = None
+    ttm_share_buyback: Decimal | None = None  # SADECE NASDAQ'ta dolu olur (bkz. Ratios üstü not, BİST'te standart bir buyback kalemi YOK)
+    ttm_net_financing_debt_change: Decimal | None = None  # SADECE BİST'te dolu olur (isyatirim "4CBA")
+    # V-13 -- NASDAQ opsiyon/warrant seyreltme kaba vekili (03/İLKE-167-169,
+    # docs/spec/veri_tamlik_notu.md D3) -- SADECE NASDAQ'ta dolu olur (BİST'te
+    # bu iki alan hiç çekilmiyor, bkz. isyatirim.py -- her zaman None).
+    diluted_dilution_pct: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -760,6 +792,35 @@ def _build_analysis_result(
         financials_by_period, latest_period, lambda d: d.get("dividend_per_share_cum")
     )
 
+    # V-11/V-12 -- bkz. Ratios ici not (piyasa-bagimsiz, BILINCLI olarak
+    # skorlanmiyor). BIST'te "share_buyback" hic cekilmiyor (standart bir
+    # itemCode/XBRL etiketi YOK), NASDAQ'ta "net_financing_debt_change" hic
+    # cekilmiyor (bu turda sadece BIST "4CBA" icin eklendi) -- her ikisi de
+    # otomatik None kalir (Kural 3).
+    ttm_dividends_paid = _trailing_12m_from_cumulative(
+        financials_by_period, latest_period, lambda d: d.get("dividends_paid_cum")
+    )
+    payout_ratio_pct = (
+        _margin_pct(ttm_dividends_paid, ttm_net_income) if ttm_net_income is not None and ttm_net_income > 0 else None
+    )
+    ttm_share_buyback = _trailing_12m_from_cumulative(
+        financials_by_period, latest_period, lambda d: d.get("share_buyback_cum")
+    )
+    ttm_net_financing_debt_change = _trailing_12m_from_cumulative(
+        financials_by_period, latest_period, lambda d: d.get("net_financing_debt_change_cum")
+    )
+
+    # V-13 -- kaba seyreltme yüzdesi = (seyreltilmiş - adi) / adi * 100.
+    # STOK alan (TTM turetme GEREKMEZ, ceyregin kendi agirlikli ortalamasi
+    # zaten "current" sozlugunde) -- bkz. sec_edgar.py _STOCK_FIELDS_US_GAAP.
+    diluted_shares = current.get("diluted_shares_weighted_avg")
+    basic_shares = current.get("basic_shares_weighted_avg")
+    diluted_dilution_pct = (
+        (diluted_shares - basic_shares) / basic_shares * 100
+        if diluted_shares is not None and basic_shares is not None and basic_shares > 0
+        else None
+    )
+
     ratios = Ratios(
         gross_margin_current=gross_margin_current,
         gross_margin_prior_year=gross_margin_prior_year,
@@ -786,6 +847,11 @@ def _build_analysis_result(
         ttm_capex=ttm_capex,
         capex_to_net_income_pct=capex_to_net_income_pct,
         ttm_dividend_per_share=ttm_dividend_per_share,
+        ttm_dividends_paid=ttm_dividends_paid,
+        payout_ratio_pct=payout_ratio_pct,
+        ttm_share_buyback=ttm_share_buyback,
+        ttm_net_financing_debt_change=ttm_net_financing_debt_change,
+        diluted_dilution_pct=diluted_dilution_pct,
     )
 
     series_periods = list(reversed(periods_desc[:5]))

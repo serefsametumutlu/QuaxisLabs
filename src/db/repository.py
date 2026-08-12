@@ -20,7 +20,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Iterator
 
-from sqlalchemy import select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -33,6 +33,7 @@ from src.db.models import (
     Fund,
     FundHolding,
     GeneratedCard,
+    MarketScanResult,
     SectorMetricCache,
     TechnicalCommentaryCache,
     DefaultSessionLocal,
@@ -585,6 +586,7 @@ def upsert_sector_taxonomy(
     sic_code: str | None = None,
     exchange: str | None = None,
     cik: str | None = None,
+    filer_category: str | None = None,
     touch_sector_updated_at: bool = True,
 ) -> Company:
     """Faz 2 (docs/spec/spec_sektor_evren.md): scripts/refresh_universe.py için
@@ -594,6 +596,11 @@ def upsert_sector_taxonomy(
     exchange, cik) ve `sector`'a (KAP ince sektör / SEC sicDescription --
     Company'nin ZATEN var olan alanı, spec ile İSMİ DEĞİŞTİRİLMEDİ, kullanım
     alanı NASDAQ'ı da kapsayacak şekilde GENİŞLETİLDİ) odaklanır.
+
+    `filer_category` (Faz 5, docs/spec/spec_dashboard.md §NASDAQ "tam evren"
+    kapsamı, KESİN karar): SEC submissions'ın AYNI yanıtından (sic_code ile
+    BİRLİKTE, SIFIR EK AĞ İSTEĞİ) gelen resmi filer-durumu etiketi -- SADECE
+    NASDAQ satırlarında dolar.
 
     `market` HER ZAMAN açıkça verilir -- evren-doldurma script'i yeni bir
     Company satırı OLUŞTURABİLİR. TickerMarketConflictError (bkz. sınıf
@@ -624,6 +631,8 @@ def upsert_sector_taxonomy(
         company.exchange = exchange
     if cik is not None:
         company.cik = cik
+    if filer_category is not None:
+        company.filer_category = filer_category
     if touch_sector_updated_at:
         company.sector_updated_at = utcnow_naive()
     return company
@@ -808,3 +817,227 @@ def is_earnings_calendar_fresh(session: Session, market: str, max_age_hours: int
     if latest_updated_at is None:
         return False
     return (utcnow_naive() - latest_updated_at) <= timedelta(hours=max_age_hours)
+
+
+# --- Faz 5 (docs/spec/spec_dashboard.md): Piyasa Dashboard'u -- toplu tarama sonuç önbelleği (market_scan_result) -----------------------------------------------------
+
+SCAN_STALE_AFTER_DAYS_UNSUPPORTED = 90
+# spec "Eşikler ve ağırlıklar" tablosu: `scan_status in ("desteklenmiyor",
+# "veri_yok")` satırlar için SABİT bir taban -- bir şirketin financial_group'u/
+# veri kaynağı HAFTADA BİR yeniden denense bile SONUÇ DEĞİŞMEZ (kod desteği
+# eklenmeden), bu yüzden `get_scan_queue()` bu iki durumda çağıranın verdiği
+# `stale_after_days` (haftalık kadans) PARAMETRESİNİ DEĞİL, bu SABİTİ
+# kullanır -- kuyruk gereksiz yere ISRARLA aynı başarısız ticker'ları
+# DENEMEZ (refresh_universe.py'nin 404 kalıcı-işaretleme ilkesiyle AYNI).
+_SCAN_UNSUPPORTED_STATUSES = ("desteklenmiyor", "veri_yok")
+
+
+def upsert_market_scan_result(
+    session: Session,
+    ticker: str,
+    market: str,
+    scan_status: str,
+    *,
+    company_name: str | None = None,
+    ust_sektor: str | None = None,
+    sirket_turu: str | None = None,
+    template: str | None = None,
+    year: int | None = None,
+    period: int | None = None,
+    error_detail: str | None = None,
+    deger_score: Decimal | None = None,
+    deger_badge: str | None = None,
+    deger_coverage_pct: Decimal | None = None,
+    kalite_score: Decimal | None = None,
+    kalite_badge: str | None = None,
+    kalite_coverage_pct: Decimal | None = None,
+    buyume_score: Decimal | None = None,
+    buyume_badge: str | None = None,
+    buyume_coverage_pct: Decimal | None = None,
+    guvenlik_score: Decimal | None = None,
+    guvenlik_badge: str | None = None,
+    guvenlik_coverage_pct: Decimal | None = None,
+    bilesik_score: Decimal | None = None,
+    bilesik_badge: str | None = None,
+    bilesik_data_coverage_pct: Decimal | None = None,
+    dahil_edilen_mercekler: list[str] | None = None,
+    current_price: Decimal | None = None,
+    market_cap: Decimal | None = None,
+    pe_ratio: Decimal | None = None,
+    pb_ratio: Decimal | None = None,
+    ev_ebitda: Decimal | None = None,
+    currency: str | None = None,
+    mercekler_detay: dict | None = None,
+    financial_data_as_of: datetime | None = None,
+    computed_at: datetime | None = None,
+) -> MarketScanResult:
+    """docs/spec/spec_dashboard.md §Mimari karar 1 (adım 3e) + §Kenar
+    durumlar: `ticker` başına TEK GÜNCEL satırı upsert eder -- `GeneratedCard`
+    ile KASITLI OLARAK FARKLI erişim deseni (bkz. `MarketScanResult`
+    docstring'i, models.py).
+
+    `scan_status="hata"` (transient ağ hatası) İÇİN ÖZEL davranış (spec
+    "Kenar durumlar"): satır ZATEN varsa (önceki BAŞARILI/başka bir tarama)
+    SADECE `scan_status`/`error_detail` güncellenir -- `deger_score` vb.
+    SKOR ALANLARI ve `computed_at` EZİLMEZ (dashboard "eski ama gerçek" bir
+    skor göstermeye devam eder, sessizce boş satır GÖSTERMEZ, "henüz gerçek
+    bir yeniden-hesaplama OLMADI"). Satır İLK KEZ oluşturuluyorsa (önceki
+    başarılı kayıt YOK) tüm skor alanları doğal olarak NULL kalır (hiçbiri
+    kwarg olarak verilmemiştir).
+
+    Diğer TÜM durumlarda ("ok", "desteklenmiyor", "veri_yok") satır TAMAMEN
+    üzerine yazılır (verilmeyen alanlar NULL'a döner) -- "desteklenmiyor"/
+    "veri_yok" gibi DETERMİNİSTİK sonuçların ESKİ (artık geçersiz) bir
+    başarılı skorun kalıntısını TAŞIMAMASI için KASITLIDIR (bkz. spec
+    Dashboard JSON şeması: "hatalı/desteklenmeyen satır örneği",
+    `mercekler: null` vb.).
+
+    `session.commit()` BURADA YAPILMAZ -- `upsert_sector_taxonomy()` ile
+    AYNI ilke: çağıran taraf (`scripts/tarama_toplu.py`) TEK bir partiyi
+    (`--limit` kadar ticker) TEK commit ile bitirir (spec §Orkestrasyon
+    adımları madde 4: "session.commit() HER PARTİ SONUNDA")."""
+    row = session.get(MarketScanResult, ticker)
+    is_new = row is None
+    if row is None:
+        _get_or_create_company(session, ticker, market=market)
+        row = MarketScanResult(ticker=ticker, market=market, scan_status=scan_status)
+        session.add(row)
+
+    if scan_status == "hata" and not is_new:
+        row.scan_status = scan_status
+        row.error_detail = error_detail
+        return row
+
+    row.market = market
+    row.scan_status = scan_status
+    row.error_detail = error_detail
+    row.company_name = company_name
+    row.ust_sektor = ust_sektor
+    row.sirket_turu = sirket_turu
+    row.template = template
+    row.year = year
+    row.period = period
+    row.deger_score = deger_score
+    row.deger_badge = deger_badge
+    row.deger_coverage_pct = deger_coverage_pct
+    row.kalite_score = kalite_score
+    row.kalite_badge = kalite_badge
+    row.kalite_coverage_pct = kalite_coverage_pct
+    row.buyume_score = buyume_score
+    row.buyume_badge = buyume_badge
+    row.buyume_coverage_pct = buyume_coverage_pct
+    row.guvenlik_score = guvenlik_score
+    row.guvenlik_badge = guvenlik_badge
+    row.guvenlik_coverage_pct = guvenlik_coverage_pct
+    row.bilesik_score = bilesik_score
+    row.bilesik_badge = bilesik_badge
+    row.bilesik_data_coverage_pct = bilesik_data_coverage_pct
+    row.dahil_edilen_mercekler = dahil_edilen_mercekler
+    row.current_price = current_price
+    row.market_cap = market_cap
+    row.pe_ratio = pe_ratio
+    row.pb_ratio = pb_ratio
+    row.ev_ebitda = ev_ebitda
+    row.currency = currency
+    row.mercekler_detay = mercekler_detay
+    row.financial_data_as_of = financial_data_as_of
+    row.computed_at = computed_at if computed_at is not None else utcnow_naive()
+    return row
+
+
+def get_market_scan_results(session: Session, market: str | None = None) -> list[MarketScanResult]:
+    """docs/spec/spec_dashboard.md §Dashboard'a gömülecek JSON şeması:
+    `src/render/dashboard.py::build_dashboard_data()` (Faz 5 adım 3) için
+    TOPLU okuma kaynağı -- HESAPLAMA yapmaz, saf CRUD/okuma (quaxis-mimari
+    anayasa)."""
+    query = select(MarketScanResult)
+    if market is not None:
+        query = query.where(MarketScanResult.market == market)
+    rows = session.execute(query).scalars().all()
+    return list(rows)
+
+
+def is_scan_fresh(session: Session, ticker: str, max_age_days: int = 7) -> bool:
+    """docs/spec/spec_dashboard.md §Tazelik ve freshness politikası "Katman 3":
+    `is_data_fresh()`/`is_earnings_calendar_fresh()` ile AYNI ilke -- SADECE
+    `scan_status="ok"` bir satır varsa VE `computed_at` `max_age_days`
+    içindeyse True döner. Hiç taranmamış VEYA son deneme başarısız
+    ("hata"/"desteklenmiyor"/"veri_yok") ise False döner -- bir önceki
+    BAŞARISIZ deneme "taze" sayılamaz, sadece gerçek bir başarılı tarama
+    tazelik sağlar."""
+    row = session.get(MarketScanResult, ticker)
+    if row is None or row.scan_status != "ok":
+        return False
+    return (utcnow_naive() - row.computed_at) <= timedelta(days=max_age_days)
+
+
+def get_scan_queue(
+    session: Session,
+    market: str,
+    stale_after_days: int,
+    limit: int,
+    priority_tickers: set[str] | None = None,
+) -> list[Company]:
+    """docs/spec/spec_dashboard.md §Formüller-1: `scripts/tarama_toplu.py`'nin
+    `--universe tam` kuyruk sorgusu -- `MarketScanResult`'ı `Company`'ye
+    LEFT JOIN eder, aday satırlar:
+      (a) `MarketScanResult` HİÇ YOK (hiç taranmamış) VEYA
+      (b) `MarketScanResult.computed_at` şimdiden `stale_after_days` günden
+          eski (scan_status "desteklenmiyor"/"veri_yok" İSE bu genel
+          parametre YERİNE SABİT `SCAN_STALE_AFTER_DAYS_UNSUPPORTED` (90
+          gün) kullanılır -- bkz. spec "Eşikler ve ağırlıklar" tablosu,
+          "kuyruk gereksiz yere ISRARLA aynı başarısız ticker'ları
+          DENEMEZ") VEYA
+      (c) ticker `priority_tickers` içinde (bilanço-tarihi yaklaşan/geçmiş
+          şirketler için FORCE-check, bkz. spec §Formüller-2)
+
+    ÖNKOŞUL: `Company.market == market AND Company.ust_sektor IS NOT NULL`
+    (Faz 2 tamamlanmamış satırlar ATLANIR, bkz. spec "Kenar durumlar").
+    `market="NASDAQ"` ise EK ÖNKOŞUL: §NASDAQ kalite filtresi (`filer_category`
+    tabanlı, bkz. spec "NASDAQ 'tam evren' kapsamı" bölümü) -- alt-dizgi
+    tuzağı ("non-accelerated filer" de "accelerated filer" İÇERİR) `not_like`
+    ile ÖNCE elenir. `--universe bist30/nasdaq30` (statik pilot liste) bu
+    fonksiyonu HİÇ ÇAĞIRMAZ (spec "Orkestrasyon adımları" madde 2a).
+
+    Sıralama: hiç taranmamış (`computed_at IS NULL`) ÖNCE, sonra en eski
+    `computed_at` -- `_next_batch` (refresh_universe.py) ile AYNI ilke.
+    `limit` uygulanır."""
+    priority_tickers = priority_tickers or set()
+    cutoff_standard = utcnow_naive() - timedelta(days=stale_after_days)
+    cutoff_unsupported = utcnow_naive() - timedelta(days=SCAN_STALE_AFTER_DAYS_UNSUPPORTED)
+
+    conditions = [Company.market == market, Company.ust_sektor.is_not(None)]
+    if market == "NASDAQ":
+        kategori = func.lower(Company.filer_category)
+        conditions.append(
+            and_(
+                Company.filer_category.is_not(None),
+                kategori.like("%accelerated filer%"),
+                kategori.not_like("%non-accelerated%"),  # alt-dizgi tuzagi (bkz. spec NASDAQ kalite filtresi)
+            )
+        )
+
+    standard_stale = and_(
+        or_(MarketScanResult.scan_status.is_(None), MarketScanResult.scan_status.not_in(_SCAN_UNSUPPORTED_STATUSES)),
+        or_(MarketScanResult.computed_at.is_(None), MarketScanResult.computed_at < cutoff_standard),
+    )
+    unsupported_stale = and_(
+        MarketScanResult.scan_status.in_(_SCAN_UNSUPPORTED_STATUSES),
+        MarketScanResult.computed_at < cutoff_unsupported,
+    )
+    eligibility = or_(standard_stale, unsupported_stale)
+    if priority_tickers:
+        eligibility = or_(eligibility, Company.ticker.in_(priority_tickers))
+
+    rows = (
+        session.execute(
+            select(Company)
+            .outerjoin(MarketScanResult, MarketScanResult.ticker == Company.ticker)
+            .where(*conditions, eligibility)
+            .order_by(MarketScanResult.computed_at.asc().nullsfirst())
+            .limit(limit)
+        )
+        .scalars()
+        .all()
+    )
+    return list(rows)

@@ -119,6 +119,12 @@ def test_compute_multi_lens_score_ucdan_uca_dort_mercek_ve_bilesik_uretir(izole_
     assert sonuc.bilesik.mercekler.buyume is not None
     assert sonuc.bilesik.mercekler.guvenlik is not None
     assert Decimal("0") <= sonuc.bilesik.total_score <= Decimal("10")
+    # Faz 5 (docs/spec/spec_dashboard.md §Girdiler): valuation_metrics/template
+    # artik disariya SIZIYOR (scripts/tarama_toplu.py'nin ihtiyaci, kod
+    # tekrarini onlemek icin).
+    assert sonuc.template == "sanayi"
+    assert sonuc.valuation_metrics is not None
+    assert sonuc.valuation_metrics.pe_ratio is not None or sonuc.valuation_metrics.pb_ratio is not None
 
 
 def test_compute_multi_lens_score_az_fiyat_gecmisinde_merton_atlanir_diger_bilesenler_calisir(izole_db, monkeypatch) -> None:
@@ -216,6 +222,7 @@ def test_compute_multi_lens_score_banka_dort_mercek_ve_bilesik_uretir(izole_db, 
     guvenlik_isimler = {c.name for c in profil.guvenlik.components}
     assert guvenlik_isimler == {"Özkaynak/Aktif Oranı (sermaye yeterliliği proxy'si)"}
     assert Decimal("0") <= sonuc.bilesik.total_score <= Decimal("10")
+    assert sonuc.template == "banka"
 
 
 def _fake_raw_sigorta(ticker: str = "TESTSIG") -> isyatirim.RawFinancials:

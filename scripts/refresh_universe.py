@@ -45,7 +45,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR))
 
 import config  # noqa: E402
-from sqlalchemy import or_, select  # noqa: E402
+from sqlalchemy import and_, or_, select  # noqa: E402
 
 from src.db import repository  # noqa: E402
 from src.db.models import Company, utcnow_naive  # noqa: E402
@@ -130,15 +130,27 @@ def _refresh_nasdaq_step1(session) -> tuple[int, int, list[str]]:
 def _next_batch(session, limit: int) -> list[Company]:
     """Sektör/SIC zenginleştirme kuyruğu -- spec "NASDAQ kolu Adım 2"
     kod bloğu BİREBİR: `sic_code IS NULL VEYA sector_updated_at
-    SECTOR_STALE_AFTER_DAYS'ten eski` olan NASDAQ satırları, en eski/hiç
-    işlenmemiş ÖNCE olacak şekilde, en fazla `limit` tanesi."""
+    SECTOR_STALE_AFTER_DAYS'ten eski VEYA (filer_category IS NULL VE
+    sic_code IS NOT NULL)` olan NASDAQ satırları, en eski/hiç işlenmemiş
+    ÖNCE olacak şekilde, en fazla `limit` tanesi.
+
+    Üçüncü koşul (docs/spec/spec_dashboard.md §NASDAQ "tam evren" kapsamı,
+    "Tek seferlik backfill"): Faz 2'de ZATEN zenginleştirilmiş (sic_code
+    dolu) ama `filer_category` alanı HENÜZ YOKKEN işlenmiş satırlar --
+    90 günlük tazelik penceresinden BAĞIMSIZ, sadece BU alan boşsa
+    yeniden-dene (sic_code'a TEKRAR dokunmaz, sadece filer_category
+    eksikse kuyruğa alır)."""
     cutoff = utcnow_naive() - timedelta(days=SECTOR_STALE_AFTER_DAYS)
     return (
         session.execute(
             select(Company)
             .where(
                 Company.market == "NASDAQ",
-                or_(Company.sic_code.is_(None), Company.sector_updated_at < cutoff),
+                or_(
+                    Company.sic_code.is_(None),
+                    Company.sector_updated_at < cutoff,
+                    and_(Company.filer_category.is_(None), Company.sic_code.is_not(None)),
+                ),
             )
             .order_by(Company.sector_updated_at.asc().nullsfirst())
             .limit(limit)
@@ -182,6 +194,7 @@ def _refresh_nasdaq_step2(session, limit: int) -> tuple[int, int]:
             ust_sektor=ust_sektor,
             sirket_turu=sirket_turu,
             sic_code=sic_info.sic,
+            filer_category=sic_info.category,
             touch_sector_updated_at=True,
         )
         enriched += 1

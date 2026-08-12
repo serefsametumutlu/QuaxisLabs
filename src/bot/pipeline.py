@@ -1541,7 +1541,23 @@ class MultiLensScoreResult:
     (Değer/Kalite/Büyüme/Güvenlik) skorlamanın TAMAMI (4 mercek + bileşik)
     burada taşınır. `bilesik.mercekler` (`lens_bilesik_skor.MercekProfili`)
     üzerinden 4 merceğin HER BİRİ ayrı ayrı de erişilebilir (spec_bilesik_
-    skor.md: "kullanıcıya tek skor değil profil gösterilir")."""
+    skor.md: "kullanıcıya tek skor değil profil gösterilir").
+
+    `valuation_metrics` (docs/spec/spec_dashboard.md §Girdiler): fonksiyon
+    İÇİNDE zaten hesaplanan `calculator.ValuationMetrics`/`BankValuationMetrics`/
+    `InsuranceValuationMetrics`/`FinancingValuationMetrics` nesnesi -- Faz 5
+    ÖNCESİ sadece `deger` merceğinin girdisi olarak kullanılıp DIŞARI
+    SIZMIYORDU; `scripts/tarama_toplu.py`'nin F/K, PD/DD, FD/FAVÖK, piyasa
+    değeri gibi ana çarpanları HER ticker için AYRICA hesaplamak zorunda
+    kalmaması (kod tekrarı, katman ihlali) için buraya taşındı (genişletme,
+    mevcut alanlar KORUNDU -- persona kural 8).
+
+    `template` (docs/spec/spec_dashboard.md §DB modeli, `MarketScanResult.
+    template` sütunu): fonksiyon İÇİNDE zaten türetilen "sanayi"|"abd_sanayi"|
+    "banka"|"sigorta"|"finansman" etiketi -- AYNI gerekçeyle (kod tekrarı
+    önleme) dışarı taşındı. `LensSonucu.template` İLE KARIŞTIRILMAMALI: o
+    alan mercek adını taşır ("değer"/"kalite_banka"/...), BU alan ise
+    ŞİRKET TÜRÜ şablonunu taşır."""
 
     ticker: str
     market: str
@@ -1549,6 +1565,14 @@ class MultiLensScoreResult:
     company_name: str | None
     price: Decimal | None
     bilesik: lens_bilesik_skor.BilesikSkorSonucu
+    valuation_metrics: (
+        calculator.ValuationMetrics
+        | calculator.BankValuationMetrics
+        | calculator.InsuranceValuationMetrics
+        | calculator.FinancingValuationMetrics
+        | None
+    ) = None
+    template: str | None = None
 
 
 def compute_multi_lens_score_for_ticker(ticker: str, market: str = "BIST") -> MultiLensScoreResult:
@@ -1753,7 +1777,7 @@ def compute_multi_lens_score_for_ticker(ticker: str, market: str = "BIST") -> Mu
     bilesik = lens_bilesik_skor.hesapla_bilesik_skor(ticker, analysis.latest_period, deger, kalite, buyume, guvenlik)
     return MultiLensScoreResult(
         ticker=ticker, market=market, period=analysis.latest_period, company_name=company_name,
-        price=current_price, bilesik=bilesik,
+        price=current_price, bilesik=bilesik, valuation_metrics=valuation_metrics, template=template,
     )
 
 

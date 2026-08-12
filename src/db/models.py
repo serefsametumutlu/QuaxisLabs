@@ -92,6 +92,16 @@ class Company(Base):
     # scripts/refresh_universe.py SECTOR_STALE_AFTER_DAYS, cok daha uzun:
     # gunler degil, haftalar/aylar).
 
+    filer_category: Mapped[str | None] = mapped_column(String(60))
+    # Faz 5 (docs/spec/spec_dashboard.md §NASDAQ "tam evren" kapsamı, KESİN
+    # karar): SEC'in submissions/CIK{cik}.json yanıtındaki KENDİ resmi
+    # filer-durumu etiketi ("Large accelerated filer" | "Accelerated filer" |
+    # "Non-accelerated filer" | ...) -- AYNI çağrı zaten sic_code için
+    # `sec_edgar.fetch_sic_info()` tarafından yapılıyor, SIFIR EK AĞ İSTEĞİ.
+    # SADECE market="NASDAQ" satırlarında dolar; BİST'te bu kavram YOK, hep
+    # None kalır. `sector_updated_at` ile AYNI 90 günlük pencerede tazelenir
+    # (SIC ile AYNI zenginleştirme adımı, bkz. refresh_universe.py Adım 2).
+
 
 class FinancialPeriod(Base):
     __tablename__ = "financial_period"
@@ -308,6 +318,68 @@ class GeneratedCard(Base):
     score: Mapped[float]
 
 
+class MarketScanResult(Base):
+    """Faz 5 (docs/spec/spec_dashboard.md): BİST/NASDAQ evrenindeki bir
+    şirketin EN GÜNCEL v2 çok-mercekli tarama SONUCUNUN anlık görüntüsü --
+    `ticker` BENZERSİZ (upsert, GeneratedCard'ın append-only OLAY
+    GÜNLÜĞÜNDEN KASITLI OLARAK FARKLI bir erişim deseni, bkz. spec §Mimari
+    karar 2). scripts/tarama_toplu.py TARAFINDAN YAZILIR, src/render/
+    dashboard.py TARAFINDAN TOPLU okunur; hesaplama BURADA YAPILMAZ (saf
+    CRUD/cache, quaxis-mimari anayasa)."""
+
+    __tablename__ = "market_scan_result"
+
+    ticker: Mapped[str] = mapped_column(ForeignKey("company.ticker"), primary_key=True)
+    market: Mapped[str] = mapped_column(String(10))               # "BIST" | "NASDAQ"
+    company_name: Mapped[str | None] = mapped_column(String(255)) # denormalize -- JOIN'siz dashboard sorgusu icin
+    ust_sektor: Mapped[str | None] = mapped_column(String(40))    # tarama anindaki KOPYA (Company degisirse dashboard bir SONRAKI taramada yakalar)
+    sirket_turu: Mapped[str | None] = mapped_column(String(20))
+    template: Mapped[str | None] = mapped_column(String(20))      # "sanayi" | "abd_sanayi" | "banka" | "sigorta" | "finansman"
+    year: Mapped[int | None]
+    period: Mapped[int | None]                                    # (year, period) = analysis.latest_period
+
+    scan_status: Mapped[str] = mapped_column(String(20))          # "ok" | "hata" | "desteklenmiyor" | "veri_yok"
+    error_detail: Mapped[str | None] = mapped_column(String(500))
+
+    # --- 4 mercek (düz sütunlar -- SIRALANABİLİR tablo gereksinimi,
+    #     kart-tasarim-sistemi skill: "sıralanabilir tablo (mercek
+    #     skorları...)" -- JSON blob icinde saklansaydi SQL ORDER BY
+    #     yapılamazdı) ---
+    deger_score: Mapped[Decimal | None] = mapped_column(Numeric(4, 2))
+    deger_badge: Mapped[str | None] = mapped_column(String(20))
+    deger_coverage_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
+    kalite_score: Mapped[Decimal | None] = mapped_column(Numeric(4, 2))
+    kalite_badge: Mapped[str | None] = mapped_column(String(20))
+    kalite_coverage_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
+    buyume_score: Mapped[Decimal | None] = mapped_column(Numeric(4, 2))
+    buyume_badge: Mapped[str | None] = mapped_column(String(20))
+    buyume_coverage_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
+    guvenlik_score: Mapped[Decimal | None] = mapped_column(Numeric(4, 2))
+    guvenlik_badge: Mapped[str | None] = mapped_column(String(20))
+    guvenlik_coverage_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
+
+    bilesik_score: Mapped[Decimal | None] = mapped_column(Numeric(4, 2))
+    bilesik_badge: Mapped[str | None] = mapped_column(String(20))
+    bilesik_data_coverage_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))  # YENİ agregasyon, bkz. spec Formüller-0
+    dahil_edilen_mercekler: Mapped[list | None] = mapped_column(JSON)  # bkz. BilesikSkorSonucu.dahil_edilen_mercekler
+
+    # --- Ana çarpanlar (mevcut ValuationMetrics ailesinden) ---
+    current_price: Mapped[Decimal | None] = mapped_column(Numeric(24, 6))
+    market_cap: Mapped[Decimal | None] = mapped_column(Numeric(24, 4))
+    pe_ratio: Mapped[Decimal | None] = mapped_column(Numeric(12, 4))
+    pb_ratio: Mapped[Decimal | None] = mapped_column(Numeric(12, 4))
+    ev_ebitda: Mapped[Decimal | None] = mapped_column(Numeric(12, 4))
+    currency: Mapped[str | None] = mapped_column(String(10))      # "TRY" | "USD"
+
+    # --- Opsiyonel drill-down (Faz 5 ZORUNLU DEĞİL, ucuz oldugu icin
+    #     simdiden acilir -- CommentaryCache.positives ile AYNI JSON-on-
+    #     SQLite deseni) ---
+    mercekler_detay: Mapped[dict | None] = mapped_column(JSON)    # {"değer": [ComponentScore alanları...], ...}
+
+    computed_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow_naive)     # bu SATIRIN en son ne zaman hesaplandigi (SCAN tazelik anchor'i)
+    financial_data_as_of: Mapped[datetime | None] = mapped_column(DateTime)           # Company.last_updated'in tarama anındaki KOPYASI (bkz. Tazelik)
+
+
 def create_engine_and_session(database_url: str) -> tuple[Engine, sessionmaker[Session]]:
     """Verilen DATABASE_URL icin bagimsiz bir engine + session factory olusturur.
 
@@ -421,6 +493,25 @@ def _migrate_add_sector_taxonomy_columns(engine: Engine) -> None:
             connection.execute(text(f"ALTER TABLE company ADD COLUMN {column_name} {column_type}"))
 
 
+def _migrate_add_filer_category_column(engine: Engine) -> None:
+    """Faz 5 (docs/spec/spec_dashboard.md §NASDAQ "tam evren" kapsamı)
+    ÖNCESİ oluşturulmuş veritabanlarında 'company' tablosu zaten var ama
+    'filer_category' sütunu YOK -- _migrate_add_sector_taxonomy_columns ile
+    BİREBİR AYNI idempotent ALTER TABLE deseni: sütun zaten varsa hiçbir
+    şey yapılmaz. Nullable -- eski satırlar NULL kalır, bir SONRAKİ
+    `refresh_universe.py --market nasdaq` çalıştırması (backfill kuyruğu,
+    `filer_category IS NULL AND sic_code IS NOT NULL` koşulu) doldurur."""
+    inspector = inspect(engine)
+    if "company" not in inspector.get_table_names():
+        return  # create_all() zaten dogru sekilde (filer_category DAHIL) olusturacak
+    existing_columns = {col["name"] for col in inspector.get_columns("company")}
+    if "filer_category" in existing_columns:
+        return
+    logger.info("Migration: 'company' tablosuna 'filer_category' sutunu ekleniyor.")
+    with engine.begin() as connection:
+        connection.execute(text("ALTER TABLE company ADD COLUMN filer_category VARCHAR(60)"))
+
+
 def init_db(engine: Engine | None = None) -> None:
     """Tablolari olusturur (varsa dokunmaz -- create_all idempotenttir) VE
     var olan tablolarda eksik sutunlari migrate eder (bkz. _migrate_add_market_column,
@@ -436,6 +527,7 @@ def init_db(engine: Engine | None = None) -> None:
     _migrate_add_market_column(target_engine)
     _migrate_add_commentary_hook_column(target_engine)
     _migrate_add_sector_taxonomy_columns(target_engine)
+    _migrate_add_filer_category_column(target_engine)
 
 
 # Uygulamanin varsayilan (production) baglantisi. Testler bunu KULLANMAZ;

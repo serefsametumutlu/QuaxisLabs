@@ -174,14 +174,36 @@ def test_next_batch_90_gunden_eski_satirlari_da_doner(session) -> None:
 
 
 def test_next_batch_taze_satirlari_dondurmez(session) -> None:
+    # Faz 5 (docs/spec/spec_dashboard.md §NASDAQ "tam evren" kapsamı, "Tek
+    # seferlik backfill"): _next_batch artık filer_category BOŞ olan
+    # satırları da (sic_code dolu olsa bile) kuyruğa alır -- bu yüzden
+    # "gerçekten tamamen taze/tam işlenmiş" bir satır filer_category'yi de
+    # DOLU taşımalı, aksi halde backfill koşulu satırı YENİDEN kuyruğa alır
+    # (bu KASITLI, spec'in istediği davranış).
     repository.upsert_sector_taxonomy(
         session, "TAZE", market="NASDAQ", sic_code="3571", ust_sektor="Teknoloji", sirket_turu="sanayi",
+        filer_category="Large accelerated filer",
     )
     session.commit()
 
     batch = refresh_universe._next_batch(session, limit=10)
 
     assert batch == []
+
+
+def test_next_batch_filer_category_bos_satirlari_backfill_icin_doner(session) -> None:
+    """Faz 5 §NASDAQ "tam evren" kapsamı, "Tek seferlik backfill": Faz 2'de
+    ZATEN zenginleştirilmiş (sic_code dolu) ama filer_category HENÜZ
+    YOKKEN işlenmiş bir satır -- 90 günlük tazelik penceresinden BAĞIMSIZ
+    olarak yeniden kuyruğa girer."""
+    repository.upsert_sector_taxonomy(
+        session, "ESKIBACKFILL", market="NASDAQ", sic_code="3571", ust_sektor="Teknoloji", sirket_turu="sanayi",
+    )
+    session.commit()
+
+    batch = refresh_universe._next_batch(session, limit=10)
+
+    assert [c.ticker for c in batch] == ["ESKIBACKFILL"]
 
 
 def test_next_batch_limit_parametresine_uyar(session) -> None:

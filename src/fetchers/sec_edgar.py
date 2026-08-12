@@ -631,10 +631,13 @@ def is_nasdaq_exchange(exchange: str | None) -> bool:
 
 @dataclass(frozen=True)
 class SicInfo:
-    """submissions/CIK{cik}.json'dan çekilen SIC kodu + açıklaması."""
+    """submissions/CIK{cik}.json'dan çekilen SIC kodu + açıklaması + SEC'in
+    kendi filer-durumu kategorisi (bkz. `category` alanı, Faz 5 -- docs/spec/
+    spec_dashboard.md §NASDAQ "tam evren" kapsamı)."""
 
     sic: str | None
     sic_description: str | None
+    category: str | None = None
 
 
 @retry(
@@ -663,11 +666,15 @@ def _request_submissions(cik10: str) -> dict:
 
 
 def fetch_sic_info(cik10: str) -> SicInfo:
-    """CIK için SEC'in submissions uç noktasından sic/sicDescription çeker
-    (bkz. spec "Girdiler" tablosu, CANLI doğrulandı: AAPL -> {"sic":"3571",
-    "sicDescription":"Electronic Computers"}). Bu alan companyfacts'te YOKTUR
-    -- ayrı bir uç nokta, `_HEADERS`/User-Agent AYNI (data.sec.gov aynı
-    rate-limit'e tabi, bkz. modül üst notu).
+    """CIK için SEC'in submissions uç noktasından sic/sicDescription/category
+    çeker (bkz. spec "Girdiler" tablosu, CANLI doğrulandı: AAPL -> {"sic":"3571",
+    "sicDescription":"Electronic Computers"}). `category` (Faz 5, docs/spec/
+    spec_dashboard.md §NASDAQ "tam evren" kapsamı): SEC'in KENDİ resmi
+    filer-durumu etiketi ("Large accelerated filer" | "Accelerated filer" |
+    "Non-accelerated filer" | ...) -- AYNI JSON gövdesinin BAŞKA bir alanı,
+    SIFIR EK AĞ İSTEĞİ. Bu alan companyfacts'te YOKTUR -- ayrı bir uç nokta,
+    `_HEADERS`/User-Agent AYNI (data.sec.gov aynı rate-limit'e tabi, bkz.
+    modül üst notu).
 
     Hatalar:
         CompanyNotFoundError: CIK için submissions kaydı yok (404) -- bazı
@@ -677,7 +684,8 @@ def fetch_sic_info(cik10: str) -> SicInfo:
     payload = _request_submissions(cik10)
     sic = payload.get("sic") or None
     sic_description = payload.get("sicDescription") or None
-    return SicInfo(sic=sic, sic_description=sic_description)
+    category = payload.get("category") or None
+    return SicInfo(sic=sic, sic_description=sic_description, category=category)
 
 
 # --- Faz 2 -- SIC -> ortak üst-sektör eşleme tablosu -----------------------------------------------------

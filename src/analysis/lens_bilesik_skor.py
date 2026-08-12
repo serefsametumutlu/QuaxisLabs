@@ -115,3 +115,26 @@ def hesapla_bilesik_skor(
         ticker=ticker, period=period, mercekler=profil, total_score=toplam_katki,
         badge=_badge(toplam_katki), data_sufficient=True, dahil_edilen_mercekler=dahil_edilen,
     )
+
+
+def hesapla_veri_kapsam_ozeti(bilesik: BilesikSkorSonucu) -> Decimal | None:
+    """docs/spec/spec_dashboard.md §Formüller-0: Σ(lens_i.data_coverage_pct *
+    MERCEK_AGIRLIKLARI[i]) / Σ(MERCEK_AGIRLIKLARI[i]) -- SADECE kavramsal
+    olarak VAR OLAN (None OLMAYAN) mercekler üzerinden, NOMİNAL ağırlıklarla
+    (data_sufficient eşiğiyle YENİDEN dağıtılmış EFEKTİF ağırlıklarla
+    DEĞİL -- bu, bilesik_skor'un kendi hesaplamasından KASITLI olarak
+    FARKLI bir soru sorar: "genel olarak ne kadar veriye dayanıyoruz",
+    "skora kaç mercek katıldı" DEĞİL).
+
+    Tüm mercekler None ise (kavramsal olarak hiç uygulanamıyor -- ÇOK
+    NADİR) None döner (dashboard '-' gösterir)."""
+    mercekler = {
+        "değer": bilesik.mercekler.deger, "kalite": bilesik.mercekler.kalite,
+        "güvenlik": bilesik.mercekler.guvenlik, "büyüme": bilesik.mercekler.buyume,
+    }
+    mevcut = {isim: s for isim, s in mercekler.items() if s is not None}
+    if not mevcut:
+        return None
+    toplam_agirlik = sum(MERCEK_AGIRLIKLARI[isim] for isim in mevcut)
+    toplam_katki = sum(s.data_coverage_pct * MERCEK_AGIRLIKLARI[isim] for isim, s in mevcut.items())
+    return _clamp(toplam_katki / toplam_agirlik, Decimal(0), Decimal(100))

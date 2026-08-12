@@ -71,13 +71,17 @@ def test_build_dashboard_data_ust_seviye_sema(session) -> None:
 
     data = dashboard.build_dashboard_data(session)
 
-    assert set(data.keys()) == {"meta", "markets"}
+    assert set(data.keys()) == {"meta", "markets", "methodology"}
     assert set(data["markets"].keys()) == {"BIST", "NASDAQ"}
     for key in ("generated_at", "bist_last_scan_at", "nasdaq_last_scan_at", "bist_company_count", "nasdaq_company_count", "nasdaq_universe_total"):
         assert key in data["meta"]
     assert data["meta"]["bist_company_count"] == 1
     assert data["meta"]["nasdaq_company_count"] == 0
     assert data["meta"]["nasdaq_universe_total"] is None  # spec: kodlama fazına kadar null kabul edilebilir
+    # Metodoloji paneli (kullanıcı talebi, 2026-08-12): statik referans içeriği,
+    # tarama verisinden BAĞIMSIZ olarak HER render'da AYNI şekilde mevcuttur.
+    assert {"bilesik_aciklama", "kapsam_aciklama", "rozet_esikleri", "kaynak_kitaplar", "mercekler"} <= set(data["methodology"].keys())
+    assert len(data["methodology"]["mercekler"]) == 4
 
 
 def test_build_dashboard_data_satir_semasi(session) -> None:

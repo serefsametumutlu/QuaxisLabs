@@ -125,6 +125,134 @@ PIYASA_SISTEMIK_EKSIK_BILESENLER: dict[str, list[dict[str, str]]] = {
     ],
 }
 
+# --- Metodoloji paneli (kullanıcı talebi, 2026-08-12): statik, tarama
+#     verisinden BAĞIMSIZ referans metni -- "hangi mercek bileşeni hangi
+#     kitap/formüle dayanıyor" sorusunu docs/spec/spec_mercek_*.md ve
+#     spec_bilesik_skor.md'deki kitap referans kodlarından (örn. "01/
+#     FORMÜL-03" = bilgi-bankasi/01_graham_akilli_yatirimci.md) kullanıcı-
+#     okunabilir bir tabloya çevirir. HESAPLAMA DEĞİL -- spec tablolarının
+#     BİREBİR kopyası (PIYASA_SISTEMIK_EKSIK_BILESENLER ile AYNI desen,
+#     quaxis-mimari anayasa: dashboard.py sadece okur/biçimlendirir). ------
+SCORE_METHODOLOGY: dict[str, Any] = {
+    "bilesik_aciklama": (
+        "Bileşik Skor, 4 merceğin (Değer/Kalite/Büyüme/Güvenlik) kendi içinde "
+        "0-10'a normalize edilmiş skorlarının ağırlıklı ortalamasıdır. Bir "
+        "mercek veri kapsamı %50'nin altındaysa bileşik skora HİÇ DAHİL "
+        "EDİLMEZ -- ağırlığı geri kalan merceklere orantısal olarak yeniden "
+        "dağıtılır. Dört merecek de yetersizse rozet doğrudan "
+        '"YETERSİZ VERİ" olur (sıfıra bölme hiçbir zaman oluşmaz).'
+    ),
+    "kapsam_aciklama": (
+        '"Kapsam" (veri kapsamı, %), bir merceğin puanının alt-bileşenlerinin '
+        "ne kadarının gerçek veriyle hesaplandığını gösterir. %100 kapsam -- "
+        "o merceğin TÜM alt-bileşenleri veriye dayanıyor; düşük kapsam -- "
+        "bazı alt-bileşenler (örn. sektör karşılaştırması için yetersiz "
+        "örneklem ya da eksik ham veri) atlandı ve ağırlığı geri kalan "
+        "bileşenlere aktarıldı. %50'nin altındaki kapsam tabloda bir uyarı "
+        "ikonuyla işaretlenir."
+    ),
+    "rozet_esikleri": [
+        {"aralik": "≥ 8,0", "rozet": "SAĞLAM", "css": "saglam"},
+        {"aralik": "6,0 – 7,9", "rozet": "DENGELİ", "css": "dengeli"},
+        {"aralik": "4,0 – 5,9", "rozet": "KARIŞIK", "css": "karisik"},
+        {"aralik": "< 4,0", "rozet": "RİSKLİ", "css": "riskli"},
+        {"aralik": "kapsam < %50", "rozet": "YETERSİZ VERİ", "css": "yetersiz"},
+    ],
+    "kaynak_kitaplar": [
+        {"kod": "01", "yazar": "Graham",
+         "tam_ad": "Benjamin Graham — Akıllı Yatırımcı (rev. 1973, Jason Zweig yorumlarıyla 2003 basımı)"},
+        {"kod": "02", "yazar": "Buffett",
+         "tam_ad": "Mary Buffett & David Clark — Warren Buffett ve Finansal Tabloları Yorumlama Sanatı"},
+        {"kod": "03", "yazar": "Damodaran",
+         "tam_ad": "Aswath Damodaran — Değerleme (2. Baskı, 2006)"},
+        {"kod": "—", "yazar": "Diğer",
+         "tam_ad": ("Joel Greenblatt (Sihirli Formül), Tobias Carlisle (Acquirer's Multiple), "
+                    "Joseph Piotroski (F-Skoru, 2000) — kitap-bilgi-bankası dışı, akademik/pratik "
+                    "kaynaklar; proje kod tabanında zaten kalibre edilmiş")},
+    ],
+    "mercekler": [
+        {
+            "key": "deger", "baslik": "Değer", "bilesik_agirlik": "%30",
+            "soru": "Hisse, ödediğiniz paraya göre ucuz mu?",
+            "bilesenler": [
+                {"isim": "Mutlak Ucuzluk (F/K + PD/DD)", "agirlik": "%35",
+                 "esik": "Sektöre özgü F/K ve PD/DD bantları (ucuz/makul/pahalı/tavan)",
+                 "kaynak": "01/FORMÜL-02, İLKE-80,133"},
+                {"isim": "Sektöre Göreli Konum", "agirlik": "%20",
+                 "esik": "Sektör medyanına göre robust z-skor (n≥5 şirket şartı)",
+                 "kaynak": "03/BAYRAK-20, İLKE-197"},
+                {"isim": "Kazanç Getirisi vs Risksiz Oran", "agirlik": "%15",
+                 "esik": "E/P ≥ risksiz faiz + 2 puan tercih edilir",
+                 "kaynak": "01/FORMÜL-03,36 · 02/İLKE-52-57 · 03/FORMÜL-84"},
+                {"isim": "Graham Çarpanı (F/K × PD/DD)", "agirlik": "%10",
+                 "esik": "≤ 22,5 \"savunmacı yatırımcı\" eşiği",
+                 "kaynak": "01/FORMÜL-21,32"},
+                {"isim": "Greenblatt Kazanç Getirisi (EBIT/FD)", "agirlik": "%10",
+                 "esik": "Yüksek EBIT/Firma Değeri = ucuz (borç etkisi dahil)",
+                 "kaynak": "Greenblatt, Sihirli Formül"},
+                {"isim": "Carlisle Acquirer's Multiple (FD/EBIT)", "agirlik": "%5",
+                 "esik": "Düşük FD/EBIT = ucuz",
+                 "kaynak": "Carlisle, Acquirer's Multiple"},
+                {"isim": "NCAV / Net-Net Bonus", "agirlik": "%5 (bonus)",
+                 "esik": "Piyasa değeri net işletme sermayesinin ALTINDAysa bonus (asla ceza yok)",
+                 "kaynak": "01/İLKE-64,66,75 · FORMÜL-01,12,14"},
+            ],
+        },
+        {
+            "key": "kalite", "baslik": "Kalite", "bilesik_agirlik": "%30",
+            "soru": "Şirket sürdürülebilir, dayanıklı bir rekabet avantajına sahip mi?",
+            "bilesenler": [
+                {"isim": "Nakit Üretimi (FAVÖK marjı)", "agirlik": "%25",
+                 "esik": "güçlü ≥ %20, orta ≥ %10", "kaynak": "02/İLKE-01-06"},
+                {"isim": "Özkaynak Kârlılığı (ROE)", "agirlik": "%20",
+                 "esik": "güçlü ≥ %15, orta ≥ %10", "kaynak": "02/FORMÜL-22, İLKE-40,41"},
+                {"isim": "Kârlılık (Net Marj)", "agirlik": "%15",
+                 "esik": "proje kalibrasyonu (sanayi eşikleri)", "kaynak": "02/FORMÜL-07, İLKE-13"},
+                {"isim": "Brüt Kâr Marjı (seviye + trend)", "agirlik": "%15",
+                 "esik": "güçlü ≥ %40, orta ≥ %20", "kaynak": "02/FORMÜL-01, İLKE-02,03"},
+                {"isim": "Greenblatt ROC (EBIT/Yatırılan Sermaye)", "agirlik": "%10",
+                 "esik": "yüksek ≥ %25, düşük ≤ %10", "kaynak": "Greenblatt · 03/İLKE-201-213"},
+                {"isim": "ROA", "agirlik": "%5",
+                 "esik": "güçlü ≥ %8, orta ≥ %3", "kaynak": "02/FORMÜL-13, İLKE-26"},
+                {"isim": "Nakit Kâr Kalitesi (OCF/Net Kâr)", "agirlik": "%10",
+                 "esik": "≥1,0 güçlü, 0,7-1,0 orta, <0,7 zayıf", "kaynak": "01/Ch.12 Kontrol L (Piotroski öncülü)"},
+            ],
+        },
+        {
+            "key": "buyume", "baslik": "Büyüme", "bilesik_agirlik": "%15",
+            "soru": "Şirket ne kadar hızlı VE ne kadar kaliteli büyüyor?",
+            "bilesenler": [
+                {"isim": "Hasılat Büyümesi (reel, seviye + trend)", "agirlik": "%55",
+                 "esik": "sanayi: güçlü ≥ %15 · abd_sanayi: güçlü ≥ %10 (enflasyon-arındırılmış)",
+                 "kaynak": "proje kalibrasyonu (Zweig uyarısıyla 01/İLKE-72,73 çapraz okunur)"},
+                {"isim": "PEG Oranı (büyümeye göre değerleme)", "agirlik": "%25",
+                 "esik": "PEG < 0,9 ucuz · 0,9-1,1 makul · > 1,1 pahalı",
+                 "kaynak": "Lynch, GARP · 03/İLKE-159,175, FORMÜL-74"},
+                {"isim": "Marjinal ROE + Verimlilik Kaynaklı Büyüme", "agirlik": "%20",
+                 "esik": "marjinal ROE − standart ROE farkı sürekli fonksiyonla skorlanır",
+                 "kaynak": "03/İLKE-85,86"},
+            ],
+        },
+        {
+            "key": "guvenlik", "baslik": "Güvenlik", "bilesik_agirlik": "%25",
+            "soru": "Şirket bir krizi/durgunluğu atlatabilir mi, batma riski nedir?",
+            "bilesenler": [
+                {"isim": "Kaldıraç (Net Borç/FAVÖK)", "agirlik": "%30",
+                 "esik": "çok iyi < 1 · iyi < 2,5 · orta < 4", "kaynak": "piyasa pratiği (Moody's/S&P kaldıraç bantları)"},
+                {"isim": "Bilanço Kalitesi (Cari Oran + Özkaynak/Varlık)", "agirlik": "%20",
+                 "esik": "cari oran ≥ 1,5 iyi · özkaynak/varlık ≥ %40 iyi", "kaynak": "01/FORMÜL-26, İLKE-154"},
+                {"isim": "Piotroski F-Skoru", "agirlik": "%25",
+                 "esik": "9 kriterden ≥5'i hesaplanabiliyorsa oran ≥ %78 güçlü", "kaynak": "Piotroski (2000)"},
+                {"isim": "Toplam Yükümlülük/Özkaynak (geniş tanım)", "agirlik": "%15",
+                 "esik": "< 1 güçlü · 1-2 orta · > 2 zayıf", "kaynak": "02/FORMÜL-16, İLKE-30"},
+                {"isim": "Merton Temerrüt Olasılığı (EDF)", "agirlik": "%10",
+                 "esik": "düşük ≤ %1-2 güçlü · yüksek > %10 risk sinyali", "kaynak": "03/İLKE-441-444, FORMÜL-171/172"},
+            ],
+        },
+    ],
+}
+
+
 GYO_UYARI_NOTU: dict[str, str] = {
     "tur": "gyo",
     "aciklama": (
@@ -358,6 +486,7 @@ def build_dashboard_data(session: Session, *, now: datetime | None = None) -> di
     nasdaq_last_scan_at = min((r.computed_at for r in nasdaq_rows), default=None)
 
     return {
+        "methodology": SCORE_METHODOLOGY,
         "meta": {
             "generated_at": _iso(now),
             "generated_at_display": _tr_datetime(now),

@@ -67,6 +67,131 @@
   }
   .masthead-meta strong { color: var(--ink-secondary); font-weight: var(--weight-medium); }
 
+  /* ---- Metodoloji paneli (katlanabilir, en üstte) ------------------ */
+  .methodology-panel {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-6);
+    overflow: hidden;
+  }
+  .methodology-panel > summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
+    background: var(--bg-surface-sunken);
+    border-left: var(--accent-bar-w) solid var(--brand-teal);
+    font-size: var(--text-h2);
+    font-weight: var(--weight-semibold);
+    color: var(--ink-primary);
+  }
+  .methodology-panel > summary::-webkit-details-marker { display: none; }
+  .methodology-panel > summary .chevron { font-family: var(--font-mono); color: var(--ink-tertiary); font-size: var(--text-caption); }
+  .methodology-panel[open] > summary .chevron { transform: rotate(90deg); display: inline-block; }
+  .methodology-panel > summary .subtitle {
+    font-size: var(--text-caption);
+    font-weight: var(--weight-regular);
+    color: var(--ink-tertiary);
+    margin-left: auto;
+  }
+  .methodology-body { padding: var(--space-5); }
+  .methodology-intro p {
+    font-size: var(--text-body);
+    color: var(--ink-secondary);
+    line-height: var(--leading-relaxed);
+    margin-bottom: var(--space-4);
+    max-width: 900px;
+  }
+  .methodology-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin-bottom: var(--space-6);
+  }
+  .methodology-badge-chip {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-pill);
+    font-family: var(--font-mono);
+    font-size: var(--text-caption);
+  }
+  .methodology-badge-chip .rng { color: var(--ink-tertiary); }
+  .methodology-badge-chip.saglam { background: var(--clr-positive-soft); color: var(--clr-positive); }
+  .methodology-badge-chip.dengeli { background: var(--brand-gold-soft); color: var(--brand-gold); }
+  .methodology-badge-chip.karisik { background: var(--clr-warning-soft); color: var(--clr-mixed); }
+  .methodology-badge-chip.riskli { background: var(--clr-negative-soft); color: var(--clr-negative); }
+  .methodology-badge-chip.yetersiz { background: var(--bg-surface-sunken); color: var(--ink-tertiary); }
+  .methodology-lens-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+  }
+  .methodology-lens-card {
+    background: var(--bg-surface-raised);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+  }
+  .lens-card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-bottom: var(--space-1);
+  }
+  .lens-card-head .lens-title { font-size: var(--text-h3); font-weight: var(--weight-bold); color: var(--brand-gold); }
+  .lens-card-head .lens-weight { font-family: var(--font-mono); font-size: var(--text-micro); color: var(--ink-tertiary); }
+  .lens-question { font-size: var(--text-caption); color: var(--ink-tertiary); font-style: italic; margin-bottom: var(--space-3); }
+  table.methodology-component-table { width: 100%; border-collapse: collapse; }
+  table.methodology-component-table th {
+    text-align: right;
+    font-size: var(--text-micro);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--ink-tertiary);
+    font-weight: var(--weight-medium);
+    padding: var(--space-1) var(--space-2);
+    border-bottom: 1px solid var(--border-default);
+  }
+  table.methodology-component-table th.col-left { text-align: left; }
+  table.methodology-component-table td {
+    text-align: right;
+    padding: var(--space-2);
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: var(--text-micro);
+    color: var(--ink-secondary);
+    vertical-align: top;
+  }
+  table.methodology-component-table td.col-left { text-align: left; color: var(--ink-primary); }
+  table.methodology-component-table td.q-num { font-family: var(--font-mono); white-space: nowrap; }
+  .source-chip {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--brand-teal);
+    background: rgba(63, 199, 186, 0.10);
+    border-radius: var(--radius-sm);
+    padding: 1px var(--space-2);
+    white-space: normal;
+  }
+  .methodology-legend h3 {
+    font-size: var(--text-caption);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--ink-tertiary);
+    font-weight: var(--weight-semibold);
+    margin-bottom: var(--space-3);
+  }
+  .methodology-legend ul { list-style: none; display: grid; gap: var(--space-2); }
+  .methodology-legend li { font-size: var(--text-caption); color: var(--ink-secondary); line-height: var(--leading-normal); }
+  .methodology-legend li strong { color: var(--ink-primary); }
+
   /* ---- Sekmeler (BİST / NASDAQ) ----------------------------------- */
   .tabs { display: flex; gap: var(--space-2); margin-bottom: var(--space-5); }
   .tab-btn {
@@ -295,6 +420,70 @@
     ({{ data.meta.nasdaq_company_count }}{% if data.meta.nasdaq_universe_total %} / {{ data.meta.nasdaq_universe_total }}{% endif %} şirket)
   </div>
 </header>
+
+<details class="methodology-panel">
+  <summary>
+    <span class="chevron">▸</span>
+    <span>Metodoloji: Puanlar Nasıl Hesaplanıyor?</span>
+    <span class="subtitle">tıkla, aç/kapa</span>
+  </summary>
+  <div class="methodology-body">
+    <div class="methodology-intro">
+      <p><strong>Bileşik Skor:</strong> {{ data.methodology.bilesik_aciklama }}</p>
+      <p><strong>Kapsam nedir?</strong> {{ data.methodology.kapsam_aciklama }}</p>
+    </div>
+
+    <div class="methodology-badges">
+      {% for r in data.methodology.rozet_esikleri %}
+      <div class="methodology-badge-chip {{ r.css }}">
+        <span class="rng">{{ r.aralik }}</span>
+        <span>{{ r.rozet }}</span>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="methodology-lens-grid">
+      {% for mercek in data.methodology.mercekler %}
+      <div class="methodology-lens-card">
+        <div class="lens-card-head">
+          <span class="lens-title">{{ mercek.baslik }}</span>
+          <span class="lens-weight">Bileşik skordaki ağırlığı: {{ mercek.bilesik_agirlik }}</span>
+        </div>
+        <p class="lens-question">{{ mercek.soru }}</p>
+        <table class="methodology-component-table">
+          <thead>
+            <tr>
+              <th class="col-left">Bileşen</th>
+              <th>Ağırlık</th>
+              <th class="col-left">Eşik (özet)</th>
+              <th class="col-left">Kaynak</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for b in mercek.bilesenler %}
+            <tr>
+              <td class="col-left">{{ b.isim }}</td>
+              <td class="q-num">{{ b.agirlik }}</td>
+              <td class="col-left">{{ b.esik }}</td>
+              <td class="col-left"><span class="source-chip">{{ b.kaynak }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="methodology-legend">
+      <h3>Kaynak kitaplar (bilgi bankası referans kodları)</h3>
+      <ul>
+        {% for k in data.methodology.kaynak_kitaplar %}
+        <li><strong>{{ k.kod }} — {{ k.yazar }}:</strong> {{ k.tam_ad }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</details>
 
 <nav class="tabs">
   <button type="button" class="tab-btn active" data-market="BIST">BİST ({{ data.meta.bist_company_count }})</button>

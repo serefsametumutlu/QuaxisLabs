@@ -1854,6 +1854,42 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       (`test_kap.py`, `test_pdf_ocr.py`, `test_kar_kaynagi.py`,
       `test_commentary.py`, `test_market_scan_result.py`,
       `test_company_detail.py`) — tam suite 1488 test yeşil.
+- [x] **Skor Geçmişi (şirket detay sayfası, çok dönemli trend)** —
+      (2026-08-12, kullanıcı isteği: "sadece güncel dönem değil, son 3+
+      dönemin Değer/Kalite/Büyüme/Güvenlik + Bileşik skorlarını görmek
+      istiyorum"):
+      1. `src/bot/pipeline.py::_hesapla_mercek_anlik_goruntu()` — 4-mercek/
+         Bileşik Skor hesaplama çekirdeği `compute_multi_lens_score_for_
+         ticker()`'ın gövdesinden (davranış BİREBİR AYNI kalacak şekilde)
+         çıkarıldı; YENİ `compute_historical_lens_scores_for_ticker()` AYNI
+         çekirdeği güncel dönem + en fazla 3 geçmiş dönem için (`financials_
+         by_period`'ı o döneme KIRPARAK) TEKRAR çağırır — sıfır ek ağ
+         isteği (o çağrı içinde zaten çekilmiş `financials_by_period`/
+         `own_bars` reuse edilir, sadece CPU maliyeti ~4 katına çıkar).
+         Geçmiş dönemlerde "Sektöre Göreli Konum" (Değer) ve "Merton
+         Temerrüt Olasılığı (EDF)" (Güvenlik) bilinçli olarak atlanır —
+         güncel sektör medyanını/fiyat oynaklığını geçmiş bir dönemle
+         kıyaslamak kavramsal olarak yanlış olurdu; ağırlık diğer
+         bileşenlere orantısal dağıtılır (mevcut desen). Fiyata bağlı
+         bileşenler için dönemin bitişine en yakın OHLCV kapanışı kullanılır
+         (`_price_at_period_end`, zaten çekilmiş ~400 günlük fiyat serisiyle).
+      2. `MarketScanResult.tarihsel_skorlar` (YENİ JSON sütun, idempotent
+         migration) — `scripts/tarama_toplu.py::_scan_one()` HER taramada
+         (mercekler_detay ile AYNI zamanlama) yazar; bu hesaplama PATLARSA
+         ana "ok" tarama sonucu ETKİLENMEZ (Kural 9, loglanır).
+      3. `src/render/company_detail.py` + `company_detail.html` — yeni
+         "Skor Geçmişi" bölümü, dönem sütunlu/renk kodlu bir TABLO (harici
+         SVG/CDN yasağı altında düşük riskli seçim; mevcut mercek/finansal
+         tablo/faaliyet raporu bölümlerine dokunulmadı).
+      **CANLI DOĞRULANDI**: TOASO için 4 anlık görüntü (2Ç26 güncel +
+      1Ç26/4Ç25/3Ç25) üretildi, `scripts/tarama_toplu.py`'nin gerçek
+      `_scan_one()` çağrısıyla DB'ye yazılıp `company_detail.py` ile uçtan
+      uca render edildi (skorlar dönemler arasında anlamlı şekilde
+      değişiyor: 3,7 → 4,7 → 4,7 → 4,5). Şu an çalışan tam evren taramaları
+      bu değişiklikten etkilenmez (Python zaten yüklenmiş eski kodu bellekte
+      tutar) — bir SONRAKİ tarama turunda otomatik devreye girer. 24 yeni
+      test (`test_pipeline_historical_scores.py` + `test_tarama_toplu.py`/
+      `test_company_detail.py` eklemeleri) — tam suite 1510 test yeşil.
 
 ## Dizin Yapisi
 

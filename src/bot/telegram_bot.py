@@ -30,7 +30,7 @@ from src.bot import fund_pipeline, ipo_pipeline, menu, pipeline
 from src.db import models, repository
 from src.fetchers import kap_ipo, price_history
 from src.formatting import format_number_tr
-from src.render import calendar_card, card, deep_card, fund_card, fundamental_screens_card, ipo_card, technical_card
+from src.render import calendar_card, card, dashboard, deep_card, fund_card, fundamental_screens_card, ipo_card, technical_card
 
 logger = logging.getLogger(__name__)
 
@@ -243,6 +243,16 @@ async def cmd_halkaarz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     AYNI hedef (menu:halkaarz akışına doğrudan bir kısayol)."""
     await update.message.reply_text(menu.HALKAARZ_YUKLENIYOR_TEXT)
     await _gonder_halkaarz_liste(update.effective_chat.id, context)
+
+
+async def cmd_piyasa(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/piyasa -- Faz 5 (docs/spec/spec_dashboard.md) Piyasa Dashboard'u.
+    KESİN karar (spec §'/piyasa komutu', 2026-08-12 kullanıcı onayı):
+    FORCE-REFRESH YAPMAZ/ağa GİTMEZ -- diğer basit komutlarla (cmd_takvim
+    vb.) AYNI ilke: orkestrasyon _gonder_piyasa()'ya delege edilir."""
+    chat_id = update.effective_chat.id
+    await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.UPLOAD_DOCUMENT)
+    await _gonder_piyasa(chat_id, context)
 
 
 @retry(
@@ -562,6 +572,84 @@ async def _gonder_halkaarz_detay_ic(chat_id: int, context: ContextTypes.DEFAULT_
         await context.bot.send_message(chat_id=chat_id, text=ipo_card.build_ipo_analysis_text(ipo_context))
     except Exception:
         logger.exception("%s halka arz metni gönderilemedi", ticker)
+
+
+# --- Piyasa Dashboard (Faz 5: docs/spec/spec_dashboard.md) -----------------------------------------------------
+
+
+@retry(
+    reraise=True,
+    stop=stop_after_attempt(config.TELEGRAM_SEND_MAX_RETRIES),
+    wait=wait_fixed(config.TELEGRAM_SEND_RETRY_DELAY_SECONDS),
+    retry=retry_if_exception_type((TimedOut, NetworkError)),
+)
+async def _send_dashboard_document_with_retry(context, chat_id: int, html_path: str, caption: str) -> None:
+    with open(html_path, "rb") as document_file:
+        await context.bot.send_document(
+            chat_id=chat_id,
+            document=document_file,
+            filename="piyasa_dashboard.html",
+            caption=caption,
+        )
+
+
+def _piyasa_ozet_caption(data: dict) -> str:
+    """spec §'/piyasa komutu' madde 3: mesaj gövdesinde AÇIKÇA bir "Son
+    güncelleme" damgası gösterilir -- market bazında EN ESKİ (en kötümser)
+    `computed_at` zaten `dashboard.build_dashboard_data()` tarafından
+    `meta.bist_last_scan_at_display`/`meta.nasdaq_last_scan_at_display`
+    olarak ÖNCEDEN Türkçe biçimlendirilmiş geliyor -- burada YENİDEN bir
+    zaman/sayı hesaplaması YAPILMAZ (quaxis-mimari: LLM/bot katmanı sayı
+    üretmez), sadece hazır string'ler bir mesaja dizilir."""
+    meta = data["meta"]
+    return (
+        "📊 Piyasa Dashboard'u\n\n"
+        f"🇹🇷 BİST: {meta['bist_company_count']} şirket · son tarama {meta['bist_last_scan_at_display']}\n"
+        f"🇺🇸 NASDAQ: {meta['nasdaq_company_count']} şirket · son tarama {meta['nasdaq_last_scan_at_display']}\n\n"
+        "Ekteki dosyayı bir tarayıcıda aç -- arama/filtre/sıralama dosyanın içinde çalışır.\n\n"
+        "ℹ️ Bu görünüm YENİ bir tarama tetiklemez; en son tamamlanmış toplu taramanın anlık görüntüsüdür.\n\n"
+        "Bu içerik yatırım tavsiyesi değildir."
+    )
+
+
+async def _gonder_piyasa_ic(chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
+    with repository.get_session() as session:
+        data = await asyncio.to_thread(dashboard.build_dashboard_data, session)
+
+    if data["meta"]["bist_company_count"] == 0 and data["meta"]["nasdaq_company_count"] == 0:
+        # Kural 3 (sessizce başarısız olma/0 varsayma yasağı): hiçbir
+        # MarketScanResult satırı yoksa (scripts/tarama_toplu.py hiç
+        # çalıştırılmamışsa) boş/anlamsız bir dashboard.html GÖNDERİLMEZ --
+        # kullanıcıya sebep VE çözüm açıkça belirtilir.
+        await context.bot.send_message(
+            chat_id,
+            "📊 Henüz bir piyasa taraması yapılmamış, bu yüzden gösterilecek bir dashboard yok.\n\n"
+            "Bir yönetici `scripts/tarama_toplu.py` scriptini çalıştırdıktan sonra "
+            "/piyasa komutu kullanılabilir olacak.",
+        )
+        return
+
+    # spec KESİN kararı: build_and_write_dashboard() SADECE mevcut
+    # MarketScanResult anlık görüntüsünü render eder, ağa GİTMEZ (bkz. o
+    # fonksiyonun docstring'i) -- burada YENİDEN üretilmez, doğrudan
+    # bağlanır.
+    html_path = await asyncio.to_thread(dashboard.build_and_write_dashboard)
+    caption = _piyasa_ozet_caption(data)
+    await _send_dashboard_document_with_retry(context, chat_id, html_path, caption)
+
+
+async def _gonder_piyasa(chat_id: int, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """'/piyasa' komutunun orkestrasyonu. `_gonder_fon_tekli` ile AYNI
+    sebepten (bkz. o fonksiyonun üst notu) TÜM akış tek bir try/except
+    içinde -- beklenmedik bir hata ASLA sessiz kalmaz (Kural 9)."""
+    try:
+        await _gonder_piyasa_ic(chat_id, context)
+    except Exception:
+        logger.exception("Piyasa dashboard'u beklenmeyen bir hatayla başarısız oldu")
+        await context.bot.send_message(
+            chat_id,
+            "⚠️ Piyasa dashboard'u hazırlanırken beklenmedik bir hata oluştu, birkaç dakika sonra tekrar dener misin?",
+        )
 
 
 # --- Teknik Görünüm (Faz 15) -----------------------------------------------------
@@ -1432,6 +1520,7 @@ _BOT_COMMANDS = [
     BotCommand("fon", "Tek bir fon kodu için tahmin"),
     BotCommand("son", "Son üretilen 5 kartı listele"),
     BotCommand("takvim", "Yaklaşan bilanço tarihleri (BİST/NASDAQ)"),
+    BotCommand("piyasa", "Piyasa dashboard'u (son toplu tarama anlık görüntüsü)"),
     BotCommand("hakkinda", "Veri kaynakları ve sorumluluk reddi"),
 ]
 
@@ -1468,6 +1557,7 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("halkaarz", cmd_halkaarz))
     application.add_handler(CommandHandler("son", cmd_son))
     application.add_handler(CommandHandler("takvim", cmd_takvim))
+    application.add_handler(CommandHandler("piyasa", cmd_piyasa))
     application.add_handler(CommandHandler("hakkinda", cmd_hakkinda))
     application.add_handler(CallbackQueryHandler(handle_period_callback, pattern=r"^oncekidonem:"))
     application.add_handler(CallbackQueryHandler(handle_teknik_callback, pattern=r"^teknik:"))

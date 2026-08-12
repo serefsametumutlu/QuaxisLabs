@@ -9,6 +9,7 @@ scripts/demo_pipeline.py ve canli Telegram testiyle dogrulanir.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -853,3 +854,112 @@ def test_execute_and_send_her_ikisi_de_basarisizsa_iki_piyasayi_da_belirtir(monk
 
     (_, text), _ = context.bot.send_message.await_args
     assert "BİST" in text and "NASDAQ" in text
+
+
+# --- /piyasa (Faz 5: docs/spec/spec_dashboard.md "Piyasa Dashboard'u") -----------------------------------------------------
+#
+# spec KESİN kararı: /piyasa FORCE-REFRESH YAPMAZ/ağa GİTMEZ -- src.render.
+# dashboard.build_and_write_dashboard() SADECE mevcut MarketScanResult anlık
+# görüntüsünü render eder. Testler gerçek DB'ye/ağa ÇIKMAZ -- repository.
+# get_session() ve dashboard.build_dashboard_data()/build_and_write_dashboard()
+# monkeypatch ile sahtelenir (bu modülün geri kalanındaki pipeline.run_pipeline
+# sahtelemesiyle AYNI ilke).
+
+
+@contextmanager
+def _fake_get_session():
+    yield SimpleNamespace()
+
+
+def _fake_dashboard_data(bist_count: int, nasdaq_count: int) -> dict:
+    return {
+        "meta": {
+            "bist_company_count": bist_count,
+            "nasdaq_company_count": nasdaq_count,
+            "bist_last_scan_at_display": "12.08.2026 09:11" if bist_count else "—",
+            "nasdaq_last_scan_at_display": "10.08.2026 22:40" if nasdaq_count else "—",
+        },
+    }
+
+
+def test_gonder_piyasa_veri_varken_belge_gonderir(monkeypatch, tmp_path) -> None:
+    """MarketScanResult satırları VARSA: build_and_write_dashboard()'ın
+    ürettiği dosya send_document ile (chat_id, dosya adı, özet caption
+    içinde BİST/NASDAQ son tarama bilgisiyle) gönderilmeli."""
+    monkeypatch.setattr(telegram_bot.asyncio, "to_thread", _fake_to_thread)
+    monkeypatch.setattr(telegram_bot.repository, "get_session", _fake_get_session)
+    monkeypatch.setattr(telegram_bot.dashboard, "build_dashboard_data", lambda session: _fake_dashboard_data(10, 5))
+
+    html_path = tmp_path / "dashboard.html"
+    html_path.write_text("<html></html>", encoding="utf-8")
+    monkeypatch.setattr(telegram_bot.dashboard, "build_and_write_dashboard", lambda: str(html_path))
+
+    bot = SimpleNamespace(send_message=AsyncMock(), send_document=AsyncMock())
+    context = SimpleNamespace(bot=bot, user_data={})
+
+    _run_coro(telegram_bot._gonder_piyasa(555, context))
+
+    bot.send_document.assert_awaited_once()
+    _, kwargs = bot.send_document.await_args
+    assert kwargs["chat_id"] == 555
+    assert kwargs["filename"] == "piyasa_dashboard.html"
+    assert "BİST" in kwargs["caption"] and "NASDAQ" in kwargs["caption"]
+    bot.send_message.assert_not_awaited()
+
+
+def test_gonder_piyasa_hic_tarama_yoksa_belge_yerine_bilgi_mesaji_gonderir(monkeypatch) -> None:
+    """Hiç MarketScanResult satırı yoksa (tarama_toplu.py hiç çalıştırılmamış):
+    boş/anlamsız bir dashboard GÖNDERİLMEMELİ, bunun yerine sebep+çözüm
+    içeren açık bir Türkçe mesaj gitmeli (Kural 3)."""
+    monkeypatch.setattr(telegram_bot.asyncio, "to_thread", _fake_to_thread)
+    monkeypatch.setattr(telegram_bot.repository, "get_session", _fake_get_session)
+    monkeypatch.setattr(telegram_bot.dashboard, "build_dashboard_data", lambda session: _fake_dashboard_data(0, 0))
+
+    def _cagirilmamali():
+        raise AssertionError("veri yokken build_and_write_dashboard cagirilmamali")
+
+    monkeypatch.setattr(telegram_bot.dashboard, "build_and_write_dashboard", _cagirilmamali)
+
+    bot = SimpleNamespace(send_message=AsyncMock(), send_document=AsyncMock())
+    context = SimpleNamespace(bot=bot, user_data={})
+
+    _run_coro(telegram_bot._gonder_piyasa(555, context))
+
+    bot.send_document.assert_not_awaited()
+    bot.send_message.assert_awaited_once()
+    (_, text), _ = bot.send_message.await_args
+    assert "tarama_toplu.py" in text
+
+
+def test_gonder_piyasa_beklenmedik_hata_sessiz_kalmaz(monkeypatch) -> None:
+    """Kural 9: beklenmedik BİR hata (ör. DB bağlantı hatası) kullanıcıya
+    SESSİZCE hiçbir şey olmadan sonuçlanmamalı, açık bir uyarı gitmeli."""
+    monkeypatch.setattr(telegram_bot.asyncio, "to_thread", _fake_to_thread)
+    monkeypatch.setattr(telegram_bot.repository, "get_session", _fake_get_session)
+
+    def _patlar(session):
+        raise RuntimeError("beklenmedik db hatasi")
+
+    monkeypatch.setattr(telegram_bot.dashboard, "build_dashboard_data", _patlar)
+
+    bot = SimpleNamespace(send_message=AsyncMock(), send_document=AsyncMock())
+    context = SimpleNamespace(bot=bot, user_data={})
+
+    _run_coro(telegram_bot._gonder_piyasa(555, context))
+
+    bot.send_document.assert_not_awaited()
+    bot.send_message.assert_awaited_once()
+    (_, text), _ = bot.send_message.await_args
+    assert "hata" in text.lower()
+
+
+def test_cmd_piyasa_chat_action_gonderir_ve_gonder_piyasaya_delege_eder(monkeypatch) -> None:
+    calls = AsyncMock()
+    monkeypatch.setattr(telegram_bot, "_gonder_piyasa", calls)
+    context = _fake_context_with_bot()
+    update = SimpleNamespace(effective_chat=SimpleNamespace(id=555))
+
+    _run_coro(telegram_bot.cmd_piyasa(update, context))
+
+    context.bot.send_chat_action.assert_awaited_once()
+    calls.assert_awaited_once_with(555, context)

@@ -295,6 +295,80 @@ def fetch_disclosure_attachment_pdf(disclosure_index: int) -> bytes | None:
     return pdf_response.content
 
 
+# --- Faaliyet raporu keşfi (docs/spec/spec_veri_tamlik_yol_haritasi.md
+# §Faaliyet Raporu / Dipnot Araştırması, "Önerilen somut ilk adım" madde 1)
+# ------------------------------------------------------------------------
+#
+# CANLI DOĞRULANDI (2026-08-12, THYAO, son 365 gün): KAP kategori adı TAM
+# OLARAK "Faaliyet Raporu (Konsolide)" -- hem ÜÇ AYLIK "Yönetim Kurulu
+# Faaliyet Raporu" bildirimlerini (SPK Seri:II No:14.1 Tebliği formatı,
+# yapısal/kısa) HEM DE yıllık "Entegre Faaliyet Raporu" bildirimini (glossy/
+# sürdürülebilirlik ağırlıklı, çok daha uzun) AYNI kategoride taşıyor --
+# görev talimatının istediği basit "category/title içinde anahtar kelime"
+# eşleşmesi (en güncel bildirim seçilir) bu ikisi arasında AYRIM YAPMAZ,
+# spec'in kendisi de bunu istemiyor (bkz. spec madde 1: "EN GÜNCEL ilgili
+# bildirim").
+_ANNUAL_REPORT_KEYWORDS: tuple[str, ...] = ("faaliyet raporu", "yıllık rapor")
+
+# CANLI ÖLÇÜLDÜ (2026-08-12, THYAO): `fetch_disclosures_by_oid()`'a
+# days=400 verilince KAP `/api/disclosure/members/byCriteria` uç noktası
+# HTTP 500 döndürüyor (muhtemelen sunucu tarafı bir pencere sınırı --
+# `fetch_all_disclosures()`'ın 2000 satır kesme sınırından FARKLI bir
+# kısıt); days=365 SORUNSUZ çalıştı (90 bildirim, hem üç aylık hem yıllık
+# faaliyet raporu KAYDINI kapsadı). Bu yüzden varsayılan pencere 365 gün --
+# yaklaşık bir takvim yılı, yıllık raporun (genelde Şubat-Mart'ta yayınlanır)
+# HER ZAMAN pencere içinde kalmasını sağlar.
+_ANNUAL_REPORT_DISCOVERY_DAYS = 365
+
+
+def find_latest_annual_report_disclosure(disclosures: list[Disclosure]) -> Disclosure | None:
+    """`disclosures` (ZATEN tarihe göre AZALAN sıralı -- bkz.
+    `fetch_disclosures_by_oid()`) içinde kategori/başlık metninde
+    `_ANNUAL_REPORT_KEYWORDS`'ten biri geçen EN GÜNCEL bildirimi döner;
+    hiçbiri eşleşmiyorsa `None` (Kural 3 -- uydurma yapılmaz, çağıran taraf
+    -- `src/ai/kar_kaynagi.py` -- bu durumda dürüst bir placeholder ile
+    devam eder).
+
+    Saf filtre -- ağa GİTMEZ, sadece VERİLEN bir liste üzerinde çalışır; bu
+    yüzden `fetch_latest_annual_report_pdf()`'ten AYRI, tek başına test
+    edilebilir bir fonksiyon olarak tutuldu."""
+    for d in disclosures:
+        haystack = _turkish_lower(f"{d.category} {d.title}")
+        if any(keyword in haystack for keyword in _ANNUAL_REPORT_KEYWORDS):
+            return d
+    return None
+
+
+def fetch_latest_annual_report_pdf(
+    ticker: str, days: int = _ANNUAL_REPORT_DISCOVERY_DAYS
+) -> tuple[Disclosure, bytes] | None:
+    """`fetch_disclosures()` + `find_latest_annual_report_disclosure()` +
+    `fetch_disclosure_attachment_pdf()`'i BİRLEŞTİREN tek bir yardımcı --
+    YENİ bir mimari bileşen DEĞİL, üç MEVCUT fonksiyonun birleşimi (spec
+    madde 1: "bu, MEVCUT iki fonksiyonun BİRLEŞTİRİLMESİDİR").
+
+    Uygun bir bildirim BULUNAMAZSA veya bulunan bildirimin eki PDF
+    DEĞİLSE/YOKSA `None` döner (Kural 3 -- hata FIRLATILMAZ, çağıran taraf
+    dürüst bir placeholder ile devam eder).
+
+    Hatalar:
+        KapCompanyNotFoundError / KapNetworkError: `fetch_disclosures()` ile AYNI
+        (bunlar GERÇEK ağ/şirket-bulunamadı hatalarıdır, yutulmaz)."""
+    disclosures = fetch_disclosures(ticker, days=days)
+    target = find_latest_annual_report_disclosure(disclosures)
+    if target is None:
+        logger.info("%s icin son %s gunde faaliyet raporu/yillik rapor bildirimi bulunamadi.", ticker, days)
+        return None
+
+    pdf_bytes = fetch_disclosure_attachment_pdf(target.disclosure_index)
+    if pdf_bytes is None:
+        logger.info(
+            "%s faaliyet raporu bildirimi (idx=%s) icin ekli PDF bulunamadi.", ticker, target.disclosure_index
+        )
+        return None
+    return target, pdf_bytes
+
+
 def search_company_by_name(query: str) -> list[CompanyMatch]:
     """`search_company()`'nin serbest-metin (tam ticker eşleşmesi GEREKMEYEN)
     varyantı -- Faz 20: halka arza aracılık eden kurumların KAP oid'ini

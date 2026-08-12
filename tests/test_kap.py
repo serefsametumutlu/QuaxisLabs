@@ -338,3 +338,68 @@ def test_fetch_all_disclosures_2000_satira_ulasirsa_uyari_loglar(monkeypatch, ca
 
     assert len(results) == 2000
     assert any("kesme sınırına" in record.message for record in caplog.records)
+
+
+# --- find_latest_annual_report_disclosure / fetch_latest_annual_report_pdf
+# (docs/spec/spec_veri_tamlik_yol_haritasi.md §Faaliyet Raporu) ------------
+
+
+def _disclosure(*, date_, title, category, index, url="https://kap.org.tr/tr/Bildirim/x") -> Disclosure:
+    return Disclosure(
+        date=date_, title=title, category=category, summary=title, url=url,
+        importance=IMPORTANCE_LOW, is_late=False, disclosure_index=index, stock_codes="THYAO",
+    )
+
+
+def test_find_latest_annual_report_disclosure_kategori_esler() -> None:
+    """CANLI DOĞRULANDI (2026-08-12, THYAO): KAP kategori adı TAM OLARAK
+    'Faaliyet Raporu (Konsolide)' -- alt dize eşleşmesi bu gerçek kategori
+    adını YAKALAMALI."""
+    disclosures = [
+        _disclosure(date_=datetime(2026, 8, 5), title="Genel Kurul Daveti", category="Genel Kurul İşlemlerine İlişkin Bildirim", index=1),
+        _disclosure(date_=datetime(2026, 3, 4), title="2025 Entegre Faaliyet Raporu ve TSRS Uyumlu Sürdürülebilirlik Raporu", category="Faaliyet Raporu (Konsolide)", index=2),
+        _disclosure(date_=datetime(2025, 11, 7), title="01.01.2025 - 30.09.2025 Dönemi Yönetim Kurulu Faaliyet Raporu", category="Faaliyet Raporu (Konsolide)", index=3),
+    ]
+    result = kap.find_latest_annual_report_disclosure(disclosures)
+    assert result is not None
+    assert result.disclosure_index == 2  # en güncel (liste zaten tarihe göre azalan sıralı varsayılır)
+
+
+def test_find_latest_annual_report_disclosure_baslikta_yillik_rapor_gecerse_de_eslesir() -> None:
+    disclosures = [
+        _disclosure(date_=datetime(2026, 1, 1), title="2025 Yıllık Raporu Yayınlandı", category="Özel Durum Açıklaması (Genel)", index=5),
+    ]
+    result = kap.find_latest_annual_report_disclosure(disclosures)
+    assert result is not None and result.disclosure_index == 5
+
+
+def test_find_latest_annual_report_disclosure_eslesme_yoksa_none() -> None:
+    disclosures = [
+        _disclosure(date_=datetime(2026, 1, 1), title="Kar Payı Dağıtım İşlemlerine İlişkin Bildirim", category="Kar Payı Dağıtım İşlemlerine İlişkin Bildirim", index=9),
+    ]
+    assert kap.find_latest_annual_report_disclosure(disclosures) is None
+
+
+def test_fetch_latest_annual_report_pdf_disclosure_pdf_ikilisi_doner(monkeypatch) -> None:
+    hedef = _disclosure(date_=datetime(2026, 3, 4), title="2025 Faaliyet Raporu", category="Faaliyet Raporu (Konsolide)", index=2)
+    monkeypatch.setattr(kap, "fetch_disclosures", lambda ticker, days=365: [hedef])
+    monkeypatch.setattr(kap, "fetch_disclosure_attachment_pdf", lambda idx: b"%PDF-fake" if idx == 2 else None)
+
+    result = kap.fetch_latest_annual_report_pdf("THYAO")
+
+    assert result is not None
+    disclosure, pdf_bytes = result
+    assert disclosure.disclosure_index == 2
+    assert pdf_bytes == b"%PDF-fake"
+
+
+def test_fetch_latest_annual_report_pdf_bildirim_yoksa_none(monkeypatch) -> None:
+    monkeypatch.setattr(kap, "fetch_disclosures", lambda ticker, days=365: [])
+    assert kap.fetch_latest_annual_report_pdf("THYAO") is None
+
+
+def test_fetch_latest_annual_report_pdf_ek_pdf_yoksa_none(monkeypatch) -> None:
+    hedef = _disclosure(date_=datetime(2026, 3, 4), title="2025 Faaliyet Raporu", category="Faaliyet Raporu (Konsolide)", index=2)
+    monkeypatch.setattr(kap, "fetch_disclosures", lambda ticker, days=365: [hedef])
+    monkeypatch.setattr(kap, "fetch_disclosure_attachment_pdf", lambda idx: None)
+    assert kap.fetch_latest_annual_report_pdf("THYAO") is None

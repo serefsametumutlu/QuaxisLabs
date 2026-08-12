@@ -1,0 +1,531 @@
+<!--
+  QuaxisLabs Piyasa Dashboard'u -- tek dosya, harici kaynak/CDN YOK
+  (docs/spec/spec_dashboard.md §"Dashboard'a gömülecek JSON şeması" +
+  .claude/skills/kart-tasarim-sistemi/SKILL.md §"Dashboard (piyasa görünümü)
+  standartları").
+
+  ÖNEMLİ: Bu şablon HİÇBİR skor/çarpan HESAPLAMAZ. Bütün değerler
+  src.render.dashboard.build_dashboard_data() tarafından ÖNCEDEN Türkçe
+  biçimlendirilmiş olarak gelir; burada sadece yerleştirilir + istemci-içi
+  arama/filtre/sıralama/sekme geçişi (SAF SUNUM, vanilla JS) uygulanır.
+
+  TOKEN SİSTEMİ: card.html ile AYNI kaynak (`_design_tokens.css`) -- görsel
+  kimlik marka genelinde TUTARLI. Bu dosyada hardcoded hex renk YASAK.
+-->
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QuaxisLabs — Piyasa Dashboard'u</title>
+<style>
+{% include "_design_tokens.css" %}
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg-canvas);
+    color: var(--ink-primary);
+    font-family: var(--font-sans);
+    padding: var(--space-6);
+  }
+
+  .q-num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+
+  /* ---- Masthead -------------------------------------------------- */
+  .masthead {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    padding-bottom: var(--space-5);
+    margin-bottom: var(--space-6);
+    border-bottom: var(--accent-bar-w) solid var(--brand-gold);
+  }
+  .masthead-brand { display: flex; align-items: baseline; gap: var(--space-3); }
+  .masthead-brand .wordmark {
+    font-family: var(--font-mono);
+    font-size: var(--text-caption);
+    letter-spacing: var(--tracking-wider);
+    color: var(--brand-teal);
+    text-transform: uppercase;
+    font-weight: var(--weight-semibold);
+  }
+  .masthead h1 {
+    font-size: var(--text-h1);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-tight);
+    color: var(--ink-primary);
+  }
+  .masthead-meta {
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: var(--text-micro);
+    color: var(--ink-tertiary);
+    line-height: var(--leading-relaxed);
+  }
+  .masthead-meta strong { color: var(--ink-secondary); font-weight: var(--weight-medium); }
+
+  /* ---- Sekmeler (BİST / NASDAQ) ----------------------------------- */
+  .tabs { display: flex; gap: var(--space-2); margin-bottom: var(--space-5); }
+  .tab-btn {
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    font-weight: var(--weight-semibold);
+    color: var(--ink-secondary);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-pill);
+    padding: var(--space-2) var(--space-5);
+    cursor: pointer;
+  }
+  .tab-btn.active {
+    color: var(--bg-canvas);
+    background: var(--brand-gold);
+    border-color: var(--brand-gold);
+  }
+  .market-panel { display: none; }
+  .market-panel.active { display: block; }
+
+  /* ---- Kahraman şeridi: rozet dağılımı ----------------------------- */
+  .badge-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    background: var(--bg-surface-raised);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4) var(--space-5);
+    margin-bottom: var(--space-5);
+  }
+  .badge-chip {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-pill);
+  }
+  .badge-chip .n { font-family: var(--font-mono); font-size: var(--text-h3); font-weight: var(--weight-bold); }
+  .badge-chip .label { font-size: var(--text-micro); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
+  .badge-chip.saglam { background: var(--clr-positive-soft); color: var(--clr-positive); }
+  .badge-chip.dengeli { background: var(--brand-gold-soft); color: var(--brand-gold); }
+  .badge-chip.karisik { background: var(--clr-warning-soft); color: var(--clr-mixed); }
+  .badge-chip.riskli { background: var(--clr-negative-soft); color: var(--clr-negative); }
+  .badge-chip.yetersiz { background: var(--bg-surface-sunken); color: var(--ink-tertiary); }
+  .badge-strip .universe-note {
+    margin-left: auto;
+    align-self: center;
+    font-size: var(--text-caption);
+    color: var(--ink-tertiary);
+    font-family: var(--font-mono);
+  }
+
+  /* ---- Piyasa geneli veri eksiklikleri (bir kez, tekrar edilmez) ---- */
+  .systemic-note {
+    margin-bottom: var(--space-5);
+  }
+  .systemic-note > summary {
+    list-style: none;
+    cursor: pointer;
+    font-size: var(--text-caption);
+    color: var(--ink-tertiary);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .systemic-note > summary::-webkit-details-marker { display: none; }
+  .systemic-note-list {
+    margin-top: var(--space-3);
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: var(--space-2) var(--space-4);
+  }
+  .systemic-note-item {
+    display: flex;
+    gap: var(--space-2);
+    font-size: var(--text-micro);
+    color: var(--ink-tertiary);
+    line-height: var(--leading-normal);
+  }
+  .systemic-note-item .dot { flex-shrink: 0; }
+  .systemic-note-item strong { color: var(--ink-secondary); font-weight: var(--weight-medium); }
+
+  /* ---- Arama ------------------------------------------------------- */
+  .search-row { margin-bottom: var(--space-5); }
+  .search-input {
+    width: 100%;
+    max-width: 480px;
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    color: var(--ink-primary);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
+  }
+  .search-input::placeholder { color: var(--ink-tertiary); }
+  .search-input:focus { outline: none; border-color: var(--brand-gold); }
+
+  /* ---- Sektör grupları ---------------------------------------------- */
+  .sector-group {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-4);
+    overflow: hidden;
+  }
+  .sector-group > summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
+    background: var(--bg-surface-sunken);
+    border-left: var(--accent-bar-w) solid var(--brand-teal);
+  }
+  .sector-group > summary::-webkit-details-marker { display: none; }
+  .sector-group > summary .chevron { font-family: var(--font-mono); color: var(--ink-tertiary); font-size: var(--text-caption); }
+  .sector-group[open] > summary .chevron { transform: rotate(90deg); display: inline-block; }
+  .sector-group .sector-title { font-size: var(--text-h2); font-weight: var(--weight-semibold); color: var(--ink-primary); }
+  .sector-group .sector-n { font-family: var(--font-mono); font-size: var(--text-caption); color: var(--ink-tertiary); }
+  .sector-group .sector-kirilim { font-size: var(--text-micro); color: var(--ink-tertiary); }
+  .sector-group .yetersiz-flag {
+    font-size: var(--text-micro);
+    color: var(--clr-warning);
+    background: var(--clr-warning-soft);
+    border-radius: var(--radius-sm);
+    padding: 2px var(--space-2);
+    font-weight: var(--weight-medium);
+  }
+
+  /* ---- Tablo ---------------------------------------------------------- */
+  .table-scroll { overflow-x: auto; }
+  table.scan-table { width: 100%; border-collapse: collapse; }
+  table.scan-table thead th {
+    background: var(--bg-surface-sunken);
+    text-align: right;
+    font-size: var(--text-micro);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--ink-tertiary);
+    font-weight: var(--weight-medium);
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border-default);
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+  }
+  table.scan-table thead th.col-left { text-align: left; }
+  table.scan-table thead th .sort-arrow { color: var(--brand-gold); margin-left: 2px; }
+  table.scan-table tbody td {
+    text-align: right;
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: var(--text-body);
+    white-space: nowrap;
+  }
+  table.scan-table tbody td.col-left { text-align: left; }
+  table.scan-table tbody tr:hover { background: var(--bg-surface-raised); }
+  table.scan-table tbody tr.row-degraded { opacity: 0.55; }
+
+  .ticker-cell { font-family: var(--font-mono); font-weight: var(--weight-semibold); color: var(--ink-primary); }
+  .company-name { display: block; font-size: var(--text-micro); color: var(--ink-tertiary); font-weight: var(--weight-regular); }
+  .status-pill {
+    font-family: var(--font-mono);
+    font-size: var(--text-micro);
+    padding: 1px var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface-sunken);
+    color: var(--ink-tertiary);
+  }
+
+  .lens-cell { font-family: var(--font-mono); }
+  .lens-cell .flag { color: var(--clr-warning); margin-left: 3px; cursor: help; }
+  .cell-na { color: var(--ink-tertiary); font-family: var(--font-mono); }
+
+  .badge-text.saglam { color: var(--clr-positive); }
+  .badge-text.dengeli { color: var(--brand-gold); }
+  .badge-text.karisik { color: var(--clr-mixed); }
+  .badge-text.riskli { color: var(--clr-negative); }
+  .badge-text.yetersiz { color: var(--ink-tertiary); }
+
+  .bilesik-cell { font-family: var(--font-mono); font-weight: var(--weight-bold); font-size: var(--text-body-lg); }
+  .bilesik-badge { display: block; font-family: var(--font-sans); font-size: var(--text-micro); font-weight: var(--weight-medium); letter-spacing: var(--tracking-wide); }
+
+  .warn-icon { cursor: help; font-size: var(--text-caption); }
+  .warn-icon.yapisal { color: var(--ink-tertiary); }
+  .warn-icon.gecici { color: var(--clr-warning); }
+  .warn-icon.gecici_oncelikli { color: var(--brand-gold); }
+  .warn-icon.kismi { color: var(--clr-mixed); }
+  .warn-icon.gyo { color: var(--brand-teal); }
+  .warn-icon.desteklenmiyor, .warn-icon.hata_bayat { color: var(--clr-negative); }
+
+  .empty-note { padding: var(--space-5); text-align: center; color: var(--ink-tertiary); font-size: var(--text-body); }
+  .hidden { display: none !important; }
+
+  .footer-note {
+    margin-top: var(--space-6);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--border-subtle);
+    font-size: var(--text-micro);
+    color: var(--ink-tertiary);
+    text-align: center;
+  }
+
+  @media (max-width: 900px) {
+    body { padding: var(--space-3); }
+    .masthead { flex-direction: column; }
+    .masthead-meta { text-align: left; }
+    table.scan-table thead th, table.scan-table tbody td { font-size: var(--text-micro); padding: var(--space-1) var(--space-2); }
+  }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-brand">
+    <span class="wordmark">QuaxisLabs</span>
+    <h1>Piyasa Dashboard'u</h1>
+  </div>
+  <div class="masthead-meta">
+    Üretim: <strong>{{ data.meta.generated_at_display }}</strong><br>
+    BİST tarama: <strong>{{ data.meta.bist_last_scan_at_display }}</strong> ({{ data.meta.bist_company_count }} şirket)<br>
+    NASDAQ tarama: <strong>{{ data.meta.nasdaq_last_scan_at_display }}</strong>
+    ({{ data.meta.nasdaq_company_count }}{% if data.meta.nasdaq_universe_total %} / {{ data.meta.nasdaq_universe_total }}{% endif %} şirket)
+  </div>
+</header>
+
+<nav class="tabs">
+  <button type="button" class="tab-btn active" data-market="BIST">BİST ({{ data.meta.bist_company_count }})</button>
+  <button type="button" class="tab-btn" data-market="NASDAQ">NASDAQ ({{ data.meta.nasdaq_company_count }})</button>
+</nav>
+
+{% for market in ["BIST", "NASDAQ"] %}
+<section class="market-panel{% if loop.first %} active{% endif %}" data-market-panel="{{ market }}">
+
+  <div class="badge-strip">
+    {% for badge_name, css_class in [("SAĞLAM","saglam"), ("DENGELİ","dengeli"), ("KARIŞIK","karisik"), ("RİSKLİ","riskli"), ("YETERSİZ VERİ","yetersiz")] %}
+    <div class="badge-chip {{ css_class }}">
+      <span class="n q-num">{{ data.markets[market].badge_dagilimi.get(badge_name, 0) }}</span>
+      <span class="label">{{ badge_name }}</span>
+    </div>
+    {% endfor %}
+    {% if market == "NASDAQ" %}
+    <span class="universe-note">
+      {% if data.meta.nasdaq_universe_total %}
+        Filtrelenmiş hedef evrenin %{{ ((data.meta.nasdaq_company_count / data.meta.nasdaq_universe_total) * 100) | round(0) | int }}'i tarandı
+      {% else %}
+        hedef evren boyutu henüz ölçülmedi (--dry-run bekleniyor)
+      {% endif %}
+    </span>
+    {% endif %}
+  </div>
+
+  {% if data.markets[market].sistemik_uyarilar %}
+  <details class="systemic-note">
+    <summary>▸ Bu piyasada sistemik olarak eksik veri bileşenleri ({{ data.markets[market].sistemik_uyarilar | length }}) -- HER şirket için aynıdır, tablo satırlarında tekrarlanmaz</summary>
+    <div class="systemic-note-list">
+      {% for u in data.markets[market].sistemik_uyarilar %}
+      <div class="systemic-note-item"><span class="dot warn-icon {{ u.tur }}">●</span><span><strong>{{ u.mercek }} — {{ u.bilesen }}:</strong> {{ u.aciklama }}</span></div>
+      {% endfor %}
+    </div>
+  </details>
+  {% endif %}
+
+  <div class="search-row">
+    <input type="text" class="search-input" placeholder="Ticker veya şirket adı ara ({{ market }})..." data-search-for="{{ market }}">
+  </div>
+
+  {% if data.markets[market].sectors %}
+    {% for sector in data.markets[market].sectors %}
+    <details class="sector-group" open data-sector-group>
+      <summary>
+        <span class="chevron">▸</span>
+        <span class="sector-title">{{ sector.ust_sektor }}</span>
+        <span class="sector-n q-num">n={{ sector.n }}</span>
+        <span class="sector-kirilim">
+          {% for turu, adet in sector.sirket_turu_kirilimi.items() %}{{ turu }}: {{ adet }}{% if not loop.last %} · {% endif %}{% endfor %}
+        </span>
+        {% if sector.yetersiz_ornek %}
+        <span class="yetersiz-flag">sektör karşılaştırması için yetersiz örneklem (n={{ sector.n }}, gereken n≥{{ sector.min_sector_n }})</span>
+        {% endif %}
+      </summary>
+
+      <div class="table-scroll">
+      <table class="scan-table" data-sortable>
+        <thead>
+          <tr>
+            <th class="col-left" data-sort-key="ticker">Şirket</th>
+            <th class="col-left" data-sort-key="sirket_turu">Tür</th>
+            <th data-sort-key="deger">Değer</th>
+            <th data-sort-key="kalite">Kalite</th>
+            <th data-sort-key="buyume">Büyüme</th>
+            <th data-sort-key="guvenlik">Güvenlik</th>
+            <th data-sort-key="bilesik">Bileşik</th>
+            <th data-sort-key="pe">F/K</th>
+            <th data-sort-key="pb">PD/DD</th>
+            <th data-sort-key="ev_ebitda">FD/FAVÖK</th>
+            <th data-sort-key="coverage">Kapsam</th>
+            <th class="col-left" data-sort-key="uyari">Uyarı</th>
+            <th data-sort-key="computed_at">Son Tarama</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in sector.companies %}
+          <tr data-ticker="{{ c.ticker }}" data-company-name="{{ c.company_name }}" class="{% if c.scan_status != 'ok' %}row-degraded{% endif %}">
+            <td class="col-left"
+                data-sort="{{ c.ticker }}">
+              <span class="ticker-cell">{{ c.ticker }}</span>
+              <span class="company-name">{{ c.company_name }}{% if c.scan_status != 'ok' %} — <span class="status-pill">{{ c.scan_status }}</span>{% endif %}</span>
+            </td>
+            <td class="col-left" data-sort="{{ c.sirket_turu_display }}">{{ c.sirket_turu_display }}</td>
+
+            {% for key in ["değer", "kalite", "büyüme", "güvenlik"] %}
+              {% set lens = c.mercekler[key] if c.mercekler else None %}
+              <td class="lens-cell q-num" data-sort="{{ lens.score if lens else -1 }}">
+                {% if lens %}
+                  <span class="badge-text {{ lens.badge_class }}">{{ lens.score_display }}</span>
+                  {% if lens.dusuk_kapsam %}<span class="flag" title="Düşük veri kapsamı: {{ lens.data_coverage_pct_display }}">△</span>{% endif %}
+                {% else %}
+                  <span class="cell-na">—</span>
+                {% endif %}
+              </td>
+            {% endfor %}
+
+            <td class="bilesik-cell q-num" data-sort="{{ c.bilesik.score if c.bilesik else -1 }}">
+              {% if c.bilesik %}
+                {{ c.bilesik.score_display }}
+                <span class="bilesik-badge badge-text {{ c.bilesik.badge_class }}">{{ c.bilesik.badge }}</span>
+              {% else %}
+                <span class="cell-na">—</span>
+              {% endif %}
+            </td>
+
+            <td class="q-num" data-sort="{{ c.carpanlar.pe_ratio if c.carpanlar else -999999 }}">{{ c.carpanlar.pe_ratio_display if c.carpanlar else "—" }}</td>
+            <td class="q-num" data-sort="{{ c.carpanlar.pb_ratio if c.carpanlar else -999999 }}">{{ c.carpanlar.pb_ratio_display if c.carpanlar else "—" }}</td>
+            <td class="q-num" data-sort="{{ c.carpanlar.ev_ebitda if c.carpanlar else -999999 }}">{{ c.carpanlar.ev_ebitda_display if c.carpanlar else "—" }}</td>
+            <td class="q-num" data-sort="{{ c.bilesik.data_coverage_pct if c.bilesik else -1 }}">{{ c.bilesik.data_coverage_pct_display if c.bilesik else "—" }}</td>
+
+            {% set satir_ozel_uyarilar = c.veri_uyarilari | selectattr("tur", "in", ["gyo", "desteklenmiyor", "hata_bayat"]) | list %}
+            <td class="col-left" data-sort="{{ satir_ozel_uyarilar | length }}">
+              {# Piyasa-geneli sistemik uyarılar (spec: "AYNI ayni-sablon+ayni-piyasa
+                 satırlarında AYNI liste görünür") panel üstünde BİR KEZ gösteriliyor
+                 (bkz. .systemic-note) -- burada tekrar EDİLMEZ (Tufte: veri-mürekkep
+                 oranı, aynı bilginin 32/30 kez tekrarı gürültüdür). Sadece SATIRA
+                 ÖZGÜ notlar (GYO/desteklenmiyor/bayat-skor) + düşük-kapsam bayrağı. #}
+              {% for uyari in satir_ozel_uyarilar %}
+              <span class="warn-icon {{ uyari.tur }}" title="{{ uyari.aciklama }}">●</span>
+              {% endfor %}
+              {% if c.dusuk_kapsam_var %}<span class="warn-icon gecici" title="Bir veya daha fazla mercek düşük veri kapsamıyla (&lt;%50) hesaplandı -- ilgili mercek hücresindeki △ işaretine bakın">△</span>{% endif %}
+            </td>
+
+            <td class="q-num" data-sort="{{ c.computed_at or '' }}">{{ c.computed_at_display }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+    </details>
+    {% endfor %}
+  {% else %}
+    <p class="empty-note">Bu piyasa için henüz taranmış bir kayıt yok.</p>
+  {% endif %}
+
+  <p class="empty-note hidden" data-no-match-note="{{ market }}">Aramayla eşleşen şirket bulunamadı.</p>
+</section>
+{% endfor %}
+
+<p class="footer-note">
+  Bu içerik yatırım tavsiyesi değildir; yatırım kararı için profesyonel danışmanlık alınmalıdır.
+  Veri kaynağı: İş Yatırım / KAP (BİST), SEC EDGAR (NASDAQ) — bkz. docs/spec/spec_dashboard.md.
+</p>
+
+<script type="application/json" id="dashboard-data">{{ data_json | safe }}</script>
+<script>
+(function () {
+  "use strict";
+
+  // ---- Sekme geçişi (BİST/NASDAQ) --------------------------------------
+  var tabButtons = document.querySelectorAll(".tab-btn");
+  tabButtons.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var market = btn.getAttribute("data-market");
+      tabButtons.forEach(function (b) { b.classList.toggle("active", b === btn); });
+      document.querySelectorAll(".market-panel").forEach(function (panel) {
+        panel.classList.toggle("active", panel.getAttribute("data-market-panel") === market);
+      });
+    });
+  });
+
+  // ---- Arama/filtre (ticker + şirket adı) ------------------------------
+  document.querySelectorAll(".search-input").forEach(function (input) {
+    input.addEventListener("input", function () {
+      var market = input.getAttribute("data-search-for");
+      var panel = document.querySelector('.market-panel[data-market-panel="' + market + '"]');
+      var query = input.value.trim().toLocaleUpperCase("tr");
+      var anyVisibleGlobal = false;
+
+      panel.querySelectorAll("[data-sector-group]").forEach(function (group) {
+        var rows = group.querySelectorAll("tbody tr");
+        var groupHasMatch = false;
+        rows.forEach(function (row) {
+          var ticker = (row.getAttribute("data-ticker") || "").toLocaleUpperCase("tr");
+          var name = (row.getAttribute("data-company-name") || "").toLocaleUpperCase("tr");
+          var match = query === "" || ticker.indexOf(query) !== -1 || name.indexOf(query) !== -1;
+          row.classList.toggle("hidden", !match);
+          if (match) { groupHasMatch = true; anyVisibleGlobal = true; }
+        });
+        group.classList.toggle("hidden", !groupHasMatch);
+        if (query !== "" && groupHasMatch) { group.open = true; }
+      });
+
+      var noMatchNote = panel.querySelector("[data-no-match-note]");
+      if (noMatchNote) { noMatchNote.classList.toggle("hidden", anyVisibleGlobal || query === ""); }
+    });
+  });
+
+  // ---- Sütun bazlı sıralama (saf DOM yeniden-sıralama, hesaplama YOK) --
+  document.querySelectorAll("table[data-sortable] thead th").forEach(function (th) {
+    th.addEventListener("click", function () {
+      var table = th.closest("table");
+      var tbody = table.querySelector("tbody");
+      var index = Array.prototype.indexOf.call(th.parentElement.children, th);
+      var ascending = th.getAttribute("data-sort-dir") !== "asc";
+
+      table.querySelectorAll("thead th").forEach(function (other) {
+        other.removeAttribute("data-sort-dir");
+        var arrow = other.querySelector(".sort-arrow");
+        if (arrow) { arrow.remove(); }
+      });
+      th.setAttribute("data-sort-dir", ascending ? "asc" : "desc");
+      var arrowSpan = document.createElement("span");
+      arrowSpan.className = "sort-arrow";
+      arrowSpan.textContent = ascending ? "▲" : "▼";
+      th.appendChild(arrowSpan);
+
+      var isNumeric = function (s) { return /^-?\d+(\.\d+)?$/.test(s); };
+      var rows = Array.prototype.slice.call(tbody.querySelectorAll("tr"));
+      rows.sort(function (rowA, rowB) {
+        var cellA = rowA.children[index].getAttribute("data-sort") || "";
+        var cellB = rowB.children[index].getAttribute("data-sort") || "";
+        var cmp;
+        if (isNumeric(cellA) && isNumeric(cellB)) {
+          // Sayısal sütunlar (skor/çarpan/kapsam%) -- ISO tarih gibi
+          // sabit-genişlikli string sütunlarda (ör. "2026-08-12T09:11:00Z")
+          // isNumeric FALSE döner, bu yüzden aşağıdaki localeCompare dalına
+          // düşer (leksikografik sıralama = kronolojik sıralama, doğru sonuç).
+          cmp = parseFloat(cellA) - parseFloat(cellB);
+        } else {
+          cmp = cellA.localeCompare(cellB, "tr");
+        }
+        return ascending ? cmp : -cmp;
+      });
+      rows.forEach(function (row) { tbody.appendChild(row); });
+    });
+  });
+})();
+</script>
+
+</body>
+</html>

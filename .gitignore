@@ -17,3 +17,9 @@ data/tessdata/
 .venv/
 venv/
 kitaplar/*.pdf
+
+# Faz 5 (docs/spec/spec_dashboard.md): src/render/dashboard.py::build_and_write_dashboard()
+# HER calistirildiginda uretilen, gercek MarketScanResult anlik goruntusunu
+# (+ base64 gomulu fontlarla ~1.5MB) tasiyan build ciktisi -- data/cards/*.png
+# ile AYNI ilke (uretilen dosya, kaynak DEGIL), git'e COMMIT EDILMEZ.
+output/*.html

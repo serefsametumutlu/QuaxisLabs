@@ -204,3 +204,133 @@ altına `card_v2_iterN_*` adlarıyla kaydedildi.
 
 `pytest tests/test_card.py tests/test_card_us.py` her iterasyondan sonra
 çalıştırıldı -- final durum: **tümü yeşil** (bkz. oturum sonu raporu).
+
+## 6. Faz 5 adım 3 -- Piyasa Dashboard'u (`output/dashboard.html`)
+
+Bu bölüm YOL_HARİTASI.md Faz 5 adım 3'ün (spec: `docs/spec/spec_dashboard.md`)
+kart-tasarımcısı teslimatıdır: `src/render/dashboard.py` +
+`src/render/templates/dashboard.html`. Token sistemi YENİDEN İCAT EDİLMEDİ --
+`_design_tokens.css` (§2, yukarıda) BİREBİR aynı kaynaktan `{% include %}`
+ile gelir, `_BADGE_CLASS` eşlemesi `card.py` ile AYNI (SAĞLAM/DENGELİ/
+KARIŞIK/RİSKLİ/YETERSİZ VERİ -> saglam/dengeli/karisik/riskli/yetersiz).
+
+### 6.1 Teşhis (dashboard'a özgü, kartlardan FARKLI riskler)
+
+Dashboard bir kart DEĞİL -- 62 satırlık (BİST 32 + NASDAQ 30, gerçek DB
+verisi) sıralanabilir bir tablo. Kartlardaki "jenerik AI şablonu" riskinden
+farklı, dashboard'a özgü 2 somut risk baştan teşhis edildi:
+
+1. **Sistemik veri-eksikliği uyarısının (spec §"Veri eksikliği görünürlüğü")
+   satır başına TEKRARI.** Spec, `veri_uyarilari` alanının "aynı piyasadaki
+   HER satırda AYNI liste görünür" dediği JSON gerçeğini BİREBİR "her satırda
+   6-7 özdeş uyarı ikonu" olarak render etmek İlk taslakta (iterasyon 1)
+   yapıldı -- 32 satırın HER birinde aynı 7 nokta tekrarlanınca Tufte
+   ilkesinin (süsleme değil veri) doğrudan ihlaliydi: aynı bilginin 32 kez
+   tekrarı EK bilgi TAŞIMAZ, sadece görsel gürültü üretir. **Çözüm
+   (iterasyon 2):** piyasa-geneli sistemik uyarılar bir kez, market panelinin
+   üstünde katlanabilir bir `.systemic-note` panelinde gösterilir; satır
+   başına UYARI sütunu SADECE satıra ÖZGÜ sinyalleri taşır (GYO notu,
+   "desteklenmiyor" notu, "hata sonrası bayat skor" notu, düşük-kapsam
+   bayrağı). JSON şeması BOZULMADI (`company.veri_uyarilari` hâlâ spec'in
+   istediği TAM listeyi taşır, template SADECE sunumda filtreler) --
+   `dashboard.py`'ye `sistemik_uyarilar` adında YENİ, katkısal bir alan
+   (`data.markets[market].sistemik_uyarilar`) eklendi.
+2. **`position: sticky` thead + Playwright tam-sayfa (`full_page=True`)
+   ekran görüntüsü etkileşimi.** İlk taslakta her tablonun `<thead>`'i
+   `position: sticky; top: 0` idi -- sayfa TEK bir kaydırılabilir gövde
+   olduğu (her tablo kendi scroll konteynerine sahip DEĞİL) için bu hem
+   İŞLEVSEL olarak anlamsızdı (onlarca tablo üst üste dizili bir sayfada
+   "yapışkan başlık" kullanıcıya bir şey katmaz) HEM DE ilk ekran
+   görüntüsünde masthead'in hemen altında açıklanamayan bir metin
+   parçacığı görünmesine yol açan bir şüpheye sebep oldu (kontrol edilince
+   gerçek bir piksel hatası OLMADIĞI, önizlemenin küçültülmüş halinde bir
+   sıkıştırma artefaktı olduğu doğrulandı -- ama `position: sticky`'nin
+   KENDİSİ zaten gereksiz olduğu için iterasyon 2'de tamamen kaldırıldı,
+   temkinli/sade tercih).
+
+### 6.2 Tasarım kararları
+
+- **Kahraman katman:** her piyasa sekmesinde bir "rozet dağılımı" şeridi
+  (`.badge-strip`) -- SAĞLAM/DENGELİ/KARIŞIK/RİSKLİ/YETERSİZ VERİ sayıları,
+  `--bg-surface-raised` zemininde, kart şablonlarındaki rozet renkleriyle
+  BİREBİR aynı `-soft` arka plan + doygun metin rengi ilkesi. Bu, "3
+  saniyede piyasanın genel sağlığı" mesajını verir (kart tasarım sisteminin
+  "kahraman skor" ilkesinin piyasa-geneli karşılığı).
+- **İkincil katman:** sektör grupları (`<details>`, `--bg-surface-sunken`
+  başlık zemini + `--brand-teal` sol aksan çizgisi -- card.html'deki
+  `--accent-bar-w` diliyle TUTARLI ama teal, sektör-navigasyonunu skor
+  aksanından (gold) görsel olarak AYIRMAK için).
+- **Üçüncül katman:** tablo satırları -- mercek skorları rozet rengiyle
+  boyanır (aynı `_BADGE_CLASS` eşlemesi), bileşik skor `--text-body-lg` +
+  `--weight-bold` ile mercek hücrelerinden BÜYÜK (hiyerarşi: bileşik >
+  mercek, kartlardaki "kahraman > mercek > bileşen" sıralamasının küçük
+  ölçekli karşılığı).
+- **Veri-mürekkep oranı:** çerçeve/gölge YOK -- satır ayrımı `--border-
+  subtle` ince çizgi + hover'da `--bg-surface-raised`; düşük veri kapsamı
+  △ ikonu, sistemik uyarı ● ikonu (tur'a göre renkli, `title` tooltip)
+  DIŞINDA hiçbir dekoratif öğe yok.
+- **Skor renk skalası TOKEN'LARDAN:** yeni bir renk İCAT EDİLMEDİ -- lens/
+  bileşik hücreleri `_BADGE_CLASS` (card.py ile AYNI sözlük) üzerinden
+  `--clr-positive`/`--brand-gold`/`--clr-mixed`/`--clr-negative`/`--ink-
+  tertiary` kullanır.
+- **Tek dosya, harici kaynak yok:** `_design_tokens.css` (fontlar dahil,
+  base64 gömülü) Jinja `{% include %}` ile inline; JSON veri `<script
+  type="application/json">` içine gömülü (`</` kaçırılarak XSS/parse
+  güvenliği); JS vanilla, CDN/harici `<script src>` YOK (`test_
+  render_dashboard_html_tek_dosya_harici_kaynak_yok` bunu doğrular).
+- **İstemci-içi etkileşim (skill'in AÇIKÇA izin verdiği JS, kartların
+  aksine):** sekme geçişi (BİST/NASDAQ), ticker/şirket adı arama (Türkçe
+  `toLocaleUpperCase("tr")`, eşleşmeyen sektör grupları otomatik gizlenir/
+  eşleşenler otomatik açılır), sütun bazlı sıralama (DOM satır yeniden-
+  sıralama, sayısal/string ayrımı `data-sort` niteliğiyle önceden Python'da
+  hazırlanmış ham değerlerden yapılır -- JS hiçbir skor HESAPLAMAZ, sadece
+  KARŞILAŞTIRIR).
+- **Sayı formatlama merkezi kalır:** görüntülenen TÜM `_display` string'leri
+  (`format_number_tr`/`format_percent_tr`/`format_currency_short`) Python
+  tarafında `src/formatting.py` ile üretilir -- JSON'a AYRICA ham sayı
+  (`score`, `pe_ratio`, vb.) gömülür ki JS sütun sıralaması DOĞRU sayısal
+  sırada çalışsın (string sıralama "10,0" < "9,5" gibi yanlış sonuçlar
+  üretirdi) -- bu, `build_card_context()`'in "hazır string" ilkesinin
+  sıralanabilir-tablo gereksinimiyle uzlaştırılmış hâlidir (ne hesaplama
+  JS'e taşındı ne de sıralama işlevi feda edildi).
+
+### 6.3 Doğrulama döngüsü -- 3 iterasyon (gerçek 62 satırlık DB verisiyle)
+
+`python -c "from src.render.dashboard import build_and_write_dashboard;
+build_and_write_dashboard()"` ile GERÇEK `MarketScanResult` verisi (62/62
+başarılı tarama) kullanılarak üretildi, Playwright ile ekran görüntüsü
+alınıp incelendi (`docs/screenshots/dashboard_iter*.png`).
+
+- **İterasyon 1** (`dashboard_iter1_full.png`, `dashboard_iter1_nasdaq.png`):
+  İlk token geçişi + tam tablo. 2 sorun bulundu: (a) §6.1 madde 1 (sistemik
+  uyarı tekrarı), (b) §6.1 madde 2 (`position: sticky` + tam-sayfa ekran
+  görüntüsü şüphesi). Ayrıca "Sınıflandırılmamış" grubunun şirket-türü
+  kırılımında `None` için "—" sembolü (tek başına anlamsız) kullanıldığı
+  görüldü.
+- **İterasyon 2** (`dashboard_iter2_*.png`): (a) `.systemic-note` paneli
+  eklendi, satır UYARI sütunu SADECE satıra özgü nota indirgendi (Jinja
+  `selectattr` filtresiyle). (b) `position: sticky` kaldırıldı. (c)
+  `sirket_turu_kirilimi`'nde `None` -> "bilinmiyor" metin etiketi. Arama/
+  filtre + sütun sıralama JS'i bu turda eklenip THYAO araması ve sekme
+  geçişiyle CANLI doğrulandı (`dashboard_iter2_search.png`).
+- **İterasyon 3** (`dashboard_iter3_*_FINAL.png`): (a) Tabloyu `.table-
+  scroll` (overflow-x:auto) ile sarma -- dar viewport'ta (420px, Telegram
+  mobil önizleme senaryosu) sayfanın YATAY TAŞMASINI önlemek için (tablo
+  kendi içinde kaydırılır, sayfa düzeni bozulmaz) --
+  `dashboard_iter3_narrow.png` ile doğrulandı. (b) **3 farklı veri
+  durumuyla EK doğrulama** (skill madde 2, kartlardaki "bol veri/N/A/
+  riskli" üçlüsünün dashboard karşılığı): sentetik bir DB ile "ok+GYO",
+  "hata+eski skor korunur (bayat rozet)", "hata+hiç skor yok (ilk deneme)",
+  "desteklenmiyor", "veri_yok", "n<5 sektör", "Sınıflandırılmamış" satırları
+  TEK sayfada üretilip incelendi (`dashboard_iter3_edgecases.png`) -- hepsi
+  spec'in "Kenar durumlar" bölümündeki BEKLENEN davranışla BİREBİR eşleşti
+  (özellikle "hata sonrası eski skor sessizce gizlenmez" ve "veri_yok'ta
+  hiçbir uyarı eklenmez" ayrımı görsel olarak doğrulandı).
+
+### 6.4 Test durumu
+
+`tests/test_dashboard.py` (YENİ, 14 test) -- şema/gruplama/kenar-durum
+testleri (spec'in Test senaryoları #5/#6/#7'nin dashboard karşılığı DAHİL)
++ HTML'in tek-dosya/harici-kaynaksız olduğunu ve gömülü JSON'un geçerli
+olduğunu doğrulayan testler. `pytest tests/ -q` -- **1339 test, tümü
+yeşil** (mevcut kart testleri DAHİL, hiçbiri kırılmadı).

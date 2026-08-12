@@ -15,6 +15,20 @@ script HER ticker için TAM bir `compute_multi_lens_score_for_ticker()`
 günlük OHLCV fiyat geçmişi (DB önbelleği YOK, HER çağrıda ağa gider) İÇERİR.
 Bu yüzden per-company maliyeti refresh_universe.py'den KATBEKAT yüksektir.
 
+docs/spec/spec_veri_tamlik_yol_haritasi.md §Skor Geçmişi (2026-08-12):
+`_scan_one()` ARTIK AYRICA `pipeline.compute_historical_lens_scores_for_
+ticker()` çağırır -- GÜNCEL dönem + en fazla 3 GEÇMİŞ dönemin 4 mercek +
+Bileşik Skor ÖZETİ `MarketScanResult.tarihsel_skorlar`'a yazılır. Bu SIFIR
+EK AĞ İSTEĞİDİR (`sonuc` içindeki ZATEN çekilmiş `financials_by_period`/
+`own_bars` reuse edilir) ama HER ticker için ~4 katına çıkan bir CPU
+maliyeti demektir (matematik tekrarı) -- büyük ölçekli `--universe tam`
+taramalarında TOPLAM süreyi ölçülebilir şekilde artırır (kabaca değer
+merceği/kalite/büyüme/güvenlik hesaplama sürelerinin 3 katı kadar EK süre,
+ağ beklemesi/rate-limit BÖLÜMÜNÜ ETKİLEMEZ -- o zaten baskın maliyet
+kalemidir). Bir SONRAKİ tarama turunda otomatik devreye girer (Python
+mevcut çalışan süreçler ESKİ kodu bellekte tutar, ÇALIŞAN taramaları
+ETKİLEMEZ).
+
 Kullanım (spec §Orkestrasyon adımları + §çekirdek ticker kümesi -- BİREBİR):
     python scripts/tarama_toplu.py --universe bist30              # küçük doğrulama, BİST (32 ticker, statik liste)
     python scripts/tarama_toplu.py --universe nasdaq30             # küçük doğrulama, NASDAQ (30 ticker, statik liste)
@@ -144,6 +158,35 @@ def _mercekler_detay(profil: lens_bilesik_skor.MercekProfili) -> dict:
     return detay
 
 
+def _tarihsel_skorlar_to_list(anlik_goruntuler: list) -> list[dict]:
+    """`pipeline.compute_historical_lens_scores_for_ticker()`'ın döndürdüğü
+    `HistoricalLensSnapshot` listesini `MarketScanResult.tarihsel_skorlar`
+    JSON sütununa yazılabilir hale çevirir -- `_component_to_dict` ile AYNI
+    ilke (SQLite JSON sütunu Decimal'i SERİLEŞTİREMEZ, sayısal alanlar
+    `str()` ile metne çevrilir, hassasiyet KAYBOLMAZ). ESKİDEN YENİYE sıralı
+    (`compute_historical_lens_scores_for_ticker`'ın kendi sırası, en yeni
+    -- "güncel" -- baştaydı; burada render'a hazır olacak şekilde TERS
+    çevrilir, bkz. `src/render/company_detail.py`'nin `quarterly_trend`
+    tablosuyla AYNI "eskiden yeniye" okuma yönü)."""
+    return [
+        {
+            "donem": f"{s.period[0]}/{s.period[1]}",
+            "donem_label": s.period_label,
+            "deger_score": str(s.deger_score) if s.deger_score is not None else None,
+            "deger_badge": s.deger_badge,
+            "kalite_score": str(s.kalite_score) if s.kalite_score is not None else None,
+            "kalite_badge": s.kalite_badge,
+            "buyume_score": str(s.buyume_score) if s.buyume_score is not None else None,
+            "buyume_badge": s.buyume_badge,
+            "guvenlik_score": str(s.guvenlik_score) if s.guvenlik_score is not None else None,
+            "guvenlik_badge": s.guvenlik_badge,
+            "bilesik_score": str(s.bilesik_score) if s.bilesik_score is not None else None,
+            "bilesik_badge": s.bilesik_badge,
+        }
+        for s in reversed(anlik_goruntuler)
+    ]
+
+
 def _scan_one(ticker: str, market: str) -> str:
     """Tek bir ticker'ı tarar + `MarketScanResult`'a upsert eder -- spec
     §Orkestrasyon adımları madde 3 BİREBİR. Döndürdüğü `scan_status`
@@ -187,6 +230,23 @@ def _scan_one(ticker: str, market: str) -> str:
             session.commit()
         return "hata"
 
+    # docs/spec/spec_veri_tamlik_yol_haritasi.md §Skor Geçmişi (2026-08-12):
+    # `sonuc` ZATEN `financials_by_period`/`own_bars`'ı TAŞIDIĞI için (bkz.
+    # pipeline.MultiLensScoreResult üst notu) bu çağrı SIFIR EK AĞ İSTEĞİ
+    # yapar -- SADECE CPU maliyeti (bkz. compute_historical_lens_scores_
+    # for_ticker docstring'i "Performans notu"). Kural 9 ilkesi (ikincil/ek
+    # veri): bu bölümdeki HERHANGİ bir hata ana "ok" tarama sonucunu ASLA
+    # BLOKE ETMEMELİDİR -- açıkça loglanır, `tarihsel_skorlar` boş listeye
+    # düşer (fonksiyonun kendisi zaten dönem-bazlı hataları içeride yutmaz/
+    # loglar, bu SADECE beklenmedik/toplu bir çöküşe karşı ek bir GÜVENLİK
+    # AĞIDIR).
+    try:
+        tarihsel = pipeline.compute_historical_lens_scores_for_ticker(sonuc)
+    except Exception:  # noqa: BLE001 -- ek/ikincil veri, ana tarama sonucunu ETKİLEMEMELİ (Kural 9)
+        logger.warning("%s (%s) icin tarihsel skor gecmisi hesaplanamadi -- ana tarama sonucu ETKİLENMEDİ.", ticker, market, exc_info=True)
+        tarihsel = []
+    tarihsel_skorlar = _tarihsel_skorlar_to_list(tarihsel)
+
     profil = sonuc.bilesik.mercekler
     deger_score, deger_badge, deger_cov = _mercek_alanlari(profil.deger)
     kalite_score, kalite_badge, kalite_cov = _mercek_alanlari(profil.kalite)
@@ -224,6 +284,7 @@ def _scan_one(ticker: str, market: str) -> str:
             ev_ebitda=getattr(vm, "ev_ebitda", None),
             currency=_CURRENCY_BY_MARKET.get(market),
             mercekler_detay=_mercekler_detay(profil),
+            tarihsel_skorlar=tarihsel_skorlar,
             financial_data_as_of=company_row.last_updated if company_row else None,
             computed_at=utcnow_naive(),
         )

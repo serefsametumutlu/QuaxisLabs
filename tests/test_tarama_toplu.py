@@ -79,6 +79,70 @@ def test_scan_one_basarili_tarama_market_scan_result_upsert_eder(izole_db, monke
         assert row.mercekler_detay["değer"][0]["score"] == "8"  # Decimal -> str, JSON-safe
 
 
+# --- _scan_one: tarihsel_skorlar (docs/spec/spec_veri_tamlik_yol_haritasi.md §Skor Geçmişi) --------------
+
+
+def _fake_tarihsel_snapshot(period: tuple[int, int], skor: Decimal) -> pipeline.HistoricalLensSnapshot:
+    return pipeline.HistoricalLensSnapshot(
+        period=period, period_label=pipeline.quarter_label(period),
+        deger_score=skor, deger_badge="DENGELİ", kalite_score=skor, kalite_badge="DENGELİ",
+        buyume_score=skor, buyume_badge="DENGELİ", guvenlik_score=skor, guvenlik_badge="DENGELİ",
+        bilesik_score=skor, bilesik_badge="DENGELİ",
+    )
+
+
+def test_scan_one_tarihsel_skorlar_db_ye_yazilir_eskiden_yeniye_siralanir(izole_db, monkeypatch) -> None:
+    monkeypatch.setattr(pipeline, "compute_multi_lens_score_for_ticker", lambda ticker, market: _fake_sonuc(ticker, market))
+    # compute_historical_lens_scores_for_ticker GÜNCEL dönemi İLK sırada
+    # döner (bkz. pipeline.py docstring'i) -- _tarihsel_skorlar_to_list bunu
+    # TERS çevirip ESKİDEN YENİYE saklamalı.
+    monkeypatch.setattr(
+        pipeline, "compute_historical_lens_scores_for_ticker",
+        lambda sonuc, max_historical=3: [
+            _fake_tarihsel_snapshot((2026, 6), Decimal("8")),
+            _fake_tarihsel_snapshot((2026, 3), Decimal("7")),
+            _fake_tarihsel_snapshot((2025, 12), Decimal("6")),
+        ],
+    )
+    with repository.get_session() as session:
+        repository.upsert_sector_taxonomy(session, "THYAO", market="BIST", ust_sektor="Sanayi", sirket_turu="sanayi")
+        session.commit()
+
+    status = tarama_toplu._scan_one("THYAO", "BIST")
+
+    assert status == "ok"
+    with repository.get_session() as session:
+        row = session.get(models.MarketScanResult, "THYAO")
+        assert row.tarihsel_skorlar is not None
+        assert [d["donem"] for d in row.tarihsel_skorlar] == ["2025/12", "2026/3", "2026/6"]
+        assert row.tarihsel_skorlar[-1]["bilesik_score"] == "8"  # Decimal -> str, JSON-safe
+        assert row.tarihsel_skorlar[0]["donem_label"] == pipeline.quarter_label((2025, 12))
+
+
+def test_scan_one_tarihsel_skorlar_hata_verirse_ana_tarama_etkilenmez(izole_db, monkeypatch) -> None:
+    """Kural 9 (ikincil/ek veri): compute_historical_lens_scores_for_ticker
+    PATLARSA bile ana 'ok' tarama sonucu/skorları ETKİLENMEMELİ, sadece
+    tarihsel_skorlar boş liste olarak kalmalı."""
+    monkeypatch.setattr(pipeline, "compute_multi_lens_score_for_ticker", lambda ticker, market: _fake_sonuc(ticker, market))
+
+    def patlayan(sonuc, max_historical=3):
+        raise RuntimeError("beklenmedik tarihsel hesap hatası")
+
+    monkeypatch.setattr(pipeline, "compute_historical_lens_scores_for_ticker", patlayan)
+    with repository.get_session() as session:
+        repository.upsert_sector_taxonomy(session, "THYAO", market="BIST", ust_sektor="Sanayi", sirket_turu="sanayi")
+        session.commit()
+
+    status = tarama_toplu._scan_one("THYAO", "BIST")
+
+    assert status == "ok"
+    with repository.get_session() as session:
+        row = session.get(models.MarketScanResult, "THYAO")
+        assert row.scan_status == "ok"
+        assert row.bilesik_score is not None  # ana skor ETKİLENMEDİ
+        assert row.tarihsel_skorlar == []
+
+
 def test_scan_one_ticker_not_found_veri_yok_yazar(izole_db, monkeypatch) -> None:
     def patlayan(ticker, market):
         raise pipeline.TickerNotFoundError(f"{ticker} bulunamadı")

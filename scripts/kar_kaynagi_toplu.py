@@ -10,13 +10,20 @@ PDF indirme (birkaç MB) + 1 Gemini API çağrısı. `tarama_toplu.py`'nin
 `--universe tam` modu GÜNDE binlerce şirketi tarayabilir; bu script AYNI
 pacing'le çalıştırılırsa hem KAP'ı hem Gemini kotasını riske atar.
 
-**Kapsam BİLİNÇLİ OLARAK dar tutuldu (spec'in kendi önerisiyle TUTARLI):**
-bu script SADECE bir statik pilot liste (`--tickers` veya `--universe pilot`
--- `scripts/tarama_toplu.py::BIST30_PILOT`, 32 ticker) kabul eder; TAM BİST
-evrenine (`get_scan_queue` ile) açan bir `--universe tam` seçeneği BİLEREK
-YOK -- görev talimatı "tam evrene AÇMA (kullanıcı onayı GEREKİR)" diyor, bu
-kısıt koda BÖYLE yansıtıldı (bir sonraki fazda, kullanıcı onayıyla, tam
-evren modu AYRI bir görevde eklenebilir).
+**Kapsam BAŞTA BİLİNÇLİ OLARAK dar tutulmuştu, kullanıcı 2026-08-12'de TAM
+evrene açılmasını ONAYLADI:** script başlangıçta SADECE bir statik pilot
+liste (`--tickers` veya `--universe pilot` -- `scripts/tarama_toplu.py::
+BIST30_PILOT`, 32 ticker) kabul ediyordu; TAM BİST evrenine açan bir mod
+BİLEREK YOKTU ("tam evrene AÇMA, kullanıcı onayı GEREKİR" görev talimatıyla).
+Kullanıcı onayının ARDINDAN `--universe full` eklendi: `MarketScanResult`
+tablosunda `market='BIST' AND scan_status='ok'` olan (yani `tarama_toplu.py`
+ile ZATEN başarıyla taranmış) TÜM ticker'ları işler (bkz. `repository.
+get_ok_scanned_tickers()` -- `tarama_toplu.py::get_scan_queue()`'dan
+KASITLI OLARAK FARKLI kaynak: `Company` değil `MarketScanResult`, çünkü bu
+script HENÜZ taranmamış bir şirkete YENİ bir satır AÇMAZ, bkz. aşağıdaki
+"Satır (...) HENÜZ YOKSA" notu). Kademeli çalıştırma için `--limit` bu modda da GEÇERLİDİR (ticker
+listesi alfabetik sıralı olduğundan ardışık çalıştırmalar TUTARLI bir
+alt-küme üzerinde ilerler).
 
 Satır (ticker+market) `MarketScanResult`'ta HENÜZ YOKSA (yani `tarama_toplu.py`
 ile hiç taranmamış bir şirket) bu script o ticker'ı ATLAR -- faaliyet raporu
@@ -28,6 +35,8 @@ Kullanım:
     python scripts/kar_kaynagi_toplu.py --tickers THYAO SAHOL
     python scripts/kar_kaynagi_toplu.py --universe pilot --limit 5
     python scripts/kar_kaynagi_toplu.py --universe pilot --dry-run
+    python scripts/kar_kaynagi_toplu.py --universe full --dry-run     # TAM evrenin GERÇEK boyutunu ölç, ağa GİTME
+    python scripts/kar_kaynagi_toplu.py --universe full --limit 50    # kademeli, TAM evrenden alfabetik ilk 50
 """
 
 from __future__ import annotations
@@ -86,29 +95,45 @@ def _resolve_tickers(args: argparse.Namespace) -> list[str]:
         return [t.strip().upper() for t in args.tickers]
     if args.universe == "pilot":
         return list(tarama_toplu.BIST30_PILOT)
-    raise ValueError("--tickers veya --universe pilot belirtilmeli.")
+    if args.universe == "full":
+        with repository.get_session() as session:
+            return repository.get_ok_scanned_tickers(session, _MARKET)
+    raise ValueError("--tickers veya --universe pilot/full belirtilmeli.")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="BİST şirketleri için KAP faaliyet raporundan (KÜÇÜK bir pilot kümede) nitel 'kâr kaynağı' bulgularını çıkarır ve MarketScanResult.faaliyet_raporu_bulgulari'a yazar."
+        description="BİST şirketleri için KAP faaliyet raporundan nitel 'kâr kaynağı' bulgularını çıkarır ve MarketScanResult.faaliyet_raporu_bulgulari'a yazar."
     )
     parser.add_argument("--tickers", nargs="+", help="İşlenecek BİST ticker'ları (örn. THYAO SAHOL).")
-    parser.add_argument("--universe", choices=("pilot",), default=None, help="'pilot': tarama_toplu.BIST30_PILOT (32 ticker).")
-    parser.add_argument("--limit", type=int, default=None, help="İşlenecek MAKS ticker sayısı (pilot listeyi kısaltmak için).")
+    parser.add_argument(
+        "--universe", choices=("pilot", "full"), default=None,
+        help="'pilot': tarama_toplu.BIST30_PILOT (32 ticker). 'full': MarketScanResult'ta market='BIST' AND scan_status='ok' olan TÜM ticker'lar (kullanıcı onayıyla, 2026-08-12).",
+    )
+    parser.add_argument("--limit", type=int, default=None, help="İşlenecek MAKS ticker sayısı (pilot/full listeyi kısaltmak için, kademeli çalıştırma).")
     parser.add_argument("--dry-run", action="store_true", help="Sadece işlenecek listeyi raporla, ağa GİTME.")
     args = parser.parse_args()
 
     if not args.tickers and args.universe is None:
-        parser.error("--tickers VEYA --universe pilot belirtilmeli (tam evren MODU bu script'te YOK -- bkz. modül üst notu).")
+        parser.error("--tickers VEYA --universe pilot/full belirtilmeli.")
 
     tickers = _resolve_tickers(args)
     if args.limit is not None:
         tickers = tickers[: args.limit]
 
-    print(f"=== BİST faaliyet raporu / kâr kaynağı pilotu: {len(tickers)} ticker ===")
+    print(f"=== BİST faaliyet raporu / kâr kaynağı ({args.universe or 'tickers'}): {len(tickers)} ticker ===")
     if args.dry_run:
-        print(f"[--dry-run] İşlenecekti: {', '.join(tickers)} -- HİÇBİR ağ isteği ATILMADI.")
+        if args.universe == "full":
+            tahmini_saniye = len(tickers) * PACING_SECONDS
+            print(
+                f"[--dry-run] TAM evren (scan_status='ok', BİST): {len(tickers)} şirket "
+                f"-- işlenecekti (HİÇBİR ağ isteği ATILMADI). Kaba süre tahmini: "
+                f"{len(tickers)} şirket × ~{PACING_SECONDS:.0f}sn/şirket (sabit bekleme) "
+                f"+ KAP/Gemini yanıt süreleri ≈ en az {tahmini_saniye / 3600:.1f} saat "
+                f"(gerçek KAP/Gemini gecikmeleri EKLENMEMİŞTİR, bu SADECE PACING_SECONDS tabanlı bir ALT SINIR)."
+            )
+        else:
+            print(f"[--dry-run] İşlenecekti: {', '.join(tickers)} -- HİÇBİR ağ isteği ATILMADI.")
         return 0
 
     counts: dict[str, int] = {}

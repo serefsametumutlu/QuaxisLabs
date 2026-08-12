@@ -257,6 +257,36 @@ def test_is_scan_fresh_son_deneme_basarisizsa_false(session) -> None:
     assert repository.is_scan_fresh(session, "THYAO", max_age_days=7) is False
 
 
+# --- get_ok_scanned_tickers (scripts/kar_kaynagi_toplu.py --universe full) -----------------------------------------------------
+
+
+def test_get_ok_scanned_tickers_sadece_ok_ve_dogru_market_doner(session) -> None:
+    _make_company(session, "THYAO", market="BIST")
+    _make_company(session, "ASELS", market="BIST")
+    _make_company(session, "SAHOL", market="BIST")
+    _make_company(session, "AAPL", market="NASDAQ", ust_sektor="Teknoloji")
+    repository.upsert_market_scan_result(session, "THYAO", "BIST", scan_status="ok")
+    repository.upsert_market_scan_result(session, "ASELS", "BIST", scan_status="hata")
+    repository.upsert_market_scan_result(session, "SAHOL", "BIST", scan_status="veri_yok")
+    repository.upsert_market_scan_result(session, "AAPL", "NASDAQ", scan_status="ok")
+    session.commit()
+
+    assert repository.get_ok_scanned_tickers(session, "BIST") == ["THYAO"]
+
+
+def test_get_ok_scanned_tickers_alfabetik_siralidir(session) -> None:
+    for ticker in ("ZORLU", "AKBNK", "MGROS"):
+        _make_company(session, ticker, market="BIST")
+        repository.upsert_market_scan_result(session, ticker, "BIST", scan_status="ok")
+    session.commit()
+
+    assert repository.get_ok_scanned_tickers(session, "BIST") == ["AKBNK", "MGROS", "ZORLU"]
+
+
+def test_get_ok_scanned_tickers_hic_taranmamis_bos_liste(session) -> None:
+    assert repository.get_ok_scanned_tickers(session, "BIST") == []
+
+
 # --- get_scan_queue -- Spec "Test senaryoları" #1: sıralama/filtreleme -----------------------------------------------------
 
 

@@ -1024,6 +1024,37 @@ def update_faaliyet_raporu_bulgulari(
     return row
 
 
+def get_ok_scanned_tickers(session: Session, market: str) -> list[str]:
+    """`scripts/kar_kaynagi_toplu.py`'nin `--universe full` (tüm evren)
+    modu için TAM evren tanımı -- kullanıcının 2026-08-12'de onayladığı
+    "önce `tarama_toplu.py` ile TARANMIŞ (`scan_status='ok'`) HER BİST
+    şirketini işle" kuralı BİREBİR.
+
+    `get_scan_queue()`'dan (Company tablosunu -- HENÜZ taranmamışlar dahil
+    -- kaynak alır, `pipeline`'ın v2 skorlama motorunu tetikleyecek bir
+    "taranacaklar" kuyruğu üretir) KASITLI OLARAK FARKLI: bu fonksiyon
+    `MarketScanResult`'IN KENDİSİNİ kaynak alır, SADECE `scan_status='ok'`
+    (yani zaten başarıyla taranmış, `mercekler_detay` dolu) satırların
+    ticker'larını döner -- `update_faaliyet_raporu_bulgulari()`'nin
+    docstring'inde belirtilen ilkeyle AYNI: faaliyet raporu bulgusu ZATEN
+    var olan bir tarama sonucunu ZENGİNLEŞTİRİR, kendi başına bir satır
+    kaynağı DEĞİLDİR -- bu yüzden burada `Company`'ye değil `MarketScanResult`'a
+    bakılır (henüz hiç taranmamış bir ticker `update_faaliyet_raporu_
+    bulgulari()`'de zaten `None` ile atlanır, bu fonksiyon o boşa gidecek
+    çağrıyı EN BAŞTAN elemiş olur).
+
+    Deterministik sıralama (ticker alfabetik) -- `--limit` ile kademeli
+    çalıştırmanın (kod-geliştirici turdan tura) AYNI alt-kümeyi vermesi
+    için (get_scan_queue'nun computed_at sıralamasının AKSİNE, bu kuyrukta
+    "en eski/en yeni" önceliği YOK -- hepsi zaten "ok")."""
+    rows = session.execute(
+        select(MarketScanResult.ticker)
+        .where(MarketScanResult.market == market, MarketScanResult.scan_status == "ok")
+        .order_by(MarketScanResult.ticker.asc())
+    ).scalars().all()
+    return list(rows)
+
+
 def get_market_scan_results(session: Session, market: str | None = None) -> list[MarketScanResult]:
     """docs/spec/spec_dashboard.md §Dashboard'a gömülecek JSON şeması:
     `src/render/dashboard.py::build_dashboard_data()` (Faz 5 adım 3) için

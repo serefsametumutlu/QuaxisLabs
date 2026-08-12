@@ -657,3 +657,59 @@ def test_generate_commentary_technical_api_hatasinda_yedek_moda_duser(monkeypatc
     yorum = commentary.generate_commentary_technical(teknik_commentary_inputs)
 
     assert yorum.source == "fallback"
+
+
+# --- call_llm_json (docs/spec/spec_veri_tamlik_yol_haritasi.md §Faaliyet
+# Raporu -- şemadan bağımsız genel amaçlı Gemini yardımcısı, src/ai/
+# kar_kaynagi.py TARAFINDAN kullanılır) --------------------------------------------------
+
+
+_FAALIYET_SCHEMA = {
+    "type": "OBJECT",
+    "properties": {"ozet": {"type": "STRING"}},
+    "required": ["ozet"],
+}
+
+
+def test_call_llm_json_basarili_yaniti_ham_sozluk_olarak_doner(monkeypatch) -> None:
+    captured = {}
+
+    def fake_post(url, params=None, json=None, timeout=None):
+        captured["system_instruction"] = json["systemInstruction"]["parts"][0]["text"]
+        captured["response_schema"] = json["generationConfig"]["responseSchema"]
+        return _FakeResponse(200, _gemini_ok_payload('{"ozet": "test bulgusu"}'))
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    data = commentary.call_llm_json("kullanici istemi", system_instruction="ÖZEL İSTEM", response_schema=_FAALIYET_SCHEMA)
+
+    assert data == {"ozet": "test bulgusu"}
+    assert captured["system_instruction"] == "ÖZEL İSTEM"
+    assert captured["response_schema"] == _FAALIYET_SCHEMA
+
+
+def test_call_llm_json_bozuk_jsonda_duzeltme_istegi_gonderir(monkeypatch) -> None:
+    call_count = {"n": 0}
+
+    def fake_post(url, params=None, json=None, timeout=None):
+        call_count["n"] += 1
+        if call_count["n"] == 1:
+            return _FakeResponse(200, _gemini_ok_payload("gecersiz json {{{"))
+        return _FakeResponse(200, _gemini_ok_payload('{"ozet": "duzeltilmis"}'))
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    data = commentary.call_llm_json("istem", system_instruction="istem", response_schema=_FAALIYET_SCHEMA)
+
+    assert call_count["n"] == 2
+    assert data == {"ozet": "duzeltilmis"}
+
+
+def test_call_llm_json_kalici_hatada_exception_firlatir(monkeypatch) -> None:
+    def fake_post(url, params=None, json=None, timeout=None):
+        return _FakeResponse(401, text="yetkisiz")
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    with pytest.raises(commentary._NonRetryableLLMError):
+        commentary.call_llm_json("istem", system_instruction="istem", response_schema=_FAALIYET_SCHEMA)

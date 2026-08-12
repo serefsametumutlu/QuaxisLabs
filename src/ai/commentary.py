@@ -543,7 +543,9 @@ def _build_user_prompt_technical(commentary_inputs: dict) -> str:
     wait=wait_fixed(config.HTTP_RATE_LIMIT_DELAY_SECONDS),
     retry=retry_if_exception_type(_RetryableLLMError),
 )
-def _call_gemini_raw(contents: list[dict], system_instruction: str = _SYSTEM_INSTRUCTION) -> str:
+def _call_gemini_raw(
+    contents: list[dict], system_instruction: str = _SYSTEM_INSTRUCTION, response_schema: dict = _RESPONSE_SCHEMA
+) -> str:
     """Tek bir Gemini generateContent cagrisi yapar, yanit metnini (JSON string
     olmasi beklenir) doner. Ag/zaman asimi/429/5xx hatalarinda _RetryableLLMError
     firlatir (tenacity bunu yakalayip yeniden dener); diger hatalarda
@@ -552,14 +554,21 @@ def _call_gemini_raw(contents: list[dict], system_instruction: str = _SYSTEM_INS
     `system_instruction`: varsayılan bilanço/fundamental istemi (Faz 15.1'de
     teknik görünüm yorumu -- `_SYSTEM_INSTRUCTION_TECHNICAL` -- için
     parametrik hale getirildi, mevcut çağıranlar DEĞİŞMEDEN çalışmaya
-    devam eder)."""
+    devam eder).
+
+    `response_schema`: varsayılan `_RESPONSE_SCHEMA` (headline/hook/summary/
+    positives/negatives/kap_note/disclaimer_context) -- docs/spec/spec_veri_
+    tamlik_yol_haritasi.md §Faaliyet Raporu (src/ai/kar_kaynagi.py, TAMAMEN
+    FARKLI bir JSON şeması -- checklist/nitel bulgu, skor DEĞİL) için
+    parametrik hale getirildi; mevcut çağıranlar (parametre vermez) davranış
+    olarak DEĞİŞMEDEN çalışmaya devam eder."""
     url = f"{_GEMINI_BASE_URL}/{config.GEMINI_MODEL}:generateContent"
     body = {
         "contents": contents,
         "systemInstruction": {"parts": [{"text": system_instruction}]},
         "generationConfig": {
             "responseMimeType": "application/json",
-            "responseSchema": _RESPONSE_SCHEMA,
+            "responseSchema": response_schema,
             "temperature": 0.4,
         },
     }
@@ -714,6 +723,40 @@ def _call_llm_and_parse(user_prompt: str, system_instruction: str = _SYSTEM_INST
         raise _NonRetryableLLMError("Gemini yanıtı düzeltme isteğinden sonra da geçerli/temiz JSON'a çevrilemedi.")
 
     return _commentary_from_json(data, source="llm")
+
+
+def call_llm_json(user_prompt: str, *, system_instruction: str, response_schema: dict) -> dict:
+    """`_call_llm_and_parse()` ile AYNI retry + "şüpheli artefakt" düzeltme
+    isteği döngüsünü kullanır, ama sonucu `Commentary`'ye ÇEVİRMEDEN ham
+    JSON sözlüğü olarak döner -- `_SYSTEM_INSTRUCTION`/`_RESPONSE_SCHEMA`'ya
+    BAĞLI DEĞİLDİR. Bu proje için TEK Gemini HTTP/retry/JSON-güvenlik
+    katmanının (bkz. `_call_gemini_raw`, `_contains_suspicious_artifact`)
+    DIŞA açılan genel amaçlı kapısıdır -- `src/ai/kar_kaynagi.py` (Faaliyet
+    Raporu nitel bulguları, TAMAMEN FARKLI bir şema/istem) gibi modüller bu
+    fonksiyonu çağırır, retry/HTTP mantığını KOPYALAMAZ (persona kuralı:
+    "mevcut yardımcıyı kullan, kopyalama").
+
+    Kalıcı hatada (ağ, kimlik doğrulama, düzeltmeden sonra da geçersiz JSON)
+    exception fırlatır -- `generate_commentary()` ile AYNI sözleşme, çağıran
+    taraf kendi LLM'siz yedek moduna düşer."""
+    contents = [{"role": "user", "parts": [{"text": user_prompt}]}]
+    raw_text = _call_gemini_raw(contents, system_instruction, response_schema)
+
+    data = _parse_json_response(raw_text)
+    if data is None or _contains_suspicious_artifact(data):
+        contents = [
+            {"role": "user", "parts": [{"text": user_prompt}]},
+            {"role": "model", "parts": [{"text": raw_text}]},
+            {"role": "user", "parts": [{"text": _JSON_FIX_INSTRUCTION}]},
+        ]
+        raw_text = _call_gemini_raw(contents, system_instruction, response_schema)
+        data = _parse_json_response(raw_text)
+        if data is not None and _contains_suspicious_artifact(data):
+            data = None
+
+    if data is None:
+        raise _NonRetryableLLMError("Gemini yanıtı düzeltme isteğinden sonra da geçerli/temiz JSON'a çevrilemedi.")
+    return data
 
 
 # --- LLM'siz yedek mod -----------------------------------------------------

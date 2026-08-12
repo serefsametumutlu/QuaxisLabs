@@ -104,6 +104,40 @@ def test_build_dashboard_data_satir_semasi(session) -> None:
     assert company["carpanlar"]["pe_ratio"] == 5.0
     assert company["carpanlar"]["currency"] == "TRY"
     assert isinstance(company["veri_uyarilari"], list)
+    # Görev 2 (detay sayfa linki) + Görev 3 (BIST30/BIST100 çipleri) alanları.
+    assert company["detail_url"] == "detay/BIST_THYAO.html"
+    assert company["in_bist30"] is True  # THYAO gerçek BIST30 endeks üyesi
+    assert company["in_bist100"] is True
+
+
+def test_bist30_bist100_uyelik_bayraklari(session) -> None:
+    _add_ok_row(session, "THYAO")  # BIST30 + BIST100 üyesi
+    _add_ok_row(session, "HALKB", ust_sektor="Bankacılık", sirket_turu="banka")  # SADECE BIST100 üyesi
+    _add_ok_row(session, "ZZZZZ", ust_sektor="Diğer", sirket_turu="sanayi")  # hiçbir endekste yok
+    session.commit()
+
+    data = dashboard.build_dashboard_data(session)
+    by_ticker = {c["ticker"]: c for sec in data["markets"]["BIST"]["sectors"] for c in sec["companies"]}
+    assert by_ticker["THYAO"]["in_bist30"] is True
+    assert by_ticker["THYAO"]["in_bist100"] is True
+    assert by_ticker["HALKB"]["in_bist30"] is False
+    assert by_ticker["HALKB"]["in_bist100"] is True
+    assert by_ticker["ZZZZZ"]["in_bist30"] is False
+    assert by_ticker["ZZZZZ"]["in_bist100"] is False
+
+    assert "bist30_index" in data["markets"]["BIST"]
+    assert "THYAO" in data["markets"]["BIST"]["bist30_index"]
+    assert "HALKB" not in data["markets"]["BIST"]["bist30_index"]
+    assert "HALKB" in data["markets"]["BIST"]["bist100_index"]
+
+
+def test_nasdaq_satirlarinda_bist_endeks_bayraklari_hep_false(session) -> None:
+    _add_ok_row(session, "AAPL", market="NASDAQ", ust_sektor="Teknoloji")
+    session.commit()
+    data = dashboard.build_dashboard_data(session)
+    company = data["markets"]["NASDAQ"]["sectors"][0]["companies"][0]
+    assert company["in_bist30"] is False
+    assert company["in_bist100"] is False
 
 
 def test_build_dashboard_data_hatali_satir_ornegi_veri_yok(session) -> None:
@@ -277,6 +311,32 @@ def test_render_dashboard_html_bist_nasdaq_sekmeleri_var(session) -> None:
     assert "AAPL" in html
 
 
+def test_render_dashboard_html_ticker_hucresi_detay_sayfasina_baglanir(session) -> None:
+    """Görev 2: ticker hücresi artık `<a href="detay/...">` linki, yeni
+    sekmede açılır."""
+    _add_ok_row(session, "THYAO")
+    session.commit()
+    data = dashboard.build_dashboard_data(session)
+    html = dashboard.render_dashboard_html(data)
+
+    assert 'href="detay/BIST_THYAO.html"' in html
+    assert 'target="_blank"' in html
+
+
+def test_render_dashboard_html_bist30_bist100_cipleri_sadece_bist_panelinde(session) -> None:
+    """Görev 3: filtre çipleri SADECE BİST panelinde görünür, NASDAQ'ta yok."""
+    _add_ok_row(session, "THYAO", market="BIST")
+    _add_ok_row(session, "AAPL", market="NASDAQ", ust_sektor="Teknoloji")
+    session.commit()
+    data = dashboard.build_dashboard_data(session)
+    html = dashboard.render_dashboard_html(data)
+
+    assert 'data-index-chip-row="BIST"' in html
+    assert 'data-index-chip-row="NASDAQ"' not in html
+    assert 'data-in-bist30="true"' in html  # THYAO satırı
+
+
+
 # --- build_and_write_dashboard() -- üretim giriş noktası -----------------------------------------------------
 
 
@@ -292,3 +352,23 @@ def test_build_and_write_dashboard_dosyaya_yazar(session, tmp_path) -> None:
     content = out_path.read_text(encoding="utf-8")
     assert "THYAO" in content
     assert "<!DOCTYPE html>" in content
+
+
+def test_build_and_write_dashboard_with_details_hepsini_uretir(session, tmp_path) -> None:
+    """Görev 2: dashboard.html'in YANINDA HER satır için ayrı bir detay
+    sayfası -- gerçek proje output/ klasörü KİRLETİLMEZ (tmp_path altına
+    yazılır)."""
+    _add_ok_row(session, "THYAO", market="BIST")
+    _add_ok_row(session, "AAPL", market="NASDAQ", ust_sektor="Teknoloji")
+    session.commit()
+
+    out_path = tmp_path / "dashboard.html"
+    dashboard_path, detail_paths = dashboard.build_and_write_dashboard_with_details(out_path, session=session)
+
+    assert dashboard_path == str(out_path)
+    assert len(detail_paths) == 2
+    thyao_path = tmp_path / "detay" / "BIST_THYAO.html"
+    aapl_path = tmp_path / "detay" / "NASDAQ_AAPL.html"
+    assert thyao_path.exists()
+    assert aapl_path.exists()
+    assert "THYAO" in thyao_path.read_text(encoding="utf-8")

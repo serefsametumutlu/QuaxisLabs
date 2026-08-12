@@ -354,7 +354,24 @@
   table.scan-table tbody tr:hover { background: var(--bg-surface-raised); }
   table.scan-table tbody tr.row-degraded { opacity: 0.55; }
 
-  .ticker-cell { font-family: var(--font-mono); font-weight: var(--weight-semibold); color: var(--ink-primary); }
+  .ticker-cell { font-family: var(--font-mono); font-weight: var(--weight-semibold); color: var(--ink-primary); text-decoration: none; }
+  a.ticker-cell:hover { color: var(--brand-gold); text-decoration: underline; }
+
+  /* ---- Görev 3: BIST30/BIST100 filtre çipleri ---------------------- */
+  .search-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); }
+  .index-chip-row { display: flex; gap: var(--space-2); }
+  .index-chip {
+    font-family: var(--font-mono);
+    font-size: var(--text-caption);
+    font-weight: var(--weight-medium);
+    color: var(--ink-secondary);
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-pill);
+    padding: var(--space-1) var(--space-4);
+    cursor: pointer;
+  }
+  .index-chip.active { color: var(--bg-canvas); background: var(--brand-gold); border-color: var(--brand-gold); }
   .company-name { display: block; font-size: var(--text-micro); color: var(--ink-tertiary); font-weight: var(--weight-regular); }
   .status-pill {
     font-family: var(--font-mono);
@@ -527,6 +544,18 @@
 
   <div class="search-row">
     <input type="text" class="search-input" placeholder="Ticker veya şirket adı ara ({{ market }})..." data-search-for="{{ market }}">
+    {% if market == "BIST" %}
+    {# Görev 3 (kullanıcı isteği, 2026-08-12): BIST30/BIST100 çipleri SADECE
+       BİST panelinde -- NASDAQ'ta bu endeks kavramı YOK. Seçilince ilgili
+       endeksin DIŞINDAKİ satırlar (data-in-bist30/data-in-bist100
+       attribute'larına bakarak) gizlenir; arama/sektör filtreleriyle AYNI
+       ANDA çalışır (kombinasyon, ayrı bir mod DEĞİL -- bkz. aşağıdaki
+       applyFilters()). #}
+    <span class="index-chip-row" data-index-chip-row="{{ market }}">
+      <button type="button" class="index-chip" data-index-filter="in_bist30">BIST30</button>
+      <button type="button" class="index-chip" data-index-filter="in_bist100">BIST100</button>
+    </span>
+    {% endif %}
   </div>
 
   {% if data.markets[market].sectors %}
@@ -565,10 +594,12 @@
         </thead>
         <tbody>
           {% for c in sector.companies %}
-          <tr data-ticker="{{ c.ticker }}" data-company-name="{{ c.company_name }}" class="{% if c.scan_status != 'ok' %}row-degraded{% endif %}">
+          <tr data-ticker="{{ c.ticker }}" data-company-name="{{ c.company_name }}"
+              data-in-bist30="{{ c.in_bist30 | lower }}" data-in-bist100="{{ c.in_bist100 | lower }}"
+              class="{% if c.scan_status != 'ok' %}row-degraded{% endif %}">
             <td class="col-left"
                 data-sort="{{ c.ticker }}">
-              <span class="ticker-cell">{{ c.ticker }}</span>
+              <a class="ticker-cell" href="{{ c.detail_url }}" target="_blank" rel="noopener">{{ c.ticker }}</a>
               <span class="company-name">{{ c.company_name }}{% if c.scan_status != 'ok' %} — <span class="status-pill">{{ c.scan_status }}</span>{% endif %}</span>
             </td>
             <td class="col-left" data-sort="{{ c.sirket_turu_display }}">{{ c.sirket_turu_display }}</td>
@@ -650,30 +681,62 @@
     });
   });
 
-  // ---- Arama/filtre (ticker + şirket adı) ------------------------------
+  // ---- Arama/filtre (ticker + şirket adı) + Görev 3 BIST30/BIST100 çipleri
+  //      -- İKİSİ AYNI ANDA çalışır (kombinasyon, ayrı bir mod DEĞİL): bir
+  //      satır SADECE hem arama sorgusuyla EŞLEŞİYORSA hem de (çip seçiliyse)
+  //      ilgili endekste İSE görünür kalır. Saf DOM görünürlük anahtarlaması,
+  //      hesaplama YOK.
+  var activeIndexFilter = {}; // { "BIST": "in_bist30" | "in_bist100" | null }
+
+  function applyFilters(market) {
+    var panel = document.querySelector('.market-panel[data-market-panel="' + market + '"]');
+    if (!panel) { return; }
+    var input = panel.querySelector('.search-input[data-search-for="' + market + '"]');
+    var query = (input ? input.value.trim() : "").toLocaleUpperCase("tr");
+    var indexFilter = activeIndexFilter[market] || null;
+    var anyVisibleGlobal = false;
+
+    panel.querySelectorAll("[data-sector-group]").forEach(function (group) {
+      var rows = group.querySelectorAll("tbody tr");
+      var groupHasMatch = false;
+      rows.forEach(function (row) {
+        var ticker = (row.getAttribute("data-ticker") || "").toLocaleUpperCase("tr");
+        var name = (row.getAttribute("data-company-name") || "").toLocaleUpperCase("tr");
+        var searchMatch = query === "" || ticker.indexOf(query) !== -1 || name.indexOf(query) !== -1;
+        var indexMatch = indexFilter === null || row.getAttribute("data-" + indexFilter.replace(/_/g, "-")) === "true";
+        var match = searchMatch && indexMatch;
+        row.classList.toggle("hidden", !match);
+        if (match) { groupHasMatch = true; anyVisibleGlobal = true; }
+      });
+      group.classList.toggle("hidden", !groupHasMatch);
+      if ((query !== "" || indexFilter !== null) && groupHasMatch) { group.open = true; }
+    });
+
+    var noMatchNote = panel.querySelector("[data-no-match-note]");
+    if (noMatchNote) { noMatchNote.classList.toggle("hidden", anyVisibleGlobal || (query === "" && indexFilter === null)); }
+  }
+
   document.querySelectorAll(".search-input").forEach(function (input) {
     input.addEventListener("input", function () {
-      var market = input.getAttribute("data-search-for");
-      var panel = document.querySelector('.market-panel[data-market-panel="' + market + '"]');
-      var query = input.value.trim().toLocaleUpperCase("tr");
-      var anyVisibleGlobal = false;
+      applyFilters(input.getAttribute("data-search-for"));
+    });
+  });
 
-      panel.querySelectorAll("[data-sector-group]").forEach(function (group) {
-        var rows = group.querySelectorAll("tbody tr");
-        var groupHasMatch = false;
-        rows.forEach(function (row) {
-          var ticker = (row.getAttribute("data-ticker") || "").toLocaleUpperCase("tr");
-          var name = (row.getAttribute("data-company-name") || "").toLocaleUpperCase("tr");
-          var match = query === "" || ticker.indexOf(query) !== -1 || name.indexOf(query) !== -1;
-          row.classList.toggle("hidden", !match);
-          if (match) { groupHasMatch = true; anyVisibleGlobal = true; }
-        });
-        group.classList.toggle("hidden", !groupHasMatch);
-        if (query !== "" && groupHasMatch) { group.open = true; }
+  document.querySelectorAll("[data-index-chip-row]").forEach(function (chipRow) {
+    var market = chipRow.getAttribute("data-index-chip-row");
+    chipRow.querySelectorAll(".index-chip").forEach(function (chip) {
+      chip.addEventListener("click", function () {
+        var filterKey = chip.getAttribute("data-index-filter");
+        var isActive = chip.classList.contains("active");
+        chipRow.querySelectorAll(".index-chip").forEach(function (c) { c.classList.remove("active"); });
+        if (isActive) {
+          activeIndexFilter[market] = null; // tekrar tıklanınca deseçilir
+        } else {
+          chip.classList.add("active");
+          activeIndexFilter[market] = filterKey;
+        }
+        applyFilters(market);
       });
-
-      var noMatchNote = panel.querySelector("[data-no-match-note]");
-      if (noMatchNote) { noMatchNote.classList.toggle("hidden", anyVisibleGlobal || query === ""); }
     });
   });
 

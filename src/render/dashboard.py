@@ -40,6 +40,7 @@ from src.analysis.scorer import YETERSIZ_VERI_ROZETI
 from src.db import repository
 from src.db.models import MarketScanResult, utcnow_naive
 from src.formatting import format_currency_short, format_number_tr, format_percent_tr
+from src.render import company_detail
 
 _TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
 _env = jinja2.Environment(
@@ -269,6 +270,34 @@ SCORE_METHODOLOGY: dict[str, Any] = {
 }
 
 
+# Görev 3 (kullanıcı isteği, 2026-08-12): infoyatirim.com üzerinden bu
+# OTURUMDA WebSearch ile araştırılan GERÇEK BIST30/BIST100 endeks kompozisyonu
+# -- infoyatirim.com, 2026-08-12 itibarıyla ANLIK GÖRÜNTÜ, periyodik doğrulama
+# önerilir (endeks kompozisyonu 3 ayda bir TÜREV/PY tarafından revize edilir,
+# bu liste OTOMATİK güncellenmez -- `spec_dashboard.md`'nin kendi BIST30_PILOT
+# dipnot deseniyle AYNI dürüstlük ilkesi). `scripts/tarama_toplu.py::BIST30_PILOT`
+# (32'lik PİLOT/DOĞRULAMA kümesi, tarama önceliklendirmesi içindir) İLE
+# KARIŞTIRILMASIN -- bu ikisi TAMAMEN AYRI amaçlara hizmet eder: BIST30_PILOT
+# "hangi ticker'lar önce taransın", BIST30_INDEX/BIST100_INDEX ise "dashboard'da
+# hangi satırlar endeks üyesi olarak FİLTRELENEBİLSİN" sorusuna cevap verir.
+BIST30_INDEX = [
+    "THYAO", "ASELS", "TUPRS", "KCHOL", "AKBNK", "SISE", "BIMAS", "EREGL", "FROTO", "ENKAI",
+    "AEFES", "ASTOR", "DSTKF", "EKGYO", "GARAN", "GUBRF", "ISCTR", "KRDMD", "MGROS", "PETKM",
+    "PGSUS", "SAHOL", "SASA", "TAVHL", "TCELL", "TOASO", "TRALT", "TTKOM", "VAKBN", "YKBNK",
+]
+BIST100_INDEX = BIST30_INDEX + [
+    "AKSA", "AKSEN", "ALARK", "ALTNY", "ANSGR", "ARCLK", "BALSU", "BERA", "BRSAN", "BRYAT",
+    "BSOKE", "BTCIM", "CANTE", "CCOLA", "CIMSA", "CVKMD", "CWENE", "DAPGM", "DOAS", "DOHOL",
+    "ECILC", "EFOR", "ENERY", "ENJSA", "ESEN", "EUPWR", "EUREN", "FENER", "GENIL", "GESAN",
+    "GLRMK", "GRSEL", "GRTHO", "GSRAY", "HALKB", "HEKTS", "IEYHO", "IPEKE", "ISMEN", "IZENR",
+    "KLRHO", "KTLEV", "KUYAS", "MAGEN", "MAVI", "MIATK", "MPARK", "OBAMS", "ODAS", "ODINE",
+    "OTKAR", "OYAKC", "PAHOL", "PASEU", "PATEK", "PSGYO", "QUAGR", "RALYH", "REEDR", "SARKY",
+    "SKBNK", "SOKM", "TKFEN", "TRENJ", "TRMET", "TSKB", "TUKAS", "TURSG", "ULKER", "VESTL", "ZOREN",
+]
+_BIST30_SET = set(BIST30_INDEX)
+_BIST100_SET = set(BIST100_INDEX)
+
+
 GYO_UYARI_NOTU: dict[str, str] = {
     "tur": "gyo",
     "aciklama": (
@@ -427,6 +456,15 @@ def _serialize_row(row: MarketScanResult) -> dict[str, Any]:
         "scan_status": row.scan_status,
         "computed_at": _iso(row.computed_at),
         "computed_at_display": _tr_datetime(row.computed_at),
+        # Görev 2 (kullanıcı isteği, 2026-08-12): dashboard satırından tek
+        # şirket detay sayfasına RELATİF link -- path mantığı company_detail.py
+        # TEK kaynağında (detail_relative_path) tutulur, burada TEKRARLANMAZ.
+        "detail_url": company_detail.detail_relative_path(row.ticker, row.market),
+        # Görev 3: SADECE BİST satırlarında anlamlı -- NASDAQ için bu endeks
+        # kavramı YOK, her iki alan da False kalır (dashboard.html BİREBİR
+        # SADECE BİST panelinde filtre çipi gösterir).
+        "in_bist30": row.market == "BIST" and row.ticker in _BIST30_SET,
+        "in_bist100": row.market == "BIST" and row.ticker in _BIST100_SET,
         "mercekler": mercekler,
         "bilesik": bilesik,
         "carpanlar": carpanlar,
@@ -526,6 +564,15 @@ def build_dashboard_data(session: Session, *, now: datetime | None = None) -> di
                 "badge_dagilimi": _badge_dagilimi(bist_rows),
                 "sistemik_uyarilar": PIYASA_SISTEMIK_EKSIK_BILESENLER.get("BIST", []),
                 "sectors": _build_sectors(bist_rows),
+                # Görev 3: ham endeks listeleri de gömülür (satır bazlı
+                # in_bist30/in_bist100 booleanlarının YANINDA -- istemci-içi
+                # JS'in her satırın data-in-bist30/data-in-bist100 attribute'una
+                # bakması yeterli olsa da, spec'in AÇIKÇA istediği "listeleri de
+                # JSON'a göm" gereksinimi için ayrıca eklendi, ileride ek bir
+                # görünüm -- örn. "endekste olup taranmamış tickerlar" -- bu ham
+                # listeye ihtiyaç duyabilir).
+                "bist30_index": BIST30_INDEX,
+                "bist100_index": BIST100_INDEX,
             },
             "NASDAQ": {
                 "badge_dagilimi": _badge_dagilimi(nasdaq_rows),
@@ -593,6 +640,33 @@ def build_and_write_dashboard(
     return str(out_path)
 
 
+def build_and_write_dashboard_with_details(
+    output_path: str | Path | None = None,
+    *,
+    session: Session | None = None,
+) -> tuple[str, list[str]]:
+    """Görev 2 (kullanıcı isteği, 2026-08-12): `build_and_write_dashboard()`'ı
+    DEĞİŞTİRMEDEN (mevcut testler/çağıranlar -- örn. `/piyasa` komutu --
+    davranışı AYNEN korunur) dashboard.html ÜRETİMİNİN YANINDA HER satır için
+    `src/render/company_detail.py::build_and_write_all_company_details()` ile
+    detay sayfalarını da üretir. `(dashboard_path, detail_paths)` döner.
+
+    Detay sayfaları, dashboard.html'in üretildiği dizine göre `detay/`
+    ALT KLASÖRÜNE yazılır (bkz. `_serialize_row`'daki RELATİF `detail_url`,
+    "detay/{market}_{ticker}.html") -- `output_path` özel verildiyse (örn.
+    testlerde `tmp_path`) detay klasörü de AYNI kök altına yazılır, gerçek
+    proje `output/` klasörü kirletilmez."""
+    dashboard_path = build_and_write_dashboard(output_path, session=session)
+    detail_output_dir = Path(dashboard_path).parent / "detay"
+    if session is not None:
+        detail_paths = company_detail.build_and_write_all_company_details(session=session, output_dir=detail_output_dir)
+    else:
+        with repository.get_session() as owned_session:
+            detail_paths = company_detail.build_and_write_all_company_details(session=owned_session, output_dir=detail_output_dir)
+    return dashboard_path, detail_paths
+
+
 if __name__ == "__main__":
-    yol = build_and_write_dashboard()
+    yol, detay_yollari = build_and_write_dashboard_with_details()
     print(f"Dashboard üretildi: {yol}")
+    print(f"{len(detay_yollari)} şirket detay sayfası üretildi (output/detay/).")

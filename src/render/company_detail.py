@@ -391,24 +391,33 @@ def build_and_write_company_detail(
     return str(out_path)
 
 
-def build_and_write_all_company_details(*, session: Session | None = None) -> list[str]:
+def build_and_write_all_company_details(*, session: Session | None = None, output_dir: str | Path | None = None) -> list[str]:
     """Görev 2: HER `MarketScanResult` satırı için ayrı bir detay sayfası
     üretir -- `scripts/tarama_toplu.py` tarafından doldurulmuş TÜM satırları
     (BIST + NASDAQ) tarar, ağa GİTMEZ (SADECE DB okur, `build_and_write_
-    dashboard()` ile AYNI "veri kaynağı zaten hazır" ilkesi)."""
+    dashboard()` ile AYNI "veri kaynağı zaten hazır" ilkesi).
+
+    `output_dir` verilmezse varsayılan `output/detay/` kullanılır
+    (`detail_output_path()`); testler VEYA `dashboard.py`'nin özel bir
+    `output_path` ile çağrılması durumunda GERÇEK proje `output/` klasörünü
+    KİRLETMEMEK için AYRI bir dizin geçirilebilir (dosya adı deseni --
+    `{market}_{ticker}.html` -- AYNI kalır)."""
     if session is not None:
-        return _write_all_details(session)
+        return _write_all_details(session, output_dir)
     with repository.get_session() as owned_session:
-        return _write_all_details(owned_session)
+        return _write_all_details(owned_session, output_dir)
 
 
-def _write_all_details(session: Session) -> list[str]:
+def _write_all_details(session: Session, output_dir: str | Path | None = None) -> list[str]:
     written: list[str] = []
     for row in repository.get_market_scan_results(session):
         data = build_company_detail_data(session, row.ticker, row.market)
         if data is None:
             continue
-        out_path = detail_output_path(row.ticker, row.market)
+        if output_dir is not None:
+            out_path = Path(output_dir) / f"{row.market}_{row.ticker}.html"
+        else:
+            out_path = detail_output_path(row.ticker, row.market)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         html = render_company_detail_html(data)
         out_path.write_text(html, encoding="utf-8")

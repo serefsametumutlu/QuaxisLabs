@@ -376,6 +376,20 @@ class MarketScanResult(Base):
     #     SQLite deseni) ---
     mercekler_detay: Mapped[dict | None] = mapped_column(JSON)    # {"değer": [ComponentScore alanları...], ...}
 
+    # docs/spec/spec_veri_tamlik_yol_haritasi.md §Faaliyet Raporu / Dipnot
+    # Araştırması (2026-08-12): `src/ai/kar_kaynagi.py::KarKaynagiBulgulari.
+    # to_dict()` çıktısı -- SKOR/formül DEĞİL, faaliyet raporu metninden
+    # çıkarılmış nitel bulgu/checklist (Kural 1: LLM asla sayı üretmez, bu
+    # yüzden AYRI bir sütun -- mercekler_detay'daki sayısal bileşenlerle
+    # ASLA KARIŞTIRILMAZ). `scripts/kar_kaynagi_toplu.py` (AYRI, sıcak/ağır
+    # bir pilot script -- her taramada ÇALIŞMAZ) tarafından yazılır;
+    # `src/render/company_detail.py` NULL ise dürüst placeholder'ı KORUR
+    # (bkz. o modülün FAALIYET_RAPORU_PLACEHOLDER sabiti). Şema değişikliği
+    # BURADA gerekli/kabul edilebilir: bu alan `mercekler_detay`'dan
+    # TAMAMEN farklı bir üretim zamanlamasına/kaynağa sahip (KAP PDF + LLM,
+    # tarama_toplu.py'nin ana v2 skor motorunun BİR PARÇASI DEĞİL).
+    faaliyet_raporu_bulgulari: Mapped[dict | None] = mapped_column(JSON)
+
     computed_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow_naive)     # bu SATIRIN en son ne zaman hesaplandigi (SCAN tazelik anchor'i)
     financial_data_as_of: Mapped[datetime | None] = mapped_column(DateTime)           # Company.last_updated'in tarama anındaki KOPYASI (bkz. Tazelik)
 
@@ -512,6 +526,24 @@ def _migrate_add_filer_category_column(engine: Engine) -> None:
         connection.execute(text("ALTER TABLE company ADD COLUMN filer_category VARCHAR(60)"))
 
 
+def _migrate_add_faaliyet_raporu_bulgulari_column(engine: Engine) -> None:
+    """docs/spec/spec_veri_tamlik_yol_haritasi.md §Faaliyet Raporu (2026-08-12)
+    ÖNCESİ oluşturulmuş veritabanlarında 'market_scan_result' tablosu zaten
+    var ama 'faaliyet_raporu_bulgulari' sütunu YOK -- _migrate_add_market_column
+    ile BİREBİR AYNI idempotent ALTER TABLE deseni: sütun zaten varsa hiçbir
+    şey yapılmaz. Nullable/JSON -- eski satırlar NULL kalır, render katmanı
+    bunu dürüst placeholder olarak gösterir (bkz. company_detail.py)."""
+    inspector = inspect(engine)
+    if "market_scan_result" not in inspector.get_table_names():
+        return  # create_all() zaten dogru sekilde (yeni sutun DAHIL) olusturacak
+    existing_columns = {col["name"] for col in inspector.get_columns("market_scan_result")}
+    if "faaliyet_raporu_bulgulari" in existing_columns:
+        return
+    logger.info("Migration: 'market_scan_result' tablosuna 'faaliyet_raporu_bulgulari' sutunu ekleniyor.")
+    with engine.begin() as connection:
+        connection.execute(text("ALTER TABLE market_scan_result ADD COLUMN faaliyet_raporu_bulgulari JSON"))
+
+
 def init_db(engine: Engine | None = None) -> None:
     """Tablolari olusturur (varsa dokunmaz -- create_all idempotenttir) VE
     var olan tablolarda eksik sutunlari migrate eder (bkz. _migrate_add_market_column,
@@ -528,6 +560,7 @@ def init_db(engine: Engine | None = None) -> None:
     _migrate_add_commentary_hook_column(target_engine)
     _migrate_add_sector_taxonomy_columns(target_engine)
     _migrate_add_filer_category_column(target_engine)
+    _migrate_add_faaliyet_raporu_bulgulari_column(target_engine)
 
 
 # Uygulamanin varsayilan (production) baglantisi. Testler bunu KULLANMAZ;

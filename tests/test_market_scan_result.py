@@ -69,6 +69,65 @@ def test_company_filer_category_sutunu_migration_ile_eklenir(tmp_path) -> None:
 # --- upsert_market_scan_result -----------------------------------------------------
 
 
+def test_faaliyet_raporu_bulgulari_sutunu_migration_ile_eklenir(tmp_path) -> None:
+    """docs/spec/spec_veri_tamlik_yol_haritasi.md §Faaliyet Raporu (2026-08-12)
+    ÖNCESİ oluşturulmuş (faaliyet_raporu_bulgulari YOK) bir 'market_scan_result'
+    tablosunu simüle eder -- init_db() bunu GÜVENLİ şekilde migrate etmeli."""
+    db_url = f"sqlite:///{tmp_path / 'legacy_faaliyet_raporu.db'}"
+    engine, _ = models.create_engine_and_session(db_url)
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "CREATE TABLE market_scan_result (ticker VARCHAR(20) PRIMARY KEY, market VARCHAR(10), "
+                "scan_status VARCHAR(20))"
+            )
+        )
+        connection.execute(text("INSERT INTO market_scan_result (ticker, market, scan_status) VALUES ('THYAO', 'BIST', 'ok')"))
+
+    models.init_db(engine)
+
+    inspector = inspect(engine)
+    columns = {col["name"] for col in inspector.get_columns("market_scan_result")}
+    assert "faaliyet_raporu_bulgulari" in columns
+
+
+# --- update_faaliyet_raporu_bulgulari (docs/spec/spec_veri_tamlik_yol_
+# haritasi.md §Faaliyet Raporu) --------------------------------------------------
+
+
+def test_update_faaliyet_raporu_bulgulari_diger_alanlari_ezmez(session) -> None:
+    _make_company(session, "THYAO")
+    repository.upsert_market_scan_result(
+        session, "THYAO", "BIST", scan_status="ok",
+        deger_score=Decimal("7.2"), bilesik_score=Decimal("6.9"), bilesik_badge="DENGELİ",
+    )
+    session.commit()
+
+    bulgular = {"kaynak_baslik": "2025 Faaliyet Raporu", "source": "llm", "kar_kaynagi_ozeti": "test"}
+    row = repository.update_faaliyet_raporu_bulgulari(session, "THYAO", "BIST", bulgular)
+    session.commit()
+
+    assert row is not None
+    fetched = session.get(MarketScanResult, "THYAO")
+    assert fetched.faaliyet_raporu_bulgulari == bulgular
+    # ana skor alanları DOKUNULMADAN kalmalı (bkz. upsert_market_scan_result'ın
+    # AKSİNE -- bu fonksiyon SADECE tek bir sütunu günceller)
+    assert fetched.deger_score == Decimal("7.20")
+    assert fetched.bilesik_score == Decimal("6.90")
+    assert fetched.bilesik_badge == "DENGELİ"
+
+
+def test_update_faaliyet_raporu_bulgulari_satir_yoksa_none_doner(session) -> None:
+    assert repository.update_faaliyet_raporu_bulgulari(session, "YOKSAT", "BIST", {"a": 1}) is None
+
+
+def test_update_faaliyet_raporu_bulgulari_piyasa_uyusmuyorsa_none_doner(session) -> None:
+    _make_company(session, "THYAO")
+    repository.upsert_market_scan_result(session, "THYAO", "BIST", scan_status="ok")
+    session.commit()
+    assert repository.update_faaliyet_raporu_bulgulari(session, "THYAO", "NASDAQ", {"a": 1}) is None
+
+
 def test_upsert_market_scan_result_basarili_tarama_tum_alanlari_yazar(session) -> None:
     _make_company(session, "THYAO")
     row = repository.upsert_market_scan_result(

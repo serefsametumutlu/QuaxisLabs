@@ -1000,6 +1000,30 @@ def upsert_market_scan_result(
     return row
 
 
+def update_faaliyet_raporu_bulgulari(
+    session: Session, ticker: str, market: str, bulgular: dict | None
+) -> MarketScanResult | None:
+    """docs/spec/spec_veri_tamlik_yol_haritasi.md §Faaliyet Raporu -- SADECE
+    `faaliyet_raporu_bulgulari` sütununu günceller, `upsert_market_scan_result()`
+    ile KASITLI OLARAK FARKLI davranır: o fonksiyon verilMEYEN alanları NULL'a
+    döndürür (bkz. kendi docstring'i) -- bu, `scripts/kar_kaynagi_toplu.py`
+    (sıcak/ağır, AYRI bir pilot script) çalıştığında ana v2 skor/mercek
+    verisini SİLMEMESİ için özellikle GEREKLİDİR.
+
+    Satır (ticker+market) DB'de YOKSA (henüz `tarama_toplu.py` ile taranmamış
+    bir şirket) `None` döner -- bu script YENİ bir `MarketScanResult` satırı
+    OLUŞTURMAZ (Kural 3: faaliyet raporu bulgusu, o şirketin ZATEN var olan
+    bir tarama sonucunu ZENGİNLEŞTİRİR, kendi başına bir satır kaynağı DEĞİLDİR).
+
+    `session.commit()` BURADA YAPILMAZ (diğer upsert/güncelleme fonksiyonlarıyla
+    AYNI ilke -- çağıran taraf commit eder)."""
+    row = session.get(MarketScanResult, ticker)
+    if row is None or row.market != market:
+        return None
+    row.faaliyet_raporu_bulgulari = bulgular
+    return row
+
+
 def get_market_scan_results(session: Session, market: str | None = None) -> list[MarketScanResult]:
     """docs/spec/spec_dashboard.md §Dashboard'a gömülecek JSON şeması:
     `src/render/dashboard.py::build_dashboard_data()` (Faz 5 adım 3) için

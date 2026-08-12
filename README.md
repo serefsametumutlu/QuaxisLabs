@@ -1807,6 +1807,53 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       bileşen için ağırlık İCAT ETMEK persona kuralını ihlal ederdi.
       19 yeni test (`test_isyatirim.py`, `test_calculator_us.py`,
       `test_sec_edgar.py`) — tam suite 1432 test yeşil, 1 commit.
+- [x] **Faaliyet Raporu / Kâr Kaynağı Nitel Bulguları (BİST)** —
+      (2026-08-12, `docs/spec/spec_veri_tamlik_yol_haritasi.md` §Faaliyet
+      Raporu bölümü uygulandı) kullanıcının "kâr nereden geliyor" sorusu
+      için, mimari kural 1'e ("LLM asla sayı üretmez") TAM UYUMLU, SKOR
+      OLMAYAN bir "Nitel Bulgular" bölümü:
+      1. `src/fetchers/kap.py::find_latest_annual_report_disclosure()` /
+         `fetch_latest_annual_report_pdf()` — MEVCUT `fetch_disclosures()`
+         + `fetch_disclosure_attachment_pdf()`'i birleştiren küçük yardımcı
+         (kategori adı CANLI doğrulandı: "Faaliyet Raporu (Konsolide)";
+         `days=400` KAP'ta HTTP 500 veriyor, `days=365` güvenli sınır).
+      2. `src/fetchers/pdf_ocr.py::extract_native_pages()` — PyMuPDF
+         `get_text()` ile sayfa-sayfa metin (OCR'a hiç düşmeden — KAP
+         faaliyet raporları CANLI doğrulandı native metin katmanı taşıyor).
+      3. `src/ai/kar_kaynagi.py` (YENİ, `src/ai/commentary.py` İLE AYNI
+         katman — analysis/ DEĞİL, LLM+I/O orkestrasyonu içerdiği için):
+         anahtar-kelime tabanlı sayfa seçimi (`_select_relevant_text`, ham
+         PDF'in TAMAMI ASLA LLM'e gitmez) + checklist sistem istemiyle
+         Gemini'ye yorumlatma (`commentary.call_llm_json()` — bu görev için
+         `_call_gemini_raw()`'a `response_schema` parametreleştirmesi
+         eklenip genel amaçlı bir yardımcı olarak dışa açıldı, KOD TEKRARI
+         YOK). GEMINI_API_KEY yoksa/hata verirse kural tabanlı, dürüst bir
+         "şu an kullanılamıyor" yedek metne düşer (ASLA çökmez/uydurmaz).
+      4. `MarketScanResult.faaliyet_raporu_bulgulari` (YENİ JSON sütun,
+         migration'lı) + `repository.update_faaliyet_raporu_bulgulari()`
+         (SADECE bu sütunu günceller, ana v2 skor alanlarını EZMEZ — `upsert_
+         market_scan_result()`'tan KASITLI OLARAK farklı).
+      5. `src/render/company_detail.py` + `company_detail.html` — veri
+         VARSA gerçek bulguları ("SKOR/PUAN DEĞİLDİR" uyarısıyla, mercek
+         kartlarından görsel olarak AYRI) gösterir, YOKSA MEVCUT dürüst
+         placeholder KORUNUR.
+      6. `scripts/kar_kaynagi_toplu.py` (YENİ, AYRI pilot script — sıcak/
+         ağır işlem HER taramada çalışmaz, `tarama_toplu.py`'ye BAĞLANMADI;
+         tam evren modu BİLİNÇLİ OLARAK YOK, sadece `--tickers`/`--universe
+         pilot`).
+      **CANLI DOĞRULANDI** (THYAO — 01.01-30.06.2026 Yönetim Kurulu Faaliyet
+      Raporu: esas faaliyet zararının akaryakıt birim maliyet artışından
+      kaynaklandığı; SAHOL — 30.06.2026 Konsolide Faaliyet Raporu: net kâr
+      artışının enerji/malzeme teknolojileri operasyonel iyileşmesi VE
+      Akçansa pay devri/taşınmaz satışı/sigorta tazminatı gibi TEK SEFERLİK
+      kalemlerden geldiği doğru şekilde ayrıştırıldı) — `scripts/kar_kaynagi_
+      toplu.py --tickers THYAO` ile üretim DB'sine yazılıp `company_detail.py`
+      ile uçtan uca render edildi. NASDAQ tarafı (SEC 10-K MD&A metni için
+      sıfırdan yeni fetcher gerekiyor) BİLİNÇLİ OLARAK sonraki bir tura
+      bırakıldı (spec'in kendi önerisiyle TUTARLI). 35 yeni test
+      (`test_kap.py`, `test_pdf_ocr.py`, `test_kar_kaynagi.py`,
+      `test_commentary.py`, `test_market_scan_result.py`,
+      `test_company_detail.py`) — tam suite 1488 test yeşil.
 
 ## Dizin Yapisi
 
@@ -1821,7 +1868,7 @@ bilanco-radar/
 │   ├── fetchers/             # isyatirim.py, kap.py, sec_edgar.py (NASDAQ), earnings_calendar.py (takvim), price_history.py (teknik), tefas.py + kap_fund_portfolio.py (fonlar)
 │   ├── db/                   # models.py, repository.py
 │   ├── analysis/              # calculator.py, scorer.py, technical.py (teknik göstergeler)
-│   ├── ai/                    # commentary.py
+│   ├── ai/                    # commentary.py, kar_kaynagi.py (faaliyet raporu nitel bulguları)
 │   ├── render/                 # templates/, card.py, dashboard.py (piyasa dashboard'u), company_detail.py (şirket detay sayfası), calendar_card.py (takvim kartı), technical_card.py (teknik kart)
 │   └── bot/                    # pipeline.py (orkestrasyon), telegram_bot.py, menu.py (buton menü)
 └── tests/

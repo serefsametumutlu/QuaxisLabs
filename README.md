@@ -1602,6 +1602,56 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       `test_lens_bilesik_skor.py`/`test_scorer.py` genişletildi,
       `test_pipeline_multi_lens.py`'ye banka/sigorta/finansman/katılım
       bankası uçtan uca testleri eklendi).
+- [x] **Faz 5 devamı (Şirket Detay Sayfası + Dashboard bağlantısı)** —
+      (2026-08-12, kullanıcı isteği: dashboard'daki her satıra tıklanınca
+      açılan, hisseye özel detay sayfası) 3 alt-görev:
+      1. **`src/render/company_detail.py`** (YENİ modül) — `dashboard.py`
+         ile AYNI iki-aşamalı desen (`build_company_detail_data()` +
+         `render_company_detail_html()`). `output/detay/{market}_{ticker}.html`
+         tek-dosyalık HTML üretir: ticker/şirket adı/sektör/tür + bileşik
+         skor rozeti (kahraman), **4 mercegin HER bileşenini** (skor/nominal
+         ağırlık/efektif ağırlık/katkı + hazır Türkçe `reasoning_tr`)
+         `MarketScanResult.mercekler_detay` JSON'undan (zaten `scripts/
+         tarama_toplu.py::_mercekler_detay()` tarafından doldurulmuş)
+         okuyup tabloya döker — kullanıcının "hangi formülle, hisseye özgü
+         hangi değerle hesaplandı" sorusunun DOĞRUDAN cevabı. Ana çarpanlar
+         (F/K, PD/DD, FD/FAVÖK) + `repository.get_financials()`'tan
+         (I/O YOK, DB'de zaten var) beslenen, `calculator.analyze()`/
+         `analyze_bank()`/`analyze_insurance()`/`analyze_financing()`/
+         `analyze_us()` (şablona göre seçilir, YENİ formül İCAT EDİLMEDİ)
+         ile üretilen gelir tablosu/bilanço/çeyreklik seri özeti. "Faaliyet
+         Raporu Bulguları" bölümü dürüst bir placeholder ("henüz
+         araştırılmadı") — uydurma veri YOK.
+      2. **Dashboard bağlantısı** — `dashboard.py::_serialize_row()`'a
+         `detail_url` alanı eklendi (`company_detail.detail_relative_path()`
+         TEK kaynağından), `dashboard.html`'de ticker hücresi artık
+         `<a href="detay/..." target="_blank">` linki. YENİ
+         `build_and_write_dashboard_with_details()` dashboard.html'in
+         yanında TÜM taranan şirketler için detay sayfalarını da üretir
+         (`build_and_write_dashboard()`'ın MEVCUT davranışı/testleri
+         DEĞİŞMEDİ — geriye dönük uyumlu, ayrı bir fonksiyon).
+      3. **BIST30/BIST100 filtre çipleri** — bu oturumda WebSearch ile
+         infoyatirim.com'dan doğrulanan (2026-08-12 itibarıyla anlık
+         görüntü, periyodik doğrulama önerilir) gerçek endeks listeleri
+         `BIST30_INDEX`/`BIST100_INDEX` olarak `dashboard.py`'ye eklendi
+         (`scripts/tarama_toplu.py::BIST30_PILOT` 32'lik PİLOT/doğrulama
+         kümesiyle KARIŞTIRILMASIN — o ayrı bir amaca hizmet eder). Her
+         satıra `in_bist30`/`in_bist100` bayrakları eklendi; `dashboard.html`
+         SADECE BİST panelinde iki tıklanabilir çip gösterir, arama +
+         sektör grubu filtreleriyle AYNI ANDA çalışır (istemci-içi vanilla
+         JS, hesaplama YOK).
+      Canlı doğrulandı: `python -m src.render.company_detail THYAO BIST`
+      (gerçek `data/bilanco_radar.db`'den THYAO'nun 4 mercek × tüm
+      bileşenlerini, gerçek F/K=3,1 / PD-DD=0,4 gibi hisseye özgü
+      `reasoning_tr` metinleriyle render etti) ve
+      `dashboard.build_and_write_dashboard_with_details()` (475 taranmış
+      şirketin TAMAMI için, ~11 saniyede, tek tek ağa GİTMEDEN DB'den —
+      hem BIST/sanayi hem NASDAQ hem banka şablonlarında test edildi).
+      Yeni `tests/test_company_detail.py` (15 test) + `tests/test_dashboard.py`'ye
+      6 yeni test (toplam 1377 test yeşil — repoda AYRICA, bu turdan
+      BAĞIMSIZ, eşzamanlı geliştirilmekte olan bir capex/temettü oranı
+      özelliğine ait 2 test kırık kalmıştı, BU FAZIN kapsamı/dokunduğu
+      dosyalar DIŞINDA).
 
 ## Dizin Yapisi
 
@@ -1617,7 +1667,7 @@ bilanco-radar/
 │   ├── db/                   # models.py, repository.py
 │   ├── analysis/              # calculator.py, scorer.py, technical.py (teknik göstergeler)
 │   ├── ai/                    # commentary.py
-│   ├── render/                 # templates/, card.py, calendar_card.py (takvim kartı), technical_card.py (teknik kart)
+│   ├── render/                 # templates/, card.py, dashboard.py (piyasa dashboard'u), company_detail.py (şirket detay sayfası), calendar_card.py (takvim kartı), technical_card.py (teknik kart)
 │   └── bot/                    # pipeline.py (orkestrasyon), telegram_bot.py, menu.py (buton menü)
 └── tests/
 ```

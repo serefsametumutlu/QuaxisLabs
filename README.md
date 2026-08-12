@@ -1774,6 +1774,39 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       `test_company_detail.py`, isimleri `..._kapsam_cezali_skor_gosterir`
       olarak yeniden adlandırıldı) + kapsam=%0 için AYRI birer test — tam
       suite 1418 test yeşil.
+- [x] **Veri Tamlığı GRUP 2 (ORTA) ikinci dalga — V-10/V-11/V-12/V-13** —
+      (2026-08-12, aynı gün, İlk Dalga'da BLOKE kalan/YAPILMAYAN 4 görev)
+      `docs/spec/spec_veri_tamlik_yol_haritasi.md`'ye spec-eki eklendi
+      (kaynak kararları + V-12'nin "küçük karar"ı belgeli):
+      1. **V-10 (BİST Capex)** — kaynak KAP XBRL'den `isyatirim.py`'ye
+         değişti (`kap_financials.py` sadece TEK çeyrek "tazelik yaması"
+         sağlıyor, TTM için yetersiz) — canlı keşfedilen itemCode "4CAI"
+         ("Sabit Sermaye Yatırımları"/"CapEx", `thyao_items_readable.txt`
+         satır 132) eklendi. Alan adı NASDAQ (V-09) ile AYNI ("capex") —
+         `calculator.py`'nin `ttm_capex`/`capex_to_net_income_pct` rasyosu
+         ek kod GEREKMEDEN BİST'te de çalışıyor.
+      2. **V-11 (BİST Temettü/Payout)** — 3 canlı KAP sayfası (TATGD/BORSK/
+         TUPRS) taranarak doğrulandı: BİST'te hisse-başına DPS XBRL etiketi
+         YOK (gerçek yapısal kısıt, `veri_tamlik_notu.md` ile TUTARLI).
+         Bunun yerine `isyatirim.py` "4CBB" (Temettü Ödemeleri, TOPLAM nakit)
+         + `payout_ratio_pct` (Graham 01/İLKE-178) eklendi.
+      3. **V-12 (Ödenen Temettü + Finansman Faaliyetleri)** — BİST "4CBA"
+         (net finansal borç değişimi, işaret KORUNUR) + NASDAQ
+         `us-gaap:PaymentsOfDividends`/`PaymentsForRepurchaseOfCommonStock`
+         (AAPL fixture'ıyla CANLI doğrulandı). BİST'te buyback için standart
+         bir XBRL etiketi BULUNAMADI (gerçek bloker). Küçük karar: kalemin
+         kanonik gelecek evi Güvenlik merceği (V-04'ün hazine hissesi
+         mantığıyla AYNI ruh) olarak belirlendi, bu turda skorsuz kaldı.
+      4. **V-13 (NASDAQ opsiyon/warrant seyreltme kaba vekili)** —
+         `us-gaap:WeightedAverageNumberOfSharesOutstandingBasic` eklendi,
+         mevcut `WeightedAverageNumberOfDilutedSharesOutstanding` ile FARKI
+         `calculator.Ratios.diluted_dilution_pct` olarak hesaplanıyor.
+      **TÜMÜ (V-08/V-09 örneğindeki gibi) BİLİNÇLİ OLARAK skorlanmayan**
+      (`calculator.Ratios`'a bilgi amaçlı eklenen) alanlardır — ilgili
+      mercek spec'lerinin ağırlık tabloları zaten %100 dağıtılmış, yeni
+      bileşen için ağırlık İCAT ETMEK persona kuralını ihlal ederdi.
+      19 yeni test (`test_isyatirim.py`, `test_calculator_us.py`,
+      `test_sec_edgar.py`) — tam suite 1432 test yeşil, 1 commit.
 
 ## Dizin Yapisi
 

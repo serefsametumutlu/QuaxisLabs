@@ -158,7 +158,8 @@
   }
   table.component-table td.col-left { text-align: left; color: var(--ink-primary); font-weight: var(--weight-medium); }
   table.component-table td.q-num { font-family: var(--font-mono); white-space: nowrap; }
-  table.component-table td.reasoning { text-align: left; color: var(--ink-secondary); line-height: var(--leading-normal); max-width: 360px; }
+  table.component-table td.reasoning { text-align: left; color: var(--ink-secondary); line-height: var(--leading-normal); max-width: 320px; }
+  table.component-table td.formula { text-align: left; color: var(--ink-tertiary); font-family: var(--font-mono); font-size: var(--text-micro); line-height: var(--leading-normal); max-width: 260px; }
   table.component-table tr:last-child td { border-bottom: none; }
   .veri-eksik-flag { color: var(--clr-warning); font-size: var(--text-micro); margin-left: 4px; }
 
@@ -259,17 +260,19 @@
       <thead>
         <tr>
           <th class="col-left">Bileşen</th>
+          <th class="col-left">Formül</th>
           <th>Skor</th>
           <th>Nominal Ağırlık</th>
           <th>Efektif Ağırlık</th>
           <th>Katkı</th>
-          <th class="col-left">Gerekçe</th>
+          <th class="col-left">Bu Hissede Nasıl Hesaplandı</th>
         </tr>
       </thead>
       <tbody>
         {% for c in lens.components %}
         <tr>
           <td class="col-left">{{ c.name }}{% if c.veri_eksik %}<span class="veri-eksik-flag" title="Bu bileşen için veri eksik -- ağırlığı diğer bileşenlere yeniden dağıtıldı">△</span>{% endif %}</td>
+          <td class="col-left formula">{{ c.formula }}</td>
           <td class="q-num">{{ c.score_display }}</td>
           <td class="q-num">{{ c.weight_nominal_display }}</td>
           <td class="q-num">{{ c.weight_effective_display }}</td>

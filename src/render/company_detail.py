@@ -106,6 +106,47 @@ _QUARTERLY_FIELD_LABEL_FALLBACK: dict[str, str] = {
     "net_interest_income": "Net Faiz Geliri",
 }
 
+# Kullanıcı isteği (2026-08-12, ikinci tur): "o puanı nasıl bulduk" -- her
+# bileşenin `reasoning_tr`'si ZATEN o hissenin KENDİ sayılarıyla üretilmiş
+# bir cümledir (örn. "F/K sektör medyanından %12 sapıyor"), ama bunun
+# HANGİ genel FORMÜLDEN geldiğini (şirketten BAĞIMSIZ, soyut) AYRICA
+# göstermek istendi. Bu sözlük `src/analysis/lens_{deger,kalite,buyume,
+# guvenlik}.py`'deki bileşen adı sabitleriyle (tuple'ların İLK elemanı)
+# BİREBİR eşleşir -- yeni bir bileşen eklenirse (bkz. İlk Dalga çalışması)
+# burada da bir satır eklenmesi gerekir, aksi halde o bileşen "—" formül
+# göstermez (sessizce KAYBOLMAZ, sadece boş kalır -- Kural 3).
+FORMUL_LOOKUP: dict[str, str] = {
+    # --- Değer ---
+    "Mutlak Ucuzluk (F/K + PD/DD)": "F/K = Piyasa Değeri / Net Kâr (TTM) · PD/DD = Piyasa Değeri / Özkaynak -- ikisi sektöre özgü ucuz/makul/pahalı bantlarına göre puanlanıp ortalanır.",
+    "Sektöre Göreli Konum": "z-skoru = (Şirketin F/K veya PD/DD − Sektör Medyanı) / (1,4826 × Sektör MAD) -- sektör medyanına göre robust (aykırı-değer dayanıklı) sapma.",
+    "Kazanç Getirisi vs Risksiz Oran": "Kazanç Getirisi (E/P) = 100 / F-K · Fark = Kazanç Getirisi − Risksiz Faiz Oranı.",
+    "Graham Çarpanı (F/K×PD/DD)": "Graham Çarpanı = F/K × PD/DD (≤22,5 klasik eşiğiyle karşılaştırılır).",
+    "Greenblatt Kazanç Getirisi (EBIT/FD)": "Kazanç Getirisi = EBIT / Firma (Kurumsal) Değeri × 100.",
+    "Carlisle Acquirer's Multiple (FD/EBIT)": "Çarpan = Firma (Kurumsal) Değeri / EBIT.",
+    "NCAV / Net-Net Bonus": "Net İşletme Sermayesi = Dönen Varlıklar − Toplam Yükümlülükler; Piyasa Değeri bu tutarın ALTINDAysa bonus puan verilir.",
+    # --- Kalite ---
+    "Nakit Üretimi (FAVÖK marjı)": "FAVÖK Marjı = FAVÖK / Toplam Hasılat × 100.",
+    "Özkaynak Kârlılığı (ROE)": "ROE = Net Kâr (TTM) / Özkaynak × 100.",
+    "Kârlılık (Net Marj)": "Net Marj = Net Kâr / Toplam Hasılat × 100.",
+    "Brüt Kâr Marjı": "Brüt Kâr Marjı = Brüt Kâr / Toplam Hasılat × 100 (seviye + çok dönemli trend birlikte değerlendirilir).",
+    "Greenblatt Sermaye Getirisi (ROC)": "ROC = EBIT / (Net Çalışma Sermayesi + Maddi Duran Varlıklar) × 100.",
+    "Aktif Kârlılığı (ROA)": "ROA = Net Kâr (TTM) / Toplam Varlıklar × 100.",
+    "Nakit Kâr Kalitesi (OCF/Net Kâr)": "Oran = Faaliyetlerden Nakit Akışı (OCF) / Net Kâr -- 1,0'a yakın/üzeri kazancın nakitle desteklendiğini gösterir.",
+    # --- Büyüme ---
+    "Hasılat Büyümesi (reel, seviye+trend)": "Reel Büyüme (%) = Nominal Yıllık (YoY) Hasılat Büyümesi − Enflasyon Oranı (seviye + çok dönemli trend birlikte).",
+    "PEG Oranı (Lynch)": "PEG = F/K / Yıllık Kazanç Büyüme Oranı (%).",
+    "Marjinal ROE + Verimlilik Kaynaklı Büyüme": "Marjinal ROE = ΔNet Kâr / Önceki Dönem Özkaynağı; Fark = Marjinal ROE − Standart ROE.",
+    # --- Güvenlik ---
+    "Kaldıraç (Net Borç/FAVÖK)": "Net Borç / FAVÖK = (Toplam Finansal Borç − Nakit ve Benzerleri) / FAVÖK.",
+    "Bilanço Kalitesi (Cari Oran + Özkaynak/Varlık)": "Cari Oran = Dönen Varlıklar / Kısa Vadeli Yükümlülükler · Özkaynak/Varlık = Özkaynak / Toplam Varlıklar × 100.",
+    "Piotroski F-Skoru": "9 ikili (0/1) finansal sağlık kriterinin toplamı / hesaplanabilen kriter sayısı (Piotroski, 2000).",
+    "Toplam Yükümlülük/Özkaynak (geniş tanım)": "Toplam Yükümlülükler (ticari borç + tahakkuk + ertelenmiş vergi DAHİL) / Özkaynak.",
+    "Merton Temerrüt Olasılığı (EDF)": "Black-Scholes/Merton opsiyon modeli: özkaynak = Firma Değeri üzerine bir alım opsiyonu -- çıkan N(d2)'den temerrüt olasılığı [1−N(d2)] türetilir.",
+    "Özkaynak/Aktif Oranı (sermaye yeterliliği proxy'si)": "Özkaynak / Toplam Varlıklar × 100 (banka/sigorta/finansman için basitleştirilmiş sermaye yeterliliği göstergesi).",
+    "Piotroski Benzeri Finansal Sağlık Taraması": "Banka/sigorta/finansman için uyarlanmış, basitleştirilmiş ikili (0/1) kriter seti (Piotroski (2000) yönteminin bu şablonlara uyarlanmış hali).",
+}
+
+
 FAALIYET_RAPORU_PLACEHOLDER = (
     "Bu bölüm henüz araştırılmadı -- gelecek bir fazda faaliyet raporu/dipnot "
     "analizinden doldurulacak. Şu an burada gösterilecek gerçek bir bulgu yok."
@@ -174,8 +215,10 @@ def _mercek_components(row: MarketScanResult, key: str) -> list[dict[str, str]]:
         weight_nominal = _decimal_or_none(b.get("weight_nominal"))
         weight_effective = _decimal_or_none(b.get("weight_effective"))
         contribution = _decimal_or_none(b.get("contribution"))
+        name = b.get("name", "—")
         rows.append({
-            "name": b.get("name", "—"),
+            "name": name,
+            "formula": FORMUL_LOOKUP.get(name, "—"),
             "score_display": f"{format_number_tr(score, decimals=1)}/10" if score is not None else "N/A",
             "weight_nominal_display": f"%{format_number_tr(weight_nominal, decimals=0)}" if weight_nominal is not None else "—",
             "weight_effective_display": f"%{format_number_tr(weight_effective, decimals=1)}" if weight_effective is not None else "—",

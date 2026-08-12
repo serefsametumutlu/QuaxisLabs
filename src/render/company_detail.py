@@ -48,6 +48,7 @@ from src.analysis import calculator
 from src.db import repository
 from src.db.models import Company, MarketScanResult, utcnow_naive
 from src.formatting import format_currency_short, format_number_tr, format_percent_tr
+from src.render.render_common import mercek_bilesen_sayimi, mercek_score_display
 
 logger = logging.getLogger(__name__)
 
@@ -187,19 +188,29 @@ def _decimal_or_none(value: str | None) -> Decimal | None:
         return None
 
 
-def _mercek_summary(row: MarketScanResult, key: str) -> dict[str, Any] | None:
-    score = getattr(row, f"{key}_score")
-    badge = getattr(row, f"{key}_badge")
-    coverage = getattr(row, f"{key}_coverage_pct")
+def _mercek_summary(row: MarketScanResult, prefix: str, detay_key: str, label: str) -> dict[str, Any] | None:
+    score = getattr(row, f"{prefix}_score")
+    badge = getattr(row, f"{prefix}_badge")
+    coverage = getattr(row, f"{prefix}_coverage_pct")
     if score is None and badge is None:
         return None
     # DÜZELTME (kullanıcı denetimi, 2026-08-12 -- AYES: kapsam %25, badge
     # zaten "YETERSİZ VERİ" ama skor hâlâ "9,2" olarak GÖSTERİLİYORDU --
-    # dashboard.py::_mercek_block ile AYNI düzeltme: badge YETERSİZ VERİ ise
-    # sayı HİÇ gösterilmez, Kural 3 "yanlış rakamdan iyidir").
-    score_display = "N/A" if badge == "YETERSİZ VERİ" else (format_number_tr(score, decimals=1) if score is not None else "N/A")
+    # ilk yama commit c5c8499 skoru TAMAMEN "N/A" yapmıştı).
+    # docs/spec/spec_kapsam_cezali_skor.md §3/§4 ile bu davranış GÜNCELLENDİ
+    # (dashboard.py::_mercek_block ile AYNI, ORTAK `render_common.
+    # mercek_score_display` üzerinden): badge YETERSİZ VERİ VE 0<kapsam<%50
+    # ise artık TAMAMEN N/A DEĞİL, nominal ağırlıklı/eksik=sıfır kapsam-
+    # cezalı skor (S′=S×kapsam/100) gösterilir -- kapsam=%0 (veya score/
+    # coverage None) durumunda "N/A" AYNEN kalır (Kural 3: "veri yok" ile
+    # "şirket kötü" KARIŞTIRILMASIN).
+    n_mevcut, n_toplam = mercek_bilesen_sayimi(row.mercekler_detay, detay_key)
+    _score_value, score_display, kapsam_notu = mercek_score_display(
+        score, badge, coverage, mercek_label=label, n_mevcut=n_mevcut, n_toplam=n_toplam,
+    )
     return {
         "score_display": score_display,
+        "kapsam_notu": kapsam_notu,
         "badge": badge,
         "badge_class": _BADGE_CLASS.get(badge or "", "yetersiz"),
         "data_coverage_pct_display": format_percent_tr(coverage, decimals=0) if coverage is not None else "—",
@@ -384,7 +395,7 @@ def build_company_detail_data(session: Session, ticker: str, market: str, *, now
         }
         mercekler = {}
         for prefix, key, label in _MERCEK_ANAHTAR_ETIKET:
-            summary = _mercek_summary(row, prefix)
+            summary = _mercek_summary(row, prefix, key, label)
             if summary is None:
                 mercekler[key] = None
                 continue

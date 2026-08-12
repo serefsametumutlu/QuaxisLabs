@@ -41,6 +41,7 @@ from src.db import repository
 from src.db.models import MarketScanResult, utcnow_naive
 from src.formatting import format_currency_short, format_number_tr, format_percent_tr
 from src.render import company_detail
+from src.render.render_common import mercek_bilesen_sayimi, mercek_score_display
 
 _TEMPLATE_DIR = Path(__file__).resolve().parent / "templates"
 _env = jinja2.Environment(
@@ -345,7 +346,7 @@ def _has_snapshot(row: MarketScanResult) -> bool:
     return row.bilesik_score is not None or row.deger_score is not None or row.kalite_score is not None
 
 
-def _mercek_block(row: MarketScanResult, key: str) -> dict[str, Any] | None:
+def _mercek_block(row: MarketScanResult, key: str, label: str) -> dict[str, Any] | None:
     score = getattr(row, f"{key}_score")
     badge = getattr(row, f"{key}_badge")
     coverage = _mercek_data_coverage(row, key)
@@ -354,28 +355,25 @@ def _mercek_block(row: MarketScanResult, key: str) -> dict[str, Any] | None:
     dusuk_kapsam = coverage is not None and coverage < LOW_COVERAGE_THRESHOLD_PCT
     # DÜZELTME (kullanıcı denetimi, 2026-08-12 -- AYES canlı örneği: kapsam
     # %25'ken KALİTE 9,2 gösteriliyordu, badge zaten "YETERSİZ VERİ" idi ama
-    # SAYI hâlâ güven verici görünüyordu). Kural 3 ("yanlış rakamdan iyidir"):
-    # badge zaten YETERSİZ VERİ ise (coverage<%50 ile TANIM gereği AYNI şey)
-    # sayısal skor HİÇ gösterilmez/sıralanmaz -- sadece 1-2 bileşenden
-    # şişirilmiş bir sayının "güvenilir" okunmasını KÖKTEN engeller.
-    if badge == YETERSIZ_VERI_ROZETI:
-        return {
-            "score": None,
-            "score_display": "N/A",
-            "badge": badge,
-            "badge_class": _BADGE_CLASS.get(badge or "", "yetersiz"),
-            "data_coverage_pct": _num(coverage),
-            "data_coverage_pct_display": format_percent_tr(coverage, decimals=0) if coverage is not None else "—",
-            "dusuk_kapsam": dusuk_kapsam,
-        }
+    # SAYI hâlâ güven verici görünüyordu -- ilk yama commit c5c8499 skoru
+    # TAMAMEN "N/A" yapmıştı). docs/spec/spec_kapsam_cezali_skor.md §3/§4
+    # ile bu davranış GÜNCELLENDİ: badge YETERSİZ VERİ VE 0<kapsam<%50 ise
+    # artık TAMAMEN N/A DEĞİL, nominal ağırlıklı/eksik=sıfır kapsam-cezalı
+    # skor (S′ = S×kapsam/100) gösterilir -- kapsam=%0 (veya score/coverage
+    # None) durumunda "RİSKLİ"ye ASLA düşürülmemesi için "N/A" AYNEN kalır.
+    n_mevcut, n_toplam = mercek_bilesen_sayimi(row.mercekler_detay, label)
+    score_value, score_display, kapsam_notu = mercek_score_display(
+        score, badge, coverage, mercek_label=label.capitalize(), n_mevcut=n_mevcut, n_toplam=n_toplam,
+    )
     return {
-        "score": _num(score),
-        "score_display": format_number_tr(score, decimals=1) if score is not None else "N/A",
+        "score": _num(score_value),
+        "score_display": score_display,
         "badge": badge,
         "badge_class": _BADGE_CLASS.get(badge or "", "yetersiz"),
         "data_coverage_pct": _num(coverage),
         "data_coverage_pct_display": format_percent_tr(coverage, decimals=0) if coverage is not None else "—",
         "dusuk_kapsam": dusuk_kapsam,
+        "kapsam_notu": kapsam_notu,
     }
 
 
@@ -441,7 +439,7 @@ def _serialize_row(row: MarketScanResult) -> dict[str, Any]:
     if has_snapshot:
         mercekler = {}
         for key, label in _MERCEK_ANAHTAR_ETIKET:
-            block = _mercek_block(row, key)
+            block = _mercek_block(row, key, label)
             mercekler[label] = block
             if block is not None and block["dusuk_kapsam"]:
                 dusuk_kapsam_var = True

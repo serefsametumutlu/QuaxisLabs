@@ -1740,6 +1740,40 @@ sürecinde tutulan ayrı bir proje belleğinde tutulur.
       hatası; `test_pipeline_multi_lens.py`: uçtan uca peer≥5 ve peer<5
       senaryoları) — tam suite 1404 test yeşil. 2 ayrı commit
       (repository katmanı / pipeline kablolaması).
+- [x] **Düzeltme — Kapsam-cezalı mercek skoru (N/A yerine dürüst S′)** —
+      (2026-08-12, `docs/spec/spec_kapsam_cezali_skor.md`, aynı gün acil
+      yamanın [`c5c8499`] devamı) Kullanıcı c5c8499'daki "badge=YETERSİZ
+      VERİ ise skor tamamen N/A" yamasını da reddetti ("N/A tamamen yazsın
+      demedim... ölçebildiğimiz değerler nominal ağırlığa göre saysın").
+      quant-uzmani matematiksel bir özdeşlik buldu ve kalibrasyon script'iyle
+      (`scripts/kalibrasyon_kapsam_cezali_skor.py`, 557 gerçek DB satırı)
+      kanıtladı: nominal-ağırlıklı/eksik=sıfır skor (S′) MEVCUT skorun
+      (S) kapsam yüzdesiyle çarpımına CEBİRSEL OLARAK EŞDEĞER
+      (**S′ = S × kapsam/100**) — sıfırdan yeniden hesaplama GEREKMEDİ.
+      **Uygulama:** (1) `src/analysis/lens_common.py::kapsam_cezali_skor()`
+      — SAF matematik, tek satır (mevcut `_agirlik_dagit_ve_hesapla`'ya
+      DOKUNULMADI, YENİ paralel bir yardımcı). (2) `src/render/
+      render_common.py` (YENİ, dashboard.py/company_detail.py'nin ORTAK
+      kullandığı) — `mercek_score_display()` eşik kararını (spec §3) verir:
+      badge≠YETERSİZ VERİ → değişiklik yok; badge=YETERSİZ VERİ VE
+      kapsam=%0 (veya score/coverage None) → "N/A" AYNEN kalır ("veri yok"
+      ile "şirket kötü" KARIŞTIRILMASIN, kalibrasyon TBORG/MPARK/ODAS gibi
+      satırların aksi halde "RİSKLİ"ye düştüğünü kanıtladı); badge=YETERSİZ
+      VERİ VE 0<kapsam<%50 → S′ + tam açıklama cümlesi ("Kalite: 2,3/10
+      (YETERSİZ VERİ — kapsam %25 — sadece 2/7 bileşen ölçülebildi)").
+      Kompozit (4 mercek→tek sayı) seviyesi bu turda BİLİNÇLİ olarak
+      DOKUNULMADI (spec §5: farklı bir dahil-etme mantığı var, Değer/Büyüme
+      merceklerinde kapsam≥%50'de bile S′ rozet bandının %42-53'ünü
+      değiştiriyor — kalibrasyonsuz taşınması güvenli değil). **Canlı
+      doğrulama:** AYES (Kalite, kapsam %25) DÜZELTME ÖNCESİ "N/A"
+      gösteriyordu, SONRASI "2,3" + kapsam notu gösteriyor (aynı hissenin
+      Büyüme merceği de aynı desende: "2,0/10, kapsam %20, 1/3 bileşen").
+      TBORG (Değer, kapsam %0) hem ÖNCESİ hem SONRASI "N/A" — özel durum
+      korunuyor. 5 yeni test (`test_lens_common.py`, `test_render_common.py`
+      — YENİ dosya) + 2 güncellenmiş regresyon testi (`test_dashboard.py`,
+      `test_company_detail.py`, isimleri `..._kapsam_cezali_skor_gosterir`
+      olarak yeniden adlandırıldı) + kapsam=%0 için AYRI birer test — tam
+      suite 1418 test yeşil.
 
 ## Dizin Yapisi
 

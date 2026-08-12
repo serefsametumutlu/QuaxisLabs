@@ -149,15 +149,29 @@ def test_mercekler_detay_tum_bilesenleri_tasir(session) -> None:
     assert kalite["components"][0]["reasoning_tr"].startswith("FAVÖK marjı")
 
 
-def test_dusuk_kapsamli_mercek_skoru_na_gosterir(session) -> None:
-    """DÜZELTME (kullanıcı denetimi, 2026-08-12 -- AYES canlı örneği): badge
-    "YETERSİZ VERİ" ise (coverage<%50 ile TANIM gereği AYNI) score_display
-    "N/A" olmalı, altta yatan sayı ne olursa olsun (Kural 3)."""
+def test_dusuk_kapsamli_mercek_kapsam_cezali_skor_gosterir(session) -> None:
+    """docs/spec/spec_kapsam_cezali_skor.md §3/§8 test senaryo 1 (AYES canlı
+    örneği): badge "YETERSİZ VERİ" VE 0<kapsam<%50 ise artık TAMAMEN "N/A"
+    DEĞİL -- nominal ağırlıklı/eksik=sıfır kapsam-cezalı skor
+    (S′=9,21×0,25=2,30 -> "2,3") gösterilir, kapsam_notu §4'teki tam
+    cümleyi ("Kalite: 2,3/10 (YETERSİZ VERİ — kapsam %25 — sadece 2/7
+    bileşen ölçülebildi)") taşır."""
     session.add(Company(ticker="AYES", name="AYES A.Ş.", market="BIST", ust_sektor="Diğer", sirket_turu="sanayi"))
     session.add(MarketScanResult(
         ticker="AYES", market="BIST", company_name="AYES A.Ş.", ust_sektor="Diğer", sirket_turu="sanayi",
         template="sanayi", year=2026, period=6, scan_status="ok",
         kalite_score=Decimal("9.21"), kalite_badge="YETERSİZ VERİ", kalite_coverage_pct=Decimal("25"),
+        mercekler_detay={
+            "kalite": [
+                {"name": "ROE", "score": "9.3", "weight_nominal": "20", "weight_effective": "80", "contribution": "7.44", "reasoning_tr": "-"},
+                {"name": "ROA", "score": "8.8", "weight_nominal": "5", "weight_effective": "20", "contribution": "1.76", "reasoning_tr": "-"},
+                {"name": "FAVÖK Marjı", "score": None, "weight_nominal": "25", "weight_effective": "0", "contribution": "0", "reasoning_tr": "veri yok"},
+                {"name": "Net Marj", "score": None, "weight_nominal": "15", "weight_effective": "0", "contribution": "0", "reasoning_tr": "veri yok"},
+                {"name": "Brüt Kâr Marjı", "score": None, "weight_nominal": "15", "weight_effective": "0", "contribution": "0", "reasoning_tr": "veri yok"},
+                {"name": "Greenblatt ROC", "score": None, "weight_nominal": "10", "weight_effective": "0", "contribution": "0", "reasoning_tr": "veri yok"},
+                {"name": "OCF/Net Kâr", "score": None, "weight_nominal": "10", "weight_effective": "0", "contribution": "0", "reasoning_tr": "veri yok"},
+            ],
+        },
         currency="TRY", computed_at=utcnow_naive(),
     ))
     session.commit()
@@ -165,7 +179,31 @@ def test_dusuk_kapsamli_mercek_skoru_na_gosterir(session) -> None:
     data = company_detail.build_company_detail_data(session, "AYES", "BIST")
     kalite = data["mercekler"]["kalite"]
     assert kalite["badge"] == "YETERSİZ VERİ"
-    assert kalite["score_display"] == "N/A"
+    assert kalite["score_display"] == "2,3"
+    assert kalite["kapsam_notu"] == (
+        "Kalite: 2,3/10 (YETERSİZ VERİ — kapsam %25 — sadece 2/7 bileşen ölçülebildi)"
+    )
+
+
+def test_kapsam_sifir_mercek_skoru_na_gosterir(session) -> None:
+    """docs/spec/spec_kapsam_cezali_skor.md §3/§8 test senaryo 3: kapsam=%0
+    olan bir mercekte S′ formülü hiç TETİKLENMEZ -- score_display "N/A"
+    AYNEN kalır, kapsam_notu None ("veri yok" ile "şirket kötü"
+    KARIŞTIRILMASIN)."""
+    session.add(Company(ticker="TBORG", name="TBORG A.Ş.", market="BIST", ust_sektor="Diğer", sirket_turu="sanayi"))
+    session.add(MarketScanResult(
+        ticker="TBORG", market="BIST", company_name="TBORG A.Ş.", ust_sektor="Diğer", sirket_turu="sanayi",
+        template="sanayi", year=2026, period=6, scan_status="ok",
+        deger_score=Decimal("0"), deger_badge="YETERSİZ VERİ", deger_coverage_pct=Decimal("0"),
+        currency="TRY", computed_at=utcnow_naive(),
+    ))
+    session.commit()
+
+    data = company_detail.build_company_detail_data(session, "TBORG", "BIST")
+    deger = data["mercekler"]["değer"]
+    assert deger["badge"] == "YETERSİZ VERİ"
+    assert deger["score_display"] == "N/A"
+    assert deger["kapsam_notu"] is None
 
 
 def test_mercek_veri_yoksa_none_doner(session) -> None:

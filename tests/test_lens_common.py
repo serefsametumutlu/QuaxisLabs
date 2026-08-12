@@ -104,3 +104,28 @@ def test_seviye_trend_skoru_v2_seviye_yukseldikce_skor_monoton_artar() -> None:
     skor_orta, _ = lc.seviye_trend_skoru_v2("X", Decimal(15), None, Decimal(20), Decimal(10), Decimal(30))
     skor_yuksek, _ = lc.seviye_trend_skoru_v2("X", Decimal(25), None, Decimal(20), Decimal(10), Decimal(30))
     assert skor_dusuk < skor_orta < skor_yuksek
+
+
+# --- kapsam_cezali_skor (docs/spec/spec_kapsam_cezali_skor.md §1) --------------------
+
+
+def test_kapsam_cezali_skor_ayes_ornegi_ispatlanan_ozdeslik() -> None:
+    """spec §1: S′ = S × kapsam/100 -- AYES doğrulaması: S=9,21, kapsam=%25
+    -> S′=2,30 (kullanıcının elle hesapladığı 1,86+0,44+0=2,30 ile birebir
+    eşleşir)."""
+    s_prime = lc.kapsam_cezali_skor(Decimal("9.21"), Decimal("25"))
+    assert s_prime == Decimal("2.3025")
+
+
+def test_kapsam_cezali_skor_tam_kapsamda_ozdes_kalir() -> None:
+    """spec §8 test senaryo 2: kapsam=%100 iken S′=S (özdeşlik: kapsam=100
+    -> S′=S×1=S) -- mevcut davranış BİREBİR korunur."""
+    s = Decimal("7.5")
+    assert lc.kapsam_cezali_skor(s, Decimal(100)) == s
+
+
+def test_kapsam_cezali_skor_sifir_kapsamda_sifir_doner() -> None:
+    """spec §3: kapsam=%0 -> S′=S×0/100=0,00 (çağıran taraf/render katmanı
+    bu değeri GÖSTERMEMELİDİR -- bu SAF matematik fonksiyonun kendisi bir
+    eşik kontrolü YAPMAZ, bkz. modül içi docstring)."""
+    assert lc.kapsam_cezali_skor(Decimal("8.37"), Decimal(0)) == Decimal(0)

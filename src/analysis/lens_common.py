@@ -196,6 +196,26 @@ def seviye_trend_skoru_v2(
     return _clamp(skor, Decimal(0), Decimal(10)), aciklama
 
 
+def kapsam_cezali_skor(total_score: Decimal, data_coverage_pct: Decimal) -> Decimal:
+    """docs/spec/spec_kapsam_cezali_skor.md §1 -- "nominal ağırlık, eksik=
+    sıfır" mercek skoru S′, MEVCUT `_agirlik_dagit_ve_hesapla` skoru S ile
+    kapsam yüzdesinin CEBİRSEL ÖZDEŞLİĞİNDEN (S′ = S × kapsam/100) tek
+    satırda türetilir -- bileşenlerden SIFIRDAN yeniden hesaplama GEREKMEZ.
+
+    ÖNEMLİ (spec §1/§5): bu özdeşlik SADECE bileşen->mercek (lens içi)
+    toplamada geçerlidir, mercek->bileşik (4 mercek -> tek sayı) seviyesine
+    TAŞINMAZ (`hesapla_bilesik_skor` farklı, ikili bir dahil-etme mantığı
+    kullanır) -- bu fonksiyon SADECE mercek seviyesinde çağrılmalıdır.
+
+    Çağıran taraf (render katmanı, spec §3) `data_coverage_pct == 0` VEYA
+    `>= 50` durumlarında bu fonksiyonu HİÇ ÇAĞIRMAMALI/SONUCUNU GÖSTERME-
+    MELİDİR -- burada bir eşik KONTROLÜ YAPILMAZ (bu SAF matematik bir
+    yardımcıdır, eşik kararı `src.render` katmanının sorumluluğundadır,
+    quaxis-mimari anayasa madde 1: "analysis/ modülleri HİÇBİR I/O/sunum
+    kararı almaz")."""
+    return total_score * data_coverage_pct / Decimal(100)
+
+
 __all__ = [
     "LensSonucu",
     "LensBileseni",
@@ -205,6 +225,7 @@ __all__ = [
     "z_skoru",
     "oran_str",
     "seviye_trend_skoru_v2",
+    "kapsam_cezali_skor",
     "ComponentScore",
     "ScoreResult",
     "YETERSIZ_VERI_ROZETI",

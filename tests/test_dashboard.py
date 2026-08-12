@@ -110,18 +110,30 @@ def test_build_dashboard_data_satir_semasi(session) -> None:
     assert company["in_bist100"] is True
 
 
-def test_dusuk_kapsamli_mercek_skoru_gosterilmez(session) -> None:
-    """DÜZELTME (kullanıcı denetimi, 2026-08-12 -- AYES canlı örneği): bir
-    mercek 1-2 bileşenden şişirilmiş yüksek bir skora sahip olsa BİLE
-    (badge zaten "YETERSİZ VERİ" ise, coverage<%50 ile TANIM gereği AYNI
-    şey) score_display "N/A" olmalı -- sayı asla güven verici GÖRÜNMEMELİ
-    (Kural 3: yanlış rakamdan iyidir)."""
+def test_dusuk_kapsamli_mercek_kapsam_cezali_skor_gosterir(session) -> None:
+    """docs/spec/spec_kapsam_cezali_skor.md §3/§8 test senaryo 1 (AYES canlı
+    örneği): bir mercek 1-2 bileşenden şişirilmiş yüksek bir skora sahip
+    olsa BİLE (badge zaten "YETERSİZ VERİ", 0<kapsam<%50) artık TAMAMEN
+    "N/A" DEĞİL -- nominal ağırlıklı/eksik=sıfır kapsam-cezalı skor
+    (S′=S×kapsam/100=9,21×0,25=2,30 -> "2,3") gösterilir, kapsam_notu
+    dolu ve §4'teki tam cümleyi taşır."""
     _add_company(session, "AYES", "BIST", "Diğer", "sanayi")
     session.add(MarketScanResult(
         ticker="AYES", market="BIST", company_name="AYES A.Ş.", ust_sektor="Diğer", sirket_turu="sanayi",
         template="sanayi", year=2026, period=6, scan_status="ok",
         deger_score=Decimal("8.0"), deger_badge="SAĞLAM", deger_coverage_pct=Decimal("80"),
         kalite_score=Decimal("9.21"), kalite_badge="YETERSİZ VERİ", kalite_coverage_pct=Decimal("25"),
+        mercekler_detay={
+            "kalite": [
+                {"name": "ROE", "score": "9.3", "weight_nominal": "20", "weight_effective": "80", "contribution": "7.44", "reasoning_tr": "-"},
+                {"name": "ROA", "score": "8.8", "weight_nominal": "5", "weight_effective": "20", "contribution": "1.76", "reasoning_tr": "-"},
+                {"name": "FAVÖK Marjı", "score": None, "weight_nominal": "25", "weight_effective": "0", "contribution": "0", "reasoning_tr": "veri yok"},
+                {"name": "Net Marj", "score": None, "weight_nominal": "15", "weight_effective": "0", "contribution": "0", "reasoning_tr": "veri yok"},
+                {"name": "Brüt Kâr Marjı", "score": None, "weight_nominal": "15", "weight_effective": "0", "contribution": "0", "reasoning_tr": "veri yok"},
+                {"name": "Greenblatt ROC", "score": None, "weight_nominal": "10", "weight_effective": "0", "contribution": "0", "reasoning_tr": "veri yok"},
+                {"name": "OCF/Net Kâr", "score": None, "weight_nominal": "10", "weight_effective": "0", "contribution": "0", "reasoning_tr": "veri yok"},
+            ],
+        },
         currency="TRY", computed_at=utcnow_naive(),
     ))
     session.commit()
@@ -130,10 +142,37 @@ def test_dusuk_kapsamli_mercek_skoru_gosterilmez(session) -> None:
     company = data["markets"]["BIST"]["sectors"][0]["companies"][0]
     kalite = company["mercekler"]["kalite"]
     assert kalite["badge"] == "YETERSİZ VERİ"
-    assert kalite["score"] is None
-    assert kalite["score_display"] == "N/A"
+    assert kalite["score"] == pytest.approx(2.3025)
+    assert kalite["score_display"] == "2,3"
+    assert kalite["kapsam_notu"] is not None
+    assert "kapsam %25" in kalite["kapsam_notu"]
+    assert "2/7 bileşen" in kalite["kapsam_notu"]
     # Sağlam kapsamlı diğer mercek ETKİLENMEMELİ.
     assert company["mercekler"]["değer"]["score_display"] != "N/A"
+    assert company["mercekler"]["değer"]["kapsam_notu"] is None
+
+
+def test_kapsam_sifir_mercek_skoru_na_gosterir(session) -> None:
+    """docs/spec/spec_kapsam_cezali_skor.md §3/§8 test senaryo 3: kapsam=%0
+    olan bir mercekte (ham S ZATEN 0,00 çıkıyor) S′ formülü hiç TETİKLENMEZ
+    -- score_display "N/A" AYNEN kalır, badge "RİSKLİ"ye ASLA düşürülmez
+    ("veri yok" ile "şirket kötü" KARIŞTIRILMASIN)."""
+    _add_company(session, "TBORG", "BIST", "Diğer", "sanayi")
+    session.add(MarketScanResult(
+        ticker="TBORG", market="BIST", company_name="TBORG A.Ş.", ust_sektor="Diğer", sirket_turu="sanayi",
+        template="sanayi", year=2026, period=6, scan_status="ok",
+        deger_score=Decimal("0"), deger_badge="YETERSİZ VERİ", deger_coverage_pct=Decimal("0"),
+        currency="TRY", computed_at=utcnow_naive(),
+    ))
+    session.commit()
+
+    data = dashboard.build_dashboard_data(session)
+    company = data["markets"]["BIST"]["sectors"][0]["companies"][0]
+    deger = company["mercekler"]["değer"]
+    assert deger["badge"] == "YETERSİZ VERİ"
+    assert deger["score"] is None
+    assert deger["score_display"] == "N/A"
+    assert deger["kapsam_notu"] is None
 
 
 def test_bist30_bist100_uyelik_bayraklari(session) -> None:

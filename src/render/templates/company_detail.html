@@ -139,6 +139,10 @@
   .lens-card-head .lens-title { font-size: var(--text-h3); font-weight: var(--weight-bold); color: var(--ink-primary); }
   .lens-card-head .lens-score { font-family: var(--font-mono); font-size: var(--text-h2); font-weight: var(--weight-bold); }
   .lens-card-head .lens-coverage { font-size: var(--text-micro); color: var(--ink-tertiary); font-family: var(--font-mono); }
+  /* spec_kapsam_cezali_skor.md §4: kapsam-cezalı skor (S′) gösterildiğinde
+     -- YETERSİZ VERİ rozeti + sayı + kapsam yüzdesinin YANINDA -- neden ve
+     kaç bileşenden hesaplandığını AÇIKLAYAN dürüst bir not (Kural 3). */
+  .lens-kapsam-notu { margin: 0; padding: 0 var(--space-5) var(--space-3); font-size: var(--text-micro); color: var(--clr-warning); line-height: var(--leading-normal); background: var(--bg-surface-sunken); }
   .lens-empty { padding: var(--space-5); color: var(--ink-tertiary); font-size: var(--text-body); }
 
   table.component-table { width: 100%; border-collapse: collapse; }
@@ -260,6 +264,9 @@
         <span class="lens-coverage">kapsam: {{ lens.data_coverage_pct_display }}</span>
       {% endif %}
     </div>
+    {% if lens and lens.kapsam_notu %}
+    <p class="lens-kapsam-notu">{{ lens.kapsam_notu }}</p>
+    {% endif %}
     {% if lens and lens.components %}
     <div class="component-table-scroll">
     <table class="component-table">

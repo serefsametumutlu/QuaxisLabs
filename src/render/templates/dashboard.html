@@ -609,7 +609,7 @@
               <td class="lens-cell q-num" data-sort="{{ lens.score if lens else -1 }}">
                 {% if lens %}
                   <span class="badge-text {{ lens.badge_class }}">{{ lens.score_display }}</span>
-                  {% if lens.dusuk_kapsam %}<span class="flag" title="Düşük veri kapsamı: {{ lens.data_coverage_pct_display }}">△</span>{% endif %}
+                  {% if lens.dusuk_kapsam %}<span class="flag" title="{{ lens.kapsam_notu if lens.kapsam_notu else ('Düşük veri kapsamı: ' ~ lens.data_coverage_pct_display) }}">△</span>{% endif %}
                 {% else %}
                   <span class="cell-na">—</span>
                 {% endif %}

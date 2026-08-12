@@ -273,3 +273,91 @@ def test_analyze_us_ttm_ebitda_override_ttm_operating_profit_yoksa_kullanilmaz()
     result = analyze_us("AMD", financials, ttm_depreciation_amortization_override=Decimal("2800000000"))
     assert result.ratios.ttm_operating_profit is None
     assert result.ratios.ttm_ebitda is None
+
+
+# --- Faz "Veri Tamlığı" İlk Dalga (V-01/V-02/V-08/V-09/V-03) -- bilgi amaçlı yeni oranlar -----------------------------------------------------
+#
+# BİLİNÇLİ OLARAK SKORLANMAYAN (agirlik tasimayan) alanlar -- bkz.
+# calculator.Ratios ici not: spec_mercek_kalite.md/guvenlik.md/buyume.md
+# bu kalemler icin HENUZ bir agirlik AYIRMIYOR ("simdilik SKORLANMAZ" /
+# "yer tutucu"), bu yuzden SADECE ham oranin dogru turetildigi test edilir.
+
+
+def _sample_us_financials_ile_veri_tamlik_alanlari() -> dict:
+    # TTM (capex/DPS) icin teleskopik turetim ucuncu bir veri noktasi
+    # (onceki mali yilin TAM YIL kumulatifi, (year-1,12)) gerektirir --
+    # bkz. calculator._trailing_12m_from_cumulative docstring'i; temel
+    # _sample_us_financials() fixture'inda bu donem hic YOK (sadece
+    # LATEST/YOY_PRIOR/QOQ_PRIOR var), bu yuzden burada AYRICA eklenir.
+    prior_year_full = (2025, 12)
+    base = _sample_us_financials()
+    base[_LATEST] = dict(
+        base[_LATEST],
+        sga_expense=Decimal("7346000000"), sga_expense_cum=Decimal("22315000000"),
+        research_development_expense=Decimal("11729000000"), research_development_expense_cum=Decimal("34035000000"),
+        interest_expense=Decimal("100000000"),
+        capex=Decimal("2455000000"), capex_cum=Decimal("6799000000"),
+        dividend_per_share=Decimal("0.27"), dividend_per_share_cum=Decimal("0.79"),
+        treasury_stock=Decimal("5000000000"),
+    )
+    base[_YOY_PRIOR] = dict(
+        base[_YOY_PRIOR],
+        net_income_cum=Decimal("84544000000"), revenue_cum=Decimal("313695000000"),
+        capex_cum=Decimal("5000000000"), dividend_per_share_cum=Decimal("0.70"),
+    )
+    base[prior_year_full] = {
+        "net_income_cum": Decimal("112010000000"),
+        "revenue_cum": Decimal("413431000000"),
+        "capex_cum": Decimal("9450000000"),
+        "dividend_per_share_cum": Decimal("1.02"),
+    }
+    return base
+
+
+def test_analyze_us_sga_ve_arge_oranlari_current_donem_uzerinden_hesaplanir() -> None:
+    result = analyze_us("AAPL", _sample_us_financials_ile_veri_tamlik_alanlari())
+    beklenen_sga = Decimal("7346000000") / Decimal("54770000000") * 100
+    beklenen_rd = Decimal("11729000000") / Decimal("54770000000") * 100
+    assert result.ratios.sga_to_gross_profit_pct == beklenen_sga
+    assert result.ratios.rd_to_gross_profit_pct == beklenen_rd
+
+
+def test_analyze_us_interest_expense_orani_faaliyet_kari_uzerinden_hesaplanir() -> None:
+    result = analyze_us("AAPL", _sample_us_financials_ile_veri_tamlik_alanlari())
+    beklenen = Decimal("100000000") / Decimal("35695000000") * 100
+    assert result.ratios.interest_expense_to_operating_profit_pct == beklenen
+
+
+def test_analyze_us_capex_orani_ttm_net_kar_uzerinden_hesaplanir() -> None:
+    result = analyze_us("AAPL", _sample_us_financials_ile_veri_tamlik_alanlari())
+    assert result.ratios.ttm_capex is not None
+    assert result.ratios.capex_to_net_income_pct is not None
+    beklenen = result.ratios.ttm_capex / result.ratios.ttm_net_income * 100
+    assert result.ratios.capex_to_net_income_pct == beklenen
+
+
+def test_analyze_us_ttm_dividend_per_share_kumulatiften_turetilir() -> None:
+    result = analyze_us("AAPL", _sample_us_financials_ile_veri_tamlik_alanlari())
+    assert result.ratios.ttm_dividend_per_share is not None
+
+
+def test_analyze_us_veri_tamlik_alanlari_veri_yoksa_none_doner() -> None:
+    """Regresyon kilidi -- bu yeni alanlar EKLENMEDEN once BIST/NASDAQ
+    kayitlari etkilenmemeli, ham alan yoksa None doner (Kural 3)."""
+    result = analyze_us("AAPL", _sample_us_financials())
+    assert result.ratios.sga_to_gross_profit_pct is None
+    assert result.ratios.rd_to_gross_profit_pct is None
+    assert result.ratios.interest_expense_to_operating_profit_pct is None
+    assert result.ratios.capex_to_net_income_pct is None
+    assert result.ratios.ttm_dividend_per_share is None
+
+
+def test_analyze_bist_veri_tamlik_alanlari_hep_none_doner() -> None:
+    """BIST XI_29 sirketlerinde bu ham alanlar hic cekilmiyor -- regresyon
+    kilidi: analyze() (BIST) davranisi bu yeni alanlarla DEGISMEMELI."""
+    result = analyze("THYAO", {_LATEST: {"revenue": Decimal("100"), "revenue_cum": Decimal("100")}})
+    assert result.ratios.sga_to_gross_profit_pct is None
+    assert result.ratios.rd_to_gross_profit_pct is None
+    assert result.ratios.interest_expense_to_operating_profit_pct is None
+    assert result.ratios.capex_to_net_income_pct is None
+    assert result.ratios.ttm_dividend_per_share is None

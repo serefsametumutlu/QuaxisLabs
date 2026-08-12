@@ -44,20 +44,55 @@ class KaliteGirdisi:
     analysis: AnalysisResult
     greenblatt: GreenblattResult | None = None  # SADECE BİST XI_29 sanayi
     operating_cash_flow_ttm: Decimal | None = None  # pipeline.py: calculator.trailing_12m_from_cumulative(...)
+    # V-04 (docs/spec/spec_veri_tamlik_yol_haritasi.md) -- SADECE NASDAQ
+    # (sec_edgar.STANDARD_ITEM_MAP_US_GAAP "treasury_stock",
+    # us-gaap:TreasuryStockValue) -- pipeline.py: en güncel dönemin ham
+    # "treasury_stock" alanı. BİST'te bu alan hiç çekilmediği için her
+    # zaman None (fallback: mevcut ham ROE davranışı DEĞİŞMEZ).
+    treasury_stock: Decimal | None = None
     template: str = "sanayi"
 
 
-def _skor_roe(roe: Decimal | None, equity_current: Decimal | None) -> tuple[Decimal | None, str]:
+def _skor_roe(
+    roe: Decimal | None,
+    equity_current: Decimal | None,
+    ttm_net_income: Decimal | None = None,
+    treasury_stock: Decimal | None = None,
+) -> tuple[Decimal | None, str]:
     """02/İLKE-36,41: negatif özkaynak/anormal yüksek ROE İKİ neden
     (bilinçli tam-dağıtım politikası OLUMLU, iflasa sürüklenme OLUMSUZ)
     taşıyabilir -- QuaxisLabs bu ayrımı yapacak çok-yıllı seriye SAHİP
     DEĞİL, bu yüzden negatif özkaynakta bileşen SESSİZCE None döner
-    (Kural 3: uydurma yapılmaz)."""
+    (Kural 3: uydurma yapılmaz).
+
+    V-04 (docs/spec/spec_veri_tamlik_yol_haritasi.md, 02/FORMÜL-21):
+    `treasury_stock` MEVCUTSA (şimdilik SADECE NASDAQ, `us-gaap:
+    TreasuryStockValue`) "finansal-mühendislik-arındırılmış" ROE = TTM Net
+    Kâr / (Özkaynak + Hazine Hissesi [pozitife çevrilmiş]) kullanılır --
+    Buffett'ın "AAPL-tipi düşük özkaynak tabanı" (agresif geri alım ->
+    yapay yüksek ROE) uyarısını AAPL'in KENDİSİ dışında (Apple hazine
+    hissesi TUTMUYOR, geri aldığı payları İPTAL ediyor -- bu durumda
+    `treasury_stock=None` kalır, ham ROE'ye SESSİZCE devam edilir)
+    hazine hissesi biriktiren şirketlerde (JPM gibi) doğrudan ÇÖZER. AYNI
+    ROE eşikleri (güçlü≥%15/orta≥%10/tavan%25) ve AYNI ağırlık (%20)
+    KULLANILIR -- yeni bir bileşen/ağırlık İCAT EDİLMEDİ, mevcut "Özkaynak
+    Kârlılığı (ROE)" bileşeni DAHA DOĞRU bir girdiyle besleniyor."""
     if equity_current is not None and equity_current <= 0:
         return (
             None,
             "negatif özkaynak -- Warren Buffett çerçevesine göre bu ya bilinçli tam-dağıtım politikası (olumlu) "
             "ya iflas riski (olumsuz) anlamına gelebilir, ayrım için çok-yıllı kazanç geçmişi gerekir; bileşen atlandı.",
+        )
+    if treasury_stock is not None and treasury_stock > 0 and equity_current is not None and ttm_net_income is not None:
+        equity_duzeltilmis = equity_current + treasury_stock
+        roe_duzeltilmis = ttm_net_income / equity_duzeltilmis * 100
+        skor, aciklama = seviye_trend_skoru_v2(
+            "Özkaynak kârlılığı (hazine hissesi düzeltmeli ROE)", roe_duzeltilmis, None,
+            guclu_esik=Decimal(15), orta_esik=Decimal(10), tavan=Decimal(25),
+        )
+        return skor, (
+            aciklama + " Buffett'ın finansal-mühendislik-arındırılmış ROE formülü (02/FORMÜL-21: Net Kâr/"
+            "(Özkaynak+Hazine Hissesi)) kullanıldı -- geri alım kaynaklı yapay ROE şişmesi arındırıldı."
         )
     if roe is None:
         return None, "özkaynak kârlılığı (ROE) hesaplanamadı (TTM net kâr veya güncel özkaynak eksik), bileşen atlandı."
@@ -109,7 +144,7 @@ def hesapla_kalite_mercegi(girdi: KaliteGirdisi) -> LensSonucu:
     nakit_uretimi = seviye_trend_skoru_v2(
         "FAVÖK marjı", r.ebitda_margin_current, r.ebitda_margin_change_points, guclu_esik=Decimal(20), orta_esik=Decimal(10), tavan=Decimal(30)
     )
-    roe = _skor_roe(r.roe_annualized, girdi.analysis.balance_sheet.equity.current)
+    roe = _skor_roe(r.roe_annualized, girdi.analysis.balance_sheet.equity.current, r.ttm_net_income, girdi.treasury_stock)
     net_marj = seviye_trend_skoru_v2(
         "Net marj", r.net_margin_current, r.net_margin_change_points, guclu_esik=Decimal(15), orta_esik=Decimal(5), tavan=Decimal(25)
     )

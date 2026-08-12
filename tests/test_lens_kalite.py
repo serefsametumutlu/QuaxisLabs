@@ -91,6 +91,58 @@ def test_kalite_mercegi_greenblatt_ve_ocf_yoksa_atlanir_toplam_yine_uretilir() -
     assert sonuc.total_score > Decimal("0")  # kalan bilesenler agirligi devraldi
 
 
+# --- V-04 (docs/spec/spec_veri_tamlik_yol_haritasi.md) -- hazine hissesi düzeltmeli ROE -----------------------------------------------------
+
+
+def test_kalite_mercegi_treasury_stock_verilmezse_ham_roe_davranisi_degismez() -> None:
+    """Regresyon kilidi -- treasury_stock varsayılan None, mevcut ham ROE
+    davranışı BİREBİR KORUNUR (BİST'te bu alan hiç çekilmiyor, her zaman
+    None gelir)."""
+    analysis = _analysis()
+    girdi = KaliteGirdisi(analysis=analysis)
+    sonuc = hesapla_kalite_mercegi(girdi)
+    isimler = {c.name: c for c in sonuc.components}
+    roe_bileseni = isimler["Özkaynak Kârlılığı (ROE)"]
+    assert roe_bileseni.score is not None
+    assert "hazine hissesi düzeltmeli" not in roe_bileseni.reasoning_tr
+
+
+def test_kalite_mercegi_treasury_stock_verilirse_duzeltmeli_roe_kullanilir() -> None:
+    """02/FORMÜL-21: Net Kâr / (Özkaynak + Hazine Hissesi) -- treasury_stock
+    verildiğinde ROE bileşeni AYNI ağırlığı (20) korur, sadece daha doğru
+    (düşük özkaynak tabanının şişirmediği) bir girdiyle beslenir."""
+    analysis = _analysis()  # ttm_net_income=23, equity_current=400
+    girdi = KaliteGirdisi(analysis=analysis, treasury_stock=Decimal("100"))
+    sonuc = hesapla_kalite_mercegi(girdi)
+    isimler = {c.name: c for c in sonuc.components}
+    roe_bileseni = isimler["Özkaynak Kârlılığı (ROE)"]
+    assert roe_bileseni.score is not None
+    assert roe_bileseni.weight_nominal == Decimal("20")
+    assert "hazine hissesi düzeltmeli" in roe_bileseni.reasoning_tr
+    assert "FORMÜL-21" in roe_bileseni.reasoning_tr
+
+
+def test_kalite_mercegi_treasury_stock_negatif_ozkaynakta_yine_none() -> None:
+    """Negatif özkaynak guard'ı treasury_stock verilse BİLE ÖNCE uygulanır
+    -- iki neden ayrımı (bilinçli tam-dağıtım vs iflas riski) hazine
+    hissesi düzeltmesiyle ÇÖZÜLEMEZ."""
+    analysis = _analysis(equity_current=Decimal("-50"))
+    girdi = KaliteGirdisi(analysis=analysis, treasury_stock=Decimal("100"))
+    sonuc = hesapla_kalite_mercegi(girdi)
+    isimler = {c.name: c for c in sonuc.components}
+    assert isimler["Özkaynak Kârlılığı (ROE)"].score is None
+    assert "negatif özkaynak" in isimler["Özkaynak Kârlılığı (ROE)"].reasoning_tr
+
+
+def test_skor_roe_treasury_stock_sifir_veya_negatifse_duzeltme_uygulanmaz() -> None:
+    """treasury_stock<=0 (raporlanmamış/sıfır) iken ham ROE'ye SESSİZCE
+    devam edilir -- pozitif olmayan bir düzeltme uygulamak anlamsızdır."""
+    from src.analysis.lens_kalite import _skor_roe
+
+    skor, gerekce = _skor_roe(Decimal("15"), Decimal("400"), Decimal("23"), Decimal("0"))
+    assert "hazine hissesi düzeltmeli" not in gerekce
+
+
 def test_nakit_kar_kalitesi_negatif_net_karda_none() -> None:
     from src.analysis.lens_kalite import _skor_nakit_kar_kalitesi
 

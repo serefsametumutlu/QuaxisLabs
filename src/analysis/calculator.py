@@ -121,6 +121,17 @@ FIELD_LABELS_TR: dict[str, str] = {
     "financing_expenses_cum": "Finansman Giderleri",
     "pretax_profit_cum": "Vergi Öncesi Kâr/Zarar",
     "tax_provision_cum": "Vergi Karşılığı",
+    # --- Faz "Veri Tamlığı" İlk Dalga (NASDAQ US_GAAP) alanları -- bkz.
+    # src/fetchers/sec_edgar.py STANDARD_ITEM_MAP_US_GAAP ilgili yorumlar.
+    "sga_expense": "Satış, Genel ve İdari Giderler",
+    "sga_expense_cum": "Satış, Genel ve İdari Giderler",
+    "research_development_expense": "Araştırma ve Geliştirme Giderleri",
+    "research_development_expense_cum": "Araştırma ve Geliştirme Giderleri",
+    "capex": "Yatırım Harcaması (Capex)",
+    "capex_cum": "Yatırım Harcaması (Capex)",
+    "dividend_per_share": "Hisse Başına Temettü",
+    "dividend_per_share_cum": "Hisse Başına Temettü",
+    "treasury_stock": "Hazine Hisseleri",
 }
 
 
@@ -188,6 +199,25 @@ class Ratios:
     ttm_operating_profit: Decimal | None
     ttm_net_income: Decimal | None  # ROE'nin de girdisi
     revenue_growth_yoy_pct: Decimal | None  # CEYREKLIK (standalone, kumulatif DEGIL) hasilat YoY buyumesi -- SADECE scorer.py'nin Buyume bileseni bunu kullanir; income_statement.revenue.percent_change artik KUMULATIF oldugu icin (bkz. analyze() ici not) skorlama icin ayri tutulur
+    # --- Faz "Veri Tamlığı" İlk Dalga (docs/spec/spec_veri_tamlik_yol_haritasi.md
+    # V-01/V-02/V-08/V-09) -- SADECE NASDAQ (analyze_us) sirketlerinde
+    # dolu olur (BIST XI_29'da bu ham alanlar hic cekilmiyor, bkz.
+    # isyatirim.py -- her zaman None). BILEREK skorlanan (agirlik tasiyan)
+    # bir bilesene DONUSTURULMEDI: spec_mercek_kalite.md/spec_mercek_
+    # guvenlik.md/spec_mercek_buyume.md'nin KENDI Agirliklar tablolari bu
+    # kalemler icin (henuz) bir agirlik AYIRMIYOR -- ilgili mercek
+    # spec'lerinin kendi metni ("simdilik SKORLANMAZ", "HER ZAMAN veri
+    # eksik yer tutucu -- veri gelince skorlanan bilesene YUKSELTILIR")
+    # bu kararin BILINCLI olarak GELECEK bir spec-revizyon turuna
+    # birakildigini belirtiyor (agirlik UYDURULMASI persona kural ihlali
+    # olurdu) -- bu alanlar SADECE ham oranin hesaplanip ACIGA CIKARILMASI
+    # icindir (bilgi amacli, kartta/gelecek skorlamada kullanilabilir).
+    sga_to_gross_profit_pct: Decimal | None = None  # 02/FORMÜL-02
+    rd_to_gross_profit_pct: Decimal | None = None  # 02/FORMÜL-03
+    interest_expense_to_operating_profit_pct: Decimal | None = None  # 01/FORMÜL-18, 02/FORMÜL-05
+    ttm_capex: Decimal | None = None
+    capex_to_net_income_pct: Decimal | None = None  # 02/FORMÜL-25,28 (reinvestment/yeniden yatırım kalitesi)
+    ttm_dividend_per_share: Decimal | None = None  # V-03 -- DPS TTM (kümülatif alanlardan teleskopik türetim)
 
 
 @dataclass(frozen=True)
@@ -718,6 +748,18 @@ def _build_analysis_result(
     net_debt = _net_debt(current.get("financial_debt"), current.get("cash"), current.get("financial_investments"))
     revenue_growth_yoy_pct, _label, _direction = classify_change(current.get("revenue"), yoy_prior.get("revenue"))
 
+    # Faz "Veri Tamlığı" İlk Dalga -- bkz. Ratios ici not (ham/bilgi amacli,
+    # BILINCLI olarak skorlanmiyor). BIST XI_29'da bu ham alanlar (current
+    # dict'inde) hic yok -- hepsi otomatik None kalir (Kural 3).
+    sga_to_gross_profit_pct = _margin_pct(current.get("sga_expense"), current.get("gross_profit"))
+    rd_to_gross_profit_pct = _margin_pct(current.get("research_development_expense"), current.get("gross_profit"))
+    interest_expense_to_operating_profit_pct = _margin_pct(current.get("interest_expense"), current.get("operating_profit"))
+    ttm_capex = _trailing_12m_from_cumulative(financials_by_period, latest_period, lambda d: d.get("capex_cum"))
+    capex_to_net_income_pct = _margin_pct(ttm_capex, ttm_net_income) if ttm_net_income is not None and ttm_net_income > 0 else None
+    ttm_dividend_per_share = _trailing_12m_from_cumulative(
+        financials_by_period, latest_period, lambda d: d.get("dividend_per_share_cum")
+    )
+
     ratios = Ratios(
         gross_margin_current=gross_margin_current,
         gross_margin_prior_year=gross_margin_prior_year,
@@ -738,6 +780,12 @@ def _build_analysis_result(
         ttm_operating_profit=ttm_operating_profit,
         ttm_net_income=ttm_net_income,
         revenue_growth_yoy_pct=revenue_growth_yoy_pct,
+        sga_to_gross_profit_pct=sga_to_gross_profit_pct,
+        rd_to_gross_profit_pct=rd_to_gross_profit_pct,
+        interest_expense_to_operating_profit_pct=interest_expense_to_operating_profit_pct,
+        ttm_capex=ttm_capex,
+        capex_to_net_income_pct=capex_to_net_income_pct,
+        ttm_dividend_per_share=ttm_dividend_per_share,
     )
 
     series_periods = list(reversed(periods_desc[:5]))

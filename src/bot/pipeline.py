@@ -159,6 +159,16 @@ _US_GAAP_QUARTERLY_FIELDS: tuple[str, ...] = (
     "operating_profit",
     "net_income",
     "depreciation_amortization",
+    # Faz "Veri Tamlığı" İlk Dalga (docs/spec/spec_veri_tamlik_yol_haritasi.md
+    # V-01/V-02/V-08/V-09/V-03) -- bkz. sec_edgar.STANDARD_ITEM_MAP_US_GAAP
+    # ilgili alan yorumları. Genel (özel dallanma gerektirmeyen) `else`
+    # dalıyla otomatik hem çeyreklik hem kümülatif (`_cum`) olarak DB'ye
+    # yazılır (bkz. _standardize_to_records_us_gaap).
+    "sga_expense",
+    "research_development_expense",
+    "interest_expense",
+    "capex",
+    "dividend_per_share",
 )
 _US_GAAP_STOCK_FIELDS: tuple[str, ...] = (
     "total_assets",
@@ -168,6 +178,8 @@ _US_GAAP_STOCK_FIELDS: tuple[str, ...] = (
     "equity",
     "cash",
     "shares_outstanding",
+    # Faz "Veri Tamlığı" V-04 -- Hazine Hissesi Düzeltmeli ROE bileşeninin girdisi.
+    "treasury_stock",
 )
 
 
@@ -1640,7 +1652,8 @@ def compute_multi_lens_score_for_ticker(ticker: str, market: str = "BIST") -> Mu
 
     own_bars = price_history.fetch_ohlcv(ticker, market, days=400)
     current_price = own_bars[-1].close if own_bars else None
-    share_capital = financials_by_period.get(analysis.latest_period, {}).get(share_field)
+    latest_raw = financials_by_period.get(analysis.latest_period, {})
+    share_capital = latest_raw.get(share_field)
     if template == "banka":
         valuation_metrics = calculator.compute_valuation_bank(analysis, current_price, share_capital)
     elif template == "sigorta":
@@ -1680,7 +1693,7 @@ def compute_multi_lens_score_for_ticker(ticker: str, market: str = "BIST") -> Mu
         kalite = lens_kalite.hesapla_kalite_mercegi(
             lens_kalite.KaliteGirdisi(
                 analysis=analysis, greenblatt=fundamental.greenblatt if fundamental else None,
-                operating_cash_flow_ttm=ocf_ttm, template=template,
+                operating_cash_flow_ttm=ocf_ttm, treasury_stock=latest_raw.get("treasury_stock"), template=template,
             )
         )
     else:
@@ -1695,7 +1708,6 @@ def compute_multi_lens_score_for_ticker(ticker: str, market: str = "BIST") -> Mu
             ticker, analysis.latest_period, roe_pct=analysis.ratios.roe_annualized, roa_pct=roa_pct, template=template,
         )
 
-    latest_raw = financials_by_period.get(analysis.latest_period, {})
     if template in ("sanayi", "abd_sanayi"):
         buyume = lens_buyume.hesapla_buyume_mercegi(
             lens_buyume.BuyumeGirdisi(

@@ -394,6 +394,51 @@ STANDARD_ITEM_MAP_US_GAAP: dict[str, list[str]] = {
         # yogun donemlerde kucuk bir sapma olusturabilir).
         "us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding",
     ],
+    # Faz "Veri Tamlığı İlk Dalga" (docs/spec/spec_veri_tamlik_yol_haritasi.md
+    # V-01/V-02/V-08/V-09/V-03/V-04) -- KALİTE/BÜYÜME/DEĞER merceklerinin
+    # NASDAQ tarafında "VERİ EKSİK" işaretli kalemleri: standart US GAAP
+    # tag'leri, `veri_tamlik_notu.md` K3/K4/K5/K6/B3/D2'de önceden
+    # doğrulanmıştı (bu turda AAPL/JPM companyfacts fixture'larıyla CANLI
+    # (kayıtlı) veriyle TEKRAR doğrulandı, bkz. tests/test_sec_edgar.py).
+    "sga_expense": [
+        # AAPL CANLI doğrulandı (data/exploration/AAPL_companyfacts_*.json):
+        # kümülatif (YTD) desende, revenue/gross_profit ile AYNI ilke.
+        "us-gaap:SellingGeneralAndAdministrativeExpense",
+    ],
+    "research_development_expense": [
+        # AAPL CANLI doğrulandı -- kümülatif desen.
+        "us-gaap:ResearchAndDevelopmentExpense",
+    ],
+    # NOT: "interest_expense" alan adı BİLEREK BİST bankalarının
+    # (isyatirim.STANDARD_ITEM_MAP_UFRS/_KATILIM) kullandığı adla AYNI
+    # tutuldu -- calculator.FIELD_LABELS_TR'de zaten "Faiz Giderleri"
+    # etiketiyle MEVCUT, yeni bir etiket eklemeye GEREK YOK (aynı kavram,
+    # farklı fetcher/piyasa). AAPL'de bu tag'in SADECE 2022-2023 dönemine
+    # kadar raporlandığı CANLI doğrulandı (sonrasında net faiz gideri/geliri
+    # birleşik raporlanıyor olabilir, bkz. veri_tamlik_notu.md K5 notu) --
+    # bu turda YENİ bir birleştirme mantığı EKLENMEDİ, tag basitçe o
+    # dönemlerden SONRA None döner (Kural 8: yanlış rakamdan iyidir).
+    "interest_expense": ["us-gaap:InterestExpense"],
+    # Faz "Veri Tamlığı" V-09 -- BÜYÜME merceğinin Capex/Net Kâr (yeniden
+    # yatırım kalitesi) bileşeninin NASDAQ girdisi. Alan adı BİLEREK
+    # "capex" (BİST XI_29 tarafında V-10 ile AYNI ad kullanılacak, bkz.
+    # kap_financials.py) -- piyasalar arası SİMETRİK isimlendirme.
+    "capex": ["us-gaap:PaymentsToAcquirePropertyPlantAndEquipment"],
+    # Faz "Veri Tamlığı" V-03 -- DEĞER (Kazanç Getirisi/Güvenlik Marjı) VE
+    # BÜYÜME (payout/tutma oranı) merceklerinin ortak DPS girdisi. AAPL
+    # CANLI doğrulandı: bu tag da revenue/gross_profit ile AYNI KÜMÜLATİF
+    # (YTD, hisse başına) desende raporlanıyor -- `_select_best_fact`'in
+    # süre-penceresi filtresi burada da GEÇERLİDİR, `quarterly_standardized_
+    # value_us_gaap` ile TEK ÇEYREKLİK temettü/hisse türetilebilir.
+    "dividend_per_share": ["us-gaap:CommonStockDividendsPerShareDeclared"],
+    # Faz "Veri Tamlığı" V-04 -- KALİTE merceğinin Hazine Hissesi Düzeltmeli
+    # ROE bileşeni (02/FORMÜL-21: Net Kâr / (Özkaynak + Hazine Hissesi
+    # [pozitife çevrilmiş])). JPM (banka) CANLI doğrulandı: STOK (instant)
+    # bir bilanço alt kalemi -- AAPL'de İSE bu tag HİÇ YOK (CANLI doğrulandı,
+    # Apple geri alınan payları HAZİNE HİSSESİ olarak TUTMAK yerine İPTAL/
+    # RETIRE ediyor) -- bu durumda bileşen None döner (Kural 8), ROE
+    # düzeltmesi UYGULANMAZ, mevcut ham ROE'ye devam edilir.
+    "treasury_stock": ["us-gaap:TreasuryStockValue"],
 }
 
 # Gelir tablosu / nakit akis alanlari kumulatiftir (mali yil icinde YTD
@@ -404,6 +449,10 @@ CUMULATIVE_FIELDS_US_GAAP: frozenset[str] = frozenset(
     {
         "revenue", "gross_profit", "cost_of_revenue", "operating_profit", "net_income",
         "depreciation_amortization", "depreciation_component", "amortization_component",
+        # Faz "Veri Tamlığı" İlk Dalga (V-01/V-02/V-08/V-09/V-03) -- AAPL
+        # companyfacts fixture'ıyla CANLI doğrulandı: hepsi revenue ile AYNI
+        # kümülatif (YTD) desende raporlanıyor.
+        "sga_expense", "research_development_expense", "interest_expense", "capex", "dividend_per_share",
     }
 )
 
@@ -414,6 +463,8 @@ _STOCK_FIELDS_US_GAAP: frozenset[str] = frozenset(
         "short_term_liabilities",
         "equity",
         "cash",
+        # Faz "Veri Tamlığı" V-04 -- STOK (instant) bilanço alt kalemi.
+        "treasury_stock",
         "trade_receivables",
         "short_term_financial_debt",
         "long_term_financial_debt",

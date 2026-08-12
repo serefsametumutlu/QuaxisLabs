@@ -552,6 +552,77 @@ def test_shares_outstanding_donem_ortalamasi_fallback_uzerinden_dogru_secilir() 
     assert standardized_value_us_gaap(raw, "shares_outstanding", (2026, 3)) == Decimal("2564000000")
 
 
+# --- Faz "Veri Tamlığı" İlk Dalga (V-01/V-02/V-03/V-04/V-08/V-09) -- yeni alanlar -----------------------------------------------------
+
+
+def test_aapl_sga_ve_arge_gideri_fixture_ile_cozulur() -> None:
+    """AAPL companyfacts fixture'ında (CANLI kaydedilmiş) hem
+    SellingGeneralAndAdministrativeExpense hem ResearchAndDevelopmentExpense
+    KÜMÜLATİF (YTD) desende raporlanıyor -- revenue/gross_profit ile AYNI
+    ilke, ceyreklik turetme de calismali (V-01/V-02)."""
+    raw = _build_raw("AAPL")
+    period = raw.periods[0]
+    assert standardized_value_us_gaap(raw, "sga_expense", period) is not None
+    assert quarterly_standardized_value_us_gaap(raw, "sga_expense", period) is not None
+    assert standardized_value_us_gaap(raw, "research_development_expense", period) is not None
+    assert quarterly_standardized_value_us_gaap(raw, "research_development_expense", period) is not None
+
+
+def test_aapl_capex_fixture_ile_cozulur() -> None:
+    """V-09 -- us-gaap:PaymentsToAcquirePropertyPlantAndEquipment, AAPL
+    fixture'ında KÜMÜLATİF desende MEVCUT."""
+    raw = _build_raw("AAPL")
+    period = raw.periods[0]
+    assert standardized_value_us_gaap(raw, "capex", period) is not None
+    assert quarterly_standardized_value_us_gaap(raw, "capex", period) is not None
+
+
+def test_aapl_dividend_per_share_fixture_ile_cozulur() -> None:
+    """V-03 -- us-gaap:CommonStockDividendsPerShareDeclared, AAPL
+    fixture'ında KÜMÜLATİF (hisse başı) desende MEVCUT."""
+    raw = _build_raw("AAPL")
+    period = raw.periods[0]
+    assert standardized_value_us_gaap(raw, "dividend_per_share", period) is not None
+    assert quarterly_standardized_value_us_gaap(raw, "dividend_per_share", period) is not None
+
+
+def test_aapl_treasury_stock_hic_raporlamiyor_none_doner() -> None:
+    """V-04 kenar durumu -- Apple geri aldığı payları HAZİNE HİSSESİ olarak
+    TUTMUYOR, İPTAL/RETIRE ediyor -- us-gaap:TreasuryStockValue AAPL
+    fixture'ında HİÇ YOK, bileşen dürüstçe None döner (Kural 8)."""
+    raw = _build_raw("AAPL")
+    period = raw.periods[0]
+    assert standardized_value_us_gaap(raw, "treasury_stock", period) is None
+
+
+def test_treasury_stock_stok_deger_sentetik_fixture_ile_cozulur() -> None:
+    """V-04 -- JPM (banka) tipi bir şirket senaryosu (hazine hissesi TUTAN
+    şirketler için): STOK (instant) bir bilanço alt kalemi, dogrudan
+    'end' tarihiyle eslesir."""
+    facts = [ConceptFact(start=None, end=date(2026, 3, 31), val=Decimal("106914000000"), form="10-Q", fp="Q1", fy=2026, frame="CY2026Q1I", filed="2026-05-01")]
+    raw = RawUsFinancials(
+        ticker="JPM", cik10="0000019617", company_name="JPMorgan Chase & Co.",
+        periods=[(2026, 3)], facts_by_tag={"us-gaap:TreasuryStockValue": facts},
+    )
+    assert standardized_value_us_gaap(raw, "treasury_stock", (2026, 3)) == Decimal("106914000000")
+
+
+def test_interest_expense_us_gaap_kumulatif_desende_cozulur() -> None:
+    """V-08 -- us-gaap:InterestExpense, KÜMÜLATİF (YTD) desende (AAPL/JPM
+    canlı fixture'larıyla dogrulandi -- bkz. veri_tamlik_notu.md K5:
+    bazı şirketlerde SADECE belirli yıllar için raporlanıyor olabilir)."""
+    facts = [
+        _fact("2026-01-01", "2026-03-31", "1000000000", "Q1", 2026),
+        _fact("2026-01-01", "2026-06-30", "2100000000", "Q2", 2026),
+    ]
+    raw = RawUsFinancials(
+        ticker="TEST", cik10="0", company_name=None, periods=[(2026, 6), (2026, 3)],
+        facts_by_tag={"us-gaap:InterestExpense": facts},
+    )
+    assert standardized_value_us_gaap(raw, "interest_expense", (2026, 6)) == Decimal("2100000000")
+    assert quarterly_standardized_value_us_gaap(raw, "interest_expense", (2026, 6)) == Decimal("1100000000")
+
+
 # --- STANDARD_ITEM_MAP_US_GAAP butunluk kontrolu -----------------------------------------------------
 
 

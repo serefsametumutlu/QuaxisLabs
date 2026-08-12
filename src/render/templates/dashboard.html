@@ -465,7 +465,10 @@
               <td class="col-left">{{ b.isim }}</td>
               <td class="q-num">{{ b.agirlik }}</td>
               <td class="col-left">{{ b.esik }}</td>
-              <td class="col-left"><span class="source-chip">{{ b.kaynak }}</span></td>
+              <td class="col-left">
+                <span class="source-chip">{{ b.kaynak }}</span>
+                {% if b.uyari %}<span class="warn-icon gecici" title="{{ b.uyari }}">⚠</span>{% endif %}
+              </td>
             </tr>
             {% endfor %}
           </tbody>

@@ -106,6 +106,13 @@ PIYASA_SISTEMIK_EKSIK_BILESENLER: dict[str, list[dict[str, str]]] = {
          "aciklama": "Harici veri kaynağı entegrasyonu henüz yok."},
     ],
     "NASDAQ": [
+        {"mercek": "değer", "bilesen": "Greenblatt Kazanç Getirisi + Carlisle Acquirer's Multiple", "tur": "yapisal",
+         "aciklama": ("`fundamental_screens.py` SADECE BIST XI_29 (sanayi) şirketleri için çağrılır "
+                      "(`pipeline.py`: \"not is_us and financial_group=='XI_29'\") -- NASDAQ'ta bu iki bileşen "
+                      "HİÇ hesaplanmaz, ağırlığı (Değer merceği içi %10+%5) diğer bileşenlere yeniden dağıtılır. "
+                      "US GAAP/SEC EDGAR karşılığı ayrı bir keşif turu gerektirir, henüz yapılmadı.")},
+        {"mercek": "kalite", "bilesen": "Greenblatt ROC (EBIT/Yatırılan Sermaye)", "tur": "yapisal",
+         "aciklama": "Aynı BIST-only kısıt (bkz. Değer merceği notu) -- NASDAQ'ta bu bileşen de hesaplanmaz."},
         {"mercek": "kalite", "bilesen": "SG&A / Ar-Ge oranı", "tur": "gecici",
          "aciklama": "us-gaap standart etiketler mevcut, DÜŞÜK maliyetle açılabilir, henüz kodlanmadı."},
         {"mercek": "kalite", "bilesen": "Hazine Hissesi Düzeltmeli ROE", "tur": "gecici_oncelikli",
@@ -203,7 +210,12 @@ SCORE_METHODOLOGY: dict[str, Any] = {
             "soru": "Şirket sürdürülebilir, dayanıklı bir rekabet avantajına sahip mi?",
             "bilesenler": [
                 {"isim": "Nakit Üretimi (FAVÖK marjı)", "agirlik": "%25",
-                 "esik": "güçlü ≥ %20, orta ≥ %10", "kaynak": "02/İLKE-01-06"},
+                 "esik": "güçlü ≥ %20, orta ≥ %10", "kaynak": "v1 Radar Skoru çekirdeği · 02/İLKE-01 (genel bağlam)",
+                 "uyari": ("BİLİNEN GERİLİM: bu metrik projenin ÖNCEDEN kalibre edilmiş v1 çekirdeğidir, "
+                            "Buffett kitabından DOĞRUDAN türetilmemiştir -- kitabın kendisi (02/İLKE-06, s.67-68) "
+                            "FAVÖK/EBITDA mantığını \"amortismanı gerçek bir maliyet gibi görmeyen bir YANILSAMA\" "
+                            "olarak AÇIKÇA eleştirir. Bu çelişki ÇÖZÜLMEMİŞTİR, bilinçli olarak burada belgelenir "
+                            "(bkz. docs/spec/spec_mercek_kalite.md).")},
                 {"isim": "Özkaynak Kârlılığı (ROE)", "agirlik": "%20",
                  "esik": "güçlü ≥ %15, orta ≥ %10", "kaynak": "02/FORMÜL-22, İLKE-40,41"},
                 {"isim": "Kârlılık (Net Marj)", "agirlik": "%15",
@@ -211,7 +223,11 @@ SCORE_METHODOLOGY: dict[str, Any] = {
                 {"isim": "Brüt Kâr Marjı (seviye + trend)", "agirlik": "%15",
                  "esik": "güçlü ≥ %40, orta ≥ %20", "kaynak": "02/FORMÜL-01, İLKE-02,03"},
                 {"isim": "Greenblatt ROC (EBIT/Yatırılan Sermaye)", "agirlik": "%10",
-                 "esik": "yüksek ≥ %25, düşük ≤ %10", "kaynak": "Greenblatt · 03/İLKE-201-213"},
+                 "esik": "yüksek ≥ %25, düşük ≤ %10", "kaynak": "Greenblatt · 03/İLKE-203,208,212 (kavramsal örtüşme)",
+                 "uyari": ("Doğrudan kaynağı Greenblatt'ın Sihirli Formül'üdür (kitap-bilgi-bankası dışı). "
+                            "03/İLKE-203,208,212 (Damodaran) BİREBİR aynı formülü tanımlamaz -- ROC/sermaye "
+                            "maliyeti farkının firma-değeri çarpanlarını sürüklediği KAVRAMSAL paralelliği kurar, "
+                            "gevşek bir bağlam notudur.")},
                 {"isim": "ROA", "agirlik": "%5",
                  "esik": "güçlü ≥ %8, orta ≥ %3", "kaynak": "02/FORMÜL-13, İLKE-26"},
                 {"isim": "Nakit Kâr Kalitesi (OCF/Net Kâr)", "agirlik": "%10",

@@ -49,7 +49,7 @@ from sqlalchemy import and_, or_, select  # noqa: E402
 
 from src.db import repository  # noqa: E402
 from src.db.models import Company, utcnow_naive  # noqa: E402
-from src.fetchers import kap, sec_edgar  # noqa: E402
+from src.fetchers import fintables_sektor, kap, sec_edgar  # noqa: E402
 
 config.setup_logging()
 logger = logging.getLogger(__name__)
@@ -65,16 +65,35 @@ DEFAULT_NASDAQ_LIMIT = 500
 
 
 def _refresh_bist(session) -> int:
-    """KAP Sektörler sayfasından TÜM BİST evrenini doldurur/günceller --
-    spec "BİST kolu" adım 1-2 BİREBİR."""
-    print(f"{kap.SEKTORLER_URL} çekiliyor (TÜM BİST şirketleri, tek istek)...")
-    sector_map = kap.fetch_sector_map()
-    print(f"{len(sector_map)} benzersiz ticker için ince sektör bulundu.")
+    """BİST evrenini doldurur/günceller -- kullanıcı isteği (2026-08-13):
+    Fintables'ın elle doğrulanmış 44-sektörlük sınıflandırması (`src/
+    fetchers/fintables_sektor.py`, `bist-sektorler-ve-hisseler.md`'den
+    üretildi) ARTIK BİRİNCİL kaynak (KAP'ın canlı-kazınan ince sektörü
+    bazen eksik/hatalı çıkıyordu, örn. alakasız iş modellerini AYNI kovaya
+    koyuyordu). KAP'ın `fetch_sector_map()`'i İKİNCİL/YEDEK olarak KALIR
+    (persona kural 8: genişlet ama çöpe atma) -- SADECE Fintables listesinde
+    OLMAYAN ticker'lar (yeni IPO, henüz Fintables'a düşmemiş) için devreye
+    girer, aksi halde Fintables'IN KENDİSİ atlanır (tekrar YAZILMAZ)."""
+    print(f"{kap.SEKTORLER_URL} çekiliyor (KAP yedek kaynağı, TÜM BİST şirketleri, tek istek)...")
+    kap_sector_map = kap.fetch_sector_map()
+    print(f"KAP'tan {len(kap_sector_map)} benzersiz ticker için ince sektör bulundu (yedek).")
+    print(f"Fintables birincil kaynağı: {len(fintables_sektor.FINTABLES_TICKER_TO_SEKTOR)} ticker.")
 
+    all_tickers = set(fintables_sektor.FINTABLES_TICKER_TO_SEKTOR) | set(kap_sector_map)
     updated = 0
-    for ticker, fine_sector in sector_map.items():
-        ust_sektor = kap.ust_sektor_for_kap(ticker, fine_sector)
-        sirket_turu = kap.sirket_turu_on_tahmin_from_kap(fine_sector)
+    fintables_kaynakli = 0
+    kap_yedek_kaynakli = 0
+    for ticker in all_tickers:
+        fine_sector = fintables_sektor.fine_sector_for_ticker(ticker)
+        if fine_sector is not None:
+            ust_sektor = fintables_sektor.ust_sektor_for_fintables(ticker, fine_sector)
+            sirket_turu = fintables_sektor.sirket_turu_on_tahmin_from_fintables(fine_sector)
+            fintables_kaynakli += 1
+        else:
+            fine_sector = kap_sector_map[ticker]
+            ust_sektor = kap.ust_sektor_for_kap(ticker, fine_sector)
+            sirket_turu = kap.sirket_turu_on_tahmin_from_kap(fine_sector)
+            kap_yedek_kaynakli += 1
         repository.upsert_sector_taxonomy(
             session,
             ticker,
@@ -85,6 +104,7 @@ def _refresh_bist(session) -> int:
         )
         updated += 1
     session.commit()
+    print(f"Kaynak dağılımı: {fintables_kaynakli} Fintables, {kap_yedek_kaynakli} KAP yedek.")
     return updated
 
 

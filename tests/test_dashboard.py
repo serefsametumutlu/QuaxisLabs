@@ -232,19 +232,20 @@ def test_nasdaq_satirlarinda_bist_endeks_bayraklari_hep_false(session) -> None:
     assert company["in_bist100"] is False
 
 
-def test_build_dashboard_data_hatali_satir_ornegi_veri_yok(session) -> None:
-    """spec §"Hatalı/desteklenmeyen satır örneği" -- scan_status='veri_yok'
-    satırında mercekler/bilesik/carpanlar null, veri_uyarilari boş liste."""
+def test_build_dashboard_data_veri_yok_satiri_hic_gorunmez(session) -> None:
+    """Kullanıcı isteği (2026-08-13, yedinci tur): "veri_yok yazısı gördüğün
+    tüm hisseleri kaldır tüm listelerden" -- `scan_status='veri_yok'`
+    (genelde nadir/ikincil bir KAP kodu, gerçek işlem gören bir şirket
+    DEĞİL) satırı dashboard'un HİÇBİR yerinde (sektör grupları dahil)
+    görünmez -- eskiden (spec §"Hatalı/desteklenmeyen satır örneği")
+    null alanlarla GÖSTERİLİYORDU, artık TAMAMEN filtrelenir."""
     _add_company(session, "XYZCO", "NASDAQ", "Teknoloji", None)
     session.add(MarketScanResult(ticker="XYZCO", market="NASDAQ", scan_status="veri_yok", computed_at=utcnow_naive()))
     session.commit()
 
     data = dashboard.build_dashboard_data(session)
-    company = data["markets"]["NASDAQ"]["sectors"][0]["companies"][0]
-    assert company["mercekler"] is None
-    assert company["bilesik"] is None
-    assert company["carpanlar"] is None
-    assert company["veri_uyarilari"] == []
+    assert data["markets"]["NASDAQ"]["sectors"] == []
+    assert data["meta"]["nasdaq_company_count"] == 0
 
 
 # --- Kenar durumlar (spec §Kenar durumlar + §Test senaryoları) -----------------------------------------------------
@@ -335,8 +336,15 @@ def test_n_bes_alti_yetersiz_ornek_bayragi_sinir_testi(session) -> None:
 
 
 def test_siniflandirilmamis_grubu_yetersiz_ornek_kuralina_tabi_degil(session) -> None:
+    # scan_status="ok" KULLANILIR ("veri_yok" ARTIK dashboard'dan TAMAMEN
+    # filtreleniyor, bkz. test_build_dashboard_data_veri_yok_satiri_hic_
+    # gorunmez) -- bu testin amacı "Sınıflandırılmamış" grubunun n<5
+    # kuralına TABİ OLMADIĞINI doğrulamak, veri_yok davranışını DEĞİL.
     _add_company(session, "BELIRSIZ", "BIST", None, None)
-    session.add(MarketScanResult(ticker="BELIRSIZ", market="BIST", scan_status="veri_yok", computed_at=utcnow_naive()))
+    session.add(MarketScanResult(
+        ticker="BELIRSIZ", market="BIST", scan_status="ok", template="sanayi", year=2026, period=6,
+        computed_at=utcnow_naive(),
+    ))
     session.commit()
 
     data = dashboard.build_dashboard_data(session)

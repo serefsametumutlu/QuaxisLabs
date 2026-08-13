@@ -585,6 +585,18 @@ def build_dashboard_data(session: Session, *, now: datetime | None = None) -> di
     # satırlık dashboard'da per-row DB isteği performans sorunu yaratırdı).
     ince_sektor_map = dict(session.execute(select(Company.ticker, Company.sector)).all())
 
+    # Kullanıcı isteği (2026-08-13, yedinci tur): "aracı kurum ve bankada
+    # taşıdığın hisse olarak görünenler aslında hisse değil hatalı,
+    # veri_yok yazısı gördüğün tüm hisseleri kaldır tüm listelerden" --
+    # `scan_status="veri_yok"` (genelde nadir/ikincil KAP kodları --
+    # gerçek işlem gören bir şirket DEĞİL, finansal veri kaynağı hiç YOK)
+    # satırları dashboard'un TAMAMINDAN (sektör grupları, rozet dağılımı,
+    # şirket sayısı, son tarama zamanı) BİLEREK çıkarılır -- "hata" (geçici
+    # ağ hatası, ESKİ ama GERÇEK bir skoru olabilir) BURADAN ETKİLENMEZ,
+    # SADECE kalıcı/deterministik "veri_yok" durumu (Kural 3: bu bir
+    # şirketin skoru DEĞİL, sistemin hiç veri BULAMADIĞI bir kayıt).
+    rows = [r for r in rows if r.scan_status != "veri_yok"]
+
     bist_rows = [r for r in rows if r.market == "BIST"]
     nasdaq_rows = [r for r in rows if r.market == "NASDAQ"]
 

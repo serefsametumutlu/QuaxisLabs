@@ -780,3 +780,56 @@ def fine_sector_for_ticker(ticker: str) -> str | None:
     gibi) ticker'lar için None (Kural 3, `refresh_universe.py`'nin KAP
     yedeğine düşmesi gerektiğinin işareti)."""
     return FINTABLES_TICKER_TO_SEKTOR.get(ticker.strip().upper())
+
+
+# Kullanıcı raporu (2026-08-13, altıncı tur): "Aracı Kurumlar, Bankalar
+# isimli 2 tane boş kopya var" -- KÖK NEDEN: Fintables'ta OLMAYAN 20
+# ticker (genelde ikincil/nadir kod, örn. YKB -- YKBNK'nin AYRI bir KAP
+# kaydı) `refresh_universe.py::_refresh_bist()`'in KAP YEDEK koluna
+# düşüyor, KAP'ın KENDİ ince sektör adını (TÜMÜ BÜYÜK HARF, örn.
+# "BANKALAR") HİÇ NORMALLEŞTİRMEDEN `Company.sector`'a yazıyordu --
+# Fintables'ın "Bankacılık" (Title Case) etiketiyle STRING olarak HİÇ
+# EŞLEŞMEDİĞİ için dashboard'da AYRI (ve çoğu zaman n çok küçük/"boş
+# görünen") bir bölüm açılıyordu. Bu sözlük KAP'ın `kap.
+# KAP_SEKTOR_TO_UST_SEKTOR` içindeki TÜM ince sektör adlarını (KAP'ın
+# KENDİ üst-sektör eşlemesinde ZATEN kataloglı) en yakın Fintables
+# karşılığına çevirir -- eşleşme YOKSA (nadir/egzotik bir KAP kategorisi)
+# ham KAP adı AYNEN KULLANILIR (Kural 3: uydurma bir Fintables adı
+# İCAT EDİLMEZ, sadece KENDİ ayrı bölümünde -- YİNE DE doğru n ile --
+# görünür)."""
+KAP_INCE_SEKTOR_TO_FINTABLES: dict[str, str] = {
+    "BANKALAR": "Bankacılık",
+    "ARACI KURUMLAR": "Aracı Kurum",
+    "SİGORTA ŞİRKETLERİ": "Sigorta",
+    "FİNANSMAN ŞİRKETLERİ": "Tasarruf Finansman",
+    "FİNANSAL KİRALAMA VE FAKTORİNG ŞİRKETLERİ": "Finansal Kiralama",
+    "VARLIK YÖNETİM ŞİRKETLERİ": "Varlık Yönetimi",
+    "MENKUL KIYMET YATIRIM ORTAKLIKLARI": "Menkul Kıymet Yat. Ort.",
+    "GİRİŞİM SERMAYESİ YATIRIM ORTAKLIKLARI": "Girişim Sermayesi Yat. Ort.",
+    "HOLDİNGLER VE YATIRIM ŞİRKETLERİ": "Holding",
+    "GAYRİMENKUL YATIRIM ORTAKLIKLARI": "Gayrimenkul",
+    "GAYRİMENKUL FAALİYETLERİ": "Gayrimenkul",
+    "TARIM VE HAYVANCILIK AVCILIK VE İLGİLİ HİZMET FAALİYETLERİ": "Tarım, Hayvancılık, Balıkçılık",
+    "BALIKÇILIK VE SU ÜRÜNLERİ": "Tarım, Hayvancılık, Balıkçılık",
+    "GIDA, İÇECEK VE TÜTÜN": "Gıda ve İçecek",
+    "TEKSTİL, GİYİM EŞYASI VE DERİ": "Tekstil, Giyim ve Deri",
+    "ORMAN ÜRÜNLERİ VE MOBİLYA": "Mobilya ve Dekorasyon",
+    "TELEKOMÜNİKASYON": "Haberleşme",
+    "TAŞ VE TOPRAĞA DAYALI": "Taş, Toprak, Çimento",
+    "ANA METAL SANAYİ": "Ana Metal",
+    "İNŞAAT VE BAYINDIRLIK İŞLERİ": "İnşaat",
+    "TOPTAN TİCARET": "Toptan ve Perakende Ticaret",
+    "PERAKENDE TİCARET": "Toptan ve Perakende Ticaret",
+    "ULAŞTIRMA VE DEPOLAMA": "Ulaştırma",
+    "KONAKLAMA": "Turizm",
+    "BİLİŞİM": "Bilişim ve Yazılım",
+    "İNSAN SAĞLIĞI VE SOSYAL HİZMETLER": "İlaç ve Sağlık",
+    "SAVUNMA": "Savunma",
+}
+
+
+def fine_sector_for_kap_label(kap_label: str) -> str:
+    """KAP'ın ham (BÜYÜK HARF) ince sektör adını, varsa Fintables'ın
+    karşılığına çevirir -- eşleşme YOKSA ham KAP adı AYNEN döner (bkz.
+    `KAP_INCE_SEKTOR_TO_FINTABLES` üstü not)."""
+    return KAP_INCE_SEKTOR_TO_FINTABLES.get(kap_label, kap_label)

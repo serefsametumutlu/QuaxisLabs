@@ -90,9 +90,16 @@ def _refresh_bist(session) -> int:
             sirket_turu = fintables_sektor.sirket_turu_on_tahmin_from_fintables(fine_sector)
             fintables_kaynakli += 1
         else:
-            fine_sector = kap_sector_map[ticker]
-            ust_sektor = kap.ust_sektor_for_kap(ticker, fine_sector)
-            sirket_turu = kap.sirket_turu_on_tahmin_from_kap(fine_sector)
+            kap_raw_sector = kap_sector_map[ticker]
+            # ust_sektor/sirket_turu DAİMA KAP'ın HAM (BÜYÜK HARF) adından
+            # türetilir (kap.KAP_SEKTOR_TO_UST_SEKTOR'un anahtarları BU
+            # formatta) -- SADECE `sector` (görüntüleme/gruplama alanı)
+            # Fintables'ın adına normalize edilir (bkz. fine_sector_for_
+            # kap_label üstü notu, "Aracı Kurumlar/Bankalar" duplikasyon
+            # düzeltmesi).
+            ust_sektor = kap.ust_sektor_for_kap(ticker, kap_raw_sector)
+            sirket_turu = kap.sirket_turu_on_tahmin_from_kap(kap_raw_sector)
+            fine_sector = fintables_sektor.fine_sector_for_kap_label(kap_raw_sector)
             kap_yedek_kaynakli += 1
         repository.upsert_sector_taxonomy(
             session,

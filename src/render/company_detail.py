@@ -731,6 +731,17 @@ def build_company_detail_data(session: Session, ticker: str, market: str, *, now
     if row is None or row.market != market:
         return None
 
+    # Kullanıcı isteği (2026-08-13, dördüncü tur): "sektör" meta-chip'i
+    # SADECE geniş `ust_sektor`u (11 grup, istatistiksel) gösteriyordu --
+    # Fintables'takine benzer İNCE sektör etiketi de (`Company.sector`,
+    # bugün fintables_sektor.py kaynaklı) AYRICA görünsün istendi. Bu alan
+    # `MarketScanResult`'ta YOK (sadece `ust_sektor` kopyalanır) -- `Company`
+    # satırından okunur, İSTATİSTİKSEL hiçbir hesaba KARIŞMAZ (Kural 3:
+    # sadece görüntüleme, `_build_financials_block`'un KENDİ `Company`
+    # okumasıyla AYNI ilke).
+    company_row = session.get(Company, ticker)
+    ince_sektor = company_row.sector if company_row is not None else None
+
     now = now or utcnow_naive()
     has_snapshot = row.bilesik_score is not None or row.deger_score is not None or row.kalite_score is not None
 
@@ -762,6 +773,7 @@ def build_company_detail_data(session: Session, ticker: str, market: str, *, now
         "company_name": row.company_name or row.ticker,
         "market": row.market,
         "ust_sektor": row.ust_sektor or "Sınıflandırılmamış",
+        "ince_sektor": ince_sektor,
         # docs/spec/spec_sektor_inceltme.md "Seçenek B" -- dashboard.py ile
         # AYNI SADECE-görsel rozet (bkz. o modülün üst notu), istatistiksel
         # `ust_sektor`'e karışmaz.

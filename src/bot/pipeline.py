@@ -1957,7 +1957,18 @@ def compute_multi_lens_score_for_ticker(ticker: str, market: str = "BIST") -> Mu
         else:
             template = "sanayi"
 
-    own_bars = price_history.fetch_ohlcv(ticker, market, days=400)
+    # Kullanıcı isteği (2026-08-13, dördüncü tur): "Skor Geçmişi" derinliği
+    # 4->8 döneme (2 yıl) çıkarıldığında (MAX_HISTORICAL_PERIODS) fiyat
+    # penceresi (own_bars) 400 günde (~13 ay) SABİT kaldığı için fiyat
+    # overlay grafiği en eski ~3-4 dönemde HİÇ görünmüyordu (own_bars'ın
+    # kapsamadığı dönemlerde `_price_at_period_end` dürüstçe None döner,
+    # bkz. o fonksiyonun docstring'i) -- CANLI olarak ORGE örneğinde
+    # doğrulandı (8 dönemden SADECE son 3'ünde fiyat vardı). 760 gün (~2+
+    # yıl, 8 çeyreklik pencereyi TAM kapsayacak güvenlik payıyla) skor
+    # derinliğiyle HİZALANIR -- own_bars zaten TEK bir ağ isteğiyle
+    # geliyor, `days` artışı YENİ bir istek EKLEMEZ (sadece aynı isteğin
+    # döndürdüğü seri uzar).
+    own_bars = price_history.fetch_ohlcv(ticker, market, days=760)
     current_price = own_bars[-1].close if own_bars else None
 
     analysis, valuation_metrics, bilesik = _hesapla_mercek_anlik_goruntu(
@@ -1987,7 +1998,7 @@ def compute_multi_lens_score_for_ticker(ticker: str, market: str = "BIST") -> Mu
 # `repository.get_financials(..., n_periods=8)` ile 8 dönem taşıyor (bkz.
 # compute_multi_lens_score_for_ticker) -- 7'ye çıkmak bu ÜST SINIRIN
 # TAMAMINI kullanır, YENİ bir veri çekme/fetch GEREKTİRMEZ (own_bars'ın
-# ~400 günlük penceresi de 8 dönem/~2 yılı ZATEN kapsıyor). Daha DERİN
+# ~760 günlük penceresi de 8 dönem/~2 yılı ZATEN kapsıyor). Daha DERİN
 # bir geçmiş (2017'ye kadar) hem YENİ fetch altyapısı (İş Yatırım/SEC'ten
 # çok daha fazla dönem + çok daha uzun fiyat geçmişi) HEM DE toplu
 # taramanın (scripts/tarama_toplu.py) CPU maliyetini ÇOK DAHA BÜYÜK
@@ -2045,7 +2056,7 @@ class HistoricalLensSnapshot:
     # fiyatıdır (GÜNCEL dönem için `sonuc.price`, geçmiş dönemler için
     # `_price_at_period_end`, AYNI `own_bars` -- YENİ bir ağ isteği YOK,
     # zaten fiyata-bağlı bileşenler İÇİN hesaplanan DEĞER burada AYRICA
-    # taşınır). `own_bars`'ın ~400 günlük penceresi dışında kalan çok eski
+    # taşınır). `own_bars`'ın ~760 günlük penceresi dışında kalan çok eski
     # dönemlerde None kalır (Kural 3: uydurma yapılmaz).
 
 
@@ -2080,13 +2091,13 @@ def compute_historical_lens_scores_for_ticker(
       - Merton Temerrüt Olasılığı (EDF, Güvenlik merceği): doğru hesap o
         dönemin SONUNDA biten bir hisse-fiyatı-oynaklığı penceresi
         gerektirir -- bu ilk sürümde YAPILMADI (karmaşıklık/risk dengesi,
-        `own_bars` zaten SADECE ~400 günlük bir pencere kapsıyor), bileşen
+        `own_bars` zaten SADECE ~760 günlük bir pencere kapsıyor), bileşen
         dürüstçe atlanır (ağırlığı diğer Güvenlik bileşenlerine dağılır).
 
     Fiyata bağlı diğer bileşenler (F/K, PD/DD, NCAV, PEG vb.) için `own_bars`
     (ZATEN elde, YENİDEN fetch EDİLMEZ) içinde o dönemin BİTİŞ tarihine en
     yakın kapanış kullanılır (bkz. `_price_at_period_end`) -- `own_bars`'ın
-    ~400 günlük penceresi dışında kalan (çok eski) dönemlerde fiyat `None`
+    ~760 günlük penceresi dışında kalan (çok eski) dönemlerde fiyat `None`
     kalır, o durumda bu bileşenler dürüstçe atlanır (Kural 3).
 
     Risksiz faiz oranı (`valuation._RISK_FREE_RATE_PCT`) HER dönem için

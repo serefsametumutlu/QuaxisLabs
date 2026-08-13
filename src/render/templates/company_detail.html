@@ -330,6 +330,7 @@
     <div class="ticker">{{ data.ticker }}</div>
     <div class="company-name">{{ data.company_name }}</div>
     <div class="identity-meta">
+      {% if data.ince_sektor %}<span class="meta-chip" title="Fintables ince sektör sınıflandırması">{{ data.ince_sektor }}</span>{% endif %}
       <span class="meta-chip">{{ data.ust_sektor }}</span>
       {% if data.ekosistem_etiketi %}<span class="meta-chip eco-chip" title="Görsel gruplama, istatistiksel sektör karşılaştırmasını etkilemez (n&lt;5, hala {{ data.ust_sektor }} havuzunda karşılaştırılır)">{{ data.ekosistem_etiketi }}</span>{% endif %}
       <span class="meta-chip">{{ data.sirket_turu_display }}</span>

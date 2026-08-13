@@ -182,6 +182,7 @@ def _tarihsel_skorlar_to_list(anlik_goruntuler: list) -> list[dict]:
             "guvenlik_badge": s.guvenlik_badge,
             "bilesik_score": str(s.bilesik_score) if s.bilesik_score is not None else None,
             "bilesik_badge": s.bilesik_badge,
+            "price": str(s.price) if s.price is not None else None,
         }
         for s in reversed(anlik_goruntuler)
     ]

@@ -82,12 +82,12 @@ def test_scan_one_basarili_tarama_market_scan_result_upsert_eder(izole_db, monke
 # --- _scan_one: tarihsel_skorlar (docs/spec/spec_veri_tamlik_yol_haritasi.md §Skor Geçmişi) --------------
 
 
-def _fake_tarihsel_snapshot(period: tuple[int, int], skor: Decimal) -> pipeline.HistoricalLensSnapshot:
+def _fake_tarihsel_snapshot(period: tuple[int, int], skor: Decimal, price: Decimal | None = None) -> pipeline.HistoricalLensSnapshot:
     return pipeline.HistoricalLensSnapshot(
         period=period, period_label=pipeline.quarter_label(period),
         deger_score=skor, deger_badge="DENGELİ", kalite_score=skor, kalite_badge="DENGELİ",
         buyume_score=skor, buyume_badge="DENGELİ", guvenlik_score=skor, guvenlik_badge="DENGELİ",
-        bilesik_score=skor, bilesik_badge="DENGELİ",
+        bilesik_score=skor, bilesik_badge="DENGELİ", price=price,
     )
 
 

@@ -86,6 +86,22 @@
   }
   .score-hero .coverage-note { display: block; margin-top: var(--space-2); font-size: var(--text-micro); color: var(--ink-tertiary); }
 
+  /* ---- Fiyat değişimi çipi (kullanıcı isteği 2026-08-13): ilk taranan
+     dönemden şu ana kadar fiyat ne kadar değişti, kimliğin yanında tek
+     bakışta ------------------------------------------------------------ */
+  .fiyat-degisimi-chip {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+    font-family: var(--font-mono);
+    font-size: var(--text-caption);
+    color: var(--ink-secondary);
+  }
+  .fiyat-degisimi-chip .fark.positive { color: var(--clr-positive); }
+  .fiyat-degisimi-chip .fark.negative { color: var(--clr-negative); }
+  .fiyat-degisimi-chip .fark.neutral { color: var(--ink-tertiary); }
+
   .badge-text.saglam, .score-num.saglam { color: var(--clr-positive); }
   .badge-text.dengeli, .score-num.dengeli { color: var(--brand-gold); }
   .badge-text.karisik, .score-num.karisik { color: var(--clr-mixed); }
@@ -231,6 +247,35 @@
   .nitel-madde ul { padding-left: var(--space-5); }
   .nitel-madde li { font-size: var(--text-body); color: var(--ink-primary); line-height: var(--leading-relaxed); margin-bottom: var(--space-1); }
 
+  /* ---- Skor Geçmişi grafiği (kullanıcı isteği 2026-08-13) -----------
+     Renkler `dataviz` skill validator'ından (node scripts/validate_
+     palette.js, dark mod, proje --bg-surface #10141b yüzeyine karşı --
+     TÜM kontroller PASS) geçmiş, bu şablona ÖZGÜ 5 kategorik SERİ
+     rengidir -- `_design_tokens.css`'in semantik pozitif/negatif setinden
+     KASITLI olarak AYRI (bir seri "iyi/kötü" DEĞİL, SADECE hangi mercek
+     olduğunu taşır, bkz. dataviz skill "color follows the entity"). */
+  :root {
+    --chart-deger: #3987e5;
+    --chart-kalite: #d95926;
+    --chart-buyume: #199e70;
+    --chart-guvenlik: #c98500;
+    --chart-bilesik: #d55181;
+  }
+  .skor-chart-wrap { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: var(--space-5); margin-bottom: var(--space-4); }
+  .skor-chart { width: 100%; height: auto; display: block; }
+  .chart-grid { stroke: var(--border-subtle); stroke-width: 1px; }
+  .chart-axis-label { font-family: var(--font-mono); font-size: 10px; fill: var(--ink-tertiary); }
+  .chart-line { stroke-linejoin: round; stroke-linecap: round; }
+  .chart-end-label { font-family: var(--font-sans); font-size: 11px; font-weight: var(--weight-semibold); }
+  .chart-legend { display: flex; flex-wrap: wrap; gap: var(--space-4); margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border-subtle); }
+  .chart-legend-item { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-micro); color: var(--ink-secondary); }
+  .chart-swatch { width: 10px; height: 10px; border-radius: var(--radius-sm); flex-shrink: 0; }
+  .chart-swatch.deger { background: var(--chart-deger); }
+  .chart-swatch.kalite { background: var(--chart-kalite); }
+  .chart-swatch.buyume { background: var(--chart-buyume); }
+  .chart-swatch.guvenlik { background: var(--chart-guvenlik); }
+  .chart-swatch.bilesik { background: var(--chart-bilesik); }
+
   .footer-note {
     margin-top: var(--space-7);
     padding-top: var(--space-4);
@@ -266,6 +311,12 @@
       <span class="meta-chip">Son tarama: {{ data.computed_at_display }}</span>
       {% if data.scan_status != "ok" %}<span class="meta-chip">durum: {{ data.scan_status }}</span>{% endif %}
     </div>
+    {% if data.fiyat_degisimi %}
+    <div class="fiyat-degisimi-chip">
+      <span>{{ data.fiyat_degisimi.ilk_donem_label }}: {{ data.fiyat_degisimi.ilk_fiyat_display }} → şimdi: {{ data.fiyat_degisimi.guncel_fiyat_display }}</span>
+      <span class="fark {{ data.fiyat_degisimi.yon_class }}">{{ data.fiyat_degisimi.yon }} {{ data.fiyat_degisimi.fark_display }} ({{ data.fiyat_degisimi.yuzde_display }})</span>
+    </div>
+    {% endif %}
   </div>
   <div class="score-hero">
     {% if data.bilesik %}
@@ -346,6 +397,18 @@
 
 <h2 class="section-title">Skor Geçmişi (Son Dönemler)</h2>
 {% if data.skor_gecmisi %}
+{% if data.skor_gecmisi_chart_svg %}
+<div class="skor-chart-wrap">
+  {{ data.skor_gecmisi_chart_svg | safe }}
+  <div class="chart-legend">
+    <span class="chart-legend-item"><span class="chart-swatch deger"></span>Değer</span>
+    <span class="chart-legend-item"><span class="chart-swatch kalite"></span>Kalite</span>
+    <span class="chart-legend-item"><span class="chart-swatch buyume"></span>Büyüme</span>
+    <span class="chart-legend-item"><span class="chart-swatch guvenlik"></span>Güvenlik</span>
+    <span class="chart-legend-item"><span class="chart-swatch bilesik"></span>Bileşik</span>
+  </div>
+</div>
+{% endif %}
 <div class="financial-card" style="margin-bottom: var(--space-6);">
   <table class="financial-table">
     <thead>

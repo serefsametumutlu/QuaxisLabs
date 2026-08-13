@@ -2026,6 +2026,14 @@ class HistoricalLensSnapshot:
     guvenlik_badge: str | None
     bilesik_score: Decimal | None
     bilesik_badge: str | None
+    price: Decimal | None
+    # Kullanıcı isteği (2026-08-13): "ilk dönemden şu ana kadar fiyat ne
+    # kadar değişti" -- bu, o dönemin BİTİŞ tarihine en yakın kapanış
+    # fiyatıdır (GÜNCEL dönem için `sonuc.price`, geçmiş dönemler için
+    # `_price_at_period_end`, AYNI `own_bars` -- YENİ bir ağ isteği YOK,
+    # zaten fiyata-bağlı bileşenler İÇİN hesaplanan DEĞER burada AYRICA
+    # taşınır). `own_bars`'ın ~400 günlük penceresi dışında kalan çok eski
+    # dönemlerde None kalır (Kural 3: uydurma yapılmaz).
 
 
 def compute_historical_lens_scores_for_ticker(
@@ -2100,6 +2108,7 @@ def compute_historical_lens_scores_for_ticker(
             # Güncel dönem -- ZATEN hesaplanmış, TEKRAR hesaplanmaz (CPU
             # maliyeti azaltma, bkz. docstring "Performans notu").
             bilesik = sonuc.bilesik
+            fiyat = sonuc.price
         else:
             trimmed = {k: v for k, v in sonuc.financials_by_period.items() if k <= donem}
             if not trimmed:
@@ -2135,6 +2144,7 @@ def compute_historical_lens_scores_for_ticker(
                 guvenlik_badge=profil.guvenlik.badge if profil.guvenlik is not None else None,
                 bilesik_score=bilesik.total_score if bilesik.data_sufficient else None,
                 bilesik_badge=bilesik.badge,
+                price=fiyat,
             )
         )
 

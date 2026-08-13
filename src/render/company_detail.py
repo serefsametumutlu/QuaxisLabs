@@ -288,6 +288,186 @@ def _skor_gecmisi_block(row: MarketScanResult) -> list[dict[str, Any]]:
     return rows
 
 
+# Kullanıcı isteği (2026-08-13): 4 mercek + Bileşik'in dönemsel seyrini
+# GÖRSEL (tablo değil, çizgi grafik) göstermek -- "düzenli büyüyen
+# şirketler dikkat çeksin". `dataviz`/`kart-tasarim-sistemi` skill ilkesi:
+# şablon HİÇBİR koordinat/skala hesaplamaz, bu modül SVG'yi TAMAMEN
+# hazır bir string olarak üretir (`| safe` ile şablona basılır). Renkler
+# `--chart-*` (yeni, SADECE bu şablona özgü) custom property'lerdir --
+# `_design_tokens.css`'in semantik (pozitif/negatif/nötr) setinden AYRI:
+# 5 SERİ kimliği taşımalı, "iyi/kötü" anlamı TAŞIMAMALI (dataviz skill:
+# "color follows the entity, never its rank"). node scripts/validate_
+# palette.js ile dark mod + proje --bg-surface (#10141b) yüzeyine karşı
+# doğrulandı (tüm kontroller PASS, sabit sıra ASLA döngüsel atanmaz).
+_CHART_SERIES: tuple[tuple[str, str, str], ...] = (
+    ("deger_score", "chart-deger", "Değer"),
+    ("kalite_score", "chart-kalite", "Kalite"),
+    ("buyume_score", "chart-buyume", "Büyüme"),
+    ("guvenlik_score", "chart-guvenlik", "Güvenlik"),
+    ("bilesik_score", "chart-bilesik", "Bileşik"),
+)
+
+_CHART_W = 720
+_CHART_H = 260
+_CHART_PAD_L = 34
+_CHART_PAD_R = 16
+_CHART_PAD_T = 16
+_CHART_PAD_B = 30
+
+
+def _chart_x(i: int, n: int) -> float:
+    usable = _CHART_W - _CHART_PAD_L - _CHART_PAD_R
+    if n <= 1:
+        return _CHART_PAD_L + usable / 2
+    return _CHART_PAD_L + usable * i / (n - 1)
+
+
+def _chart_y(score: Decimal) -> float:
+    usable = _CHART_H - _CHART_PAD_T - _CHART_PAD_B
+    frac = max(Decimal("0"), min(Decimal("10"), score)) / Decimal("10")
+    return _CHART_H - _CHART_PAD_B - float(frac) * usable
+
+
+def _skor_gecmisi_chart_svg(row: MarketScanResult) -> str | None:
+    """`row.tarihsel_skorlar` (ESKİDEN YENİYE, bkz. `_tarihsel_skorlar_
+    to_list`) üzerinden 5 SERİlik (4 mercek + Bileşik) bir çizgi grafiği
+    SVG string'i üretir. En az 2 dönem YOKSA (tek nokta bir "trend"
+    göstermez) `None` döner -- şablon bu durumda mevcut tabloyu TEK
+    başına gösterir (grafik BÖLÜMÜ tamamen atlanır, Kural 3: uydurma
+    yapılmaz). Eksik (None) skor noktaları çizgiyi KIRAR (sıfıra
+    düşürerek YANLIŞ bir değer İMA ETMEZ) -- `d_parts`'ın moveto/lineto
+    ayrımı bunu sağlar."""
+    if not row.tarihsel_skorlar or len(row.tarihsel_skorlar) < 2:
+        return None
+
+    donemler = [s.get("donem_label") or s.get("donem") or "—" for s in row.tarihsel_skorlar]
+    n = len(donemler)
+
+    parts: list[str] = [
+        f'<svg viewBox="0 0 {_CHART_W} {_CHART_H}" class="skor-chart" role="img" '
+        f'aria-label="4 mercek ve bileşik skorun dönemsel seyri">'
+    ]
+
+    for g in (0, 2, 4, 6, 8, 10):
+        y = _chart_y(Decimal(g))
+        parts.append(
+            f'<line x1="{_CHART_PAD_L}" y1="{y:.1f}" x2="{_CHART_W - _CHART_PAD_R}" y2="{y:.1f}" class="chart-grid"/>'
+        )
+        parts.append(f'<text x="{_CHART_PAD_L - 6}" y="{y + 3:.1f}" class="chart-axis-label" text-anchor="end">{g}</text>')
+
+    for i, label in enumerate(donemler):
+        x = _chart_x(i, n)
+        parts.append(f'<text x="{x:.1f}" y="{_CHART_H - 8}" class="chart-axis-label" text-anchor="middle">{label}</text>')
+
+    # İki geçiş: ÖNCE tüm serilerin çizgi/nokta'ları basılır, SONRA uç
+    # etiketleri (Kural: metin en üstte -- çizgilerin/noktaların ÜZERİNDE
+    # okunabilir kalsın) ÇAKIŞMA GİDERİLEREK tek seferde yerleştirilir --
+    # 5 seri birbirine yakın skorlarla bitirdiğinde (örn. Bileşik/Güvenlik
+    # ikisi de ~5,5-5,9) düz `y - 8` konumlandırması metinleri ÜST ÜSTE
+    # bindirirdi, bu görsel olarak DOĞRULANDI (kart-tasarim-sistemi skill
+    # §Doğrulama döngüsü: PNG/ekran görüntüsü üzerinden bulundu).
+    end_labels: list[dict[str, Any]] = []
+    for field, css_var, name in _CHART_SERIES:
+        coords: list[tuple[float, float] | None] = []
+        for i, s in enumerate(row.tarihsel_skorlar):
+            score = _decimal_or_none(s.get(field))
+            coords.append((_chart_x(i, n), _chart_y(score)) if score is not None else None)
+
+        d_parts: list[str] = []
+        drawing = False
+        for pt in coords:
+            if pt is None:
+                drawing = False
+                continue
+            x, y = pt
+            d_parts.append(f'{"M" if not drawing else "L"}{x:.1f},{y:.1f}')
+            drawing = True
+        if d_parts:
+            stroke_w = 3 if field == "bilesik_score" else 2
+            parts.append(
+                f'<path d="{" ".join(d_parts)}" class="chart-line" '
+                f'style="stroke:var(--{css_var});stroke-width:{stroke_w}px;" fill="none"/>'
+            )
+
+        last_idx = None
+        for i in range(n - 1, -1, -1):
+            if coords[i] is not None:
+                last_idx = i
+                break
+        for i, pt in enumerate(coords):
+            if pt is None:
+                continue
+            x, y = pt
+            score_display = format_number_tr(_decimal_or_none(row.tarihsel_skorlar[i].get(field)), decimals=1)
+            parts.append(
+                f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3.5" style="fill:var(--{css_var});">'
+                f"<title>{name} · {donemler[i]}: {score_display}</title></circle>"
+            )
+        if last_idx is not None:
+            x, y = coords[last_idx]
+            end_labels.append({"x": x, "y": y - 8, "name": name, "css_var": css_var})
+
+    _MIN_LABEL_GAP = 20.0
+    end_labels.sort(key=lambda lbl: lbl["y"])
+    for i in range(1, len(end_labels)):
+        min_y = end_labels[i - 1]["y"] + _MIN_LABEL_GAP
+        if end_labels[i]["y"] < min_y:
+            end_labels[i]["y"] = min_y
+    for lbl in end_labels:
+        parts.append(
+            f'<text x="{lbl["x"] - 8:.1f}" y="{lbl["y"]:.1f}" class="chart-end-label" text-anchor="end" '
+            f'style="fill:var(--{lbl["css_var"]});">{lbl["name"]}</text>'
+        )
+
+    parts.append("</svg>")
+    return "".join(parts)
+
+
+def _fiyat_degisimi_block(row: MarketScanResult) -> dict[str, Any] | None:
+    """Kullanıcı isteği (2026-08-13): "ilk dönemden şu ana kadar hisse ne
+    kadar değişti" -- kimliğin yanında tek bakışta görünecek bir özet.
+    `row.tarihsel_skorlar`'daki her dönemin `price` alanı ZATEN `pipeline.
+    HistoricalLensSnapshot.price` (own_bars'tan, YENİ ağ isteği OLMADAN,
+    bkz. o alanın üst notu) tarafından hesaplanıp yazılmıştı -- bu
+    fonksiyon SADECE en eski fiyatı-olan dönemi `row.current_price`
+    (GÜNCEL, ZATEN hesaplanmış) ile kıyaslar, YENİ bir hesaplama/ağ
+    isteği İÇERMEZ. Fiyatı hiçbir dönemde YOKSA (own_bars'ın ~400 günlük
+    penceresi yeterince geriye gitmiyorsa) `None` döner -- Kural 3."""
+    if row.current_price is None or not row.tarihsel_skorlar:
+        return None
+
+    ilk_fiyat: Decimal | None = None
+    ilk_donem_label: str | None = None
+    for s in row.tarihsel_skorlar:  # ESKİDEN YENİYE -- ilk fiyatı MEVCUT dönemi bul
+        fiyat = _decimal_or_none(s.get("price"))
+        if fiyat is not None:
+            ilk_fiyat = fiyat
+            ilk_donem_label = s.get("donem_label") or s.get("donem")
+            break
+    if ilk_fiyat is None or ilk_fiyat == 0 or ilk_donem_label is None:
+        return None
+
+    fark = row.current_price - ilk_fiyat
+    yuzde = (fark / ilk_fiyat) * Decimal("100")
+    symbol = "₺" if row.currency == "TRY" else ("$" if row.currency == "USD" else "")
+    if fark > 0:
+        yon, yon_class = "yükseldi", "positive"
+    elif fark < 0:
+        yon, yon_class = "düştü", "negative"
+    else:
+        yon, yon_class = "değişmedi", "neutral"
+
+    return {
+        "ilk_donem_label": ilk_donem_label,
+        "ilk_fiyat_display": f"{format_number_tr(ilk_fiyat, decimals=2)} {symbol}".strip(),
+        "guncel_fiyat_display": f"{format_number_tr(row.current_price, decimals=2)} {symbol}".strip(),
+        "fark_display": f"{format_number_tr(abs(fark), decimals=2)} {symbol}".strip(),
+        "yuzde_display": format_percent_tr(abs(yuzde), decimals=1),
+        "yon": yon,
+        "yon_class": yon_class,
+    }
+
+
 def _carpanlar_block(row: MarketScanResult) -> dict[str, Any] | None:
     if row.current_price is None and row.market_cap is None and row.pe_ratio is None:
         return None
@@ -489,6 +669,8 @@ def build_company_detail_data(session: Session, ticker: str, market: str, *, now
         "bilesik": bilesik,
         "mercekler": mercekler,
         "skor_gecmisi": _skor_gecmisi_block(row),
+        "skor_gecmisi_chart_svg": _skor_gecmisi_chart_svg(row),
+        "fiyat_degisimi": _fiyat_degisimi_block(row),
         "carpanlar": _carpanlar_block(row),
         "financials": _build_financials_block(session, row),
         "faaliyet_raporu": _faaliyet_raporu_block(row),

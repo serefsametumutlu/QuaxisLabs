@@ -530,31 +530,30 @@ def _skor_gecmisi_metric_charts(row: MarketScanResult) -> list[dict[str, Any]] |
 
 
 def _fiyat_degisimi_block(row: MarketScanResult) -> dict[str, Any] | None:
-    """Kullanıcı isteği (2026-08-13): "ilk dönemden şu ana kadar hisse ne
-    kadar değişti" -- kimliğin yanında tek bakışta görünecek bir özet.
-    `row.tarihsel_skorlar`'daki her dönemin `price` alanı ZATEN `pipeline.
-    HistoricalLensSnapshot.price` (own_bars'tan, YENİ ağ isteği OLMADAN,
-    bkz. o alanın üst notu) tarafından hesaplanıp yazılmıştı -- bu
-    fonksiyon SADECE en eski fiyatı-olan dönemi `row.current_price`
-    (GÜNCEL, ZATEN hesaplanmış) ile kıyaslar, YENİ bir hesaplama/ağ
-    isteği İÇERMEZ. Fiyatı hiçbir dönemde YOKSA (own_bars'ın ~400 günlük
-    penceresi yeterince geriye gitmiyorsa) `None` döner -- Kural 3."""
-    if row.current_price is None or not row.tarihsel_skorlar:
+    """Kullanıcı isteği (2026-08-13, düzeltme): İLK sürüm "en eski
+    mevcut dönemden şimdiye kadar" (8 dönem derinliğiyle ~2 yıla kadar
+    çıkan, YANILTICI şekilde uzun bir aralık) kıyaslıyordu -- kullanıcı
+    bunun yerine ÇEYREKTEN ÇEYREĞE anlamlı bir karşılaştırma istedi: "tam
+    olarak bir ÖNCEKİ bilanço açıklandığı günün kapanış fiyatı ile GÜNCEL
+    fiyat". `row.tarihsel_skorlar` ESKİDEN YENİYE sıralı olduğu için son
+    eleman GÜNCEL dönem, ondan BİR ÖNCEKİ eleman (index -2) tam olarak bu
+    -- `price` alanı zaten `_price_at_period_end()` ile o dönemin BİTİŞ
+    tarihine en yakın kapanışı taşıyor (YENİ hesaplama/ağ isteği YOK).
+    Bir önceki dönemde fiyat YOKSA (own_bars'ın ~760 günlük penceresi
+    dışında kalan çok eski bir şirket/veri boşluğu) `None` döner -- daha
+    ESKİ bir döneme SESSİZCE atlanmaz (Kural 3: kullanıcının İSTEDİĞİ
+    tam karşılaştırma yapılamıyorsa dürüstçe gösterilmez)."""
+    if row.current_price is None or not row.tarihsel_skorlar or len(row.tarihsel_skorlar) < 2:
         return None
 
-    ilk_fiyat: Decimal | None = None
-    ilk_donem_label: str | None = None
-    for s in row.tarihsel_skorlar:  # ESKİDEN YENİYE -- ilk fiyatı MEVCUT dönemi bul
-        fiyat = _decimal_or_none(s.get("price"))
-        if fiyat is not None:
-            ilk_fiyat = fiyat
-            ilk_donem_label = s.get("donem_label") or s.get("donem")
-            break
-    if ilk_fiyat is None or ilk_fiyat == 0 or ilk_donem_label is None:
+    onceki_donem = row.tarihsel_skorlar[-2]
+    onceki_fiyat = _decimal_or_none(onceki_donem.get("price"))
+    onceki_donem_label = onceki_donem.get("donem_label") or onceki_donem.get("donem")
+    if onceki_fiyat is None or onceki_fiyat == 0 or onceki_donem_label is None:
         return None
 
-    fark = row.current_price - ilk_fiyat
-    yuzde = (fark / ilk_fiyat) * Decimal("100")
+    fark = row.current_price - onceki_fiyat
+    yuzde = (fark / onceki_fiyat) * Decimal("100")
     symbol = "₺" if row.currency == "TRY" else ("$" if row.currency == "USD" else "")
     if fark > 0:
         yon, yon_class = "yükseldi", "positive"
@@ -564,8 +563,8 @@ def _fiyat_degisimi_block(row: MarketScanResult) -> dict[str, Any] | None:
         yon, yon_class = "değişmedi", "neutral"
 
     return {
-        "ilk_donem_label": ilk_donem_label,
-        "ilk_fiyat_display": f"{format_number_tr(ilk_fiyat, decimals=2)} {symbol}".strip(),
+        "ilk_donem_label": onceki_donem_label,
+        "ilk_fiyat_display": f"{format_number_tr(onceki_fiyat, decimals=2)} {symbol}".strip(),
         "guncel_fiyat_display": f"{format_number_tr(row.current_price, decimals=2)} {symbol}".strip(),
         "fark_display": f"{format_number_tr(abs(fark), decimals=2)} {symbol}".strip(),
         "yuzde_display": format_percent_tr(abs(yuzde), decimals=1),

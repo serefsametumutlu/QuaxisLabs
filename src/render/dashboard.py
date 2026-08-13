@@ -37,8 +37,10 @@ from sqlalchemy.orm import Session
 import config
 from src.analysis.lens_common import MIN_SECTOR_N
 from src.analysis.scorer import YETERSIZ_VERI_ROZETI
+from sqlalchemy import select
+
 from src.db import repository
-from src.db.models import MarketScanResult, utcnow_naive
+from src.db.models import Company, MarketScanResult, utcnow_naive
 from src.fetchers.kap import ekosistem_etiketi_for_ticker
 from src.formatting import format_currency_short, format_number_tr, format_percent_tr
 from src.render import company_detail
@@ -430,7 +432,7 @@ def _veri_uyarilari(row: MarketScanResult, has_snapshot: bool) -> list[dict[str,
     return uyarilar
 
 
-def _serialize_row(row: MarketScanResult) -> dict[str, Any]:
+def _serialize_row(row: MarketScanResult, ince_sektor: str | None = None) -> dict[str, Any]:
     has_snapshot = _has_snapshot(row)
     mercekler = None
     bilesik = None
@@ -463,6 +465,13 @@ def _serialize_row(row: MarketScanResult) -> dict[str, Any]:
         "company_name": row.company_name or row.ticker,
         "market": row.market,
         "ust_sektor": row.ust_sektor,
+        # Kullanıcı isteği (2026-08-13, dördüncü tur): dashboard tablosunda
+        # SADECE geniş `ust_sektor` görünüyordu, Fintables'takine benzer
+        # İNCE sektör etiketi de istendi -- `Company.sector`'dan (bugün
+        # fintables_sektor.py kaynaklı) okunur, İSTATİSTİKSEL hiçbir hesaba
+        # KARIŞMAZ (sadece görüntüleme, `_build_sectors()` gruplaması HALA
+        # `row.ust_sektor` okur, DEĞİŞMEDİ).
+        "ince_sektor": ince_sektor,
         # docs/spec/spec_sektor_inceltme.md "Seçenek B" -- SADECE görsel amaçlı
         # ekosistem rozeti (örn. "Havacılık": THYAO/PGSUS/CLEBI/TAVHL), n<5
         # olduğu için istatistiksel `ust_sektor` peer havuzuna ASLA karışmaz
@@ -511,7 +520,7 @@ def _company_sort_key(company: dict[str, Any]) -> tuple[int, float, str]:
     return (0, -score, company["ticker"]) if score is not None else (1, 0.0, company["ticker"])
 
 
-def _build_sectors(market_rows: list[MarketScanResult]) -> list[dict[str, Any]]:
+def _build_sectors(market_rows: list[MarketScanResult], ince_sektor_map: dict[str, str]) -> list[dict[str, Any]]:
     gruplar: dict[str, list[MarketScanResult]] = {}
     for row in market_rows:
         anahtar = row.ust_sektor or "Sınıflandırılmamış"
@@ -527,7 +536,7 @@ def _build_sectors(market_rows: list[MarketScanResult]) -> list[dict[str, Any]]:
         else:
             yetersiz_ornek = n < MIN_SECTOR_N
         kirilim = Counter((_SIRKET_TURU_DISPLAY[r.sirket_turu] if r.sirket_turu in _SIRKET_TURU_DISPLAY and r.sirket_turu else "bilinmiyor") for r in rows)
-        companies = sorted((_serialize_row(r) for r in rows), key=_company_sort_key)
+        companies = sorted((_serialize_row(r, ince_sektor_map.get(r.ticker)) for r in rows), key=_company_sort_key)
         sonuc.append({
             "ust_sektor": ust_sektor,
             "sirket_turu_kirilimi": dict(kirilim),
@@ -553,6 +562,11 @@ def build_dashboard_data(session: Session, *, now: datetime | None = None) -> di
     -- hiçbir skor/çarpan burada YENİDEN HESAPLANMAZ (quaxis-mimari anayasa)."""
     now = now or utcnow_naive()
     rows = repository.get_market_scan_results(session)
+
+    # Kullanıcı isteği (2026-08-13, dördüncü tur): dashboard'da da ince
+    # sektör etiketi görünsün -- TEK bir toplu sorgu (N+1 YOK, ~1500+
+    # satırlık dashboard'da per-row DB isteği performans sorunu yaratırdı).
+    ince_sektor_map = dict(session.execute(select(Company.ticker, Company.sector)).all())
 
     bist_rows = [r for r in rows if r.market == "BIST"]
     nasdaq_rows = [r for r in rows if r.market == "NASDAQ"]
@@ -584,7 +598,7 @@ def build_dashboard_data(session: Session, *, now: datetime | None = None) -> di
             "BIST": {
                 "badge_dagilimi": _badge_dagilimi(bist_rows),
                 "sistemik_uyarilar": PIYASA_SISTEMIK_EKSIK_BILESENLER.get("BIST", []),
-                "sectors": _build_sectors(bist_rows),
+                "sectors": _build_sectors(bist_rows, ince_sektor_map),
                 # Görev 3: ham endeks listeleri de gömülür (satır bazlı
                 # in_bist30/in_bist100 booleanlarının YANINDA -- istemci-içi
                 # JS'in her satırın data-in-bist30/data-in-bist100 attribute'una
@@ -598,7 +612,7 @@ def build_dashboard_data(session: Session, *, now: datetime | None = None) -> di
             "NASDAQ": {
                 "badge_dagilimi": _badge_dagilimi(nasdaq_rows),
                 "sistemik_uyarilar": PIYASA_SISTEMIK_EKSIK_BILESENLER.get("NASDAQ", []),
-                "sectors": _build_sectors(nasdaq_rows),
+                "sectors": _build_sectors(nasdaq_rows, ince_sektor_map),
             },
         },
     }

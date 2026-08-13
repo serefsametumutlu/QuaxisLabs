@@ -254,12 +254,31 @@
      ekran görüntüsündeki davranış). ------------------------------- */
   .mchart-grid-wrap { display: grid; grid-template-columns: repeat(auto-fit, minmax(460px, 1fr)); gap: var(--space-5); margin-bottom: var(--space-4); }
   .mchart-card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: var(--space-5); position: relative; }
-  .mchart-card h3 { font-size: var(--text-h3); color: var(--ink-primary); margin-bottom: var(--space-3); }
+  .mchart-card-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); margin-bottom: var(--space-3); }
+  .mchart-card h3 { font-size: var(--text-h3); color: var(--ink-primary); }
+  .mchart-controls { display: flex; align-items: center; gap: var(--space-2); }
+  .mchart-period-toggle { display: inline-flex; background: var(--bg-surface-sunken); border-radius: var(--radius-pill); padding: 2px; }
+  .mchart-period-btn {
+    font-family: var(--font-mono); font-size: var(--text-micro); font-weight: var(--weight-semibold);
+    color: var(--ink-tertiary); background: transparent; border: none; border-radius: var(--radius-pill);
+    padding: var(--space-1) var(--space-3); cursor: pointer;
+  }
+  .mchart-period-btn.active { background: var(--brand-gold); color: var(--bg-canvas); }
+  .mchart-price-btn {
+    font-family: var(--font-sans); font-size: var(--text-micro); font-weight: var(--weight-medium);
+    color: var(--ink-tertiary); background: var(--bg-surface-sunken); border: 1px solid var(--border-default);
+    border-radius: var(--radius-pill); padding: var(--space-1) var(--space-3); cursor: pointer;
+  }
+  .mchart-price-btn.active { color: var(--brand-teal); border-color: var(--brand-teal); }
   .metric-chart { width: 100%; height: auto; display: block; cursor: crosshair; }
+  .metric-chart.hidden { display: none; }
   .mchart-grid { stroke: var(--border-subtle); stroke-width: 1px; }
   .mchart-axis-label { font-family: var(--font-mono); font-size: 10px; fill: var(--ink-tertiary); }
   .mchart-line { stroke: var(--brand-gold); stroke-width: 2.5px; stroke-linejoin: round; stroke-linecap: round; }
   .mchart-dot { fill: var(--brand-gold); }
+  .mchart-price-line { stroke: var(--brand-teal); stroke-width: 1.5px; stroke-dasharray: 4,3; stroke-linejoin: round; stroke-linecap: round; opacity: 0; transition: opacity 0.12s ease; }
+  .mchart-price-dot { fill: var(--brand-teal); opacity: 0; transition: opacity 0.12s ease; }
+  .mchart-card.show-price .mchart-price-line, .mchart-card.show-price .mchart-price-dot { opacity: 0.85; }
   .mchart-crosshair { stroke: var(--ink-tertiary); stroke-width: 1px; stroke-dasharray: 3,3; pointer-events: none; }
   .mchart-hover-dot { fill: var(--brand-gold); stroke: var(--bg-surface); stroke-width: 2px; pointer-events: none; }
   .mchart-hit-area { cursor: crosshair; }
@@ -280,6 +299,9 @@
   .mchart-tooltip .tt-period { color: var(--ink-tertiary); font-size: var(--text-micro); margin-bottom: 2px; }
   .mchart-tooltip .tt-value { display: flex; align-items: center; gap: var(--space-2); font-family: var(--font-mono); font-weight: var(--weight-semibold); }
   .mchart-tooltip .tt-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--brand-gold); flex-shrink: 0; }
+  .mchart-tooltip .tt-price { display: none; align-items: center; gap: var(--space-2); font-family: var(--font-mono); font-size: var(--text-micro); color: var(--brand-teal); margin-top: 2px; }
+  .mchart-tooltip .tt-price.visible { display: flex; }
+  .mchart-tooltip .tt-price-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--brand-teal); flex-shrink: 0; }
 
   .footer-note {
     margin-top: var(--space-7);
@@ -406,14 +428,25 @@
 <div class="mchart-grid-wrap">
   {% for chart in data.skor_gecmisi_charts %}
   <div class="mchart-card">
-    <h3>{{ chart.label }}</h3>
-    {{ chart.svg | safe }}
+    <div class="mchart-card-head">
+      <h3>{{ chart.label }}</h3>
+      <div class="mchart-controls">
+        <div class="mchart-period-toggle">
+          <button type="button" class="mchart-period-btn active" data-mode="ceyreklik">3 Aylık</button>
+          {% if chart.svg_yillik %}<button type="button" class="mchart-period-btn" data-mode="yillik">Yıllık</button>{% endif %}
+        </div>
+        <button type="button" class="mchart-price-btn">+ Fiyat Grafiği</button>
+      </div>
+    </div>
+    {{ chart.svg_ceyreklik | safe }}
+    {% if chart.svg_yillik %}{{ chart.svg_yillik | safe }}{% endif %}
   </div>
   {% endfor %}
 </div>
 <div class="mchart-tooltip" id="mchart-tooltip">
   <div class="tt-period"></div>
   <div class="tt-value"><span class="tt-dot"></span><span class="tt-text"></span></div>
+  <div class="tt-price"><span class="tt-price-dot"></span><span class="tt-price-text"></span></div>
 </div>
 {% endif %}
 <div class="financial-card" style="margin-bottom: var(--space-6);">
@@ -556,10 +589,39 @@
   if (!tooltip) return;
   var ttPeriod = tooltip.querySelector(".tt-period");
   var ttText = tooltip.querySelector(".tt-text");
+  var ttPrice = tooltip.querySelector(".tt-price");
+  var ttPriceText = tooltip.querySelector(".tt-price-text");
+
+  // --- Dönem seçici (3 Aylık / Yıllık) + Fiyat grafiği aç-kapa butonları
+  //     (kullanıcı isteği 2026-08-13, üçüncü tur) -- SADECE ÖNCEDEN
+  //     Python'da üretilmiş iki SVG arasında görünürlük değiştirir, HİÇBİR
+  //     veri/koordinat HESAPLAMAZ. ------------------------------------
+  document.querySelectorAll(".mchart-card").forEach(function (card) {
+    var periodBtns = card.querySelectorAll(".mchart-period-btn");
+    periodBtns.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var mode = btn.getAttribute("data-mode");
+        periodBtns.forEach(function (b) { b.classList.toggle("active", b === btn); });
+        card.querySelectorAll(".metric-chart").forEach(function (svg) {
+          svg.classList.toggle("hidden", !svg.classList.contains("mode-" + mode));
+        });
+      });
+    });
+
+    var priceBtn = card.querySelector(".mchart-price-btn");
+    if (priceBtn) {
+      priceBtn.addEventListener("click", function () {
+        var showing = card.classList.toggle("show-price");
+        priceBtn.classList.toggle("active", showing);
+        priceBtn.textContent = showing ? "− Fiyat Grafiği" : "+ Fiyat Grafiği";
+      });
+    }
+  });
 
   document.querySelectorAll(".metric-chart").forEach(function (svg) {
     var points = JSON.parse(svg.getAttribute("data-points"));
     var ticker = svg.getAttribute("data-ticker");
+    var card = svg.closest(".mchart-card");
     var crosshair = svg.querySelector(".mchart-crosshair");
     var hoverDot = svg.querySelector(".mchart-hover-dot");
     var hitArea = svg.querySelector(".mchart-hit-area");
@@ -591,6 +653,9 @@
 
       ttPeriod.textContent = p.period;
       ttText.textContent = ticker + "  " + (p.display !== null ? p.display : "veri yok");
+      var priceGosterilsin = card && card.classList.contains("show-price") && p.price_display;
+      ttPrice.classList.toggle("visible", !!priceGosterilsin);
+      if (priceGosterilsin) { ttPriceText.textContent = "Fiyat: " + p.price_display; }
       tooltip.style.opacity = 1;
       tooltip.style.left = (evt.clientX + 14) + "px";
       tooltip.style.top = (evt.clientY - 12) + "px";

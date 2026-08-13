@@ -343,64 +343,114 @@ def _mchart_y(score: Decimal) -> float:
     return _MCHART_H - _MCHART_PAD_B - float(frac) * usable
 
 
-def _skor_gecmisi_metric_charts(row: MarketScanResult) -> list[dict[str, Any]] | None:
-    """`row.tarihsel_skorlar` (ESKİDEN YENİYE) üzerinden HER mercek/
-    Bileşik için AYRI bir SVG küçük-grafik + JS'in okuyacağı bir
-    `data-points` JSON'u üretir. En az 2 dönem YOKSA `None` döner --
-    şablon bu durumda mevcut tabloyu TEK başına gösterir (Kural 3:
-    uydurma yapılmaz). Eksik (None) skor noktaları çizgiyi KIRAR
-    (Fintables referansındaki "2022/12 → 2023/12 arası veri yok"
-    boşluğuyla AYNI davranış -- sıfıra düşürüp YANLIŞ bir değer İMA
-    ETMEZ)."""
-    if not row.tarihsel_skorlar or len(row.tarihsel_skorlar) < 2:
-        return None
+def _aggregate_annual(tarihsel_skorlar: list[dict]) -> list[dict]:
+    """Kullanıcı isteği (2026-08-13, üçüncü tur): "3 aylık" (mevcut, ham
+    dönem) yanında bir de "yıllık" görünüm istendi. YENİ bir hesaplama/
+    fetch YAPILMAZ -- ZATEN var olan çeyreklik anlık görüntüler (`donem`
+    alanının "YIL/AY" biçimindeki YIL kısmına göre) gruplanıp HER alan
+    için (4 mercek + Bileşik + price) o yıldaki MEVCUT (None olmayan)
+    değerlerin ortalaması alınır. Çıktı, `tarihsel_skorlar` ile AYNI
+    sözlük şeklini taşır (`donem`/`donem_label`=yıl, alanlar str-Decimal)
+    ki `_skor_gecmisi_chart_for_rows` İKİ girdi türünü de (çeyreklik/
+    yıllık) AYNI kod yoluyla işleyebilsin (kod tekrarı YOK)."""
+    by_year: dict[str, list[dict]] = {}
+    for s in tarihsel_skorlar:
+        donem = s.get("donem") or ""
+        year = donem.split("/")[0] if "/" in donem else (s.get("donem_label") or "?")
+        by_year.setdefault(year, []).append(s)
 
-    donemler = [s.get("donem_label") or s.get("donem") or "—" for s in row.tarihsel_skorlar]
+    fields = ("deger_score", "kalite_score", "buyume_score", "guvenlik_score", "bilesik_score", "price")
+    result: list[dict] = []
+    for year in sorted(by_year.keys()):
+        rows = by_year[year]
+        agg: dict[str, Any] = {"donem": year, "donem_label": year}
+        for f in fields:
+            vals = [v for v in (_decimal_or_none(r.get(f)) for r in rows) if v is not None]
+            agg[f] = str(sum(vals) / len(vals)) if vals else None
+        result.append(agg)
+    return result
+
+
+def _price_norm_y(price: Decimal, pmin: Decimal, pmax: Decimal) -> float:
+    usable = _MCHART_H - _MCHART_PAD_T - _MCHART_PAD_B
+    frac = Decimal("0.5") if pmax == pmin else (price - pmin) / (pmax - pmin)
+    frac = max(Decimal("0"), min(Decimal("1"), frac))
+    return _MCHART_H - _MCHART_PAD_B - float(frac) * usable
+
+
+def _skor_gecmisi_chart_for_rows(
+    rows: list[dict], field: str, label: str, ticker: str, currency_symbol: str, css_class: str,
+) -> str:
+    """Tek bir (dönem-modu × mercek) kombinasyonu için SVG üretir --
+    `rows` çeyreklik (`row.tarihsel_skorlar`) VEYA yıllık (`_aggregate_
+    annual()` çıktısı) olabilir, fonksiyon İKİSİNE de KÖR çalışır (aynı
+    sözlük şekli). Skor çizgisi HER ZAMAN çizilir; fiyat çizgisi (kullanıcı
+    isteği: "hisse fiyatı grafiğini ekle/kaldır" butonu) min-max 0-10
+    bandına normalize edilip AYRI bir katman olarak eklenir, başlangıçta
+    CSS ile GİZLİ (`.mchart-card.show-price` sınıfı JS ile eklenince
+    görünür olur, bkz. company_detail.html) -- dataviz skill "tek eksen"
+    kuralı: fiyat İKİNCİ bir y-ekseni AÇMAZ, SADECE aynı 0-10 görsel
+    bandına indekslenir (gerçek TL/$ değeri nokta başlıklarında/tooltipte
+    ayrıca gösterilir)."""
+    donemler = [r.get("donem_label") or r.get("donem") or "—" for r in rows]
     n = len(donemler)
 
-    charts: list[dict[str, Any]] = []
-    for field, label in _METRIC_CHART_FIELDS:
-        coords: list[tuple[float, float] | None] = []
-        points_json: list[dict[str, Any]] = []
-        for i, s in enumerate(row.tarihsel_skorlar):
-            score = _decimal_or_none(s.get(field))
-            x = _mchart_x(i, n)
-            if score is not None:
-                y = _mchart_y(score)
-                coords.append((x, y))
-            else:
-                coords.append(None)
-                y = None
-            points_json.append({
-                "x": round(x, 1),
-                "y": round(y, 1) if y is not None else None,
-                "period": donemler[i],
-                "display": format_number_tr(score, decimals=1) if score is not None else None,
-            })
+    coords: list[tuple[float, float] | None] = []
+    points_json: list[dict[str, Any]] = []
+    fiyatlar: list[Decimal | None] = []
+    for i, r in enumerate(rows):
+        score = _decimal_or_none(r.get(field))
+        fiyat = _decimal_or_none(r.get("price"))
+        fiyatlar.append(fiyat)
+        x = _mchart_x(i, n)
+        if score is not None:
+            y = _mchart_y(score)
+            coords.append((x, y))
+        else:
+            coords.append(None)
+            y = None
+        points_json.append({
+            "x": round(x, 1),
+            "y": round(y, 1) if y is not None else None,
+            "period": donemler[i],
+            "display": format_number_tr(score, decimals=1) if score is not None else None,
+            "price_display": f"{format_number_tr(fiyat, decimals=2)} {currency_symbol}".strip() if fiyat is not None else None,
+        })
 
-        parts: list[str] = [
-            f'<svg viewBox="0 0 {_MCHART_W} {_MCHART_H}" class="metric-chart" role="img" '
-            f'aria-label="{label} skorunun dönemsel seyri" data-ticker="{row.ticker}" '
-            f'data-points=\'{_json_compact(points_json)}\'>'
-        ]
+    parts: list[str] = [
+        f'<svg viewBox="0 0 {_MCHART_W} {_MCHART_H}" class="metric-chart {css_class}" role="img" '
+        f'aria-label="{label} skorunun dönemsel seyri" data-ticker="{ticker}" '
+        f'data-points=\'{_json_compact(points_json)}\'>'
+    ]
 
-        for g in (0, 2, 4, 6, 8, 10):
-            y = _mchart_y(Decimal(g))
-            parts.append(
-                f'<line x1="{_MCHART_PAD_L}" y1="{y:.1f}" x2="{_MCHART_W - _MCHART_PAD_R}" y2="{y:.1f}" class="mchart-grid"/>'
-            )
-            parts.append(f'<text x="{_MCHART_PAD_L - 6}" y="{y + 3:.1f}" class="mchart-axis-label" text-anchor="end">{g}</text>')
+    for g in (0, 2, 4, 6, 8, 10):
+        y = _mchart_y(Decimal(g))
+        parts.append(
+            f'<line x1="{_MCHART_PAD_L}" y1="{y:.1f}" x2="{_MCHART_W - _MCHART_PAD_R}" y2="{y:.1f}" class="mchart-grid"/>'
+        )
+        parts.append(f'<text x="{_MCHART_PAD_L - 6}" y="{y + 3:.1f}" class="mchart-axis-label" text-anchor="end">{g}</text>')
 
-        for i, plabel in enumerate(donemler):
-            x = _mchart_x(i, n)
-            parts.append(
-                f'<text x="{x:.1f}" y="{_MCHART_H - _MCHART_PAD_B + 14}" class="mchart-axis-label" '
-                f'text-anchor="end" transform="rotate(-45 {x:.1f} {_MCHART_H - _MCHART_PAD_B + 14})">{plabel}</text>'
-            )
+    for i, plabel in enumerate(donemler):
+        x = _mchart_x(i, n)
+        parts.append(
+            f'<text x="{x:.1f}" y="{_MCHART_H - _MCHART_PAD_B + 14}" class="mchart-axis-label" '
+            f'text-anchor="end" transform="rotate(-45 {x:.1f} {_MCHART_H - _MCHART_PAD_B + 14})">{plabel}</text>'
+        )
 
-        d_parts: list[str] = []
+    # --- Fiyat overlay (skor çizgisinin ARKASINDA, önce çizilir ki skor
+    #     çizgisi/noktaları görsel olarak ÜSTTE kalsın) ---------------------
+    gecerli_fiyatlar = [f for f in fiyatlar if f is not None]
+    if len(gecerli_fiyatlar) >= 2:
+        pmin, pmax = min(gecerli_fiyatlar), max(gecerli_fiyatlar)
+        price_coords: list[tuple[float, float] | None] = []
+        for i, f in enumerate(fiyatlar):
+            if f is None:
+                price_coords.append(None)
+                continue
+            price_coords.append((_mchart_x(i, n), _price_norm_y(f, pmin, pmax)))
+        d_parts = []
         drawing = False
-        for pt in coords:
+        for pt in price_coords:
             if pt is None:
                 drawing = False
                 continue
@@ -408,27 +458,74 @@ def _skor_gecmisi_metric_charts(row: MarketScanResult) -> list[dict[str, Any]] |
             d_parts.append(f'{"M" if not drawing else "L"}{x:.1f},{y:.1f}')
             drawing = True
         if d_parts:
-            parts.append(f'<path d="{" ".join(d_parts)}" class="mchart-line" fill="none"/>')
-        for pt in coords:
+            parts.append(f'<path d="{" ".join(d_parts)}" class="mchart-price-line" fill="none"/>')
+        for pt in price_coords:
             if pt is None:
                 continue
             x, y = pt
-            parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3.5" class="mchart-dot"/>')
+            parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2.5" class="mchart-price-dot"/>')
 
-        # İmleç/crosshair + tooltip -- JS bunları göster/gizle yapar,
-        # başlangıç konumu/görünürlüğü ÖNEMSİZ (JS ilk mousemove'da günceller).
-        parts.append(
-            f'<line x1="0" y1="{_MCHART_PAD_T}" x2="0" y2="{_MCHART_H - _MCHART_PAD_B}" class="mchart-crosshair" style="opacity:0;"/>'
-        )
-        parts.append('<circle r="5" class="mchart-hover-dot" style="opacity:0;"/>')
-        parts.append(
-            f'<rect x="{_MCHART_PAD_L}" y="{_MCHART_PAD_T}" '
-            f'width="{_MCHART_W - _MCHART_PAD_L - _MCHART_PAD_R}" height="{_MCHART_H - _MCHART_PAD_T - _MCHART_PAD_B}" '
-            f'class="mchart-hit-area" fill="transparent"/>'
-        )
-        parts.append("</svg>")
+    d_parts = []
+    drawing = False
+    for pt in coords:
+        if pt is None:
+            drawing = False
+            continue
+        x, y = pt
+        d_parts.append(f'{"M" if not drawing else "L"}{x:.1f},{y:.1f}')
+        drawing = True
+    if d_parts:
+        parts.append(f'<path d="{" ".join(d_parts)}" class="mchart-line" fill="none"/>')
+    for pt in coords:
+        if pt is None:
+            continue
+        x, y = pt
+        parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3.5" class="mchart-dot"/>')
 
-        charts.append({"label": label, "svg": "".join(parts)})
+    # İmleç/crosshair + tooltip -- JS bunları göster/gizle yapar,
+    # başlangıç konumu/görünürlüğü ÖNEMSİZ (JS ilk mousemove'da günceller).
+    parts.append(
+        f'<line x1="0" y1="{_MCHART_PAD_T}" x2="0" y2="{_MCHART_H - _MCHART_PAD_B}" class="mchart-crosshair" style="opacity:0;"/>'
+    )
+    parts.append('<circle r="5" class="mchart-hover-dot" style="opacity:0;"/>')
+    parts.append(
+        f'<rect x="{_MCHART_PAD_L}" y="{_MCHART_PAD_T}" '
+        f'width="{_MCHART_W - _MCHART_PAD_L - _MCHART_PAD_R}" height="{_MCHART_H - _MCHART_PAD_T - _MCHART_PAD_B}" '
+        f'class="mchart-hit-area" fill="transparent"/>'
+    )
+    parts.append("</svg>")
+    return "".join(parts)
+
+
+def _skor_gecmisi_metric_charts(row: MarketScanResult) -> list[dict[str, Any]] | None:
+    """`row.tarihsel_skorlar` (ESKİDEN YENİYE) üzerinden HER mercek/
+    Bileşik için AYRI bir kart üretir -- kullanıcı isteği (2026-08-13,
+    üçüncü tur): her kartta "3 Aylık"/"Yıllık" dönem seçici (iki ayrı
+    ÖNCEDEN üretilmiş SVG, JS ile gösterilip/gizlenir) + fiyat grafiği
+    ekle/kaldır butonu (`_skor_gecmisi_chart_for_rows` içinde AYNI SVG'ye
+    gömülü ikinci bir katman, CSS ile aç/kapa). En az 2 dönem YOKSA
+    `None` döner -- şablon bu durumda mevcut tabloyu TEK başına gösterir
+    (Kural 3: uydurma yapılmaz)."""
+    if not row.tarihsel_skorlar or len(row.tarihsel_skorlar) < 2:
+        return None
+
+    yillik_skorlar = _aggregate_annual(row.tarihsel_skorlar)
+    currency_symbol = "₺" if row.currency == "TRY" else ("$" if row.currency == "USD" else "")
+
+    charts: list[dict[str, Any]] = []
+    for field, label in _METRIC_CHART_FIELDS:
+        svg_ceyreklik = _skor_gecmisi_chart_for_rows(
+            row.tarihsel_skorlar, field, label, row.ticker, currency_symbol, "mode-ceyreklik",
+        )
+        svg_yillik = (
+            _skor_gecmisi_chart_for_rows(yillik_skorlar, field, label, row.ticker, currency_symbol, "mode-yillik hidden")
+            if len(yillik_skorlar) >= 2 else None
+        )
+        charts.append({
+            "label": label,
+            "svg_ceyreklik": svg_ceyreklik,
+            "svg_yillik": svg_yillik,
+        })
     return charts
 
 

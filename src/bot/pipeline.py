@@ -1979,7 +1979,20 @@ def compute_multi_lens_score_for_ticker(ticker: str, market: str = "BIST") -> Mu
 # "gerekirse SADECE ilk 3 ile sınırla" yedeği BAŞTAN uygulandı) -- veri
 # gerçekten daha fazla döneme izin verse bile varsayılan olarak DAHA FAZLASI
 # ÜRETİLMEZ (çağıran taraf `max_historical` ile isteyerek artırabilir).
-MAX_HISTORICAL_PERIODS = 3
+#
+# Kullanıcı isteği (2026-08-13, üçüncü tur): Fintables-tarzı grafiklerde
+# "1 yıl çok kısa" -- 3'ten 7'ye çıkarıldı (GÜNCEL + 7 geçmiş = 8 dönem,
+# ~2 yıl). Tam 2017-2026 derinliği (36+ dönem) BİLİNÇLİ olarak ERTELENDİ
+# (kullanıcı onayı, AskUserQuestion): `financials_by_period` zaten SADECE
+# `repository.get_financials(..., n_periods=8)` ile 8 dönem taşıyor (bkz.
+# compute_multi_lens_score_for_ticker) -- 7'ye çıkmak bu ÜST SINIRIN
+# TAMAMINI kullanır, YENİ bir veri çekme/fetch GEREKTİRMEZ (own_bars'ın
+# ~400 günlük penceresi de 8 dönem/~2 yılı ZATEN kapsıyor). Daha DERİN
+# bir geçmiş (2017'ye kadar) hem YENİ fetch altyapısı (İş Yatırım/SEC'ten
+# çok daha fazla dönem + çok daha uzun fiyat geçmişi) HEM DE toplu
+# taramanın (scripts/tarama_toplu.py) CPU maliyetini ÇOK DAHA BÜYÜK
+# ölçüde artırır (ayrı bir proje/spec gerektirir, bu turun kapsamı DIŞI).
+MAX_HISTORICAL_PERIODS = 7
 
 
 def _price_at_period_end(own_bars: list[price_history.OhlcvBar], period: Period) -> Decimal | None:

@@ -334,6 +334,19 @@ class MarketScanResult(Base):
     company_name: Mapped[str | None] = mapped_column(String(255)) # denormalize -- JOIN'siz dashboard sorgusu icin
     ust_sektor: Mapped[str | None] = mapped_column(String(40))    # tarama anindaki KOPYA (Company degisirse dashboard bir SONRAKI taramada yakalar)
     sirket_turu: Mapped[str | None] = mapped_column(String(20))
+    # Kullanıcı isteği (2026-08-13, beşinci tur): "Sektöre Göreli Konum"
+    # istatistiği artık `ust_sektor` (11 geniş grup) DEĞİL, bu YENİ ince
+    # sektör alanına (BİST: fintables_sektor.py'nin 44 kategorisi, NASDAQ:
+    # SIC açıklaması -- `Company.sector`'ın tarama anındaki KOPYASı, AYNI
+    # `ust_sektor` deseni) göre gruplandırılır -- ÇAPRAZ-PİYASA havuzlama
+    # KASITLI olarak KAYBOLUR (BİST'in Türkçe Fintables kategorileri ile
+    # NASDAQ'ın İngilizce SIC açıklamaları zaten hiçbir zaman string olarak
+    # EŞLEŞMEZ) -- kullanıcı onayı (AskUserQuestion, 2026-08-13): "Havacılık
+    # gibi kategoriler alakasız şirketlerle DEĞİL kendi gerçek akranlarıyla
+    # kıyaslansın" -- `ust_sektor` (11 grup) BAŞKA hiçbir şey için DEĞİŞMEDEN
+    # kalır (dashboard geniş gruplandırması gibi -- artık SADECE bu alan
+    # kullanılmıyor olsa da sema geriye uyumluluk için KORUNUR).
+    sector: Mapped[str | None] = mapped_column(String(60))
     template: Mapped[str | None] = mapped_column(String(20))      # "sanayi" | "abd_sanayi" | "banka" | "sigorta" | "finansman"
     year: Mapped[int | None]
     period: Mapped[int | None]                                    # (year, period) = analysis.latest_period
@@ -577,6 +590,23 @@ def _migrate_add_tarihsel_skorlar_column(engine: Engine) -> None:
         connection.execute(text("ALTER TABLE market_scan_result ADD COLUMN tarihsel_skorlar JSON"))
 
 
+def _migrate_add_market_scan_result_sector_column(engine: Engine) -> None:
+    """`_migrate_add_tarihsel_skorlar_column` İLE BİREBİR AYNI idempotent
+    ALTER TABLE deseni -- kullanıcı isteği (2026-08-13, beşinci tur):
+    "Sektöre Göreli Konum" istatistiğinin `ust_sektor` (11 geniş grup)
+    YERİNE ince sektöre göre gruplanması için `market_scan_result`'a YENİ
+    bir `sector` sütunu ekler (bkz. o alanın model üstü notu)."""
+    inspector = inspect(engine)
+    if "market_scan_result" not in inspector.get_table_names():
+        return  # create_all() zaten dogru sekilde (yeni sutun DAHIL) olusturacak
+    existing_columns = {col["name"] for col in inspector.get_columns("market_scan_result")}
+    if "sector" in existing_columns:
+        return
+    logger.info("Migration: 'market_scan_result' tablosuna 'sector' sutunu ekleniyor.")
+    with engine.begin() as connection:
+        connection.execute(text("ALTER TABLE market_scan_result ADD COLUMN sector VARCHAR(60)"))
+
+
 def init_db(engine: Engine | None = None) -> None:
     """Tablolari olusturur (varsa dokunmaz -- create_all idempotenttir) VE
     var olan tablolarda eksik sutunlari migrate eder (bkz. _migrate_add_market_column,
@@ -595,6 +625,7 @@ def init_db(engine: Engine | None = None) -> None:
     _migrate_add_filer_category_column(target_engine)
     _migrate_add_faaliyet_raporu_bulgulari_column(target_engine)
     _migrate_add_tarihsel_skorlar_column(target_engine)
+    _migrate_add_market_scan_result_sector_column(target_engine)
 
 
 # Uygulamanin varsayilan (production) baglantisi. Testler bunu KULLANMAZ;

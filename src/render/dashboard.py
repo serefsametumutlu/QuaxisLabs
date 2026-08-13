@@ -521,24 +521,41 @@ def _company_sort_key(company: dict[str, Any]) -> tuple[int, float, str]:
 
 
 def _build_sectors(market_rows: list[MarketScanResult], ince_sektor_map: dict[str, str]) -> list[dict[str, Any]]:
+    """Kullanıcı isteği (2026-08-13, beşinci tur): anasayfa gruplaması
+    ARTIK `ust_sektor` (11 geniş grup) DEĞİL, ince sektöre göre (BİST:
+    fintables_sektor.py'nin 44 kategorisi, NASDAQ: SIC açıklaması) --
+    "Sektöre Göreli Konum" istatistiğinin (pipeline.py) KULLANDIĞI AYNI
+    gruplama anahtarı, tutarlılık için. `ince_sektor_map` `Company.sector`
+    kaynaklıdır (build_dashboard_data'da TEK toplu sorgu) -- `MarketScanResult.
+    sector`'DAN (tarama anındaki KOPYA, henüz TAM evrene yayılmamış OLABİLİR)
+    DEĞİL, çünkü `Company.sector` TÜM evren için ZATEN güncel (refresh_
+    universe.py ayrı, ucuz bir süreçte doldurur) -- anasayfa gruplaması bu
+    sayede tarama beklemeden DOĞRU görünür. `n<5` eşiği de ARTIK bu ince
+    grubun kendi büyüklüğüne bakar (ust_sektor/ince sektör KARIŞIKLIĞI
+    ORTADAN KALKTI -- ikisi ARTIK AYNI anahtar)."""
     gruplar: dict[str, list[MarketScanResult]] = {}
     for row in market_rows:
-        anahtar = row.ust_sektor or "Sınıflandırılmamış"
+        # İnce sektör (Company.sector) YOKSA -- henüz sınıflandırılmamış
+        # yeni bir IPO/ticker -- geniş `ust_sektor`'e (var olan, KABA ama
+        # HALA anlamlı bir bilgi) DÜŞÜLÜR; o da yoksa "Sınıflandırılmamış"
+        # (Kural 3: hiçbir sınıflandırma UYDURULMAZ, sadece en iyi MEVCUT
+        # bilgiye kademeli olarak geri dönülür).
+        anahtar = ince_sektor_map.get(row.ticker) or row.ust_sektor or "Sınıflandırılmamış"
         gruplar.setdefault(anahtar, []).append(row)
 
     sonuc = []
-    for ust_sektor in sorted(gruplar, key=_sector_sort_key):
-        rows = gruplar[ust_sektor]
+    for sektor in sorted(gruplar, key=_sector_sort_key):
+        rows = gruplar[sektor]
         n = len(rows)
         yetersiz_ornek: bool | None
-        if ust_sektor == "Sınıflandırılmamış":
+        if sektor == "Sınıflandırılmamış":
             yetersiz_ornek = None
         else:
             yetersiz_ornek = n < MIN_SECTOR_N
         kirilim = Counter((_SIRKET_TURU_DISPLAY[r.sirket_turu] if r.sirket_turu in _SIRKET_TURU_DISPLAY and r.sirket_turu else "bilinmiyor") for r in rows)
         companies = sorted((_serialize_row(r, ince_sektor_map.get(r.ticker)) for r in rows), key=_company_sort_key)
         sonuc.append({
-            "ust_sektor": ust_sektor,
+            "ust_sektor": sektor,
             "sirket_turu_kirilimi": dict(kirilim),
             "n": n,
             "min_sector_n": MIN_SECTOR_N,

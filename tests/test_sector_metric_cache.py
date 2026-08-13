@@ -124,7 +124,7 @@ def test_sector_metric_cache_farkli_metric_farkli_satir(session) -> None:
 
 def test_get_sector_metric_distribution_ok_satirlarini_toplar(session) -> None:
     for peer, pe in (("A", Decimal("10")), ("B", Decimal("15")), ("C", Decimal("20"))):
-        repository.upsert_market_scan_result(session, peer, "BIST", scan_status="ok", ust_sektor="Sanayi", sirket_turu="sanayi", pe_ratio=pe)
+        repository.upsert_market_scan_result(session, peer, "BIST", scan_status="ok", ust_sektor="Sanayi", sector="Sanayi", sirket_turu="sanayi", pe_ratio=pe)
     session.commit()
 
     degerler = repository.get_sector_metric_distribution(session, "Sanayi", "sanayi", "pe_ratio")
@@ -132,8 +132,8 @@ def test_get_sector_metric_distribution_ok_satirlarini_toplar(session) -> None:
 
 
 def test_get_sector_metric_distribution_none_degerleri_disler(session) -> None:
-    repository.upsert_market_scan_result(session, "A", "BIST", scan_status="ok", ust_sektor="Sanayi", sirket_turu="sanayi", pe_ratio=None)
-    repository.upsert_market_scan_result(session, "B", "BIST", scan_status="ok", ust_sektor="Sanayi", sirket_turu="sanayi", pe_ratio=Decimal("12"))
+    repository.upsert_market_scan_result(session, "A", "BIST", scan_status="ok", ust_sektor="Sanayi", sector="Sanayi", sirket_turu="sanayi", pe_ratio=None)
+    repository.upsert_market_scan_result(session, "B", "BIST", scan_status="ok", ust_sektor="Sanayi", sector="Sanayi", sirket_turu="sanayi", pe_ratio=Decimal("12"))
     session.commit()
 
     degerler = repository.get_sector_metric_distribution(session, "Sanayi", "sanayi", "pe_ratio")
@@ -141,8 +141,8 @@ def test_get_sector_metric_distribution_none_degerleri_disler(session) -> None:
 
 
 def test_get_sector_metric_distribution_basarisiz_taramalari_disler(session) -> None:
-    repository.upsert_market_scan_result(session, "A", "BIST", scan_status="hata", ust_sektor="Sanayi", sirket_turu="sanayi", pe_ratio=Decimal("12"))
-    repository.upsert_market_scan_result(session, "B", "BIST", scan_status="desteklenmiyor", ust_sektor="Sanayi", sirket_turu="sanayi")
+    repository.upsert_market_scan_result(session, "A", "BIST", scan_status="hata", ust_sektor="Sanayi", sector="Sanayi", sirket_turu="sanayi", pe_ratio=Decimal("12"))
+    repository.upsert_market_scan_result(session, "B", "BIST", scan_status="desteklenmiyor", ust_sektor="Sanayi", sector="Sanayi", sirket_turu="sanayi")
     session.commit()
 
     degerler = repository.get_sector_metric_distribution(session, "Sanayi", "sanayi", "pe_ratio")
@@ -150,8 +150,8 @@ def test_get_sector_metric_distribution_basarisiz_taramalari_disler(session) -> 
 
 
 def test_get_sector_metric_distribution_exclude_ticker(session) -> None:
-    repository.upsert_market_scan_result(session, "A", "BIST", scan_status="ok", ust_sektor="Sanayi", sirket_turu="sanayi", pe_ratio=Decimal("12"))
-    repository.upsert_market_scan_result(session, "B", "BIST", scan_status="ok", ust_sektor="Sanayi", sirket_turu="sanayi", pe_ratio=Decimal("14"))
+    repository.upsert_market_scan_result(session, "A", "BIST", scan_status="ok", ust_sektor="Sanayi", sector="Sanayi", sirket_turu="sanayi", pe_ratio=Decimal("12"))
+    repository.upsert_market_scan_result(session, "B", "BIST", scan_status="ok", ust_sektor="Sanayi", sector="Sanayi", sirket_turu="sanayi", pe_ratio=Decimal("14"))
     session.commit()
 
     degerler = repository.get_sector_metric_distribution(session, "Sanayi", "sanayi", "pe_ratio", exclude_ticker="A")
@@ -159,8 +159,8 @@ def test_get_sector_metric_distribution_exclude_ticker(session) -> None:
 
 
 def test_get_sector_metric_distribution_market_filtresi(session) -> None:
-    repository.upsert_market_scan_result(session, "A", "BIST", scan_status="ok", ust_sektor="Teknoloji", sirket_turu="sanayi", pe_ratio=Decimal("12"))
-    repository.upsert_market_scan_result(session, "AAPL", "NASDAQ", scan_status="ok", ust_sektor="Teknoloji", sirket_turu="sanayi", pe_ratio=Decimal("30"))
+    repository.upsert_market_scan_result(session, "A", "BIST", scan_status="ok", ust_sektor="Teknoloji", sector="Teknoloji", sirket_turu="sanayi", pe_ratio=Decimal("12"))
+    repository.upsert_market_scan_result(session, "AAPL", "NASDAQ", scan_status="ok", ust_sektor="Teknoloji", sector="Teknoloji", sirket_turu="sanayi", pe_ratio=Decimal("30"))
     session.commit()
 
     degerler = repository.get_sector_metric_distribution(session, "Teknoloji", "sanayi", "pe_ratio", market="BIST")
@@ -168,7 +168,7 @@ def test_get_sector_metric_distribution_market_filtresi(session) -> None:
 
 
 def test_get_sector_metric_distribution_pb_ratio_calisir(session) -> None:
-    repository.upsert_market_scan_result(session, "A", "BIST", scan_status="ok", ust_sektor="Sanayi", sirket_turu="sanayi", pb_ratio=Decimal("1.5"))
+    repository.upsert_market_scan_result(session, "A", "BIST", scan_status="ok", ust_sektor="Sanayi", sector="Sanayi", sirket_turu="sanayi", pb_ratio=Decimal("1.5"))
     session.commit()
 
     degerler = repository.get_sector_metric_distribution(session, "Sanayi", "sanayi", "pb_ratio")

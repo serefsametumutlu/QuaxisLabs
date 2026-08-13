@@ -356,11 +356,11 @@ def test_compute_multi_lens_score_sektore_goreli_konum_peer_varsa_hesaplanir(izo
     monkeypatch.setattr(isyatirim, "fetch_price_history", _fake_price_history(10))
 
     with repository.get_session() as session:
-        repository.upsert_sector_taxonomy(session, "TESTAS", market="BIST", ust_sektor="Sanayi", sirket_turu="sanayi")
+        repository.upsert_sector_taxonomy(session, "TESTAS", market="BIST", ust_sektor="Sanayi", sector="Sanayi", sirket_turu="sanayi")
         for i, pe in enumerate([Decimal("8"), Decimal("10"), Decimal("12"), Decimal("15"), Decimal("20")]):
             repository.upsert_market_scan_result(
                 session, f"PEER{i}", "BIST", scan_status="ok",
-                ust_sektor="Sanayi", sirket_turu="sanayi", pe_ratio=pe, pb_ratio=pe / 4,
+                ust_sektor="Sanayi", sector="Sanayi", sirket_turu="sanayi", pe_ratio=pe, pb_ratio=pe / 4,
             )
         session.commit()
 
@@ -388,10 +388,10 @@ def test_compute_multi_lens_score_sektore_goreli_konum_yetersiz_peer_ile_atlanir
     monkeypatch.setattr(isyatirim, "fetch_price_history", _fake_price_history(10))
 
     with repository.get_session() as session:
-        repository.upsert_sector_taxonomy(session, "TESTAS", market="BIST", ust_sektor="Sanayi", sirket_turu="sanayi")
+        repository.upsert_sector_taxonomy(session, "TESTAS", market="BIST", ust_sektor="Sanayi", sector="Sanayi", sirket_turu="sanayi")
         for i, pe in enumerate([Decimal("8"), Decimal("10")]):
             repository.upsert_market_scan_result(
-                session, f"PEER{i}", "BIST", scan_status="ok", ust_sektor="Sanayi", sirket_turu="sanayi", pe_ratio=pe,
+                session, f"PEER{i}", "BIST", scan_status="ok", ust_sektor="Sanayi", sector="Sanayi", sirket_turu="sanayi", pe_ratio=pe,
             )
         session.commit()
 

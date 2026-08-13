@@ -749,7 +749,7 @@ _SECTOR_METRIC_DISTRIBUTION_COLUMNS = {"pe_ratio": MarketScanResult.pe_ratio, "p
 
 def get_sector_metric_distribution(
     session: Session,
-    ust_sektor: str,
+    sector: str,
     sirket_turu: str,
     metric: str,
     market: str | None = None,
@@ -769,6 +769,15 @@ def get_sector_metric_distribution(
     çağıran tarafın `lens_common.robust_istatistik()`'idir, quaxis-mimari
     anayasa: repository SADECE CRUD/okuma).
 
+    DÜZELTME (2026-08-13, kullanıcı onayı): gruplama anahtarı `ust_sektor`
+    (11 geniş grup) YERİNE `sector` (YENİ ince sektör sütunu -- BİST'te
+    fintables_sektor.py'nin 44 kategorisi, NASDAQ'ta SIC açıklaması) oldu.
+    ÇAPRAZ-PİYASA havuzlama (BİST+NASDAQ AYNI grupta) KASITLI olarak
+    KAYBOLDU -- iki piyasanın ince sektör string'leri zaten hiçbir zaman
+    EŞLEŞMEZ (Türkçe kategori adı vs İngilizce SIC açıklaması), bu yüzden
+    `market` parametresi artık FİİLEN gereksiz ama GERİYE UYUMLULUK için
+    KORUNDU.
+
     `MarketScanResult` ticker başına TEK (en güncel) satır tuttuğu için
     (bkz. o modelin docstring'i) peer'lerin KENDİ raporlama dönemi burada
     AYRICA süzülmez -- süzülseydi n neredeyse HER ZAMAN sıfıra düşerdi
@@ -786,7 +795,7 @@ def get_sector_metric_distribution(
         raise ValueError(f"desteklenmeyen metric: '{metric}' (beklenen: {sorted(_SECTOR_METRIC_DISTRIBUTION_COLUMNS)})")
 
     conditions = [
-        MarketScanResult.ust_sektor == ust_sektor,
+        MarketScanResult.sector == sector,
         MarketScanResult.sirket_turu == sirket_turu,
         MarketScanResult.scan_status == "ok",
         column.is_not(None),
@@ -895,6 +904,7 @@ def upsert_market_scan_result(
     *,
     company_name: str | None = None,
     ust_sektor: str | None = None,
+    sector: str | None = None,
     sirket_turu: str | None = None,
     template: str | None = None,
     year: int | None = None,
@@ -969,6 +979,7 @@ def upsert_market_scan_result(
     row.error_detail = error_detail
     row.company_name = company_name
     row.ust_sektor = ust_sektor
+    row.sector = sector
     row.sirket_turu = sirket_turu
     row.template = template
     row.year = year

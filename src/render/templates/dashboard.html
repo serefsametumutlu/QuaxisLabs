@@ -612,7 +612,7 @@
                 data-sort="{{ c.ticker }}">
               <a class="ticker-cell" href="{{ c.detail_url }}" target="_blank" rel="noopener">{{ c.ticker }}</a>
               {% if c.ekosistem_etiketi %}<span class="eco-badge" title="Görsel gruplama, istatistiksel sektör karşılaştırmasını etkilemez (n&lt;5, hala {{ c.ust_sektor }} havuzunda)">{{ c.ekosistem_etiketi }}</span>{% endif %}
-              <span class="company-name">{{ c.company_name }}{% if c.scan_status != 'ok' %} — <span class="status-pill">{{ c.scan_status }}</span>{% endif %}{% if c.ince_sektor %} · {{ c.ince_sektor }}{% endif %}</span>
+              <span class="company-name">{{ c.company_name }}{% if c.scan_status != 'ok' %} — <span class="status-pill">{{ c.scan_status }}</span>{% endif %}</span>
             </td>
             <td class="col-left" data-sort="{{ c.sirket_turu_display }}">{{ c.sirket_turu_display }}</td>
 

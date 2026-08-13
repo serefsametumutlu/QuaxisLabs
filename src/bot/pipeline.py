@@ -1643,6 +1643,15 @@ class MultiLensScoreResult:
     own_bars: list["price_history.OhlcvBar"] = field(default_factory=list)
     financial_group: str | None = None
     ust_sektor: str | None = None
+    # Kullanıcı isteği (2026-08-13, beşinci tur): "Sektöre Göreli Konum"
+    # artık `ust_sektor` (11 geniş grup, YUKARIDA -- BAŞKA hiçbir şey
+    # DEĞİŞMEDİ) DEĞİL, bu YENİ ince sektör alanına göre hesaplanır (BİST:
+    # fintables_sektor.py'nin 44 kategorisi, NASDAQ: SIC açıklaması) --
+    # `compute_historical_lens_scores_for_ticker()`'ın GEÇMİŞ dönem
+    # anlık görüntüleri için AYNI (Company'den TEKRAR sorgulanmadan)
+    # değeri yeniden kullanabilmesi için `ust_sektor` İLE AYNI gerekçeyle
+    # dışarı taşındı.
+    sector: str | None = None
     sirket_turu: str | None = None
 
 
@@ -1934,6 +1943,7 @@ def compute_multi_lens_score_for_ticker(ticker: str, market: str = "BIST") -> Mu
         company_name = company_row.name if company_row and company_row.name else None
         financial_group = company_row.financial_group if company_row else None
         ust_sektor = company_row.ust_sektor if company_row else None
+        sector = company_row.sector if company_row else None
         sirket_turu = company_row.sirket_turu if company_row else None
 
     if not financials_by_period:
@@ -1972,13 +1982,13 @@ def compute_multi_lens_score_for_ticker(ticker: str, market: str = "BIST") -> Mu
     current_price = own_bars[-1].close if own_bars else None
 
     analysis, valuation_metrics, bilesik = _hesapla_mercek_anlik_goruntu(
-        ticker, financials_by_period, template, financial_group, current_price, own_bars, ust_sektor, sirket_turu,
+        ticker, financials_by_period, template, financial_group, current_price, own_bars, sector, sirket_turu,
     )
     return MultiLensScoreResult(
         ticker=ticker, market=market, period=analysis.latest_period, company_name=company_name,
         price=current_price, bilesik=bilesik, valuation_metrics=valuation_metrics, template=template,
         financials_by_period=financials_by_period, own_bars=own_bars,
-        financial_group=financial_group, ust_sektor=ust_sektor, sirket_turu=sirket_turu,
+        financial_group=financial_group, ust_sektor=ust_sektor, sector=sector, sirket_turu=sirket_turu,
     )
 
 
@@ -2141,7 +2151,7 @@ def compute_historical_lens_scores_for_ticker(
             try:
                 _analysis, _valuation, bilesik = _hesapla_mercek_anlik_goruntu(
                     sonuc.ticker, trimmed, sonuc.template, sonuc.financial_group, fiyat, sonuc.own_bars,
-                    sonuc.ust_sektor, sonuc.sirket_turu, apply_sector_relative=False, apply_merton=False,
+                    sonuc.sector, sonuc.sirket_turu, apply_sector_relative=False, apply_merton=False,
                 )
             except Exception:
                 # Kural 9 ilkesi (ikincil/ek veri): bu EK bir tarihsel anlık

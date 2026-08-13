@@ -266,6 +266,7 @@ def _scan_one(ticker: str, market: str) -> str:
             scan_status="ok",
             company_name=sonuc.company_name,
             ust_sektor=company_row.ust_sektor if company_row else None,
+            sector=company_row.sector if company_row else None,
             sirket_turu=company_row.sirket_turu if company_row else None,
             template=sonuc.template,
             year=sonuc.period[0],

@@ -247,34 +247,39 @@
   .nitel-madde ul { padding-left: var(--space-5); }
   .nitel-madde li { font-size: var(--text-body); color: var(--ink-primary); line-height: var(--leading-relaxed); margin-bottom: var(--space-1); }
 
-  /* ---- Skor Geçmişi grafiği (kullanıcı isteği 2026-08-13) -----------
-     Renkler `dataviz` skill validator'ından (node scripts/validate_
-     palette.js, dark mod, proje --bg-surface #10141b yüzeyine karşı --
-     TÜM kontroller PASS) geçmiş, bu şablona ÖZGÜ 5 kategorik SERİ
-     rengidir -- `_design_tokens.css`'in semantik pozitif/negatif setinden
-     KASITLI olarak AYRI (bir seri "iyi/kötü" DEĞİL, SADECE hangi mercek
-     olduğunu taşır, bkz. dataviz skill "color follows the entity"). */
-  :root {
-    --chart-deger: #3987e5;
-    --chart-kalite: #d95926;
-    --chart-buyume: #199e70;
-    --chart-guvenlik: #c98500;
-    --chart-bilesik: #d55181;
+  /* ---- Skor Geçmişi -- TEK-metrik küçük grafik kartları (kullanıcı
+     isteği 2026-08-13, Fintables referansı) -- 5 seri kimliği yerine
+     TEK marka rengi (brand-gold, sayfanın kimlik vurgusuyla AYNI),
+     imleç ile gezinince dikey kesişen çizgi + tooltip (kullanıcının
+     ekran görüntüsündeki davranış). ------------------------------- */
+  .mchart-grid-wrap { display: grid; grid-template-columns: repeat(auto-fit, minmax(460px, 1fr)); gap: var(--space-5); margin-bottom: var(--space-4); }
+  .mchart-card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: var(--space-5); position: relative; }
+  .mchart-card h3 { font-size: var(--text-h3); color: var(--ink-primary); margin-bottom: var(--space-3); }
+  .metric-chart { width: 100%; height: auto; display: block; cursor: crosshair; }
+  .mchart-grid { stroke: var(--border-subtle); stroke-width: 1px; }
+  .mchart-axis-label { font-family: var(--font-mono); font-size: 10px; fill: var(--ink-tertiary); }
+  .mchart-line { stroke: var(--brand-gold); stroke-width: 2.5px; stroke-linejoin: round; stroke-linecap: round; }
+  .mchart-dot { fill: var(--brand-gold); }
+  .mchart-crosshair { stroke: var(--ink-tertiary); stroke-width: 1px; stroke-dasharray: 3,3; pointer-events: none; }
+  .mchart-hover-dot { fill: var(--brand-gold); stroke: var(--bg-surface); stroke-width: 2px; pointer-events: none; }
+  .mchart-hit-area { cursor: crosshair; }
+  .mchart-tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: var(--bg-surface-sunken);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-caption);
+    color: var(--ink-primary);
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.08s ease;
+    z-index: 5;
   }
-  .skor-chart-wrap { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: var(--space-5); margin-bottom: var(--space-4); }
-  .skor-chart { width: 100%; height: auto; display: block; }
-  .chart-grid { stroke: var(--border-subtle); stroke-width: 1px; }
-  .chart-axis-label { font-family: var(--font-mono); font-size: 10px; fill: var(--ink-tertiary); }
-  .chart-line { stroke-linejoin: round; stroke-linecap: round; }
-  .chart-end-label { font-family: var(--font-sans); font-size: 11px; font-weight: var(--weight-semibold); }
-  .chart-legend { display: flex; flex-wrap: wrap; gap: var(--space-4); margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border-subtle); }
-  .chart-legend-item { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-micro); color: var(--ink-secondary); }
-  .chart-swatch { width: 10px; height: 10px; border-radius: var(--radius-sm); flex-shrink: 0; }
-  .chart-swatch.deger { background: var(--chart-deger); }
-  .chart-swatch.kalite { background: var(--chart-kalite); }
-  .chart-swatch.buyume { background: var(--chart-buyume); }
-  .chart-swatch.guvenlik { background: var(--chart-guvenlik); }
-  .chart-swatch.bilesik { background: var(--chart-bilesik); }
+  .mchart-tooltip .tt-period { color: var(--ink-tertiary); font-size: var(--text-micro); margin-bottom: 2px; }
+  .mchart-tooltip .tt-value { display: flex; align-items: center; gap: var(--space-2); font-family: var(--font-mono); font-weight: var(--weight-semibold); }
+  .mchart-tooltip .tt-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--brand-gold); flex-shrink: 0; }
 
   .footer-note {
     margin-top: var(--space-7);
@@ -397,16 +402,18 @@
 
 <h2 class="section-title">Skor Geçmişi (Son Dönemler)</h2>
 {% if data.skor_gecmisi %}
-{% if data.skor_gecmisi_chart_svg %}
-<div class="skor-chart-wrap">
-  {{ data.skor_gecmisi_chart_svg | safe }}
-  <div class="chart-legend">
-    <span class="chart-legend-item"><span class="chart-swatch deger"></span>Değer</span>
-    <span class="chart-legend-item"><span class="chart-swatch kalite"></span>Kalite</span>
-    <span class="chart-legend-item"><span class="chart-swatch buyume"></span>Büyüme</span>
-    <span class="chart-legend-item"><span class="chart-swatch guvenlik"></span>Güvenlik</span>
-    <span class="chart-legend-item"><span class="chart-swatch bilesik"></span>Bileşik</span>
+{% if data.skor_gecmisi_charts %}
+<div class="mchart-grid-wrap">
+  {% for chart in data.skor_gecmisi_charts %}
+  <div class="mchart-card">
+    <h3>{{ chart.label }}</h3>
+    {{ chart.svg | safe }}
   </div>
+  {% endfor %}
+</div>
+<div class="mchart-tooltip" id="mchart-tooltip">
+  <div class="tt-period"></div>
+  <div class="tt-value"><span class="tt-dot"></span><span class="tt-text"></span></div>
 </div>
 {% endif %}
 <div class="financial-card" style="margin-bottom: var(--space-6);">
@@ -537,5 +544,68 @@
 </p>
 
 </div>
+<script>
+// Skor Geçmişi küçük grafik kartları -- imleç/crosshair + tooltip
+// (kullanıcı isteği 2026-08-13, Fintables referansı). Kart-tasarim-
+// sistemi skill: dashboard/detay sayfaları PNG DEĞİL, tarayıcıda açılır
+// -- vanilla JS serbest. Bu script HİÇBİR skor/format HESAPLAMAZ,
+// SADECE Python'da ÖNCEDEN hazırlanmış `data-points` JSON'undan en
+// yakın noktayı seçip GÖSTERİR.
+(function () {
+  var tooltip = document.getElementById("mchart-tooltip");
+  if (!tooltip) return;
+  var ttPeriod = tooltip.querySelector(".tt-period");
+  var ttText = tooltip.querySelector(".tt-text");
+
+  document.querySelectorAll(".metric-chart").forEach(function (svg) {
+    var points = JSON.parse(svg.getAttribute("data-points"));
+    var ticker = svg.getAttribute("data-ticker");
+    var crosshair = svg.querySelector(".mchart-crosshair");
+    var hoverDot = svg.querySelector(".mchart-hover-dot");
+    var hitArea = svg.querySelector(".mchart-hit-area");
+    var viewBox = svg.viewBox.baseVal;
+
+    function nearestPoint(svgX) {
+      var best = null, bestDist = Infinity;
+      for (var i = 0; i < points.length; i++) {
+        if (points[i].y === null) continue;
+        var d = Math.abs(points[i].x - svgX);
+        if (d < bestDist) { bestDist = d; best = points[i]; }
+      }
+      return best;
+    }
+
+    function onMove(evt) {
+      var rect = svg.getBoundingClientRect();
+      var scale = viewBox.width / rect.width;
+      var svgX = (evt.clientX - rect.left) * scale;
+      var p = nearestPoint(svgX);
+      if (!p) return;
+
+      crosshair.setAttribute("x1", p.x);
+      crosshair.setAttribute("x2", p.x);
+      crosshair.style.opacity = 1;
+      hoverDot.setAttribute("cx", p.x);
+      hoverDot.setAttribute("cy", p.y);
+      hoverDot.style.opacity = 1;
+
+      ttPeriod.textContent = p.period;
+      ttText.textContent = ticker + "  " + (p.display !== null ? p.display : "veri yok");
+      tooltip.style.opacity = 1;
+      tooltip.style.left = (evt.clientX + 14) + "px";
+      tooltip.style.top = (evt.clientY - 12) + "px";
+    }
+
+    function onLeave() {
+      crosshair.style.opacity = 0;
+      hoverDot.style.opacity = 0;
+      tooltip.style.opacity = 0;
+    }
+
+    hitArea.addEventListener("mousemove", onMove);
+    hitArea.addEventListener("mouseleave", onLeave);
+  });
+})();
+</script>
 </body>
 </html>

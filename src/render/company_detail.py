@@ -34,6 +34,7 @@ zaten hesapladığı alanlardan ... mevcut alanları TABLOLA").
 from __future__ import annotations
 
 import dataclasses
+import json
 import logging
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
@@ -288,90 +289,114 @@ def _skor_gecmisi_block(row: MarketScanResult) -> list[dict[str, Any]]:
     return rows
 
 
-# Kullanıcı isteği (2026-08-13): 4 mercek + Bileşik'in dönemsel seyrini
-# GÖRSEL (tablo değil, çizgi grafik) göstermek -- "düzenli büyüyen
-# şirketler dikkat çeksin". `dataviz`/`kart-tasarim-sistemi` skill ilkesi:
-# şablon HİÇBİR koordinat/skala hesaplamaz, bu modül SVG'yi TAMAMEN
-# hazır bir string olarak üretir (`| safe` ile şablona basılır). Renkler
-# `--chart-*` (yeni, SADECE bu şablona özgü) custom property'lerdir --
-# `_design_tokens.css`'in semantik (pozitif/negatif/nötr) setinden AYRI:
-# 5 SERİ kimliği taşımalı, "iyi/kötü" anlamı TAŞIMAMALI (dataviz skill:
-# "color follows the entity, never its rank"). node scripts/validate_
-# palette.js ile dark mod + proje --bg-surface (#10141b) yüzeyine karşı
-# doğrulandı (tüm kontroller PASS, sabit sıra ASLA döngüsel atanmaz).
-_CHART_SERIES: tuple[tuple[str, str, str], ...] = (
-    ("deger_score", "chart-deger", "Değer"),
-    ("kalite_score", "chart-kalite", "Kalite"),
-    ("buyume_score", "chart-buyume", "Büyüme"),
-    ("guvenlik_score", "chart-guvenlik", "Güvenlik"),
-    ("bilesik_score", "chart-bilesik", "Bileşik"),
+# Kullanıcı isteği (2026-08-13, ikinci tur): kullanıcı Fintables'ın
+# TEK-metrik, TEK-renk küçük grafik kartlarını referans gösterdi ("bu
+# şekilde yapmak istiyorum") -- 5 SERİyi TEK grafikte üst üste bindiren
+# ilk tasarım BEĞENİLMEDİ. Bu, ilkinin YERİNE her mercek/Bileşik için
+# AYRI bir küçük grafik kartı üretir (`kart-tasarim-sistemi` skill:
+# şablon hesaplama YAPMAZ, koordinatlar burada Python'da üretilir).
+# Renk: 5 ayrı seri kimliği ARTIK gerekmiyor (her kart TEK seri) --
+# Fintables referansındaki gibi TEK marka rengi (`--brand-gold`,
+# sayfanın kimlik vurgusuyla AYNI) tüm kartlarda tutarlı kullanılır.
+# İnteraktif imleç/tooltip (kullanıcının ekran görüntüsündeki davranış)
+# `company_detail.html`'in altındaki TEK, statik/vanilla JS bloğuyla
+# sağlanır (kart-tasarim-sistemi skill §Dashboard: "dashboard PNG
+# değil, tarayıcıda açılır, vanilla JS serbest" -- bu sayfa da AYNI
+# ilkeye tabi, Playwright/PNG kartlarından FARKLI); JS SADECE piksel
+# pozisyonu okuyup ÖNCEDEN Python'da hazırlanmış (`data-points` JSON)
+# metin/değerleri gösterir, HİÇBİR skor/format HESAPLAMAZ.
+_METRIC_CHART_FIELDS: tuple[tuple[str, str], ...] = (
+    ("deger_score", "Değer"),
+    ("kalite_score", "Kalite"),
+    ("buyume_score", "Büyüme"),
+    ("guvenlik_score", "Güvenlik"),
+    ("bilesik_score", "Bileşik"),
 )
 
-_CHART_W = 720
-_CHART_H = 260
-_CHART_PAD_L = 34
-_CHART_PAD_R = 16
-_CHART_PAD_T = 16
-_CHART_PAD_B = 30
+_MCHART_W = 600
+_MCHART_H = 230
+_MCHART_PAD_L = 34
+_MCHART_PAD_R = 14
+_MCHART_PAD_T = 16
+_MCHART_PAD_B = 44  # Fintables referansındaki gibi 45° döndürülmüş dönem etiketleri için
 
 
-def _chart_x(i: int, n: int) -> float:
-    usable = _CHART_W - _CHART_PAD_L - _CHART_PAD_R
+def _json_compact(obj: Any) -> str:
+    """JS'in `data-points` attribute'ünden okuyacağı JSON -- HTML
+    attribute'u TEK tırnakla sarıldığı için (`data-points='...'`) içindeki
+    olası tek tırnaklar (Türkçe metinde YOK ama savunmacı) HTML entity'e
+    çevrilir; JSON'un KENDİSİ çift tırnak kullandığı için bu ikisi
+    ÇAKIŞMAZ."""
+    return json.dumps(obj, ensure_ascii=False, separators=(",", ":")).replace("'", "&#39;")
+
+
+def _mchart_x(i: int, n: int) -> float:
+    usable = _MCHART_W - _MCHART_PAD_L - _MCHART_PAD_R
     if n <= 1:
-        return _CHART_PAD_L + usable / 2
-    return _CHART_PAD_L + usable * i / (n - 1)
+        return _MCHART_PAD_L + usable / 2
+    return _MCHART_PAD_L + usable * i / (n - 1)
 
 
-def _chart_y(score: Decimal) -> float:
-    usable = _CHART_H - _CHART_PAD_T - _CHART_PAD_B
+def _mchart_y(score: Decimal) -> float:
+    usable = _MCHART_H - _MCHART_PAD_T - _MCHART_PAD_B
     frac = max(Decimal("0"), min(Decimal("10"), score)) / Decimal("10")
-    return _CHART_H - _CHART_PAD_B - float(frac) * usable
+    return _MCHART_H - _MCHART_PAD_B - float(frac) * usable
 
 
-def _skor_gecmisi_chart_svg(row: MarketScanResult) -> str | None:
-    """`row.tarihsel_skorlar` (ESKİDEN YENİYE, bkz. `_tarihsel_skorlar_
-    to_list`) üzerinden 5 SERİlik (4 mercek + Bileşik) bir çizgi grafiği
-    SVG string'i üretir. En az 2 dönem YOKSA (tek nokta bir "trend"
-    göstermez) `None` döner -- şablon bu durumda mevcut tabloyu TEK
-    başına gösterir (grafik BÖLÜMÜ tamamen atlanır, Kural 3: uydurma
-    yapılmaz). Eksik (None) skor noktaları çizgiyi KIRAR (sıfıra
-    düşürerek YANLIŞ bir değer İMA ETMEZ) -- `d_parts`'ın moveto/lineto
-    ayrımı bunu sağlar."""
+def _skor_gecmisi_metric_charts(row: MarketScanResult) -> list[dict[str, Any]] | None:
+    """`row.tarihsel_skorlar` (ESKİDEN YENİYE) üzerinden HER mercek/
+    Bileşik için AYRI bir SVG küçük-grafik + JS'in okuyacağı bir
+    `data-points` JSON'u üretir. En az 2 dönem YOKSA `None` döner --
+    şablon bu durumda mevcut tabloyu TEK başına gösterir (Kural 3:
+    uydurma yapılmaz). Eksik (None) skor noktaları çizgiyi KIRAR
+    (Fintables referansındaki "2022/12 → 2023/12 arası veri yok"
+    boşluğuyla AYNI davranış -- sıfıra düşürüp YANLIŞ bir değer İMA
+    ETMEZ)."""
     if not row.tarihsel_skorlar or len(row.tarihsel_skorlar) < 2:
         return None
 
     donemler = [s.get("donem_label") or s.get("donem") or "—" for s in row.tarihsel_skorlar]
     n = len(donemler)
 
-    parts: list[str] = [
-        f'<svg viewBox="0 0 {_CHART_W} {_CHART_H}" class="skor-chart" role="img" '
-        f'aria-label="4 mercek ve bileşik skorun dönemsel seyri">'
-    ]
-
-    for g in (0, 2, 4, 6, 8, 10):
-        y = _chart_y(Decimal(g))
-        parts.append(
-            f'<line x1="{_CHART_PAD_L}" y1="{y:.1f}" x2="{_CHART_W - _CHART_PAD_R}" y2="{y:.1f}" class="chart-grid"/>'
-        )
-        parts.append(f'<text x="{_CHART_PAD_L - 6}" y="{y + 3:.1f}" class="chart-axis-label" text-anchor="end">{g}</text>')
-
-    for i, label in enumerate(donemler):
-        x = _chart_x(i, n)
-        parts.append(f'<text x="{x:.1f}" y="{_CHART_H - 8}" class="chart-axis-label" text-anchor="middle">{label}</text>')
-
-    # İki geçiş: ÖNCE tüm serilerin çizgi/nokta'ları basılır, SONRA uç
-    # etiketleri (Kural: metin en üstte -- çizgilerin/noktaların ÜZERİNDE
-    # okunabilir kalsın) ÇAKIŞMA GİDERİLEREK tek seferde yerleştirilir --
-    # 5 seri birbirine yakın skorlarla bitirdiğinde (örn. Bileşik/Güvenlik
-    # ikisi de ~5,5-5,9) düz `y - 8` konumlandırması metinleri ÜST ÜSTE
-    # bindirirdi, bu görsel olarak DOĞRULANDI (kart-tasarim-sistemi skill
-    # §Doğrulama döngüsü: PNG/ekran görüntüsü üzerinden bulundu).
-    end_labels: list[dict[str, Any]] = []
-    for field, css_var, name in _CHART_SERIES:
+    charts: list[dict[str, Any]] = []
+    for field, label in _METRIC_CHART_FIELDS:
         coords: list[tuple[float, float] | None] = []
+        points_json: list[dict[str, Any]] = []
         for i, s in enumerate(row.tarihsel_skorlar):
             score = _decimal_or_none(s.get(field))
-            coords.append((_chart_x(i, n), _chart_y(score)) if score is not None else None)
+            x = _mchart_x(i, n)
+            if score is not None:
+                y = _mchart_y(score)
+                coords.append((x, y))
+            else:
+                coords.append(None)
+                y = None
+            points_json.append({
+                "x": round(x, 1),
+                "y": round(y, 1) if y is not None else None,
+                "period": donemler[i],
+                "display": format_number_tr(score, decimals=1) if score is not None else None,
+            })
+
+        parts: list[str] = [
+            f'<svg viewBox="0 0 {_MCHART_W} {_MCHART_H}" class="metric-chart" role="img" '
+            f'aria-label="{label} skorunun dönemsel seyri" data-ticker="{row.ticker}" '
+            f'data-points=\'{_json_compact(points_json)}\'>'
+        ]
+
+        for g in (0, 2, 4, 6, 8, 10):
+            y = _mchart_y(Decimal(g))
+            parts.append(
+                f'<line x1="{_MCHART_PAD_L}" y1="{y:.1f}" x2="{_MCHART_W - _MCHART_PAD_R}" y2="{y:.1f}" class="mchart-grid"/>'
+            )
+            parts.append(f'<text x="{_MCHART_PAD_L - 6}" y="{y + 3:.1f}" class="mchart-axis-label" text-anchor="end">{g}</text>')
+
+        for i, plabel in enumerate(donemler):
+            x = _mchart_x(i, n)
+            parts.append(
+                f'<text x="{x:.1f}" y="{_MCHART_H - _MCHART_PAD_B + 14}" class="mchart-axis-label" '
+                f'text-anchor="end" transform="rotate(-45 {x:.1f} {_MCHART_H - _MCHART_PAD_B + 14})">{plabel}</text>'
+            )
 
         d_parts: list[str] = []
         drawing = False
@@ -383,44 +408,28 @@ def _skor_gecmisi_chart_svg(row: MarketScanResult) -> str | None:
             d_parts.append(f'{"M" if not drawing else "L"}{x:.1f},{y:.1f}')
             drawing = True
         if d_parts:
-            stroke_w = 3 if field == "bilesik_score" else 2
-            parts.append(
-                f'<path d="{" ".join(d_parts)}" class="chart-line" '
-                f'style="stroke:var(--{css_var});stroke-width:{stroke_w}px;" fill="none"/>'
-            )
-
-        last_idx = None
-        for i in range(n - 1, -1, -1):
-            if coords[i] is not None:
-                last_idx = i
-                break
-        for i, pt in enumerate(coords):
+            parts.append(f'<path d="{" ".join(d_parts)}" class="mchart-line" fill="none"/>')
+        for pt in coords:
             if pt is None:
                 continue
             x, y = pt
-            score_display = format_number_tr(_decimal_or_none(row.tarihsel_skorlar[i].get(field)), decimals=1)
-            parts.append(
-                f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3.5" style="fill:var(--{css_var});">'
-                f"<title>{name} · {donemler[i]}: {score_display}</title></circle>"
-            )
-        if last_idx is not None:
-            x, y = coords[last_idx]
-            end_labels.append({"x": x, "y": y - 8, "name": name, "css_var": css_var})
+            parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3.5" class="mchart-dot"/>')
 
-    _MIN_LABEL_GAP = 20.0
-    end_labels.sort(key=lambda lbl: lbl["y"])
-    for i in range(1, len(end_labels)):
-        min_y = end_labels[i - 1]["y"] + _MIN_LABEL_GAP
-        if end_labels[i]["y"] < min_y:
-            end_labels[i]["y"] = min_y
-    for lbl in end_labels:
+        # İmleç/crosshair + tooltip -- JS bunları göster/gizle yapar,
+        # başlangıç konumu/görünürlüğü ÖNEMSİZ (JS ilk mousemove'da günceller).
         parts.append(
-            f'<text x="{lbl["x"] - 8:.1f}" y="{lbl["y"]:.1f}" class="chart-end-label" text-anchor="end" '
-            f'style="fill:var(--{lbl["css_var"]});">{lbl["name"]}</text>'
+            f'<line x1="0" y1="{_MCHART_PAD_T}" x2="0" y2="{_MCHART_H - _MCHART_PAD_B}" class="mchart-crosshair" style="opacity:0;"/>'
         )
+        parts.append('<circle r="5" class="mchart-hover-dot" style="opacity:0;"/>')
+        parts.append(
+            f'<rect x="{_MCHART_PAD_L}" y="{_MCHART_PAD_T}" '
+            f'width="{_MCHART_W - _MCHART_PAD_L - _MCHART_PAD_R}" height="{_MCHART_H - _MCHART_PAD_T - _MCHART_PAD_B}" '
+            f'class="mchart-hit-area" fill="transparent"/>'
+        )
+        parts.append("</svg>")
 
-    parts.append("</svg>")
-    return "".join(parts)
+        charts.append({"label": label, "svg": "".join(parts)})
+    return charts
 
 
 def _fiyat_degisimi_block(row: MarketScanResult) -> dict[str, Any] | None:
@@ -669,7 +678,7 @@ def build_company_detail_data(session: Session, ticker: str, market: str, *, now
         "bilesik": bilesik,
         "mercekler": mercekler,
         "skor_gecmisi": _skor_gecmisi_block(row),
-        "skor_gecmisi_chart_svg": _skor_gecmisi_chart_svg(row),
+        "skor_gecmisi_charts": _skor_gecmisi_metric_charts(row),
         "fiyat_degisimi": _fiyat_degisimi_block(row),
         "carpanlar": _carpanlar_block(row),
         "financials": _build_financials_block(session, row),

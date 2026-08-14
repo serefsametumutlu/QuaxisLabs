@@ -411,3 +411,48 @@ def test_compute_multi_lens_score_ticker_bulunamazsa_hata_firlatir(izole_db, mon
 
     with pytest.raises(pipeline.TickerNotFoundError):
         pipeline.compute_multi_lens_score_for_ticker("YOKYOK", market="BIST")
+
+
+def test_compute_multi_lens_score_donem_henuz_yok_ise_onceki_donemle_otomatik_devam_eder(izole_db, monkeypatch) -> None:
+    """CANLI HATA + DÜZELTME (2026-08-14, BALAT/BALSU): scripts/tarama_toplu.py
+    toplu taramasında `compute_multi_lens_score_for_ticker()` en güncel
+    çeyrek (guess_last_periods) henüz açıklanmamışsa `PeriodNotAvailableError`
+    fırlatıyordu -- ama bu OTONOM bir akış (toplu tarama), kullanıcıya
+    "önceki çeyreği analiz edeyim mi?" SORULAMAZ, script bu hatayı genel
+    `except Exception` içinde yutup kalıcı `scan_status='hata'` yazıyordu.
+    BALAT/BALSU'da 4Ç25 verisi TAM mevcutken sadece 1Ç26 henüz KAP'a
+    düşmediği için kalıcı hataya düşüyorlardı. Bu test, fonksiyonun artık
+    `exc.retry_periods` ile OTOMATİK bir çeyrek geriye düşüp devam ettiğini
+    doğrular (veri gerçekten mevcut, sadece en güncel değil -- Kural 3
+    "eksik veri" ihlali değil)."""
+    guessed_newest = isyatirim.guess_last_periods(count=1)[0]
+    assert guessed_newest == (2026, 3), "Bu test guess_last_periods'in bugunku (2026-08-14) tahminine bagli"
+
+    fixture = _build_fake_raw("TESTAS", {
+        (2025, 12): _donem(1200, 500, 350, 60, 260, 400, 5000, 600, 3000, 900, ltl=500, share_capital=100, ocf=200),
+        (2024, 12): _donem(1000, 400, 260, 55, -80, 300, 4500, 700, 2600, 850, ltl=480, share_capital=100, ocf=150),
+    })
+
+    def fake_fetch(ticker, periods=None, financial_group=None):
+        if periods is None:
+            # 1Ç26 (guess_last_periods) hic YOK -- BALAT canli hatasiyla AYNI durum.
+            raise isyatirim.FinancialDataNotAvailableError(f"{ticker}: henuz yok")
+        achieved = [p for p in periods if any(p in item.values_by_period for item in fixture.items.values())]
+        items = {
+            code: isyatirim.FinancialItem(
+                item_code=code, description_tr=item.description_tr,
+                values_by_period={p: v for p, v in item.values_by_period.items() if p in achieved},
+            )
+            for code, item in fixture.items.items()
+        }
+        return isyatirim.RawFinancials(ticker=ticker, company_code=ticker, financial_group="XI_29", periods=achieved, items=items)
+
+    monkeypatch.setattr(isyatirim, "fetch_financials", fake_fetch)
+    monkeypatch.setattr(isyatirim, "fetch_price_history", _fake_price_history(10))
+
+    sonuc = pipeline.compute_multi_lens_score_for_ticker("TESTAS", market="BIST")
+
+    assert sonuc.ticker == "TESTAS"
+    with repository.get_session() as session:
+        cached = repository.get_financials(session, "TESTAS", n_periods=1)
+    assert max(cached) == (2025, 12)

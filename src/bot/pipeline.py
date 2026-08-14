@@ -95,6 +95,15 @@ _QUARTERLY_FIELDS: tuple[str, ...] = (
     "capex",
     "dividends_paid",
     "net_financing_debt_change",
+    # Kullanıcı isteği (2026-08-14): "N/A olan veri kalmasın" -- bkz.
+    # isyatirim.STANDARD_ITEM_MAP_XI_29 ("3DC"/"4BB") ve isyatirim.sga_expense()
+    # ("3DA"+"3DB") ilgili alan yorumları. calculator.py'nin sga_to_gross_
+    # profit_pct/rd_to_gross_profit_pct/interest_expense_to_operating_
+    # profit_pct formülleri (PİYASA-BAĞIMSIZ) NASDAQ'ta ZATEN çalışıyordu,
+    # BİST girdisi eksikti.
+    "sga_expense",
+    "research_development_expense",
+    "interest_expense",
 )
 _STOCK_FIELDS: tuple[str, ...] = (
     "total_assets",
@@ -346,6 +355,12 @@ def _standardize_to_records(raw: isyatirim.RawFinancials) -> list[repository.Fin
                 # gelirini de dahil eder.
                 value = isyatirim.quarterly_total_revenue(raw, period)
                 cum_value = isyatirim.total_revenue(raw, period)
+            elif field == "sga_expense":
+                # bkz. isyatirim.sga_expense() docstring'i: "3DA"+"3DB" iki
+                # ayrı alt kalemin toplamı, tek bir itemCode karşılığı yok --
+                # revenue'nun "3C"+"3CAC" deseniyle AYNI teknik.
+                value = isyatirim.quarterly_sga_expense(raw, period)
+                cum_value = isyatirim.sga_expense(raw, period)
             else:
                 value = isyatirim.quarterly_standardized_value(raw, field, period)
                 cum_value = isyatirim.standardized_value(raw, field, period)
@@ -1935,7 +1950,27 @@ def compute_multi_lens_score_for_ticker(ticker: str, market: str = "BIST") -> Mu
     `UnsupportedCompanyTypeError` AÇIKÇA fırlatılır, sessizce yanlış bir
     şablona DÜŞÜLMEZ (Kural 3)."""
     ticker = ticker.strip().upper()
-    _ensure_financials_cached(ticker, market, periods=None)
+    try:
+        _ensure_financials_cached(ticker, market, periods=None)
+    except PeriodNotAvailableError as exc:
+        # Bu fonksiyonu telegram_bot.py HENUZ cagirmiyor (yukaridaki
+        # docstring), yani cagiran taraf hep OTONOM (v2 skorlama/toplu
+        # tarama) -- kullaniciya "onceki ceyregi analiz edeyim mi?" SORMAK
+        # MUMKUN DEGIL. exc.retry_periods (PeriodNotAvailableError'in zaten
+        # ic bir onceki ceyrege kaydirilmis hali) DOLUYSA, bu geçerli
+        # (eksik degil, sadece guncel olmayan) veriyle otomatik devam
+        # etmek Kural 3'u ihlal etmez -- veri gercekten mevcut, sadece en
+        # yeni ceyrek degil. CANLI ORNEK (2026-08-14): BALAT/BALSU gibi
+        # kucuk sirketler 1Ç26'yi henuz KAP'a bildirmemisken 4Ç25 verisi
+        # tam olarak mevcuttu, ama scripts/tarama_toplu.py bu hatayi genel
+        # `except Exception` icinde yutup kalici "hata" damgasi vuruyordu.
+        if not exc.retry_periods:
+            raise
+        logger.info(
+            "%s: %s donemi henuz yok, en son mevcut (%s) ile otomatik devam ediliyor (otonom akis).",
+            ticker, exc.requested_label, exc.available_label,
+        )
+        _ensure_financials_cached(ticker, market, periods=exc.retry_periods)
 
     with repository.get_session() as session:
         company_row = session.get(models.Company, ticker)

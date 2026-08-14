@@ -141,6 +141,28 @@ def test_standardize_to_records_trade_receivables_uretmez() -> None:
     assert not any(code == "trade_receivables" for (_y, _p, code, _n, _v) in records)
 
 
+def test_standardize_to_records_sga_arge_faiz_gideri_pozitife_cevirir() -> None:
+    """Kullanıcı isteği (2026-08-14): "N/A olan veri kalmasın" -- BİST
+    XI_29'da SG&A ("3DA"+"3DB")/Ar-Ge ("3DC")/Faiz Gideri ("4BB") artık
+    çekiliyor, ham veride NEGATİF ("gider (-)") gelip POZİTİFE çevrilmeli
+    (capex/dividends_paid İLE AYNI teknik)."""
+    period = (2026, 3)
+    base = _fake_raw_saglikli()
+    items = dict(base.items)
+    items["3DA"] = isyatirim.FinancialItem("3DA", "Pazarlama, Satis ve Dagitim Giderleri (-)", {period: Decimal("-300")})
+    items["3DB"] = isyatirim.FinancialItem("3DB", "Genel Yonetim Giderleri (-)", {period: Decimal("-100")})
+    items["3DC"] = isyatirim.FinancialItem("3DC", "Arastirma ve Gelistirme Giderleri (-)", {period: Decimal("-50")})
+    items["4BB"] = isyatirim.FinancialItem("4BB", "Finansman Giderleri", {period: Decimal("-70")})
+    raw = isyatirim.RawFinancials(ticker="TESTAS", company_code="TESTAS", financial_group="XI_29", periods=base.periods, items=items)
+
+    records = pipeline._standardize_to_records(raw)
+    by_key = {(y, p, code): value for (y, p, code, _name, value) in records}
+
+    assert by_key[(2026, 3, "sga_expense")] == Decimal("400")
+    assert by_key[(2026, 3, "research_development_expense")] == Decimal("50")
+    assert by_key[(2026, 3, "interest_expense")] == Decimal("70")
+
+
 # --- _standardize_to_records_us_gaap (Faz 9 -- NASDAQ) -----------------------------------------------------
 
 

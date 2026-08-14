@@ -287,6 +287,21 @@ STANDARD_ITEM_MAP_XI_29: dict[str, str] = {
     # akis kalemi YOK, sadece ozkaynak degisim tablosu kalemleri var) --
     # bu GERCEK bir bloker olarak KALIR (dashboard'da ayrica NOT dusulur).
     "net_financing_debt_change": "4CBA",
+    # Kullanıcı isteği (2026-08-14): "N/A olan veri kalmasın" -- BİST XI_29'da
+    # SG&A/Ar-Ge/Faiz Gideri hiç çekilmiyordu, calculator.py'nin PİYASA-
+    # BAĞIMSIZ sga_to_gross_profit_pct/rd_to_gross_profit_pct/interest_
+    # expense_to_operating_profit_pct formülleri (NASDAQ'ta sec_edgar.py
+    # us-gaap:...Expense tag'leriyle ZATEN çalışıyor) BİST'te girdisiz
+    # kalıyordu. CANLI doğrulandı (data/exploration/thyao_items_readable.txt
+    # satır 84/116): "3DC" = "Araştırma ve Geliştirme Giderleri (-)" (THYAO'da
+    # v1=0, havacılıkta beklenen -- sanayi şirketlerinde dolu gelir),
+    # "4BB" = "Finansman Giderleri" (nakit akış bölümü, THYAO v1=-14.407mn --
+    # gelir tablosundaki "3HC"/Esas Faaliyet Dışı Finansal Giderler ile AYNI
+    # büyüklük, çapraz doğrulandı). İkisi de capex/dividends_paid İLE AYNI
+    # teknik gerektirir (ham veri "gider (-)" işaretiyle NEGATİF gelir,
+    # bkz. _NEGATE_TO_POSITIVE_FIELDS).
+    "research_development_expense": "3DC",
+    "interest_expense": "4BB",
 }
 
 # Faz "Veri Tamlığı" V-10/V-11/V-12: Is Yatirim'in nakit akis kalemleri
@@ -298,7 +313,20 @@ STANDARD_ITEM_MAP_XI_29: dict[str, str] = {
 # (capex_to_net_income_pct, payout_ratio_pct) TUTARLI calismasi icin BURADA
 # POZITIFE cevrilir -- UFRS semasindaki "interest_expense" negatiflemesiyle
 # (standardized_value_ufrs) AYNI teknik, TERS yonde.
-_NEGATE_TO_POSITIVE_FIELDS: frozenset[str] = frozenset({"capex", "dividends_paid"})
+# Kullanıcı isteği (2026-08-14): "SG&A/Ar-Ge/Faiz Gideri" kalemleri
+# NASDAQ'ta zaten mevcuttu (sec_edgar.py, us-gaap:...Expense tag'leri
+# POZİTİF büyüklük), BİST XI_29'da hiç çekilmiyordu -- calculator.py'nin
+# sga_to_gross_profit_pct/rd_to_gross_profit_pct/interest_expense_to_
+# operating_profit_pct formülleri (PİYASA-BAĞIMSIZ, `_margin_pct`) zaten
+# vardı, sadece BİST girdisi eksikti (bkz. o formüllerin üst notu: "BİST
+# XI_29'da bu ham alanlar hiç yok"). "research_development_expense"/
+# "interest_expense" de capex/dividends_paid İLE AYNI teknik gerektirir
+# (ham veri "gider (-)" işaretiyle NEGATİF geliyor, CANLI doğrulandı --
+# data/exploration/thyao_items_readable.txt satır 84/116: "3DC" v1=0,
+# "4BB" v1=-14.407.000.000).
+_NEGATE_TO_POSITIVE_FIELDS: frozenset[str] = frozenset(
+    {"capex", "dividends_paid", "research_development_expense", "interest_expense"}
+)
 
 # Gelir tablosu / nakit akis alanlari kumulatiftir (yil icinde YTD toplanir).
 # Bilanco alanlari (total_assets, equity, cash, *_liabilities, *_financial_debt)
@@ -315,6 +343,7 @@ CUMULATIVE_FIELDS: frozenset[str] = frozenset(
         "operating_cash_flow",  # Nakit akis tablosu kalemi de KUMULATIF (YTD) basilir, digerleriyle AYNI kural
         "pretax_profit", "tax_provision",  # V-07 -- gelir tablosu kalemleri, digerleriyle AYNI KUMULATIF ilke
         "capex", "dividends_paid", "net_financing_debt_change",  # V-10/V-11/V-12 -- nakit akis kalemleri, ayni KUMULATIF ilke
+        "research_development_expense", "interest_expense", "sga_expense",  # 2026-08-14 -- gelir tablosu/nakit akis kalemleri, AYNI KUMULATIF ilke
     }
 )
 
@@ -1034,6 +1063,43 @@ def quarterly_total_revenue(raw: RawFinancials, period: Period) -> Decimal | Non
     if core_q is None and finance_q is None:
         return None
     return (core_q or Decimal(0)) + (finance_q or Decimal(0))
+
+
+_SGA_COMPONENT_ITEM_CODES: tuple[str, str] = ("3DA", "3DB")  # Pazarlama/Satış/Dağıtım + Genel Yönetim
+
+
+def sga_expense(raw: RawFinancials, period: Period) -> Decimal | None:
+    """Satış, Genel ve İdari Giderler (KUMULATIF, POZİTİF büyüklük) =
+    "3DA" (Pazarlama, Satış ve Dağıtım Giderleri) + "3DB" (Genel Yönetim
+    Giderleri) -- NASDAQ'taki tek `us-gaap:SellingGeneralAndAdministrative
+    Expense` tag'inin (sec_edgar.py) Selling+G&A'yı BİRLİKTE raporladığı
+    standart kapsamla AYNI (bkz. total_revenue() docstring'i -- AYNI "iki
+    alt kalemi topla" deseni, farklı satır çifti). CANLI doğrulandı
+    (data/exploration/thyao_items_readable.txt satır 82-83): ikisi de
+    "gider (-)" işaretiyle NEGATİF gelir, burada POZİTİFE çevrilir (capex/
+    dividends_paid İLE AYNI teknik -- bkz. _NEGATE_TO_POSITIVE_FIELDS)."""
+    _require_xi_29(raw)
+    marketing_code, admin_code = _SGA_COMPONENT_ITEM_CODES
+    marketing = raw.value(marketing_code, period)
+    admin = raw.value(admin_code, period)
+    if marketing is None and admin is None:
+        return None
+    return -((marketing or Decimal(0)) + (admin or Decimal(0)))
+
+
+def quarterly_sga_expense(raw: RawFinancials, period: Period) -> Decimal | None:
+    """sga_expense()'in TEK ÇEYREKLİK hali -- bkz. sga_expense() docstring'i
+    ve quarterly_total_revenue() (AYNI "iki alt kalemi ayrı ayrı çeyreklendir,
+    sonra topla" deseni)."""
+    _require_xi_29(raw)
+    marketing_code, admin_code = _SGA_COMPONENT_ITEM_CODES
+    marketing_item = raw.items.get(marketing_code)
+    admin_item = raw.items.get(admin_code)
+    marketing_q = quarterly_value_from_cumulative(marketing_item.values_by_period, period) if marketing_item else None
+    admin_q = quarterly_value_from_cumulative(admin_item.values_by_period, period) if admin_item else None
+    if marketing_q is None and admin_q is None:
+        return None
+    return -((marketing_q or Decimal(0)) + (admin_q or Decimal(0)))
 
 
 def total_debt(raw: RawFinancials, period: Period) -> Decimal | None:

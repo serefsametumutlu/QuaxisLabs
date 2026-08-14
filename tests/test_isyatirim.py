@@ -42,6 +42,10 @@ from src.fetchers.isyatirim import (
     total_debt,
     total_revenue,
     quarterly_total_revenue,
+    sga_expense,
+    quarterly_sga_expense,
+    standardized_value,
+    quarterly_standardized_value,
     RawFinancials,
     STANDARD_ITEM_MAP_XI_29,
 )
@@ -384,6 +388,69 @@ def test_total_revenue_hicbiri_yoksa_none_doner() -> None:
     raw = RawFinancials(ticker="TEST", company_code="TEST", financial_group="XI_29", periods=[period], items={})
     assert total_revenue(raw, period) is None
     assert quarterly_total_revenue(raw, period) is None
+
+
+# --- Kullanıcı isteği (2026-08-14): "N/A olan veri kalmasın" -- BİST XI_29'da
+# hiç çekilmeyen SG&A/Ar-Ge/Faiz Gideri (bkz. STANDARD_ITEM_MAP_XI_29
+# "3DC"/"4BB" ve sga_expense() "3DA"+"3DB" yorumları) ---------------------
+
+
+def test_research_development_expense_negatiflenir() -> None:
+    """Ham veride Ar-Ge Gideri "gider (-)" isaretiyle NEGATIF gelir (THYAO
+    canli yaniti: v1=0, sanayi sirketlerinde dolu -- CANLI dogrulama
+    referansi data/exploration/thyao_items_readable.txt satir 84) --
+    standardized_value POZITIFE cevirmeli (capex/dividends_paid ILE AYNI teknik)."""
+    period = (2026, 6)
+    item_code = STANDARD_ITEM_MAP_XI_29["research_development_expense"]
+    raw = RawFinancials(
+        ticker="TEST", company_code="TEST", financial_group="XI_29", periods=[period],
+        items={item_code: FinancialItem(item_code, "Arastirma ve Gelistirme Giderleri (-)", {period: Decimal("-500000")})},
+    )
+    assert standardized_value(raw, "research_development_expense", period) == Decimal("500000")
+
+
+def test_interest_expense_xi29_negatiflenir() -> None:
+    """Ham veride Finansman Giderleri (4BB) NEGATIF gelir (THYAO canli yaniti:
+    v1=-14.407.000.000, bkz. data/exploration/thyao_items_readable.txt satir
+    116) -- standardized_value POZITIFE cevirmeli."""
+    period = (2026, 6)
+    item_code = STANDARD_ITEM_MAP_XI_29["interest_expense"]
+    raw = RawFinancials(
+        ticker="TEST", company_code="TEST", financial_group="XI_29", periods=[period],
+        items={item_code: FinancialItem(item_code, "Finansman Giderleri", {period: Decimal("-14407000000")})},
+    )
+    assert standardized_value(raw, "interest_expense", period) == Decimal("14407000000")
+
+
+def test_sga_expense_iki_alt_kalemi_toplar_ve_pozitife_cevirir() -> None:
+    """sga_expense() = "3DA" (Pazarlama/Satis/Dagitim) + "3DB" (Genel
+    Yonetim) -- total_revenue()'nun "3C"+"3CAC" deseniyle AYNI teknik, ama
+    her iki alt kalem de NEGATIF gelir (gider (-) isareti), toplam POZITIFE
+    cevrilir."""
+    h1, q1 = (2026, 6), (2026, 3)
+    items = {
+        "3DA": FinancialItem("3DA", "Pazarlama, Satis ve Dagitim Giderleri (-)", {h1: Decimal("-21121000000"), q1: Decimal("-10000000000")}),
+        "3DB": FinancialItem("3DB", "Genel Yonetim Giderleri (-)", {h1: Decimal("-7544000000"), q1: Decimal("-3500000000")}),
+    }
+    raw = RawFinancials(ticker="THYAO", company_code="THYAO", financial_group="XI_29", periods=[h1, q1], items=items)
+
+    assert sga_expense(raw, h1) == Decimal("28665000000")
+    assert quarterly_sga_expense(raw, h1) == Decimal("28665000000") - Decimal("13500000000")
+
+
+def test_sga_expense_sadece_bir_alt_kalem_varsa_onunla_calisir() -> None:
+    period = (2026, 3)
+    items = {"3DB": FinancialItem("3DB", "Genel Yonetim Giderleri (-)", {period: Decimal("-1000")})}
+    raw = RawFinancials(ticker="TEST", company_code="TEST", financial_group="XI_29", periods=[period], items=items)
+    assert sga_expense(raw, period) == Decimal("1000")
+    assert quarterly_sga_expense(raw, period) == Decimal("1000")
+
+
+def test_sga_expense_hicbiri_yoksa_none_doner() -> None:
+    period = (2026, 3)
+    raw = RawFinancials(ticker="TEST", company_code="TEST", financial_group="XI_29", periods=[period], items={})
+    assert sga_expense(raw, period) is None
+    assert quarterly_sga_expense(raw, period) is None
 
 
 # --- STANDARD_ITEM_MAP_UFRS (banka): GARAN + AKBNK canli kesif yanitlariyla

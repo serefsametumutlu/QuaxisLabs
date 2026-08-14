@@ -110,7 +110,7 @@ kodu.
 | # | Kalem | Mercek(ler) | Piyasa | `tur` | Maliyet | Veri kaynağı | Gerekçe |
 |---|---|---|---|---|---|---|---|
 | V-14 | SG&A / Brüt Kâr, Ar-Ge / Brüt Kâr | Kalite | BİST | ~~`yapisal`~~ **BİTTİ (XI_29 sanayi), KALICI BOŞLUK (banka/sigorta/finansman)** | ~~YÜKSEK~~ → BİTTİ | `isyatirim.py` XI_29 haritası: `sga_expense`("3DA"+"3DB"), `research_development_expense`("3DC") — 2026-08-14 CANLI eklendi (THYAO doğrulandı) | 02/FORMÜL-02,03 — UFRS(banka)/UFRS_K(sigorta)/FINANSMAN şemalarında "brüt kâr"/"SG&A" KAVRAMSAL OLARAK YOK (banka gelir tablosu yapısı temelden farklı) — bu **kapsam-dışı KALICI boşluk**, "araştırılmadı" değil "uygulanamaz" |
-| V-15 | Faiz Gideri / Faaliyet Kârı, Faiz Karşılama Oranı (`interest_expense` XI_29) | Kalite, Güvenlik | BİST | ~~`yapisal`~~ **BİTTİ (XI_29 sanayi)**, banka zaten VARDI (UFRS "3B"), sigorta/finansman AÇIK | ~~YÜKSEK~~ → BİTTİ (sanayi) | `isyatirim.py` XI_29: `interest_expense`="4BB" ("Finansman Giderleri") — 2026-08-14 CANLI eklendi, `3HC` (Esas Faaliyet Dışı Finansal Giderler) ile çapraz doğrulandı | 01/FORMÜL-18; 02/FORMÜL-05; 03/Tablo 2.4 — **UFRS_K (sigorta) VE FINANSMAN (finansman şirketleri) şemalarında `interest_expense` HÂLÂ eşlenmedi** — sigorta için kavramsal karşılık belirsiz (teknik gelir/gider ayrı bir yapı), araştırma gerekir |
+| V-15 | Faiz Gideri / Faaliyet Kârı, Faiz Karşılama Oranı (`interest_expense` XI_29) | Kalite, Güvenlik | BİST | ~~`yapisal`~~ **BİTTİ (XI_29 sanayi)**, banka zaten VARDI (UFRS "3B"), **sigorta ARAŞTIRILDI/KALICI BOŞLUK, finansman ARAŞTIRILDI/veri var-skorlanmadı (bkz. EK bölümü, 2026-08-14 ikinci tur)** | ~~YÜKSEK~~ → BİTTİ (sanayi) | `isyatirim.py` XI_29: `interest_expense`="4BB" ("Finansman Giderleri") — 2026-08-14 CANLI eklendi, `3HC` (Esas Faaliyet Dışı Finansal Giderler) ile çapraz doğrulandı | 01/FORMÜL-18; 02/FORMÜL-05; 03/Tablo 2.4 — **UFRS_K (sigorta): ANSGR'nin TAM gelir tablosu (409 kalem) tarandı, borçlanma/finansman maliyeti niteliğinde AYRI bir kalem YOK (en yakın "3MA — Yatırım Yönetim Giderleri, Faiz Dahil" yatırım portföyü yönetim gideridir, borç faizi DEĞİL) — KAVRAMSAL OLARAK YOK, kalıcı boşluk. FINANSMAN (XI_29K): "A3AE — Finansman Giderleri" (KTLEV ile CANLI doğrulandı, gerçek negatif değer) GENUINE bir analog, ama skora bağlamak `hesapla_guvenlik_mercegi_finans`'ın (banka/sigorta/finansman ORTAK, tek-bileşenli %100 Özkaynak/Aktif) yeni bir ağırlık payı İCAT ETMESİNİ gerektirirdi — YAPILMADI, bilgi amaçlı bırakıldı (V-12/V-13 ile AYNI karar deseni)** |
 | V-16 | Hazine Hissesi (`treasury_stock`) | Kalite | BİST | `yapisal` | YÜKSEK | Bilanço alt kalemi olarak nadiren AYRI raporlanır — **2026-08-14 turunda ARAŞTIRILDI, BULUNAMADI, KALICI BOŞLUK olarak kapatıldı** (bkz. EK bölümündeki V-16 araştırma notu) | 02/FORMÜL-17,21 |
 | V-17 | Greenblatt Kazanç Getirisi (EBIT/FD) + Carlisle Acquirer's Multiple | Değer | NASDAQ | `yapisal` | YÜKSEK | `fundamental_screens.py` HÂLÂ SADECE `not is_us and financial_group=='XI_29'` koşuluyla çağrılıyor (`pipeline.py` satır 1809, 2026-08-14'te DEĞİŞMEDİ, canlı doğrulandı) | Greenblatt, Sihirli Formül — **HÂLÂ AÇIK, en yüksek etkili tekil NASDAQ boşluğu (Değer merceğinin %10 ağırlıklı bileşeni NASDAQ'ta hiç hesaplanmıyor)** |
 | V-18 | Greenblatt ROC (EBIT/Yatırılan Sermaye) | Kalite | NASDAQ | `yapisal` | YÜKSEK | Aynı BİST-only kısıt (V-17 ile AYNI kök neden) — **HÂLÂ AÇIK** | Greenblatt, Sihirli Formül |
@@ -222,6 +222,52 @@ bir alt kümesidir; KAP dipnot/özkaynak değişim tablosu düzeyinde teorik
 olarak bulunabilir ama bu Faaliyet Raporu/dipnot okuma sınıfına girer,
 bkz. aşağıdaki ayrı bölüm — YÜKSEK maliyet, bu turun kapsamı dışı).
 
+### V-15 (2026-08-14 ikinci tur) — Sigorta/Finansman `interest_expense` araştırması
+
+**Sigorta (UFRS_K) — KALICI BOŞLUK:** ANSGR'nin CANLI çekilen TAM gelir
+tablosu (`data/exploration/ANSGR_UFRS_K_get_20260730_195513.json`, 409
+kalem, `3*` önekli TÜM gelir tablosu satırları tek tek okundu) tarandı.
+Sigorta şirketlerinin (hayat-dışı) gelir tablosu "Teknik Bölüm" (prim/
+hasar) ve "Yatırım Gelirleri/Giderleri" olmak üzere İKİ ayrı bölümden
+oluşur — borçlanma/finansman maliyeti niteliğinde AYRI bir "Finansman
+Giderleri" satırı YOK. En yakın görünen kalem `3MA` ("Yatırım Yönetim
+Giderleri – Faiz Dahil (-)", ANSGR'de -43,3mn TL) yatırım PORTFÖYÜNÜN
+yönetim gideridir (bir varlık yönetim maliyeti), şirketin KENDİ borcunun
+faizi DEĞİLDİR — kavramsal olarak `interest_expense`'ten TAMAMEN FARKLI
+(Kural 3/8: emin olunmayan bir eşleme UYDURULMADI). Sigorta şirketlerinin
+sermaye yapısı esasen teknik karşılıklara (poliçe sahiplerine olan
+yükümlülük, "float") dayanır, sanayi/bankadaki gibi maddi bir finansal
+borç yükü GENELDE YOKTUR — "Faiz Karşılama Oranı" kavramı burada
+YAPISAL OLARAK uygulanamaz (banka için V-15'in EK bölümünde daha önce
+belirlenen "kavram farklı anlam taşır" ilkesiyle AYNI ruhta, ama burada
+daha da kesin: karşılık gelen bir kalem BASİTÇE YOK). **Kod DEĞİŞTİRİLMEDİ,
+kalıcı boşluk olarak kapatıldı.**
+
+**Finansman (XI_29K/FINANSMAN) — veri VAR, skora bağlanmadı (bilinçli karar):**
+KTLEV'in CANLI verisiyle (`data/exploration/KTLEV_XI_29K_raw_2026Q1.json`)
+doğrulandı: `A3AE` = "IV. Finansman Giderleri (-)" (gerçek, sıfır-olmayan
+negatif değer: -22.177.137 TL) VE `A3AH` = "VII. Net Faaliyet K/Z"
+(4.763.274.586 TL) — bu ikisi GENUINE bir analog çift oluşturur (finansman
+şirketleri işlerini borçlanarak fonluyor, "Finansman Giderleri" tam
+anlamıyla sanayinin `interest_expense`'iyle AYNI kavram — bankadaki
+"faiz ana iş kolu" istisnasının AKSİNE, finansman şirketi için borçlanma
+maliyeti GERÇEK bir kaldıraç yüküdür). `isyatirim.py`'nin
+`STANDARD_ITEM_MAP_FINANSMAN` sözlüğüne bu alan (`financing_expenses`
+adıyla) zaten EKLİ ve `calculator.py`'nin Derin Kart trend bulgularında
+("Finansman Giderleri" YoY satırı) kullanılıyor. **Bilinçli olarak
+SKORA BAĞLANMADI**: `pipeline.py::hesapla_guvenlik_mercegi_finans`
+banka/sigorta/finansman şablonlarının ÜÇÜNÜN de PAYLAŞTIĞI TEK bir
+fonksiyon (şu an %100 ağırlıklı tek bileşen: Özkaynak/Aktif Oranı) —
+buraya bir "Faiz Karşılama"/"Finansman Gideri Yükü" bileşeni eklemek YENİ
+bir ağırlık payı İCAT ETMEYİ gerektirirdi (ör. %70/%30 gibi) ve bu paylaşımlı
+fonksiyon üzerinden banka/sigortaya da (kavramsal olarak uygulanamadıkları
+halde) sızma riski taşırdı — Global Direktif'in "spec'te olmayan
+eşik/ağırlık uydurma" yasağını İHLAL ederdi. **Karar: V-12/V-13 ile AYNI
+desen — veri zaten kısmen mevcut (informational, Derin Kart trend
+satırında görünür), skorlanan bir bileşene bağlanması AYRI bir
+`spec_yeni_bilesenler_agirliklandirma.md`-tarzı ağırlık kararı turu
+gerektirir, bu turun kapsamı dışında bırakıldı.** Kod DEĞİŞTİRİLMEDİ.
+
 ### İlk Dalga öncelik sırası (GÜNCEL, 2026-08-14)
 
 1. **V-32 — dashboard.py statik uyarı metni düzeltmesi.** En ucuz, en
@@ -265,6 +311,12 @@ bkz. aşağıdaki ayrı bölüm — YÜKSEK maliyet, bu turun kapsamı dışı).
   bilanço alt kalemi olarak YOK; en yakın görünen `2OC` kavramsal olarak
   FARKLI (karşılıklı iştirak eleme, treasury stock DEĞİL) — 2026-08-14
   ikinci turunda araştırıldı, kod DEĞİŞTİRİLMEDİ, kalıcı boşluk.
+- **Sigorta (UFRS_K) `interest_expense`/Faiz Karşılama Oranı (V-15)** —
+  ANSGR'nin TAM gelir tablosu (409 kalem) tarandı, borçlanma maliyeti
+  niteliğinde AYRI bir kalem YOK (en yakın `3MA` yatırım portföyü yönetim
+  gideridir, borç faizi DEĞİL) — 2026-08-14 ikinci turunda araştırıldı,
+  kod DEĞİŞTİRİLMEDİ, kalıcı boşluk (Finansman/XI_29K için durum FARKLI —
+  veri VAR ama bilinçli olarak skora bağlanmadı, bkz. EK bölümü).
 - **10+ yıllık trend serisi, WACC/Beta, kredi notu, sahiplik yapısı** —
   önceki turlarda zaten "yapısal/pahalı" olarak sınıflandırılmıştı,
   2026-08-14'te DEĞİŞMEDİ, aynı sınıflandırma GEÇERLİ.

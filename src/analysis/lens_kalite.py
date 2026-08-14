@@ -18,7 +18,17 @@ Ağırlıklar (spec §Eşikler ve ağırlıklar, `sanayi`/`abd_sanayi`, toplam %
     Nakit Kâr Kalitesi (OCF/NetKâr)  %9  -- Piotroski kriter #4'ün SÜREKLİ versiyonu (eski %10, -1)
     SG&A/Brüt Kâr (YENİ)             %5  -- 02/FORMÜL-02, NASDAQ'ta VE BİST XI_29 (sanayi/ticaret) şirketlerinde dolu (2026-08-14'ten itibaren)
     Ar-Ge/Brüt Kâr (YENİ)            %3  -- 02/FORMÜL-03, NASDAQ'ta VE BİST XI_29'da dolu (GERİLİM notu, bkz. _skor_rd_orani)
-    Faiz Gideri/Faaliyet Kârı (YENİ) %7  -- 01/FORMÜL-18, 02/FORMÜL-05, BAYRAK-06, NASDAQ'ta VE BİST XI_29'da dolu
+    Finansman Gideri/Faaliyet Kârı (YENİ) %7  -- 01/FORMÜL-18, 02/FORMÜL-05, BAYRAK-06, NASDAQ'ta VE BİST XI_29'da dolu
+
+2026-08-14 (üçüncü tur, isim düzeltmesi): bu bileşen ÖNCEDEN "Faiz
+Gideri/Faaliyet Kârı" olarak adlandırılmıştı -- CANLI doğrulama (ORGE
+2026 Q2) İş Yatırım'ın "4BB" itemCode'unun ("Finansman Giderleri") dar
+"faiz+komisyon" DEĞİL, kur farkı zararı dahil TOPLAM finansman gideri
+olduğunu ortaya çıkardı. Formül/eşik/ağırlık DEĞİŞMEDİ -- SADECE
+bileşen adı ve açıklama metni dürüstçe güncellendi (bkz. GÜVENLİK
+merceğindeki AYNI turdaki eşdeğer düzeltme, `lens_guvenlik.py`
+`_skor_faiz_karsilama` docstring'i; ayrıntı: docs/spec/spec_veri_
+tamlik_yol_haritasi.md üçüncü tur bölümü).
 
 Banka/sigorta/finansman şablonlarında (spec §Sektör ayarlaması madde 1)
 KALİTE merceği SADECE ROE+ROA'dan oluşur; ağırlıklar (%20/%5 nominal
@@ -34,7 +44,7 @@ TAŞIMAZ -- SADECE bilgi amaçlı hesaplanabilir bir formül olarak belgelenir,
 bu turda skorlanan bileşen KÜMESİNE EKLENMEDİ (gelecekte veri/kalibrasyon
 netleşirse eklenebilir).
 
-SG&A/Ar-Ge/Faiz Gideri (docs/spec/spec_yeni_bilesenler_agirliklandirma.md
+SG&A/Ar-Ge/Finansman Gideri (docs/spec/spec_yeni_bilesenler_agirliklandirma.md
 §1): BİST XI_29 (sanayi/ticaret) haritasına bu üç ham alan 2026-08-14'te
 eklendi (`isyatirim.py::STANDARD_ITEM_MAP_XI_29`), bu yüzden XI_29
 şirketlerinde artık NASDAQ ile AYNI 10-bileşenli KALİTE kartı görülür.
@@ -229,14 +239,26 @@ def _skor_rd_orani(oran_pct: Decimal | None) -> tuple[Decimal | None, str]:
 
 
 def _skor_faiz_gideri_orani(oran_pct: Decimal | None) -> tuple[Decimal | None, str]:
-    """01/FORMÜL-18, 02/FORMÜL-05, BAYRAK-06 -- Faiz Gideri/Faaliyet Kârı,
-    DÜŞÜK=iyi (ters yön). Eşik (spec_mercek_kalite.md satır 142, spec_yeni_
-    bilesenler_agirliklandirma.md §1): <%15 güçlü (Buffett'ın tüketici
-    ürünleri sektörü tipik üst sınırı, 9-10), %15-40 orta (kademeli 8->3),
-    >%40 zayıf (0-3). Spec bu bölgede sabit bir tavan sayısı VERMEDİ
-    ("uydurma tavan" riskinden kaçınmak için) -- bunun yerine asimptotik
-    olarak 0'a yaklaşan bir kuyruk kullanılır (`_asymptote_to`, mevcut
-    FAVÖK marjı motorunun "eşik ötesi" tekniğiyle AYNI, sadece yön TERS).
+    """01/FORMÜL-18, 02/FORMÜL-05, BAYRAK-06 -- Finansman Gideri/Faaliyet
+    Kârı, DÜŞÜK=iyi (ters yön). Eşik (spec_mercek_kalite.md satır 142,
+    spec_yeni_bilesenler_agirliklandirma.md §1): <%15 güçlü (Buffett'ın
+    tüketici ürünleri sektörü tipik üst sınırı, 9-10), %15-40 orta
+    (kademeli 8->3), >%40 zayıf (0-3). Spec bu bölgede sabit bir tavan
+    sayısı VERMEDİ ("uydurma tavan" riskinden kaçınmak için) -- bunun
+    yerine asimptotik olarak 0'a yaklaşan bir kuyruk kullanılır
+    (`_asymptote_to`, mevcut FAVÖK marjı motorunun "eşik ötesi"
+    tekniğiyle AYNI, sadece yön TERS).
+
+    İSİM NOTU (2026-08-14, üçüncü tur, CANLI doğrulama -- ORGE 2026 Q2):
+    girdi BİST'te İş Yatırım'ın "4BB" ("Finansman Giderleri") kaleminden
+    gelir -- kur farkı zararı + diğer finansman kalemleri DAHİL TOPLAM
+    finansman gideridir, dar "faiz+komisyon" kalemi DEĞİLDİR (ORGE'de
+    gerçek dar faiz gideri 10.948.770 TL iken "4BB" 873.786.105 TL --
+    ~80 kat fazla). Formül/eşik/ağırlık DEĞİŞMEDİ -- SADECE isim/açıklama
+    dürüstleştirildi (bkz. GÜVENLİK merceğindeki AYNI turdaki eşdeğer
+    düzeltme, `lens_guvenlik.py::_skor_faiz_karsilama`). NASDAQ'ta
+    (`sec_edgar.py`, `us-gaap:InterestExpense`) bu sorun YOK, girdi dar/
+    net faiz giderdir.
 
     K3-tipi net faiz geliri riski (spec §1 Kenar Durumlar): bazı NASDAQ
     şirketlerinde `interest_expense` NET (gider-gelir birleşik) raporlanmış
@@ -244,7 +266,7 @@ def _skor_faiz_gideri_orani(oran_pct: Decimal | None) -> tuple[Decimal | None, s
     kırpılır) kart bunu AÇIKÇA bir uyarı notuyla işaretler."""
     if oran_pct is None:
         return None, (
-            "Faiz Gideri/Faaliyet Kârı oranı hesaplanamadı (bu veri sadece NASDAQ şirketlerinde mevcut, BİST "
+            "Finansman Gideri/Faaliyet Kârı oranı hesaplanamadı (bu veri sadece NASDAQ şirketlerinde mevcut, BİST "
             "sanayi haritasında henüz çekilmiyor -- araştırma gerekiyor), bileşen atlandı."
         )
     esik_guclu, esik_orta = Decimal(15), Decimal(40)
@@ -256,8 +278,9 @@ def _skor_faiz_gideri_orani(oran_pct: Decimal | None) -> tuple[Decimal | None, s
         yari_omur = (esik_orta - esik_guclu) / 2
         skor = _asymptote_to(oran_pct - esik_orta, yari_omur, Decimal(3), Decimal(0))
     aciklama = (
-        f"Faiz Gideri/Faaliyet Kârı oranı {format_percent_tr(oran_pct)} -- Buffett'ın tüketici ürünleri sektörü "
-        "tipik üst sınırı %15 (02/FORMÜL-05)."
+        f"Finansman Gideri/Faaliyet Kârı oranı (BİST'te kur farkı dahil TOPLAM finansman gideri, NASDAQ'ta net "
+        f"faiz gideri) {format_percent_tr(oran_pct)} -- Buffett'ın tüketici ürünleri sektörü tipik üst sınırı "
+        "%15 (02/FORMÜL-05)."
     )
     if oran_pct < 0:
         aciklama += " Negatif oran -- net faiz geliri/gideri birleşik raporlanmış olabilir, dikkatli yorumlanmalı."
@@ -294,7 +317,7 @@ def hesapla_kalite_mercegi(girdi: KaliteGirdisi) -> LensSonucu:
         ("Nakit Kâr Kalitesi (OCF/Net Kâr)", Decimal("9"), nakit_kalitesi),
         ("SG&A/Brüt Kâr", Decimal("5"), sga_orani),
         ("Ar-Ge/Brüt Kâr", Decimal("3"), rd_orani),
-        ("Faiz Gideri/Faaliyet Kârı", Decimal("7"), faiz_gideri_orani),
+        ("Finansman Gideri/Faaliyet Kârı", Decimal("7"), faiz_gideri_orani),
     ]
     return _agirlik_dagit_ve_hesapla(girdi.analysis.ticker, girdi.analysis.latest_period, "kalite", bilesenler)
 

@@ -101,9 +101,12 @@ PIYASA_SISTEMIK_EKSIK_BILESENLER: dict[str, list[dict[str, str]]] = {
                       "yapısal olarak uygulanamaz.")},
         {"mercek": "kalite", "bilesen": "Hazine Hissesi Düzeltmeli ROE", "tur": "yapisal",
          "aciklama": "BİST'te hazine hissesi nadiren ayrı raporlanır."},
-        {"mercek": "güvenlik", "bilesen": "Faiz Karşılama Oranı", "tur": "kismi",
-         "aciklama": ("XI_29 sanayi'de mevcut (2026-08-14); banka için kavram farklı anlam taşır "
-                      "(uygulanamaz), sigorta/finansman şemalarında henüz eşlenmedi.")},
+        {"mercek": "güvenlik", "bilesen": "Finansman Gideri Karşılama Oranı", "tur": "kismi",
+         "aciklama": ("XI_29 sanayi'de mevcut (2026-08-14) ama İş Yatırım'ın \"4BB\" kalemi kur farkı zararı "
+                      "dahil TOPLAM finansman giderdir, dar \"faiz+komisyon\" değil (CANLI doğrulama, ORGE "
+                      "2026 Q2: ~80 kat fark) -- bu yüzden 2026-08-14'te \"Faiz Karşılama Oranı\"ndan yeniden "
+                      "adlandırıldı; banka için kavram farklı anlam taşır (uygulanamaz), sigorta/finansman "
+                      "şemalarında henüz eşlenmedi.")},
         {"mercek": "değer", "bilesen": "Temettü Verimi / Payout", "tur": "yapisal",
          "aciklama": "BİST'te DPS verisi henüz çekilmiyor."},
         {"mercek": "büyüme", "bilesen": "Capex Oranı", "tur": "gecici",
@@ -125,8 +128,9 @@ PIYASA_SISTEMIK_EKSIK_BILESENLER: dict[str, list[dict[str, str]]] = {
          "aciklama": "us-gaap standart etiketler mevcut, DÜŞÜK maliyetle açılabilir, henüz kodlanmadı."},
         {"mercek": "kalite", "bilesen": "Hazine Hissesi Düzeltmeli ROE", "tur": "gecici_oncelikli",
          "aciklama": "us-gaap:TreasuryStockValue neredeyse evrensel -- öncelikli, düşük maliyetli bir kazanım."},
-        {"mercek": "güvenlik", "bilesen": "Faiz Karşılama Oranı", "tur": "gecici",
-         "aciklama": "us-gaap:InterestExpense standart tag, orta-düşük maliyet."},
+        {"mercek": "güvenlik", "bilesen": "Finansman Gideri Karşılama Oranı", "tur": "gecici",
+         "aciklama": ("us-gaap:InterestExpense standart tag, orta-düşük maliyet -- BİST'in aksine bu tag dar/net "
+                      "faiz giderdir (kur farkı zararı dahil değildir).")},
         {"mercek": "değer", "bilesen": "Temettü Verimi / Payout", "tur": "gecici",
          "aciklama": "us-gaap:CommonStockDividendsPerShareDeclared standart, düşük maliyet."},
         {"mercek": "büyüme", "bilesen": "Capex Oranı", "tur": "gecici",

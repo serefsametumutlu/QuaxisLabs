@@ -73,7 +73,7 @@ def test_guvenlik_mercegi_tum_veriyle_calisir() -> None:
     isimler = {c.name for c in sonuc.components}
     assert isimler == {
         "Kaldıraç (Net Borç/FAVÖK)", "Bilanço Kalitesi (Cari Oran + Özkaynak/Varlık)", "Piotroski F-Skoru",
-        "Toplam Yükümlülük/Özkaynak (geniş tanım)", "Merton Temerrüt Olasılığı (EDF)", "Faiz Karşılama Oranı",
+        "Toplam Yükümlülük/Özkaynak (geniş tanım)", "Merton Temerrüt Olasılığı (EDF)", "Finansman Gideri Karşılama Oranı",
     }
 
 
@@ -206,7 +206,7 @@ def test_guvenlik_mercegi_finans_sigorta_veri_yoksa_yetersiz_veri() -> None:
     assert sonuc.total_score == Decimal("0")
 
 
-# --- Faiz Karşılama Oranı (docs/spec/spec_yeni_bilesenler_agirliklandirma.md §2) -----------------------------------------------------
+# --- Finansman Gideri Karşılama Oranı (docs/spec/spec_yeni_bilesenler_agirliklandirma.md §2) -----------------------------------------------------
 
 
 def test_guvenlik_mercegi_agirlik_toplami_her_zaman_yuz() -> None:
@@ -221,15 +221,15 @@ def test_guvenlik_mercegi_agirlik_toplami_her_zaman_yuz() -> None:
 
 
 def test_guvenlik_mercegi_bist_faiz_karsilama_none_agirlik_dagitilir() -> None:
-    """BİST sanayi haritasında interest_expense hiç çekilmiyor -- Faiz
-    Karşılama Oranı HER ZAMAN None döner, ağırlığı diğer 5 bileşene
+    """BİST sanayi haritasında interest_expense hiç çekilmiyor -- Finansman
+    Gideri Karşılama Oranı HER ZAMAN None döner, ağırlığı diğer 5 bileşene
     ORANTISAL dağıtılır."""
     analysis = _analysis()  # interest_expense fixture'da YOK
     fbp = _sample_financials()
     girdi = GuvenlikGirdisi(analysis=analysis, financials_by_period=fbp)
     sonuc = hesapla_guvenlik_mercegi(girdi)
     isimler = {c.name: c for c in sonuc.components}
-    assert isimler["Faiz Karşılama Oranı"].score is None
+    assert isimler["Finansman Gideri Karşılama Oranı"].score is None
     assert sonuc.data_sufficient
     assert sonuc.total_score > Decimal("0")
 
@@ -242,8 +242,8 @@ def test_guvenlik_mercegi_nasdaq_benzeri_veriyle_faiz_karsilama_hesaplanir() -> 
     girdi = GuvenlikGirdisi(analysis=analysis, financials_by_period=finansallar)
     sonuc = hesapla_guvenlik_mercegi(girdi)
     isimler = {c.name: c for c in sonuc.components}
-    assert isimler["Faiz Karşılama Oranı"].score == Decimal("10.0")
-    assert "AAA" in isimler["Faiz Karşılama Oranı"].reasoning_tr
+    assert isimler["Finansman Gideri Karşılama Oranı"].score == Decimal("10.0")
+    assert "AAA" in isimler["Finansman Gideri Karşılama Oranı"].reasoning_tr
 
 
 def test_skor_faiz_karsilama_none_veya_sifir_faiz_giderinde_atlanir() -> None:

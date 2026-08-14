@@ -532,3 +532,51 @@ WeightedAverageNumberOfSharesOutstandingBasic` eklendi, mevcut
 `WeightedAverageNumberOfDilutedSharesOutstanding` ile FARKI
 `calculator.Ratios.diluted_dilution_pct` olarak AYRI bir alan adı altında
 (mevcut `shares_outstanding` zincirini BOZMADAN) hesaplanıyor.
+
+---
+
+## EK: 2026-08-14 üçüncü tur — "4BB" kapsam düzeltmesi (isim düzeltmesi, PDF-okuma yoluna GİDİLMEDİ)
+
+**Bulgu (bu turda CANLI doğrulandı, ORGE 2026 Q2 verisiyle):** V-04/V-15
+turunda (77abde8) BİST XI_29 (sanayi) şirketleri için `interest_expense`
+alanı İş Yatırım MaliTablo itemCode **"4BB" ("Finansman Giderleri")**
+olarak eklenmiş ve "Faiz Gideri/Faaliyet Kârı" (KALİTE) + "Faiz Karşılama
+Oranı" (GÜVENLİK) bileşenlerine bağlanmıştı. Bu turda ortaya çıktı ki
+"4BB" aslında **TOPLAM "Finansman Giderleri"dir** (faiz + kur farkı zararı
++ diğer finansman kalemleri BİRLİKTE) — dar anlamda "Faiz ve Komisyon
+Gideri" DEĞİLDİR.
+
+**Kanıt:** ORGE'nin KAP denetim raporundaki gerçek "Faiz Gideri (Finansman
+Giderleri İçindeki Faiz ve Komisyon Kalemi)" **10.948.770 TL** iken,
+sistemin çektiği "4BB" değeri **873.786.105 TL** — yaklaşık **80 KAT
+fazla** (ORGE'nin büyük kur farkı zararları var). İş Yatırım'ın
+yapılandırılmış API'sinde bu dar "faiz+komisyon" kırılımı HİÇ YOK
+("3CAD" = "Faiz, Ücret, Prim, Komisyon ve Diğer Giderler (-)" itemCode'u
+denendi, ORGE'de HER dönemde sabit 0 dönüyor — şirket bu satırı hiç
+doldurmamış). KAP dipnotlarında (PDF, denetim raporu) bu kırılım var ama
+İş Yatırım'ın özet API'sinde yok — 600+ BİST hissesi için PDF/dipnot okuma
+ölçeklenebilir DEĞİL.
+
+**Alınan karar (kullanıcı onayıyla):** PDF-okuma yoluna GİDİLMEDİ. Formül/
+eşik/ağırlık DEĞİŞTİRİLMEDİ (hâlâ anlamlı bir "toplam finansman yükü
+karşılama" göstergesi) — SADECE bileşen adı ve açıklama metni dürüstçe
+güncellendi: "Faiz Gideri/Faaliyet Kârı" → **"Finansman Gideri/Faaliyet
+Kârı"** (KALİTE, `lens_kalite.py`), "Faiz Karşılama Oranı" →
+**"Finansman Gideri Karşılama Oranı"** (GÜVENLİK, `lens_guvenlik.py`),
+kur farkı dahil olduğu her iki mercekte de `reasoning_tr` metninde
+netleştirildi. Python identifier'ları (`interest_expense`,
+`interest_expense_to_operating_profit_pct`) DEĞİŞMEDİ — sadece kullanıcıya
+görünen metinler (bileşen adı string'leri, `reasoning_tr`, dashboard uyarı
+metni `PIYASA_SISTEMIK_EKSIK_BILESENLER`) güncellendi.
+
+**NASDAQ tarafı ETKİLENMEDİ:** `sec_edgar.py`'de `us-gaap:InterestExpense`
+gerçekten dar/net "faiz gideri"dir, geniş "finansman gideri" değildir —
+sorun SADECE BİST (XI_29, ve muhtemelen banka/finansman şemalarındaki
+benzer alanlar, henüz eşlenmedi) tarafında geçerlidir.
+
+**Değişen dosyalar:** `src/analysis/lens_guvenlik.py`, `src/analysis/
+lens_kalite.py`, `src/render/dashboard.py::PIYASA_SISTEMIK_EKSIK_
+BILESENLER`, `tests/test_lens_guvenlik.py`, `tests/test_lens_kalite.py`
+(string güncellemeleri). `docs/spec/spec_mercek_guvenlik.md`,
+`spec_mercek_kalite.md`, `spec_yeni_bilesenler_agirliklandirma.md`,
+`veri_tamlik_notu.md` BİLEREK dokunulmadı (tarihsel karar kayıtları).

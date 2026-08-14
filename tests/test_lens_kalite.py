@@ -66,7 +66,7 @@ def test_kalite_mercegi_tum_veriyle_calisir_ve_veri_yeterli() -> None:
     assert isimler == {
         "Nakit Üretimi (FAVÖK marjı)", "Özkaynak Kârlılığı (ROE)", "Kârlılık (Net Marj)", "Brüt Kâr Marjı",
         "Greenblatt Sermaye Getirisi (ROC)", "Aktif Kârlılığı (ROA)", "Nakit Kâr Kalitesi (OCF/Net Kâr)",
-        "SG&A/Brüt Kâr", "Ar-Ge/Brüt Kâr", "Faiz Gideri/Faaliyet Kârı",
+        "SG&A/Brüt Kâr", "Ar-Ge/Brüt Kâr", "Finansman Gideri/Faaliyet Kârı",
     }
 
 
@@ -260,7 +260,7 @@ def test_kalite_mercegi_bist_yeni_uc_bilesen_none_agirlik_dagitilir() -> None:
     isimler = {c.name: c for c in sonuc.components}
     assert isimler["SG&A/Brüt Kâr"].score is None
     assert isimler["Ar-Ge/Brüt Kâr"].score is None
-    assert isimler["Faiz Gideri/Faaliyet Kârı"].score is None
+    assert isimler["Finansman Gideri/Faaliyet Kârı"].score is None
     assert "NASDAQ" in isimler["SG&A/Brüt Kâr"].reasoning_tr
     assert sonuc.data_sufficient
     assert sonuc.total_score > Decimal("0")
@@ -273,18 +273,18 @@ def test_kalite_mercegi_nasdaq_benzeri_veriyle_yeni_uc_bilesen_hesaplanir() -> N
     finansallar = _sample_financials()
     finansallar[_LATEST]["sga_expense"] = Decimal("10")  # SG&A/Brüt Kâr = 10/60 ~ %16,7 (fantastik bandı)
     finansallar[_LATEST]["research_development_expense"] = Decimal("3")  # Ar-Ge/Brüt Kâr = 3/60 = %5
-    finansallar[_LATEST]["interest_expense"] = Decimal("2")  # Faiz Gideri/Faaliyet Kârı = 2/20 = %10
+    finansallar[_LATEST]["interest_expense"] = Decimal("2")  # Finansman Gideri/Faaliyet Kârı = 2/20 = %10
     analysis = calculator.analyze("TESTUS", finansallar)
     girdi = KaliteGirdisi(analysis=analysis)
     sonuc = hesapla_kalite_mercegi(girdi)
     isimler = {c.name: c for c in sonuc.components}
     assert isimler["SG&A/Brüt Kâr"].score is not None
     assert isimler["Ar-Ge/Brüt Kâr"].score is not None
-    assert isimler["Faiz Gideri/Faaliyet Kârı"].score is not None
+    assert isimler["Finansman Gideri/Faaliyet Kârı"].score is not None
     # düşük oranlar -- düşük=iyi yönünde YÜKSEK puan bekleniyor
     assert isimler["SG&A/Brüt Kâr"].score > Decimal("7")
     assert isimler["Ar-Ge/Brüt Kâr"].score > Decimal("7")
-    assert isimler["Faiz Gideri/Faaliyet Kârı"].score > Decimal("7")
+    assert isimler["Finansman Gideri/Faaliyet Kârı"].score > Decimal("7")
     assert sonuc.data_sufficient
 
 

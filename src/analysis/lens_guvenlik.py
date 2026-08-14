@@ -13,7 +13,20 @@ Faiz Karşılama Oranı "yer tutucu"dan GERÇEK skorlanan bileşene yükseltildi
     Piotroski F-Skoru                          %24  -- Piotroski (2000) (eski %25, -1)
     Toplam Yükümlülük/Özkaynak (geniş tanım)   %12  -- 02/FORMÜL-16, İLKE-30 (eski %15, -3)
     Merton Temerrüt Olasılığı (EDF)             %7  -- 03/İLKE-441-444, BAYRAK-79/80 (eski %10, -3)
-    Faiz Karşılama Oranı (YENİ)                %10  -- 03/Tablo 2.4, FORMÜL-19; 01/FORMÜL-18; 02/FORMÜL-05 -- NASDAQ'ta ve BİST XI_29 (sanayi/ticaret) şirketlerinde dolu (2026-08-14'ten itibaren)
+    Finansman Gideri Karşılama Oranı (YENİ)     %10  -- 03/Tablo 2.4, FORMÜL-19; 01/FORMÜL-18; 02/FORMÜL-05 -- NASDAQ'ta ve BİST XI_29 (sanayi/ticaret) şirketlerinde dolu (2026-08-14'ten itibaren)
+
+2026-08-14 (üçüncü tur, isim düzeltmesi): bu bileşen ÖNCEDEN "Faiz
+Karşılama Oranı" olarak adlandırılmıştı -- CANLI doğrulama (ORGE 2026
+Q2) İş Yatırım'ın "4BB" itemCode'unun ("Finansman Giderleri") dar
+"faiz+komisyon" DEĞİL, kur farkı zararı dahil TOPLAM finansman gideri
+olduğunu ortaya çıkardı (ORGE'de gerçek dar faiz gideri 10.948.770 TL
+iken "4BB" 873.786.105 TL -- ~80 kat fazla). Formül/eşik/ağırlık
+DEĞİŞMEDİ (hâlâ anlamlı bir "toplam finansman yükü karşılama"
+göstergesi) -- SADECE bileşen adı ve açıklama metni bu gerçeği dürüstçe
+yansıtacak şekilde güncellendi (bkz. docs/spec/spec_veri_tamlik_yol_
+haritasi.md üçüncü tur bölümü). NASDAQ'ta (`sec_edgar.py`, `us-gaap:
+InterestExpense`) bu sorun YOK -- SEC'in standart tag'i gerçekten dar/
+net faiz giderdir.
 
 `financials_by_period` girdisi SADECE Toplam Yükümlülük/Özkaynak (geniş
 tanım, `short_term_liabilities`+`long_term_liabilities` ham alanları
@@ -21,14 +34,20 @@ tanım, `short_term_liabilities`+`long_term_liabilities` ham alanları
 screens.py` ile AYNI "ham dict + aritmetik" deseni, katman kuralını
 İHLAL ETMEZ.
 
-Faiz Karşılama Oranı, girdisi olan `interest_expense_to_operating_profit_pct`
-BİST XI_29 (sanayi/ticaret) haritasında 2026-08-14'ten itibaren MEVCUT
-olduğu için XI_29 şirketlerinde de GERÇEK bir skor üretir (NASDAQ ile
-AYNI davranış) -- KALİTE merceğinin §1 bileşeniyle AYNI asimetri artık
-SADECE banka (kavramsal olarak uygulanamaz) ve sigorta/finansman (henüz
-eşlenmedi) şemaları için geçerli. Girdi `None` olduğunda (bu şirket
-türlerinde veya veri eksikliğinde) ağırlığı diğer 5 bileşene ORANTISAL
-yeniden dağıtılır.
+Finansman Gideri Karşılama Oranı, girdisi olan `interest_expense_to_
+operating_profit_pct` BİST XI_29 (sanayi/ticaret) haritasında
+2026-08-14'ten itibaren MEVCUT olduğu için XI_29 şirketlerinde de
+GERÇEK bir skor üretir (NASDAQ ile AYNI davranış) -- KALİTE merceğinin
+§1 bileşeniyle AYNI asimetri artık SADECE banka (kavramsal olarak
+uygulanamaz) ve sigorta/finansman (henüz eşlenmedi) şemaları için
+geçerli. Girdi `None` olduğunda (bu şirket türlerinde veya veri
+eksikliğinde) ağırlığı diğer 5 bileşene ORANTISAL yeniden dağıtılır.
+
+İSİM NOTU (2026-08-14, üçüncü tur): BİST'te bu girdi İş Yatırım'ın
+"4BB" ("Finansman Giderleri") kaleminden gelir -- kur farkı zararı
+dahil TOPLAM finansman gideridir, dar anlamda "faiz+komisyon" değildir
+(bkz. `_skor_faiz_karsilama` docstring'i). NASDAQ'ta ise `sec_edgar.py`
+üzerinden `us-gaap:InterestExpense` (dar/net faiz gideri) kullanılır.
 """
 
 from __future__ import annotations
@@ -132,12 +151,12 @@ def _skor_merton(merton: MertonResult | None) -> tuple[Decimal | None, str]:
         skor = _lerp_score(edf, yuksek, yuksek * 4, Decimal(3), Decimal(0))
     return (
         skor,
-        f"Merton temerrüt olasılığı (EDF, sentetik/dolaylı gösterge -- faiz karşılama oranı verisi eksikliği "
-        f"nedeniyle) {format_percent_tr(edf, decimals=2)} (mesafe-i temerrüt {_num_str(merton.distance_to_default)} std. sapma).",
+        f"Merton temerrüt olasılığı (EDF, sentetik/dolaylı gösterge -- finansman gideri karşılama oranı verisi "
+        f"eksikliği nedeniyle) {format_percent_tr(edf, decimals=2)} (mesafe-i temerrüt {_num_str(merton.distance_to_default)} std. sapma).",
     )
 
 
-# --- Faiz Karşılama Oranı (docs/spec/spec_yeni_bilesenler_agirliklandirma.md §2) -----------------------------------------------------
+# --- Finansman Gideri Karşılama Oranı (docs/spec/spec_yeni_bilesenler_agirliklandirma.md §2) -----------------------------------------------------
 #
 # Damodaran Tablo 2.4 (03/Tablo 2.4, FORMÜL-19) -- 14-kademeli sentetik
 # kredi notu bant tablosu, CANLI kitap metninden BİREBİR alındı (spec §2
@@ -163,16 +182,28 @@ _DAMODARAN_FAIZ_KARSILAMA_BANTLARI: tuple[tuple[Decimal, Decimal, Decimal, Decim
 
 
 def _skor_faiz_karsilama(interest_expense_to_operating_profit_pct: Decimal | None) -> tuple[Decimal | None, str]:
-    """03/Tablo 2.4, FORMÜL-19 (Interest Coverage Ratio) -- Faiz Karşılama
-    Oranı = FVÖK (Faaliyet Kârı ile YAKLAŞIK)/Faiz Gideri, KALİTE merceğinin
-    §1 bileşeni olan `interest_expense_to_operating_profit_pct`'in (AYNI ham
-    veri, FARKLI formül -- TERS çevrilmiş hali) üzerinden türetilir; yeni
-    bir fetcher/alan GEREKMEZ (spec §2 Formüller bölümü).
+    """03/Tablo 2.4, FORMÜL-19 (Interest Coverage Ratio) -- Finansman
+    Gideri Karşılama Oranı = FVÖK (Faaliyet Kârı ile YAKLAŞIK)/Finansman
+    Gideri, KALİTE merceğinin §1 bileşeni olan `interest_expense_to_
+    operating_profit_pct`'in (AYNI ham veri, FARKLI formül -- TERS
+    çevrilmiş hali) üzerinden türetilir; yeni bir fetcher/alan GEREKMEZ
+    (spec §2 Formüller bölümü).
 
     Kaynak: 03/Tablo 2.4, FORMÜL-19; 01/FORMÜL-18 (Graham'ın sanayi 7x/5x
     bandı, ÇAPRAZ referans olarak bant etiketlerinde anılır); 02/FORMÜL-05
     (Buffett <%15 -- KALİTE'deki §1 bileşeniyle AYNI ham veri, FARKLI
     formül, çift-sayma SAYILMAZ -- "TEK satırda BİRLEŞTİRİLDİ" ilkesi).
+
+    İSİM NOTU (2026-08-14, üçüncü tur, CANLI doğrulama -- ORGE 2026 Q2):
+    BİST'te girdi İş Yatırım'ın "4BB" ("Finansman Giderleri") kaleminden
+    gelir -- kur farkı zararı + diğer finansman kalemleri DAHİL TOPLAM
+    finansman gideridir, dar "faiz+komisyon" kalemi DEĞİLDİR (ORGE'de
+    gerçek dar faiz gideri 10.948.770 TL iken "4BB" 873.786.105 TL --
+    ~80 kat fazla; İş Yatırım'ın yapılandırılmış API'sinde dar kırılım
+    hiç yok, KAP dipnot/PDF okuma 600+ hisse için ölçeklenebilir
+    bulunmadığı için isim yeniden adlandırılarak dürüstleştirildi --
+    formül/eşik/ağırlık DEĞİŞMEDİ). NASDAQ'ta (`sec_edgar.py`, `us-gaap:
+    InterestExpense`) bu sorun YOK, girdi dar/net faiz giderdir.
 
     Damodaran Tablo 2.4'ün kendisi "2004, küçük sanayi şirketleri" için
     kalibre edilmiştir (kitap metninde AÇIKÇA yazılı) -- mega-cap NASDAQ
@@ -180,9 +211,9 @@ def _skor_faiz_karsilama(interest_expense_to_operating_profit_pct: Decimal | Non
     taşır (uydurma yapılmadan, kitabın KENDİ sınırlaması aktarılır)."""
     if interest_expense_to_operating_profit_pct is None or interest_expense_to_operating_profit_pct <= 0:
         return None, (
-            "faiz karşılama oranı hesaplanamadı (faiz gideri sıfır/negatif/net faiz geliri olarak birleşik "
-            "raporlanmış olabilir -- oran anlamsız -- veya bu veri sadece NASDAQ şirketlerinde mevcut), "
-            "bileşen atlandı."
+            "finansman gideri karşılama oranı hesaplanamadı (finansman gideri sıfır/negatif/net finansman geliri "
+            "olarak birleşik raporlanmış olabilir -- oran anlamsız -- veya bu veri sadece NASDAQ şirketlerinde "
+            "mevcut), bileşen atlandı."
         )
     oran = Decimal(100) / interest_expense_to_operating_profit_pct
     if oran > Decimal("12.50"):
@@ -197,7 +228,8 @@ def _skor_faiz_karsilama(interest_expense_to_operating_profit_pct: Decimal | Non
         if skor is None:  # oran < 0 -- fiilen imkansız (guard yukarıda), guvence icin
             skor, etiket = Decimal("0.0"), "D"
     return skor, (
-        f"faiz karşılama oranı (FVÖK/faiz gideri, Faiz Gideri/Faaliyet Kârı oranından türetilmiş) {oran_str(oran)} "
+        f"finansman gideri karşılama oranı (FVÖK/finansman gideri, Finansman Gideri/Faaliyet Kârı oranından "
+        f"türetilmiş -- BİST'te kur farkı dahil TOPLAM finansman gideri, NASDAQ'ta net faiz gideri) {oran_str(oran)} "
         f"-- Damodaran Tablo 2.4 sentetik kredi notu bandı: {etiket}. Bu bant (2004, küçük/orta ölçekli sanayi "
         "şirketleri için kalibre edilmiştir) mega-cap şirketlerde gevşek yorumlanmalıdır."
     )
@@ -222,7 +254,7 @@ def hesapla_guvenlik_mercegi(girdi: GuvenlikGirdisi) -> LensSonucu:
         ("Piotroski F-Skoru", Decimal("24"), piotroski),
         ("Toplam Yükümlülük/Özkaynak (geniş tanım)", Decimal("12"), tyo),
         ("Merton Temerrüt Olasılığı (EDF)", Decimal("7"), merton),
-        ("Faiz Karşılama Oranı", Decimal("10"), faiz_karsilama),
+        ("Finansman Gideri Karşılama Oranı", Decimal("10"), faiz_karsilama),
     ]
     return _agirlik_dagit_ve_hesapla(girdi.analysis.ticker, girdi.analysis.latest_period, "güvenlik", bilesenler)
 

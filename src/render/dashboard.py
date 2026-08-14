@@ -95,12 +95,15 @@ LOW_COVERAGE_THRESHOLD_PCT = Decimal("50")
 #     vurgu), "kismi" (kısmi/özel durum). -------------------------------
 PIYASA_SISTEMIK_EKSIK_BILESENLER: dict[str, list[dict[str, str]]] = {
     "BIST": [
-        {"mercek": "kalite", "bilesen": "SG&A / Ar-Ge oranı", "tur": "yapisal",
-         "aciklama": "BİST'te bu kalemler KAP XBRL'de standart etiketlenmemiş -- sistemik eksik."},
+        {"mercek": "kalite", "bilesen": "SG&A / Ar-Ge oranı", "tur": "kismi",
+         "aciklama": ("BİST XI_29 (sanayi/ticaret) şirketlerinde 2026-08-14'ten itibaren MEVCUT ve skora "
+                      "dahil; banka/sigorta/finansman şirketlerinde bu kavram (brüt kâr/SG&A ayrımı) "
+                      "yapısal olarak uygulanamaz.")},
         {"mercek": "kalite", "bilesen": "Hazine Hissesi Düzeltmeli ROE", "tur": "yapisal",
          "aciklama": "BİST'te hazine hissesi nadiren ayrı raporlanır."},
-        {"mercek": "güvenlik", "bilesen": "Faiz Karşılama Oranı", "tur": "yapisal",
-         "aciklama": "KAP alt-kalem araştırması henüz yapılmadı -- kitaplar arası en sık tekrarlanan açık."},
+        {"mercek": "güvenlik", "bilesen": "Faiz Karşılama Oranı", "tur": "kismi",
+         "aciklama": ("XI_29 sanayi'de mevcut (2026-08-14); banka için kavram farklı anlam taşır "
+                      "(uygulanamaz), sigorta/finansman şemalarında henüz eşlenmedi.")},
         {"mercek": "değer", "bilesen": "Temettü Verimi / Payout", "tur": "yapisal",
          "aciklama": "BİST'te DPS verisi henüz çekilmiyor."},
         {"mercek": "büyüme", "bilesen": "Capex Oranı", "tur": "gecici",

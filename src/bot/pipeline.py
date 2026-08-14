@@ -1700,7 +1700,20 @@ def _sektor_istatistigi_getir(
         return None
     with repository.get_session() as session:
         cached = repository.get_sector_metric_cache(session, ust_sektor, sirket_turu, metric, period)
-        if cached is not None:
+        # KÖK NEDEN DÜZELTMESİ (2026-08-14, ORGE canlı raporu): SectorMetricCache
+        # HİÇBİR tazelik/geçersizleştirme kuralı olmadan kalıcı yazılıyordu --
+        # ince-sektör göçü (229a202) sırasında/hemen sonrasında, tüm evren
+        # henüz yeniden taranmamışken yazılan bir n<MIN_SECTOR_N (örn. n=1)
+        # önbellek satırı, evren TAM taransa ve gerçek n>=5 olsa bile SONSUZA
+        # KADAR "yetersiz örneklem" döndürmeye devam ediyordu (CANLI doğrulandı:
+        # ORGE için önbellek n=1 diyordu, ama MarketScanResult'ta GERÇEKTE
+        # n=12/15 peer vardı). Bu SADECE ORGE'ye özgü değil -- ayni gecis
+        # penceresinde skorlanan HER ince sektör/donem/metrik kombinasyonunu
+        # etkiler. Cozum: n<MIN_SECTOR_N onbellek satirlari GUVENILMEZ sayilir
+        # (yok sayilip yeniden hesaplanir) VE yetersiz sonuclar hic
+        # onbelleklenmez (bir sonraki cagri her zaman taze veriyle yeniden
+        # dener, kalici olarak "yetersiz" damgasi vurulmaz).
+        if cached is not None and cached.n >= lens_common.MIN_SECTOR_N:
             return lens_common.SektorIstatistigi(n=cached.n, medyan=cached.medyan, mad=cached.mad)
 
         degerler = repository.get_sector_metric_distribution(session, ust_sektor, sirket_turu, metric, exclude_ticker=exclude_ticker)
@@ -1709,8 +1722,9 @@ def _sektor_istatistigi_getir(
         if sonuc is None:
             return None
         medyan, mad, n = sonuc
-        repository.save_sector_metric_cache(session, ust_sektor, sirket_turu, metric, period, n=n, medyan=medyan, mad=mad)
-        session.commit()
+        if n >= lens_common.MIN_SECTOR_N:
+            repository.save_sector_metric_cache(session, ust_sektor, sirket_turu, metric, period, n=n, medyan=medyan, mad=mad)
+            session.commit()
         return lens_common.SektorIstatistigi(n=n, medyan=medyan, mad=mad)
 
 

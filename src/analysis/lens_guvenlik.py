@@ -13,7 +13,7 @@ Faiz Karşılama Oranı "yer tutucu"dan GERÇEK skorlanan bileşene yükseltildi
     Piotroski F-Skoru                          %24  -- Piotroski (2000) (eski %25, -1)
     Toplam Yükümlülük/Özkaynak (geniş tanım)   %12  -- 02/FORMÜL-16, İLKE-30 (eski %15, -3)
     Merton Temerrüt Olasılığı (EDF)             %7  -- 03/İLKE-441-444, BAYRAK-79/80 (eski %10, -3)
-    Faiz Karşılama Oranı (YENİ)                %10  -- 03/Tablo 2.4, FORMÜL-19; 01/FORMÜL-18; 02/FORMÜL-05 -- SADECE NASDAQ'ta dolu
+    Faiz Karşılama Oranı (YENİ)                %10  -- 03/Tablo 2.4, FORMÜL-19; 01/FORMÜL-18; 02/FORMÜL-05 -- NASDAQ'ta ve BİST XI_29 (sanayi/ticaret) şirketlerinde dolu (2026-08-14'ten itibaren)
 
 `financials_by_period` girdisi SADECE Toplam Yükümlülük/Özkaynak (geniş
 tanım, `short_term_liabilities`+`long_term_liabilities` ham alanları
@@ -21,10 +21,14 @@ tanım, `short_term_liabilities`+`long_term_liabilities` ham alanları
 screens.py` ile AYNI "ham dict + aritmetik" deseni, katman kuralını
 İHLAL ETMEZ.
 
-Faiz Karşılama Oranı BİST'te HER ZAMAN `None` döner (girdisi olan
-`interest_expense_to_operating_profit_pct` BİST XI_29 haritasında hiç
-çekilmiyor, KALİTE merceğinin §1 bileşeniyle AYNI asimetri) -- ağırlığı
-diğer 5 bileşene ORANTISAL yeniden dağıtılır.
+Faiz Karşılama Oranı, girdisi olan `interest_expense_to_operating_profit_pct`
+BİST XI_29 (sanayi/ticaret) haritasında 2026-08-14'ten itibaren MEVCUT
+olduğu için XI_29 şirketlerinde de GERÇEK bir skor üretir (NASDAQ ile
+AYNI davranış) -- KALİTE merceğinin §1 bileşeniyle AYNI asimetri artık
+SADECE banka (kavramsal olarak uygulanamaz) ve sigorta/finansman (henüz
+eşlenmedi) şemaları için geçerli. Girdi `None` olduğunda (bu şirket
+türlerinde veya veri eksikliğinde) ağırlığı diğer 5 bileşene ORANTISAL
+yeniden dağıtılır.
 """
 
 from __future__ import annotations

@@ -16,9 +16,9 @@ Ağırlıklar (spec §Eşikler ve ağırlıklar, `sanayi`/`abd_sanayi`, toplam %
     Greenblatt ROC                   %8  -- Greenblatt "Sihirli Formül"ünün KALİTE bacağı (eski %10, -2)
     ROA                               %4  -- 02/FORMÜL-13, İLKE-26 (eski %5, -1)
     Nakit Kâr Kalitesi (OCF/NetKâr)  %9  -- Piotroski kriter #4'ün SÜREKLİ versiyonu (eski %10, -1)
-    SG&A/Brüt Kâr (YENİ)             %5  -- 02/FORMÜL-02, SADECE NASDAQ'ta dolu
-    Ar-Ge/Brüt Kâr (YENİ)            %3  -- 02/FORMÜL-03, SADECE NASDAQ'ta dolu (GERİLİM notu, bkz. _skor_rd_orani)
-    Faiz Gideri/Faaliyet Kârı (YENİ) %7  -- 01/FORMÜL-18, 02/FORMÜL-05, BAYRAK-06, SADECE NASDAQ'ta dolu
+    SG&A/Brüt Kâr (YENİ)             %5  -- 02/FORMÜL-02, NASDAQ'ta VE BİST XI_29 (sanayi/ticaret) şirketlerinde dolu (2026-08-14'ten itibaren)
+    Ar-Ge/Brüt Kâr (YENİ)            %3  -- 02/FORMÜL-03, NASDAQ'ta VE BİST XI_29'da dolu (GERİLİM notu, bkz. _skor_rd_orani)
+    Faiz Gideri/Faaliyet Kârı (YENİ) %7  -- 01/FORMÜL-18, 02/FORMÜL-05, BAYRAK-06, NASDAQ'ta VE BİST XI_29'da dolu
 
 Banka/sigorta/finansman şablonlarında (spec §Sektör ayarlaması madde 1)
 KALİTE merceği SADECE ROE+ROA'dan oluşur; ağırlıklar (%20/%5 nominal
@@ -35,11 +35,14 @@ bu turda skorlanan bileşen KÜMESİNE EKLENMEDİ (gelecekte veri/kalibrasyon
 netleşirse eklenebilir).
 
 SG&A/Ar-Ge/Faiz Gideri (docs/spec/spec_yeni_bilesenler_agirliklandirma.md
-§1): BİST XI_29 sanayi haritasında bu ham alanlar hiç çekilmiyor, bu üç
-bileşen BİST'te HER ZAMAN `None` döner, ağırlığı (%15 toplam) diğer 7
-bileşene ORANTISAL yeniden dağıtılır (`_agirlik_dagit_ve_hesapla`,
-DEĞİŞMEDİ) -- BİST kartı fiilen v1'e YAKIN 7-bileşenli KALİTE görür,
-NASDAQ kartı 10-bileşenli (piyasa asimetrisi kartta AÇIKÇA belirtilir).
+§1): BİST XI_29 (sanayi/ticaret) haritasına bu üç ham alan 2026-08-14'te
+eklendi (`isyatirim.py::STANDARD_ITEM_MAP_XI_29`), bu yüzden XI_29
+şirketlerinde artık NASDAQ ile AYNI 10-bileşenli KALİTE kartı görülür.
+Banka (UFRS)/sigorta (UFRS_K)/finansman (FINANSMAN) şablonlarında bu üç
+ham alan HÂLÂ çekilmiyor (kavramsal olarak "brüt kâr" yapısı bu şirket
+türlerinde YOK, KALICI kapsam-dışı) -- bu şablonlarda bileşenler `None`
+döner, ağırlığı (%15 toplam) diğer 7 bileşene ORANTISAL yeniden
+dağıtılır (`_agirlik_dagit_ve_hesapla`, DEĞİŞMEDİ).
 """
 
 from __future__ import annotations

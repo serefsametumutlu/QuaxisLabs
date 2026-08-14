@@ -111,7 +111,7 @@ kodu.
 |---|---|---|---|---|---|---|---|
 | V-14 | SG&A / Brüt Kâr, Ar-Ge / Brüt Kâr | Kalite | BİST | ~~`yapisal`~~ **BİTTİ (XI_29 sanayi), KALICI BOŞLUK (banka/sigorta/finansman)** | ~~YÜKSEK~~ → BİTTİ | `isyatirim.py` XI_29 haritası: `sga_expense`("3DA"+"3DB"), `research_development_expense`("3DC") — 2026-08-14 CANLI eklendi (THYAO doğrulandı) | 02/FORMÜL-02,03 — UFRS(banka)/UFRS_K(sigorta)/FINANSMAN şemalarında "brüt kâr"/"SG&A" KAVRAMSAL OLARAK YOK (banka gelir tablosu yapısı temelden farklı) — bu **kapsam-dışı KALICI boşluk**, "araştırılmadı" değil "uygulanamaz" |
 | V-15 | Faiz Gideri / Faaliyet Kârı, Faiz Karşılama Oranı (`interest_expense` XI_29) | Kalite, Güvenlik | BİST | ~~`yapisal`~~ **BİTTİ (XI_29 sanayi)**, banka zaten VARDI (UFRS "3B"), sigorta/finansman AÇIK | ~~YÜKSEK~~ → BİTTİ (sanayi) | `isyatirim.py` XI_29: `interest_expense`="4BB" ("Finansman Giderleri") — 2026-08-14 CANLI eklendi, `3HC` (Esas Faaliyet Dışı Finansal Giderler) ile çapraz doğrulandı | 01/FORMÜL-18; 02/FORMÜL-05; 03/Tablo 2.4 — **UFRS_K (sigorta) VE FINANSMAN (finansman şirketleri) şemalarında `interest_expense` HÂLÂ eşlenmedi** — sigorta için kavramsal karşılık belirsiz (teknik gelir/gider ayrı bir yapı), araştırma gerekir |
-| V-16 | Hazine Hissesi (`treasury_stock`) | Kalite | BİST | `yapisal` | YÜKSEK | Bilanço alt kalemi olarak nadiren AYRI raporlanır — araştırma gerekli, **HÂLÂ AÇIK, 2026-08-14 turunda dokunulmadı** | 02/FORMÜL-17,21 |
+| V-16 | Hazine Hissesi (`treasury_stock`) | Kalite | BİST | `yapisal` | YÜKSEK | Bilanço alt kalemi olarak nadiren AYRI raporlanır — **2026-08-14 turunda ARAŞTIRILDI, BULUNAMADI, KALICI BOŞLUK olarak kapatıldı** (bkz. EK bölümündeki V-16 araştırma notu) | 02/FORMÜL-17,21 |
 | V-17 | Greenblatt Kazanç Getirisi (EBIT/FD) + Carlisle Acquirer's Multiple | Değer | NASDAQ | `yapisal` | YÜKSEK | `fundamental_screens.py` HÂLÂ SADECE `not is_us and financial_group=='XI_29'` koşuluyla çağrılıyor (`pipeline.py` satır 1809, 2026-08-14'te DEĞİŞMEDİ, canlı doğrulandı) | Greenblatt, Sihirli Formül — **HÂLÂ AÇIK, en yüksek etkili tekil NASDAQ boşluğu (Değer merceğinin %10 ağırlıklı bileşeni NASDAQ'ta hiç hesaplanmıyor)** |
 | V-18 | Greenblatt ROC (EBIT/Yatırılan Sermaye) | Kalite | NASDAQ | `yapisal` | YÜKSEK | Aynı BİST-only kısıt (V-17 ile AYNI kök neden) — **HÂLÂ AÇIK** | Greenblatt, Sihirli Formül |
 | V-19 | WACC / gerçek Beta / kaldıraçsız Beta / piyasa endeksi getiri serisi | Değer | BİST+NASDAQ | — | YÜKSEK | `price_history.py` hisse tarafı hazır, endeks tarafı eksik — **HÂLÂ AÇIK** | 03/İLKE-42-51 |
@@ -191,6 +191,37 @@ etmez) güncel değil. **Maliyet: ÇOK UCUZ, sıfır risk (yorum satırı).**
 Öncelik V-32'den DÜŞÜK (kullanıcıya görünmüyor, sadece geliştirici
 belgesi) ama aynı PR'da yapılması VERİMLİ olur.
 
+### V-16 (2026-08-14 ikinci tur) — Hazine Hissesi araştırması: BULUNAMADI, KALICI BOŞLUK
+
+`isyatirim.py`'nin XI_29 (sanayi/ticaret) standardize kalem sözlüğü
+`data/exploration/thyao_items_readable.txt` içinde EKSİKSİZ (147 satır,
+başlıktan sonuna) taranarak doğrulandı: "hazine hissesi" / "geri alınan
+paylar" / "treasury" anlamına gelen AYRI bir bilanço alt kalemi YOK.
+En yakın aday `2OC` ("Karşılıklı İştirak Sermayesi Düzeltmesi (-)" /
+"Adjustments to Share Capital") — ama bu KAVRAMSAL OLARAK FARKLI bir
+kalem: TMS/TFRS'te "karşılıklı iştirak" ana ortaklık ile bağlı
+ortaklıklar arasındaki ÇAPRAZ (reciprocal) hisse sahipliğinin
+konsolidasyonda elenmesini ifade eder, şirketin KENDİ hisselerini
+piyasadan GERİ ALMASI (treasury stock/buyback) ile AYNI şey DEĞİLDİR.
+Bu ikisini birbirine karıştırıp `2OC`'yi `treasury_stock` olarak
+bağlamak Kural 8'i ("emin olunmayan bir kalemi varsayımsal DOLDURMA")
+İHLAL ederdi — YAPILMADI.
+
+Çapraz doğrulama: `data/exploration/` altındaki TÜM XI_29/UFRS kaynaklı
+dosyalarda (JSON + readable) "hazine" kelimesi için grep SIFIR sonuç
+verdi; aynı grep NASDAQ `companyfacts` dosyalarında (AAPL/ASTS/JPM/MSFT/
+NVDA) "treasury" için ÇOKLU sonuç verdi — bu, aramanın YÖNTEMSEL olarak
+çalıştığını (BİST'te gerçekten yok, arama hatası değil) doğrular.
+
+**Sonuç:** V-16 GERÇEK bir kalıcı boşluk olarak kapatıldı (`_skor_roe()`
+BİST için `treasury_stock=None` ile çağrılmaya devam eder, davranış
+DEĞİŞMEDİ) — banka/sigorta gibi "kavramsal olarak yok" değil, "veri
+BİST'in standart raporlama setinde AYRI satır olarak bulunmuyor" türü bir
+yapısal kısıt (Is Yatırım'ın özet tablosu KAP'ın TAM XBRL taksonomisinin
+bir alt kümesidir; KAP dipnot/özkaynak değişim tablosu düzeyinde teorik
+olarak bulunabilir ama bu Faaliyet Raporu/dipnot okuma sınıfına girer,
+bkz. aşağıdaki ayrı bölüm — YÜKSEK maliyet, bu turun kapsamı dışı).
+
 ### İlk Dalga öncelik sırası (GÜNCEL, 2026-08-14)
 
 1. **V-32 — dashboard.py statik uyarı metni düzeltmesi.** En ucuz, en
@@ -229,6 +260,11 @@ belgesi) ama aynı PR'da yapılması VERİMLİ olur.
   (hisse-başı bazlı) için AYRI bir kaynak gerekir — GERÇEK yapısal kısıt.
 - **BİST hisse geri alım (buyback) nakit akış kalemi** — 3 canlı KAP
   sayfasında da bulunamadı, GERÇEK bloker.
+- **BİST Hazine Hissesi (`treasury_stock`, V-16)** — `isyatirim.py`
+  XI_29 standardize kalem setinde (147 satır tam tarandı) AYRI bir
+  bilanço alt kalemi olarak YOK; en yakın görünen `2OC` kavramsal olarak
+  FARKLI (karşılıklı iştirak eleme, treasury stock DEĞİL) — 2026-08-14
+  ikinci turunda araştırıldı, kod DEĞİŞTİRİLMEDİ, kalıcı boşluk.
 - **10+ yıllık trend serisi, WACC/Beta, kredi notu, sahiplik yapısı** —
   önceki turlarda zaten "yapısal/pahalı" olarak sınıflandırılmıştı,
   2026-08-14'te DEĞİŞMEDİ, aynı sınıflandırma GEÇERLİ.

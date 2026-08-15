@@ -875,6 +875,38 @@ def _fetch_kap_data(ticker: str) -> tuple[str | None, list[kap.Disclosure] | Non
 _KAP_PATCH_MAX_PLAUSIBLE_RATIO = Decimal(50)
 
 
+def _forward_fill_share_capital(
+    values: dict[str, Decimal | None], raw: isyatirim.RawFinancials, baseline_period: Period, value_fn,
+) -> None:
+    """CANLI hata (kullanici raporu, 2026-08-15 -- AYEN): KAP'in erken
+    'Finansal Rapor' XBRL'i genellikle 'ifrs-full_IssuedCapital' tag'ini
+    TASIMAZ (kap_financials.py STANDARD_ITEM_MAP_KAP_*'ta esleme VAR ama
+    o ceyregin disclosure'inda deger YOK) -- bu tek eksik alan `values`
+    sozlugunu HICBIR SEKILDE bozmasa da, `calculator.compute_valuation*()`
+    `share_capital is None` oldugunda TUM degerleme (piyasa degeri/F-K/
+    PD-DD/FD-FAVOK) icin `None` doner (bkz. o fonksiyonun docstring'i:
+    "ikisinden biri eksikse ... None doner") -- yani fiyat CEKILEBILMIS
+    olsa bile SADECE bu tek eksik kalem yuzunden TUM "Değer" bolumu N/A
+    goruntuleniyordu (mercekler_detay/carpanlar ETKILENMEZ). Odenmis/
+    nominal sermaye bir sirket icin sermaye artirimi/azaltimi DISINDA
+    CEYREKTEN CEYREGE DEGISMEZ (bu tur olaylar zaten ayrica KAP'ta
+    bildirilir ve fiyat/hisse sayisi iliskisini radikal bicimde degistirir
+    -- ama boyle bir olay YOKSA bir onceki ceyregin degeri BUGUN de
+    GECERLIDIR) -- bu yuzden depreciation_amortization icin ZATEN
+    kullanilan AYNI "onceki Is Yatirim donemiyle ileri-doldur" deseni
+    (yukaridaki _kap_patch_records_for_xi29 notu) share_capital icin de
+    uygulanir. `value_fn` KeyError FIRLATABILIR (alan haritada yoksa) --
+    bu durumda SESSIZCE hicbir sey yapilmaz (Kural 3: uydurma yapilmaz)."""
+    if values.get("share_capital") is not None:
+        return
+    try:
+        prev_value = value_fn(raw, "share_capital", baseline_period)
+    except KeyError:
+        return
+    if prev_value is not None:
+        values["share_capital"] = prev_value
+
+
 def _kap_patch_is_plausible(
     ticker: str,
     new_period: Period,
@@ -952,6 +984,7 @@ def _kap_patch_records_for_xi29(
         return [], None
 
     values = kap_financials.standardized_record_values(raw_kap)
+    _forward_fill_share_capital(values, raw, newest_isyatirim_period, isyatirim.standardized_value)
 
     if not _kap_patch_is_plausible(ticker, raw_kap.period, values, raw, newest_isyatirim_period):
         return [], None
@@ -1025,6 +1058,7 @@ def _kap_patch_records_for_ufrs(
         return [], None
 
     values = kap_financials.standardized_record_values_ufrs(raw_kap)
+    _forward_fill_share_capital(values, raw, newest_isyatirim_period, isyatirim.standardized_value_ufrs)
 
     if not _kap_patch_is_plausible(
         ticker, raw_kap.period, values, raw, newest_isyatirim_period, value_fn=isyatirim.standardized_value_ufrs
@@ -1084,6 +1118,7 @@ def _kap_patch_records_for_ufrs_k(
         return [], None
 
     values = kap_financials.standardized_record_values_ufrs_k(raw_kap)
+    _forward_fill_share_capital(values, raw, newest_isyatirim_period, isyatirim.standardized_value_ufrs_k)
 
     if not _kap_patch_is_plausible(
         ticker, raw_kap.period, values, raw, newest_isyatirim_period, value_fn=isyatirim.standardized_value_ufrs_k
@@ -1140,6 +1175,7 @@ def _kap_patch_records_for_financing(
         return [], None
 
     values = kap_financials.standardized_record_values_financing(raw_kap)
+    _forward_fill_share_capital(values, raw, newest_isyatirim_period, isyatirim.standardized_value_financing)
 
     if not _kap_patch_is_plausible(
         ticker, raw_kap.period, values, raw, newest_isyatirim_period, value_fn=isyatirim.standardized_value_financing

@@ -89,6 +89,19 @@ def test_position_size_risk_mesafesi_yoksa_sifir():
     assert _position_size(equity=10_000, entry_price=100, sl=100, params=BacktestParams()) == 0.0
 
 
+def test_position_size_nan_sl_crash_etmez_sifir_doner():
+    """Canli hata (pivot_lookback=3 kosusu, 2026-08-18): sinyal veri setinin
+    basinda (ilk ~14 barda) onaylanirsa atr14 henuz NaN olabilir (Wilder
+    ATR seed'i tamamlanmadan), yani `signal.sl` NaN olur. `NaN <= 0` HER
+    ZAMAN False dondugu icin eski kod bunu yakalamiyor, `math.floor(NaN)`
+    ValueError firlatiyordu -- artik acikca 0.0 donmeli (crash DEGIL)."""
+    assert _position_size(equity=10_000, entry_price=100, sl=float("nan"), params=BacktestParams()) == 0.0
+
+
+def test_position_size_nan_entry_price_crash_etmez_sifir_doner():
+    assert _position_size(equity=10_000, entry_price=float("nan"), sl=95, params=BacktestParams()) == 0.0
+
+
 # ── backtest_symbol: TP1/TP2, break-even, ayni-bar cakismasi ──────────────
 
 

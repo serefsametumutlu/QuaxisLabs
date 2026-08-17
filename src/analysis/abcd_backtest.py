@@ -149,6 +149,21 @@ def _already_beyond_at_signal_close(df: pd.DataFrame, signal: Signal) -> bool:
 
 
 def _position_size(equity: float, entry_price: float, sl: float, params: BacktestParams) -> float:
+    """CANLI HATA + DUZELTME (pivot_lookback=3 karsilastirma kosusu,
+    2026-08-18): dusuk `pivot_lookback` degerleri, sinyalin veri setinin
+    cok BASINDA (ilk ~14 barda) onaylanmasina izin verebiliyor -- o noktada
+    `atr_wilder()` henuz NaN doner (Wilder ATR(14), ilk 14 bar dolmadan
+    tanimsizdir, bkz. abcd_pattern.py::atr_wilder docstring'i), yani
+    `signal.sl` NaN olabilir. Eski kod SADECE `risk_per_share <= 0` /
+    `entry_price <= 0` kontrol ediyordu -- NaN ile yapilan HERHANGI bir
+    karsilastirma Python'da HER ZAMAN False dondugu icin (`NaN <= 0` ==
+    False) bu guard NaN'i YAKALAMIYORDU, `math.floor(NaN)` ValueError
+    firlatip TUM grid kosusunu (saatlerce surebilen 657-sembollik bir
+    taramayi) cokertiyordu. `math.isnan()` ile ACIKCA kontrol edilir --
+    boyle bir sinyal "boyutlandirilamaz" sayilir (risk_per_share<=0 ile
+    AYNI, mevcut anlamsal davranis), islem sessizce ATLANIR (crash DEGIL)."""
+    if math.isnan(entry_price) or math.isnan(sl):
+        return 0.0
     risk_per_share = abs(entry_price - sl)
     if risk_per_share <= 0 or entry_price <= 0:
         return 0.0

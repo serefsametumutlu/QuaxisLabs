@@ -31,6 +31,23 @@ dict'ler, artan zamana sıralı). Bu modül bars'ı ÇEKMEZ/DÖNÜŞTÜRMEZ, sad
 verildiği haliyle kullanır. `signal.a_bar/b_bar/c_bar/d_bar`, bu AYNI
 `bars` listesinin indeksleridir (abcd_pattern.detect()'in girdisi olan
 DataFrame ile bire bir aynı sıradadır) -- çağıran taraf bunu garanti eder.
+
+Faz 5.1 (kullanıcı canlı kullanım raporu -- gece nöbeti düzeltmesi):
+  (1) Grafik artık `bars`'ın TAMAMINI değil, formasyonun (A..D + onay barı)
+      etrafında dar bir PENCERE gösterir (bkz. `_compute_window`) -- "birkaç
+      aylık geçmiş" yüzünden formasyonun küçük/görünmez kalması sorunu
+      buradan kaynaklanıyordu.
+  (2) "Formasyon Kırılımı" (A/B/C/D pivot tablosu) bölümü kaldırıldı, yerine
+      RSI(14)/MACD(12,26,9)/Hacim mini panelleri geldi -- desen
+      `src/render/technical_card.py`'nin mini-grafik desenidir (BİREBİR
+      taşınmadı, o modülün jenerik ölçekleme yardımcıları --
+      `_scale_series_to_points`/`_value_to_y`/`_mini_chart_bounds` --
+      buradan import edilip ABCD'ye özgü veriyle besleniyor; RSI/EMA
+      formülleri de `src/analysis/abcd_factor_analysis.py`'deki
+      `_rsi_wilder`/`_ema`'dan (zaten var olan float göstergeler, Karar 2
+      istisnası) yeniden kullanılıyor -- YENİDEN İCAT EDİLMEDİ). `abcd_table`
+      context anahtarı geriye dönük uyumluluk için hâlâ üretiliyor, sadece
+      şablon artık onu göstermiyor.
 """
 
 from __future__ import annotations
@@ -39,8 +56,12 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
+import numpy as np
+
+from src.analysis.abcd_factor_analysis import _ema, _rsi_wilder
 from src.analysis.abcd_pattern import Signal
 from src.formatting import format_number_tr, format_percent_tr
+from src.render.technical_card import _mini_chart_bounds, _scale_series_to_points, _value_to_y
 
 _DISCLAIMER = "Bu içerik yatırım tavsiyesi değildir; yatırım kararı için profesyonel danışmanlık alınmalıdır."
 _EXPERIMENTAL_NOTE = (
@@ -83,6 +104,201 @@ _CHART_GRIDLINE_LEVELS = (Decimal("0.25"), Decimal("0.5"), Decimal("0.75"))
 
 # ABCD nokta etiketlerinin mumdan dikey uzaklığı (viewBox birimi).
 _POINT_LABEL_OFFSET = 22
+
+# ENTRY/TP1/TP2/SL çizgilerinin D noktasının kaç birim SAĞINDAN başladığı --
+# `entry_ref` (D kapanışı) ile `d_price` (pivot ekstremi) çoğu zaman
+# birbirine çok yakın olduğundan, çizgi tam D'den başlarsa D'nin nokta
+# işareti/etiketiyle görsel çakışır (bkz. `_build_chart` içindeki not).
+_LEVEL_LINE_START_GAP = 34
+
+# Görüntüleme penceresi (Faz 5.1) -- formasyonun (A barı) biraz ÖNCESİNDEN
+# başlayıp onay barının (signal_bar = D + pivot_lookback) biraz SONRASINA
+# kadar dar bir aralık gösterir; `bars`'ın TAMAMI DEĞİL. Bar-sayısı cinsinden
+# sabit tutulur (takvim günü DEĞİL) -- zaman dilimine (1D/1W/60dk/...) göre
+# otomatik ölçeklenir, her tf için ayrı bir sabit gerekmez.
+_WINDOW_PAD_BEFORE_A = 8
+_WINDOW_PAD_AFTER_SIGNAL = 12
+
+# RSI/MACD/Hacim mini panelleri -- technical_card.py'nin
+# `_MINI_CHART_VIEWBOX_HEIGHT`/`_scale_series_to_points` deseniyle AYNI
+# ilke. `_MINI_VIEWBOX_WIDTH`, import edilen `_scale_series_to_points`'in
+# KENDİ modülündeki (`technical_card._CHART_VIEWBOX_WIDTH`) sabit x-ölçeğiyle
+# BİREBİR eşleşmek ZORUNDADIR (o fonksiyon width'i parametre DEĞİL, kendi
+# modül sabitinden okur) -- bilinçli bir eşleşme, tesadüf değil.
+_MINI_VIEWBOX_WIDTH = 1000
+_MINI_VIEWBOX_HEIGHT = 130
+_MINI_PADDING = 12
+
+_RSI_ASIRI_ALIM_ESIGI = Decimal(70)
+_RSI_ASIRI_SATIM_ESIGI = Decimal(30)
+
+
+def _compute_window(signal: Signal, n: int) -> tuple[int, int]:
+    """Formasyonun (A..D + onay barı) etrafında dar bir [start, end) bar
+    aralığı hesaplar -- bkz. modül üst notu Faz 5.1(1). `n <= 0` ise
+    (0, 0) döner (çağıran taraf boş pencereyi zaten "veri yok" olarak ele
+    alır, bkz. `_build_chart`/mini panel fonksiyonlarının `has_data=False`
+    kısa yolları)."""
+    if n <= 0:
+        return 0, 0
+    start = max(0, signal.a_bar - _WINDOW_PAD_BEFORE_A)
+    end = min(n, signal.signal_bar + _WINDOW_PAD_AFTER_SIGNAL + 1)
+    if end <= start:
+        end = min(n, start + 1)
+    return start, end
+
+
+def _indicator_num(value: Decimal | None, decimals: int = 3) -> str:
+    return format_number_tr(value, decimals) if value is not None else "N/A"
+
+
+def _float_series_to_decimal(values: np.ndarray) -> tuple[Decimal | None, ...]:
+    """`np.nan` değerlerini `None`'a çevirerek Decimal render sınırına
+    taşır -- `_d()` ile AYNI kural, dizi (array) hali."""
+    return tuple(_d(float(v)) for v in values)
+
+
+def _close_array(bars: list[dict]) -> np.ndarray:
+    return np.array([float(b.get("close") or 0.0) for b in bars], dtype=float)
+
+
+def _volume_array(bars: list[dict]) -> np.ndarray:
+    return np.array([float(b.get("volume") or 0.0) for b in bars], dtype=float)
+
+
+def _macd_series(close: np.ndarray, fast: int = 12, slow: int = 26, signal_span: int = 9) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """MACD çizgisi/sinyal/histogram -- `abcd_factor_analysis._ema`'nın
+    (zaten var olan basit EMA) standart MACD(12,26,9) bileşimi. Yeni bir
+    gösterge formülü İCAT EDİLMEDİ, sadece `_macd_hist`'in ürettiği
+    histogramın YANINDA çizgi/sinyal de döndürülür (o fonksiyon sadece
+    histogramı döner, mini panel çizgileri için üçü de gerekir)."""
+    macd_line = _ema(close, fast) - _ema(close, slow)
+    signal_line = _ema(macd_line, signal_span)
+    return macd_line, signal_line, macd_line - signal_line
+
+
+def _build_rsi_panel(bars: list[dict], window_start: int, window_end: int) -> dict:
+    """RSI(14) -- TAM `bars` üzerinde hesaplanır (ısınma dönemi için gerçek
+    geçmişe ihtiyaç duyar), SADECE görüntü pencereye kırpılır (bkz. modül
+    üst notu Faz 5.1(2))."""
+    close = _close_array(bars)
+    if len(close) < 2:
+        return {"has_data": False}
+    rsi = _rsi_wilder(close, 14)
+    rsi_dec = _float_series_to_decimal(rsi)[window_start:window_end]
+    n = len(rsi_dec)
+    if n < 2 or not any(v is not None for v in rsi_dec):
+        return {"has_data": False}
+
+    min_v, max_v = Decimal(0), Decimal(100)
+    span = max_v - min_v
+    overbought_y = _value_to_y(_RSI_ASIRI_ALIM_ESIGI, min_v, span, _MINI_VIEWBOX_HEIGHT, _MINI_PADDING)
+    oversold_y = _value_to_y(_RSI_ASIRI_SATIM_ESIGI, min_v, span, _MINI_VIEWBOX_HEIGHT, _MINI_PADDING)
+    current = next((v for v in reversed(rsi_dec) if v is not None), None)
+
+    return {
+        "has_data": True,
+        "viewbox_width": _MINI_VIEWBOX_WIDTH,
+        "viewbox_height": _MINI_VIEWBOX_HEIGHT,
+        "rsi_points": _scale_series_to_points(rsi_dec, min_v, span, n, _MINI_VIEWBOX_HEIGHT, _MINI_PADDING),
+        "overbought_y": f"{overbought_y:.1f}",
+        "oversold_y": f"{oversold_y:.1f}",
+        "current_display": _indicator_num(current, 1),
+    }
+
+
+def _build_macd_panel(bars: list[dict], window_start: int, window_end: int) -> dict:
+    """MACD(12,26,9) -- bkz. `_build_rsi_panel` docstring'i (aynı "tam
+    seride hesapla, pencereye kırp" ilkesi)."""
+    close = _close_array(bars)
+    if len(close) < 2:
+        return {"has_data": False}
+    line, signal_line, hist = _macd_series(close)
+    line_dec = _float_series_to_decimal(line)[window_start:window_end]
+    signal_dec = _float_series_to_decimal(signal_line)[window_start:window_end]
+    hist_dec = _float_series_to_decimal(hist)[window_start:window_end]
+    n = len(hist_dec)
+    bounds = _mini_chart_bounds(line_dec, signal_dec, hist_dec, include_zero=True) if n > 1 else None
+    if bounds is None:
+        return {"has_data": False}
+    min_v, span = bounds
+
+    zero_y = _value_to_y(Decimal(0), min_v, span, _MINI_VIEWBOX_HEIGHT, _MINI_PADDING)
+    bar_width = Decimal(_MINI_VIEWBOX_WIDTH) / Decimal(n) * Decimal("0.6")
+    histogram_bars = []
+    for i, value in enumerate(hist_dec):
+        if value is None:
+            continue
+        x = Decimal(i) / Decimal(n - 1) * _MINI_VIEWBOX_WIDTH if n > 1 else Decimal(0)
+        y_value = _value_to_y(value, min_v, span, _MINI_VIEWBOX_HEIGHT, _MINI_PADDING)
+        top = min(y_value, zero_y)
+        histogram_bars.append(
+            {
+                "x": f"{(x - bar_width / 2):.1f}",
+                "y": f"{top:.1f}",
+                "width": f"{bar_width:.1f}",
+                "height": f"{abs(y_value - zero_y):.1f}",
+                "positive": value >= 0,
+            }
+        )
+
+    last_macd = next((v for v in reversed(line_dec) if v is not None), None)
+    last_signal = next((v for v in reversed(signal_dec) if v is not None), None)
+
+    return {
+        "has_data": True,
+        "viewbox_width": _MINI_VIEWBOX_WIDTH,
+        "viewbox_height": _MINI_VIEWBOX_HEIGHT,
+        "line_points": _scale_series_to_points(line_dec, min_v, span, n, _MINI_VIEWBOX_HEIGHT, _MINI_PADDING),
+        "signal_points": _scale_series_to_points(signal_dec, min_v, span, n, _MINI_VIEWBOX_HEIGHT, _MINI_PADDING),
+        "histogram_bars": histogram_bars,
+        "zero_line_y": f"{zero_y:.1f}",
+        "macd_display": _indicator_num(last_macd, 3),
+        "signal_display": _indicator_num(last_signal, 3),
+    }
+
+
+def _build_volume_panel(bars: list[dict], window_start: int, window_end: int) -> dict:
+    """Pencere içi hacim çubukları + pencere ortalaması referans çizgisi.
+    `technical_card._build_volume_history_chart`'ın (20 günlük ortalama)
+    AYNASI değil -- burada ortalama, gösterilen PENCERE'nin kendisidir
+    (formasyonun döneminde hacim nasıl davrandığını göstermek amacıyla,
+    sabit 20-bar'lık dış bir ortalama DEĞİL)."""
+    volumes = _volume_array(bars)[window_start:window_end]
+    n = len(volumes)
+    if n < 2:
+        return {"has_data": False}
+
+    max_v = float(volumes.max()) or 1.0
+    usable_height = Decimal(_MINI_VIEWBOX_HEIGHT - _MINI_PADDING)
+    bar_width = Decimal(_MINI_VIEWBOX_WIDTH) / Decimal(n) * Decimal("0.7")
+
+    volume_bars = []
+    for i, value in enumerate(volumes):
+        x = Decimal(i) / Decimal(n - 1) * _MINI_VIEWBOX_WIDTH if n > 1 else Decimal(0)
+        height = Decimal(str(value / max_v)) * usable_height
+        volume_bars.append(
+            {
+                "x": f"{(x - bar_width / 2):.1f}",
+                "y": f"{(Decimal(_MINI_VIEWBOX_HEIGHT) - height):.1f}",
+                "width": f"{bar_width:.1f}",
+                "height": f"{height:.1f}",
+            }
+        )
+
+    avg_v = float(volumes.mean())
+    avg_height = Decimal(str(avg_v / max_v)) * usable_height
+    avg_line_y = f"{(Decimal(_MINI_VIEWBOX_HEIGHT) - avg_height):.1f}"
+
+    return {
+        "has_data": True,
+        "viewbox_width": _MINI_VIEWBOX_WIDTH,
+        "viewbox_height": _MINI_VIEWBOX_HEIGHT,
+        "bars": volume_bars,
+        "avg_line_y": avg_line_y,
+        "last_volume_display": format_number_tr(Decimal(str(volumes[-1])), 0),
+        "avg_volume_display": format_number_tr(Decimal(str(avg_v)), 0),
+    }
 
 
 def _d(value: float | None) -> Decimal | None:
@@ -213,7 +429,13 @@ def _abcd_point(
     }
 
 
-def _build_chart(bars: list[dict], signal: Signal, market: str) -> dict:
+def _build_chart(bars: list[dict], signal: Signal, market: str, index_offset: int) -> dict:
+    """`bars`: ÖNCEDEN pencerelenmiş (bkz. `_compute_window`) bar listesi --
+    bu fonksiyon artık `bars`'ın TAMAMINI değil, çağıranın verdiği dar
+    aralığı çizer. `index_offset`: pencerenin orijinal (pencerelenmemiş)
+    listedeki başlangıç indeksi -- `signal.a_bar/b_bar/c_bar/d_bar` bu
+    ORİJİNAL listeye göredir, burada `index_offset` çıkarılarak pencere-yerel
+    indekse çevrilir (bkz. Faz 5.1(1))."""
     n = len(bars)
     if n < 2:
         return {"has_data": False}
@@ -250,11 +472,16 @@ def _build_chart(bars: list[dict], signal: Signal, market: str) -> dict:
     is_bull = signal.direction == 1
     a_above, b_above, c_above, d_above = (True, False, True, False) if is_bull else (False, True, False, True)
 
+    a_bar = signal.a_bar - index_offset
+    b_bar = signal.b_bar - index_offset
+    c_bar = signal.c_bar - index_offset
+    d_bar = signal.d_bar - index_offset
+
     points = [
-        _abcd_point("A", signal.a_bar, signal.a_price, bars, n, plot_width, min_v, span, a_above),
-        _abcd_point("B", signal.b_bar, signal.b_price, bars, n, plot_width, min_v, span, b_above),
-        _abcd_point("C", signal.c_bar, signal.c_price, bars, n, plot_width, min_v, span, c_above),
-        _abcd_point("D", signal.d_bar, signal.d_price, bars, n, plot_width, min_v, span, d_above),
+        _abcd_point("A", a_bar, signal.a_price, bars, n, plot_width, min_v, span, a_above),
+        _abcd_point("B", b_bar, signal.b_price, bars, n, plot_width, min_v, span, b_above),
+        _abcd_point("C", c_bar, signal.c_price, bars, n, plot_width, min_v, span, c_above),
+        _abcd_point("D", d_bar, signal.d_price, bars, n, plot_width, min_v, span, d_above),
     ]
     px = {p["label"]: p for p in points}
 
@@ -263,6 +490,13 @@ def _build_chart(bars: list[dict], signal: Signal, market: str) -> dict:
 
     d_x = float(px["D"]["x"])
     line_x_end = _CHART_PAD_LEFT + plot_width
+    # `entry_ref` D barının KAPANIŞIdır, `d_price` ise pivot EKSTREMİdir --
+    # ikisi çoğu zaman çok yakındır, bu yüzden ENTRY çizgisi D noktasının
+    # NOKTA İŞARETİYLE/ETİKETİYLE (above/below metin) aynı (x,y) bölgesine
+    # düşebilir (kullanıcı raporu: "TP/SL etiketleri ... formasyonun
+    # kendisi bu yüzden görünmüyor"). Çizgiler D'nin biraz SAĞINDAN
+    # başlatılarak nokta/etiket ile görsel çakışma önlenir.
+    line_x_start = d_x + _LEVEL_LINE_START_GAP
 
     def _level_line(price: float | None, css_class: str, label_text: str) -> dict | None:
         dec = _d(price)
@@ -270,7 +504,7 @@ def _build_chart(bars: list[dict], signal: Signal, market: str) -> dict:
             return None
         y = _scale_y(dec, min_v, span)
         return {
-            "x_start": f"{d_x:.1f}",
+            "x_start": f"{line_x_start:.1f}",
             "x_end": f"{line_x_end:.1f}",
             "y": f"{y:.1f}",
             "css_class": css_class,
@@ -317,6 +551,9 @@ def build_abcd_card_context(
     tf_label = _TF_LABELS.get(tf, tf)
     is_bull = signal.direction == 1
 
+    window_start, window_end = _compute_window(signal, len(bars))
+    windowed_bars = bars[window_start:window_end]
+
     return {
         "ticker": ticker,
         "company_name": company_name,
@@ -342,5 +579,8 @@ def build_abcd_card_context(
             {"label": "C", "price_display": _price(signal.c_price, market), "date_display": _format_bar_date(bars[signal.c_bar].get("time")) if 0 <= signal.c_bar < len(bars) else ""},
             {"label": "D", "price_display": _price(signal.d_price, market), "date_display": _format_bar_date(bars[signal.d_bar].get("time")) if 0 <= signal.d_bar < len(bars) else ""},
         ],
-        "chart": _build_chart(bars, signal, market),
+        "chart": _build_chart(windowed_bars, signal, market, window_start),
+        "rsi_chart": _build_rsi_panel(bars, window_start, window_end),
+        "macd_chart": _build_macd_panel(bars, window_start, window_end),
+        "volume_chart": _build_volume_panel(bars, window_start, window_end),
     }

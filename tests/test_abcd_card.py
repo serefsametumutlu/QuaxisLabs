@@ -258,3 +258,119 @@ def test_open_none_bars_fall_back_to_doji_without_crashing():
     assert len(ctx["chart"]["candles"]) == len(bars)
     for candle in ctx["chart"]["candles"]:
         assert float(candle["body_height"]) >= 1.4  # minimum görünür gövde
+
+
+# --- Görüntüleme penceresi (Faz 5.1(1)) -----------------------------------
+
+
+def _long_history_signal(bars: list[dict]) -> Signal:
+    """`_bull_signal` ile AYNI biçim/oranlar, sadece A..D barları serinin
+    ORTASINA (baştan ve sondan uzağa) yerleştirilir -- 'birkaç aylık geçmiş'
+    senaryosunu taklit eder (bkz. kullanıcı raporu madde 1)."""
+    a_bar, b_bar, c_bar, d_bar = 100, 110, 120, 130
+    a_price, b_price, c_price, d_price = 100.0, 80.0, 92.0, 72.0
+    bars[a_bar]["high"] = a_price
+    bars[b_bar]["low"] = b_price
+    bars[c_bar]["high"] = c_price
+    bars[d_bar]["low"] = d_price
+    signal_bar = d_bar + 5
+    return Signal(
+        direction=1,
+        a_bar=a_bar, b_bar=b_bar, c_bar=c_bar, d_bar=d_bar,
+        a_price=a_price, b_price=b_price, c_price=c_price, d_price=d_price,
+        signal_bar=signal_bar,
+        signal_time=bars[signal_bar]["time"],
+        entry_ref=bars[d_bar]["close"],
+        fill_ref=bars[signal_bar + 1]["open"] if signal_bar + 1 < len(bars) else float("nan"),
+        tp1=d_price + abs(a_price - d_price) * 0.382,
+        tp2=c_price,
+        sl=d_price - 3.0,
+        bc_ratio=abs(c_price - b_price) / abs(a_price - b_price),
+        cd_ratio=abs(d_price - c_price) / abs(a_price - b_price),
+    )
+
+
+def test_window_crops_large_bar_range_around_formation():
+    """Kullanıcı raporu madde 1: 'grafik çok geniş/uzun, formasyon küçük
+    kalıyor'. 300 barlık bir seride formasyon ortada olsa da, grafik
+    TAMAMINI değil, formasyonun etrafındaki dar bir pencereyi göstermeli."""
+    bars = _bars(n=300)
+    signal = _long_history_signal(bars)
+    ctx = abcd_card.build_abcd_card_context(bars, signal, ticker="THYAO", market="BIST", tf="1d")
+    assert ctx["chart"]["has_data"] is True
+    # 300 bardan çok daha az -- formasyon (A=100..D=130 + onay=135) + tampon
+    assert len(ctx["chart"]["candles"]) < 100
+    assert len(ctx["chart"]["candles"]) >= (signal.signal_bar - signal.a_bar)
+
+
+def test_window_start_date_display_reflects_cropped_range_not_full_history():
+    bars = _bars(n=300)
+    signal = _long_history_signal(bars)
+    ctx = abcd_card.build_abcd_card_context(bars, signal, ticker="THYAO", market="BIST", tf="1d")
+    # Pencerelenmemiş ilk bar (2026-01-01) grafikte GÖSTERİLMEMELİ.
+    assert ctx["chart"]["start_date_display"] != "01.01.2026"
+
+
+def test_window_abcd_points_still_align_with_local_candle_positions():
+    """Pencereleme sonrası A/B/C/D nokta x-konumları hâlâ artan sırada ve
+    mum sayısı ile tutarlı olmalı (index_offset doğru uygulanmış)."""
+    bars = _bars(n=300)
+    signal = _long_history_signal(bars)
+    ctx = abcd_card.build_abcd_card_context(bars, signal, ticker="THYAO", market="BIST", tf="1d")
+    xs = [float(p["x"]) for p in ctx["chart"]["abcd_points"]]
+    assert xs == sorted(xs)
+    n_candles = len(ctx["chart"]["candles"])
+    for p in ctx["chart"]["abcd_points"]:
+        assert 0 <= float(p["x"]) <= (ctx["chart"]["viewbox_width"])
+    assert n_candles < 300
+
+
+def test_window_small_bar_count_unaffected():
+    """Küçük serilerde (mevcut testlerin varsayımı) pencereleme davranışı
+    DEĞİŞMEMELİ -- tüm bars zaten pencereye sığar."""
+    bars = _bars(n=50)
+    signal = _bull_signal(bars)
+    ctx = abcd_card.build_abcd_card_context(bars, signal, ticker="THYAO", market="BIST", tf="1d")
+    assert len(ctx["chart"]["candles"]) == 50
+
+
+# --- RSI / MACD / Hacim mini panelleri (Faz 5.1(2)) -----------------------
+
+
+def test_rsi_macd_volume_chart_keys_present_with_sufficient_history():
+    bars = _bars(n=120)
+    signal = _bull_signal(bars)
+    ctx = abcd_card.build_abcd_card_context(bars, signal, ticker="THYAO", market="BIST", tf="1d")
+    assert ctx["rsi_chart"]["has_data"] is True
+    assert ctx["macd_chart"]["has_data"] is True
+    assert ctx["volume_chart"]["has_data"] is True
+    assert ctx["rsi_chart"]["current_display"] != "N/A"
+    assert ctx["macd_chart"]["macd_display"] != "N/A"
+    assert ctx["volume_chart"]["last_volume_display"]
+
+
+def test_rsi_value_range_stays_within_0_100():
+    bars = _bars(n=120)
+    signal = _bull_signal(bars)
+    ctx = abcd_card.build_abcd_card_context(bars, signal, ticker="THYAO", market="BIST", tf="1d")
+    current = float(ctx["rsi_chart"]["current_display"].replace(",", "."))
+    assert 0.0 <= current <= 100.0
+
+
+def test_rsi_macd_volume_charts_have_no_data_for_insufficient_bars():
+    """RSI(14)/MACD(12,26,9) ısınma dönemi gerektirir -- çok kısa seride
+    (`_minimal_signal`'in tek barlık senaryosu) 'yeterli veri yok' durumu
+    dürüstçe bildirilmeli (Kural 3), uydurma değer ÜRETİLMEMELİ."""
+    ctx = abcd_card.build_abcd_card_context([], _minimal_signal(), ticker="THYAO", market="BIST", tf="1d")
+    assert ctx["rsi_chart"]["has_data"] is False
+    assert ctx["macd_chart"]["has_data"] is False
+    assert ctx["volume_chart"]["has_data"] is False
+
+
+def test_macd_panel_histogram_bar_count_matches_window():
+    bars = _bars(n=120)
+    signal = _bull_signal(bars)
+    ctx = abcd_card.build_abcd_card_context(bars, signal, ticker="THYAO", market="BIST", tf="1d")
+    # Histogram sadece hesaplanabilir (None olmayan) noktalar için çubuk üretir.
+    assert len(ctx["macd_chart"]["histogram_bars"]) > 0
+    assert len(ctx["macd_chart"]["histogram_bars"]) <= len(ctx["chart"]["candles"])

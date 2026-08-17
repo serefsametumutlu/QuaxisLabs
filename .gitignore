@@ -18,6 +18,14 @@ data/tessdata/
 venv/
 kitaplar/*.pdf
 
+# ABCD formasyon ozelligi (docs/spec/spec_abcd_mimari_kararlar.md): yfinance
+# parquet cache'i -- uretilen/yeniden-indirilebilir veri, kaynak DEGIL.
+data/abcd_cache/
+
+# Claude Code agent-memory (araclar arasi calisma notlari) -- proje kaynagi
+# DEGIL, repo disi durum.
+.claude/agent-memory/
+
 # Faz 5 (docs/spec/spec_dashboard.md): src/render/dashboard.py::build_and_write_dashboard()
 # HER calistirildiginda uretilen, gercek MarketScanResult anlik goruntusunu
 # (+ base64 gomulu fontlarla ~1.5MB) tasiyan build ciktisi -- data/cards/*.png

@@ -29,14 +29,15 @@ _BEKLEYEN_ISLEM_TTL_SECONDS = 600.0
 
 @dataclass
 class BekleyenIslem:
-    tip: str  # "analiz" (temel) | "teknik" (Faz 15) | "fonanaliz" (Faz 19) | "degerleme" (Faz 21)
+    tip: str  # "analiz" (temel) | "teknik" (Faz 15) | "fonanaliz" (Faz 19) | "degerleme" (Faz 21) | "abcd" (Faz 6)
     market: str  # "BIST" | "NASDAQ" -- tip="fonanaliz" icin kullanilmaz, "-" sabiti konur
     expires_at: float  # time.monotonic() bazli
+    extra: str | None = None  # tip="abcd" icin secilen zaman dilimini tasir (geriye-uyumlu, varsayilan None)
 
 
-def set_bekleyen_islem(user_data: dict, *, tip: str, market: str) -> None:
+def set_bekleyen_islem(user_data: dict, *, tip: str, market: str, extra: str | None = None) -> None:
     user_data["bekleyen_islem"] = BekleyenIslem(
-        tip=tip, market=market, expires_at=time.monotonic() + _BEKLEYEN_ISLEM_TTL_SECONDS
+        tip=tip, market=market, expires_at=time.monotonic() + _BEKLEYEN_ISLEM_TTL_SECONDS, extra=extra
     )
 
 
@@ -92,6 +93,7 @@ def build_root_menu() -> InlineKeyboardMarkup:
             [InlineKeyboardButton("💰 Fon Analiz", callback_data="menu:fonanaliz")],
             [InlineKeyboardButton("🆕 Halka Arz İnceleme", callback_data="menu:halkaarz")],
             [InlineKeyboardButton("📅 Yaklaşan Bilanço Tarihleri", callback_data="menu:takvim")],
+            [InlineKeyboardButton("🔺 Formasyonlar", callback_data="menu:formasyonlar")],
             [InlineKeyboardButton("🕘 Son Kartlar", callback_data="menu:son")],
             [InlineKeyboardButton("ℹ️ Hakkında", callback_data="menu:hakkinda")],
         ]
@@ -187,6 +189,62 @@ def build_takvim_menu() -> InlineKeyboardMarkup:
             [InlineKeyboardButton("⬅️ Geri", callback_data="menu:root")],
         ]
     )
+
+
+def build_formasyonlar_menu() -> InlineKeyboardMarkup:
+    """'🔺 Formasyonlar' -- Faz 6, deneysel formasyon özelliklerinin kök
+    ekranı. Şu an tek dal var (ABCD), ama diğer menu ekranlarıyla (Fon
+    Analiz, Halka Arz) AYNI iki-seviyeli desen için ayrı bir alt-menu
+    olarak tutulur -- ileride yeni formasyon türleri EKLENEBİLİR diye."""
+    return InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("🔍 ABCD Formasyonu", callback_data="abcd:menu")],
+            [InlineKeyboardButton("⬅️ Geri", callback_data="menu:root")],
+        ]
+    )
+
+
+# --- ABCD formasyon akışı (Faz 6) -----------------------------------------------------
+#
+# `abcd:...` callback_data ailesi, kalanının `menu:...` aile şemasıyla
+# KARIŞMASIN diye BİLİNÇLİ olarak ayrı bir önek kullanır (bkz.
+# telegram_bot.py::handle_abcd_callback, `pattern=r"^abcd:"` ile ayrı bir
+# CallbackQueryHandler'a bağlanır). Kaynak referans (kullanıcının BEĞENDİĞİ
+# UX akışı): `abcd-project/abcd/bot.py::_tf_keyboard` -- tek satırda tüm
+# zaman dilimi butonları.
+
+# src.fetchers.abcd_data.TIMEFRAMES ile AYNI sırada/değerlerde tutulmalıdır
+# -- menu.py katman disiplini gereği (SAF UI, I/O/fetcher importu YAPMAZ)
+# burada bağımsız bir kopya olarak tutulur, o modülün KENDİSİ import EDİLMEZ.
+_ABCD_TIMEFRAMES: tuple[str, ...] = ("60", "120", "240", "1D", "1W")
+
+
+def abcd_mode_keyboard() -> InlineKeyboardMarkup:
+    """'abcd:menu' ekranı -- Tek Hisse mi, Tüm BİST Taraması mı?"""
+    return InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("🔍 Tek Hisse", callback_data="abcd:mode:tekli")],
+            [InlineKeyboardButton("📡 Tüm BİST Taraması", callback_data="abcd:mode:tarama")],
+            [InlineKeyboardButton("⬅️ Geri", callback_data="menu:formasyonlar")],
+        ]
+    )
+
+
+def abcd_tf_keyboard(mode: str) -> InlineKeyboardMarkup:
+    """'abcd:mode:{mode}' ekranı -- zaman dilimi seçimi, abcd-project
+    `_tf_keyboard()` ile AYNI düzen (tek satırda 5 buton). `mode` callback_data
+    içine gömülür ('abcd:tf:{mode}:{tf}') ki bir sonraki adım (handle_abcd_callback)
+    hem modu hem zaman dilimini AYNI tıklamadan bilsin -- ayrı bir state
+    GEREKMEZ (bkz. menu.py modül notu: navigasyon callback_data'ya gömülür)."""
+    tf_row = [InlineKeyboardButton(tf, callback_data=f"abcd:tf:{mode}:{tf}") for tf in _ABCD_TIMEFRAMES]
+    return InlineKeyboardMarkup([tf_row, [InlineKeyboardButton("⬅️ Geri", callback_data="abcd:menu")]])
+
+
+def build_abcd_bekleniyor_menu(mode: str) -> InlineKeyboardMarkup:
+    """Tekli mod için 'hisse kodunu yaz' ekranı -- Geri, AYNI modun zaman
+    dilimi seçim ekranına döner (kullanıcı zaman dilimini değiştirmek
+    isterse baştan mod seçmesine gerek kalmaz)."""
+    return _geri_menu(f"abcd:mode:{mode}")
 
 
 def _geri_menu(hedef_callback_data: str) -> InlineKeyboardMarkup:
@@ -286,6 +344,10 @@ HALKAARZ_MENU_TEXT = "🆕 Halka Arz İnceleme — SPK onaylı, henüz işlem g�
 HALKAARZ_BOS_TEXT = "🆕 Şu an son 60 günde SPK onaylı, işleme başlamamış bir izahname bulunamadı."
 HALKAARZ_YUKLENIYOR_TEXT = "🆕 İzahnameler taranıyor... (~45-60 saniye, ~22 aracı kurumun KAP profili kontrol ediliyor)"
 DEGERLEME_PROMPT = "🧮 Değerleme — hisse kodunu yaz (örn: THYAO). Sadece BİST sanayi/ticaret şirketleri desteklenir."
+FORMASYONLAR_MENU_TEXT = "🔺 Formasyonlar — deneysel formasyon tespiti, temel/teknik skorlardan bağımsızdır:"
+ABCD_MODE_TEXT = "🔍 ABCD Formasyonu — tek hisse mi bakmak istersin, yoksa tüm BİST'i mi taratayım?"
+ABCD_TF_TEXT = "Zaman dilimini seç:"
+ABCD_TEKLI_PROMPT = "Hisse kodunu yaz (örn: THYAO)"
 
 ANALIZ_BIST_PROMPT = "Hisse kodunu yaz (örn: THYAO)"
 ANALIZ_NASDAQ_PROMPT = "Sembolü yaz (örn: AAPL)"

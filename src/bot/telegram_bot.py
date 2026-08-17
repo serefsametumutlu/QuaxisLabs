@@ -25,12 +25,25 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fi
 
 import config
 from src.ai import commentary
-from src.analysis import calculator, technical, trends
+from src.analysis import abcd_scanner, calculator, technical, trends
+from src.analysis.abcd_pattern import Params as AbcdParams
+from src.analysis.abcd_pattern import detect as abcd_detect
 from src.bot import fund_pipeline, ipo_pipeline, menu, pipeline
 from src.db import models, repository
 from src.fetchers import kap_ipo, price_history
+from src.fetchers.abcd_data import fetch_ohlcv_abcd
 from src.formatting import format_number_tr
-from src.render import calendar_card, card, dashboard, deep_card, fund_card, fundamental_screens_card, ipo_card, technical_card
+from src.render import (
+    abcd_card,
+    calendar_card,
+    card,
+    dashboard,
+    deep_card,
+    fund_card,
+    fundamental_screens_card,
+    ipo_card,
+    technical_card,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +118,12 @@ async def _on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
 _TICKER_RE_BIST = re.compile(r"^[A-Z]{3,6}$")
 _TICKER_RE_NASDAQ = re.compile(r"^[A-Z]{1,5}(\.[A-Z])?$")
 _TICKER_RE_FON = re.compile(r"^[A-Z]{2,5}$")  # TEFAS fon kodlari (orn. PHE, TLY) -- BIST'ten AYRI/daha gevsek desen
+
+# ABCD formasyon callback_data ailesinin on eki ("abcd:menu", "abcd:mode:...",
+# "abcd:tf:...") -- CallbackQueryHandler(handle_abcd_callback, pattern=r"^abcd:")
+# ile ESLESIR (bkz. dosya sonundaki add_handler kaydi). abcd-project bot.py'nin
+# WIZ sabitiyle AYNI savunmaci desen (parts[0] != WIZ_ABCD -> sessizce cik).
+WIZ_ABCD = "abcd"
 
 # --- Es zamanlilik / hiz siniri (bellek-ici, tek surec varsayimiyla) -----------------------------------------------------
 
@@ -768,6 +787,177 @@ async def handle_teknik_callback(update: Update, context: ContextTypes.DEFAULT_T
     await _gonder_teknik(chat_id, context, ticker, market)
 
 
+# --- ABCD Formasyon (Faz 6) -----------------------------------------------------
+#
+# Mimari kararlar: docs/spec/spec_abcd_mimari_kararlar.md. Karar 1 -- bu
+# TAMAMEN deneysel bir sinyal üreticidir, temel/teknik-olgu skorlarından
+# BAĞIMSIZDIR (bkz. src.analysis.abcd_pattern modül notu). Kaynak referans
+# (kullanıcının BEĞENDİĞİ UX akışı): abcd-project/abcd/bot.py::_execute_scan
+# (seyrek checkpoint'li edit_message_text ilerlemesi).
+
+_ABCD_SINGLE_N_BARS = 500
+_ABCD_SCAN_N_BARS = 1000
+_ABCD_SCAN_WORKERS = 8
+# abcd-project'in kendi varsayılanıyla AYNI (config.yaml scanner.default_lookback,
+# bkz. bot.py::on_wizard_callback) -- bu proje henüz bir config.yaml katmanı
+# eklemediği için burada sabit tutulur.
+_ABCD_LOOKBACK_BARS = 5
+
+# İlerleme checkpoint'leri -- abcd-project bot.py::_PROGRESS_BASE_MILESTONES
+# ile AYNI (seyrek erken, sonra her 100 sembolde bir -- Telegram'ın edit-rate
+# sınırının altında kalmak için).
+_ABCD_PROGRESS_MILESTONES = (1, 2, 3, 4, 10, 50, 100, 200, 300, 400, 500, 600, 700)
+
+
+def _abcd_progress_milestones(total: int) -> set[int]:
+    if total <= 0:
+        return set()
+    return {m for m in _ABCD_PROGRESS_MILESTONES if m <= total} | {total}
+
+
+async def _execute_abcd_scan(status_message, tf: str) -> None:
+    """abcd-project `bot.py::_execute_scan`'in bu projeye taşınmış hali --
+    metin istemeden DOĞRUDAN başlar (mod zaten 'abcd:tf:tarama:{tf}'
+    tıklamasıyla bilinir). `abcd_scanner.scan()` zaten `ThreadPoolExecutor`
+    kullandığından (I/O ağırlıklı, bkz. o modülün üst notu) burada
+    `asyncio.to_thread` ile sarılır -- event loop BLOKLANMAZ.
+
+    `on_progress`, `scan()`'in kendi (worker) thread'inden SENKRON çağrılır
+    -- ana event loop'a `run_coroutine_threadsafe` ile köprülenir (abcd-project
+    ile AYNI desen). Çalışan bir event loop'un YAKALANAMADIĞI (RuntimeError)
+    durumda -- SADECE testlerde olur, bkz. tests/test_telegram_bot.py'nin
+    `_run_coro` yardımcısının gerçek bir event loop KULLANMAMA notu --
+    ilerleme güncellemeleri sessizce atlanır (kozmetiktir, tarama SONUCUNU
+    etkilemez, Kural 9 ile aynı ilke: ikincil bir zenginleştirme asla ana
+    akışı çökertmemeli)."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    async def _safe_edit(text: str) -> None:
+        try:
+            await status_message.edit_text(text)
+        except Exception:
+            pass  # orn. "message is not modified" ya da gecici ag hatasi
+
+    symbols = await asyncio.to_thread(abcd_scanner.get_bist_universe)
+    total = len(symbols)
+    milestones = _abcd_progress_milestones(total)
+
+    await _safe_edit(f"🔎 AB=CD ({tf}) taranıyor: 0/{total}")
+
+    def on_progress(done: int, done_total: int) -> None:
+        if loop is not None and done in milestones:
+            asyncio.run_coroutine_threadsafe(_safe_edit(f"🔎 AB=CD ({tf}) taranıyor: {done}/{done_total}"), loop)
+
+    try:
+        result = await asyncio.to_thread(
+            abcd_scanner.scan,
+            symbols,
+            tf,
+            AbcdParams(),
+            _ABCD_LOOKBACK_BARS,
+            _ABCD_SCAN_N_BARS,
+            _ABCD_SCAN_WORKERS,
+            on_progress,
+        )
+    except Exception:
+        logger.exception("ABCD taraması başarısız oldu (tf=%s)", tf)
+        await _safe_edit("⚠️ Tarama başarısız oldu, birkaç dakika sonra tekrar dene.")
+        return
+
+    report = abcd_scanner.format_report(result, markdown=True)
+    try:
+        await status_message.edit_text(report, parse_mode="MarkdownV2")
+    except Exception:
+        logger.exception("ABCD tarama raporu gönderilemedi (tf=%s)", tf)
+        await _safe_edit(
+            f"Tarama tamamlandı ({len(result.buys)} AL, {len(result.sells)} SAT) ama rapor gönderilemedi."
+        )
+
+
+async def _gonder_abcd_sinyal(chat_id: int, context: ContextTypes.DEFAULT_TYPE, ticker: str, market: str, tf: str) -> None:
+    """Tek hisse ABCD akışı: Faz 1 (`abcd_data.fetch_ohlcv_abcd`) + Faz 2
+    (`abcd_pattern.detect`) + Faz 5 (`abcd_card.build_abcd_card_context`)
+    zincirini orkestre eder, `_gonder_teknik` ile AYNI hata toleransıyla
+    (`card.CardRenderError` yakalanır, kullanıcıya nazik mesaj) kartı
+    gönderir. `market` şu an SADECE "BIST" değeriyle çağrılır (bkz.
+    handle_abcd_callback -- Karar 3: ABCD veri katmanı henüz sadece BIST/
+    yfinance destekliyor)."""
+    df = await asyncio.to_thread(fetch_ohlcv_abcd, ticker, tf, _ABCD_SINGLE_N_BARS)
+    if df.empty:
+        await context.bot.send_message(chat_id, f"⚠️ {ticker} ({tf}) için veri bulunamadı, ABCD taraması yapılamadı.")
+        return
+
+    signals = abcd_detect(df, AbcdParams())
+    if not signals:
+        await context.bot.send_message(
+            chat_id, f"ℹ️ {ticker} ({tf}) için son barlarda onaylanmış bir AB=CD formasyonu bulunamadı."
+        )
+        return
+
+    signal = signals[-1]  # en son onaylanmis formasyon -- karti TEK sinyal gosterir (bkz. abcd_card docstring'i)
+    bars = df.to_dict("records")
+    abcd_context = abcd_card.build_abcd_card_context(bars, signal, ticker, market, tf)
+
+    out_path = config.DATA_DIR / "cards" / f"{ticker}_abcd.png"
+    try:
+        png_path = await asyncio.to_thread(
+            card.render_card, abcd_context, str(out_path), "abcd_card.html", "#abcd-card"
+        )
+    except card.CardRenderError:
+        logger.exception("%s ABCD kartı render edilemedi", ticker)
+        await context.bot.send_message(chat_id, "⚠️ ABCD formasyon görseli üretilemedi, birkaç dakika sonra tekrar dene.")
+        return
+
+    try:
+        caption = (
+            f"🔺 #{ticker} AB=CD Formasyonu ({tf})\n\n"
+            "⚠ Deneysel sinyal üreticidir, temel/teknik analiz skorlarından bağımsızdır.\n"
+            "Bu içerik yatırım tavsiyesi değildir; yatırım kararı için profesyonel danışmanlık alınmalıdır."
+        )
+        await _send_card_photo(context, chat_id, png_path, caption)
+    except Exception:
+        logger.exception("%s ABCD görseli gönderilemedi", ticker)
+
+
+async def handle_abcd_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """'🔺 Formasyonlar > 🔍 ABCD Formasyonu' akışının TEK giriş noktası.
+    callback_data: 'abcd:menu' | 'abcd:mode:{mode}' | 'abcd:tf:{mode}:{tf}'
+    (bkz. menu.py 'ABCD formasyon akışı' bölümü)."""
+    query = update.callback_query
+    await query.answer()
+
+    parts = (query.data or "").split(":")
+    if parts[0] != WIZ_ABCD:
+        return
+
+    action = parts[1] if len(parts) > 1 else None
+
+    if action == "menu":
+        await query.edit_message_text(menu.ABCD_MODE_TEXT, reply_markup=menu.abcd_mode_keyboard())
+        return
+
+    if action == "mode" and len(parts) >= 3:
+        mode = parts[2]
+        await query.edit_message_text(menu.ABCD_TF_TEXT, reply_markup=menu.abcd_tf_keyboard(mode))
+        return
+
+    if action == "tf" and len(parts) >= 4:
+        mode, tf = parts[2], parts[3]
+
+        if mode == "tekli":
+            menu.set_bekleyen_islem(context.user_data, tip="abcd", market="BIST", extra=tf)
+            await query.edit_message_text(menu.ABCD_TEKLI_PROMPT, reply_markup=menu.build_abcd_bekleniyor_menu(mode))
+            return
+
+        if mode == "tarama":
+            status = await query.edit_message_text(f"🔎 AB=CD ({tf}) taraması başlıyor...")
+            await _execute_abcd_scan(status, tf)
+            return
+
+
 async def handle_halkaarz_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """callback_data: 'halkaarz:goster:{ticker}' (bkz. menu.build_halkaarz_menu)."""
     query = update.callback_query
@@ -1324,6 +1514,7 @@ async def handle_ticker_message(update: Update, context: ContextTypes.DEFAULT_TY
     teknik_istegi = islem is not None and islem.tip == "teknik"
     derin_istegi = islem is not None and islem.tip == "derin"
     degerleme_istegi = islem is not None and islem.tip == "degerleme"
+    abcd_istegi = islem is not None and islem.tip == "abcd"
 
     if islem is not None:
         menu.clear_bekleyen_islem(context.user_data)
@@ -1347,6 +1538,18 @@ async def handle_ticker_message(update: Update, context: ContextTypes.DEFAULT_TY
             chat_id = update.effective_chat.id
             await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
             await _gonder_teknik(chat_id, context, ticker, market)
+            return
+
+        if abcd_istegi:
+            # menu:formasyonlar > ABCD > Tek Hisse akisiyla baslatilan istek --
+            # zaman dilimi (islem.extra) tf secim butonunda ZATEN belirlendi
+            # (bkz. handle_abcd_callback 'abcd|tf|tekli|{tf}' dali), burada
+            # SADECE ticker bekleniyordu.
+            tf = islem.extra
+            await update.message.reply_text(f"🔺 {ticker} ({tf}) için AB=CD taraması yapılıyor...")
+            chat_id = update.effective_chat.id
+            await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.UPLOAD_PHOTO)
+            await _gonder_abcd_sinyal(chat_id, context, ticker, market, tf)
             return
 
         if degerleme_istegi:
@@ -1447,6 +1650,11 @@ async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             await _gonder_takvim(query.message.chat_id, context, market)
         else:
             await query.edit_message_text(menu.TAKVIM_MENU_TEXT, reply_markup=menu.build_takvim_menu())
+        return
+
+    if screen == "formasyonlar":
+        menu.clear_bekleyen_islem(context.user_data)
+        await query.edit_message_text(menu.FORMASYONLAR_MENU_TEXT, reply_markup=menu.build_formasyonlar_menu())
         return
 
     if screen == "fonanaliz":
@@ -1563,6 +1771,7 @@ def build_application() -> Application:
     application.add_handler(CallbackQueryHandler(handle_teknik_callback, pattern=r"^teknik:"))
     application.add_handler(CallbackQueryHandler(handle_derin_analiz_callback, pattern=r"^derin:"))
     application.add_handler(CallbackQueryHandler(handle_halkaarz_callback, pattern=r"^halkaarz:"))
+    application.add_handler(CallbackQueryHandler(handle_abcd_callback, pattern=r"^abcd:"))
     application.add_handler(CallbackQueryHandler(handle_menu_callback, pattern=r"^menu:"))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_ticker_message))
     application.add_error_handler(_on_error)

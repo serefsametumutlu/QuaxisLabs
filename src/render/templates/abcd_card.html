@@ -1,0 +1,464 @@
+<!--
+  Bilanço Radar AB=CD FORMASYON kartı (Faz 5 — kart tasarımı).
+
+  ÖNEMLİ: Bu şablon HİÇBİR sayı hesaplamaz/formatlamaz. Bütün değerler
+  src.render.abcd_card.build_abcd_card_context() tarafından ÖNCEDEN Türkçe
+  formatlanmış string + SVG koordinatı olarak gelir (bkz. o modülün üst
+  notu, technical_card.py ile AYNI "biçimlendirme sayılan, hesaplama
+  SAYILMAYAN" render istisnası).
+
+  GÖRSEL KİMLİK BİLEREK temel (card.html, altın aksan) ve teknik
+  (technical_card.html, mor/mavi aksan) kartlardan AYRI: amber/turuncu
+  aksan + üst bantta "⚠ DENEYSEL SİNYAL" rozeti (bkz.
+  docs/spec/spec_abcd_mimari_kararlar.md Karar 1/K2). Bu kartta üretilen
+  yönlü AL/SAT sinyali, BİLANÇO SKORU'ndan (card.html) ve TEKNİK
+  GÖRÜNÜM'den (technical_card.html) TAMAMEN BAĞIMSIZDIR.
+
+  TOKEN SİSTEMİ: paylaşılan renk/punto/boşluk `_design_tokens.css`'ten
+  (`var(--...)`) gelir -- card.html/dashboard.html ile AYNI kaynak,
+  Playwright base_url desteklemediği için Jinja "include" ile <style>
+  içine INLINE edilir. Bu kartın kendine özgü amber aksanı
+  (`--abcd-accent`), technical_card.html'in `--tech-accent`'i gibi BU
+  ŞABLONA ÖZEL, yerel bir :root eklemesidir -- paylaşılan token dosyası
+  DEĞİŞTİRİLMEZ.
+-->
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>AB=CD Formasyonu · {{ ticker }}</title>
+<style>
+{% include "_design_tokens.css" %}
+
+  :root {
+    /* Deneysel sinyal kimliği -- brand-gold (temel kart) VE tech-accent
+       (teknik kart, technical_card.html'in kendi :root'unda) ile
+       KARIŞMAYAN, doygun bir turuncu. Sadece bu şablona özel. */
+    --abcd-accent: #f0862b;
+    --abcd-accent-soft: rgba(240, 134, 43, 0.16);
+    --abcd-accent-strong: #ffa552;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body { background: var(--bg-canvas); font-family: var(--font-sans); }
+
+  .abcd-card {
+    position: relative;
+    width: 2000px;
+    background: var(--bg-canvas);
+    color: var(--ink-primary);
+    font-family: var(--font-sans);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    padding: 30px 36px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+  }
+
+  /* --- Üst bant --- */
+  .top-band {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: var(--space-6) var(--space-7);
+    border: 1px solid var(--border-default);
+    border-top: var(--accent-bar-w) solid var(--abcd-accent);
+    border-radius: var(--radius-md);
+    background: var(--bg-surface);
+  }
+
+  .masthead { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
+  .masthead-left { display: flex; align-items: center; gap: var(--space-4); }
+  .masthead-logo { height: 56px; width: 56px; border-radius: 50%; display: block; }
+  .masthead-text { font-size: var(--text-h3); font-weight: var(--weight-black); letter-spacing: var(--tracking-wide); }
+  .masthead-brand { color: var(--ink-primary); }
+  .masthead-accent { color: var(--brand-teal); }
+  .masthead-product { color: var(--ink-tertiary); font-weight: var(--weight-semibold); }
+
+  /* Kahraman UYARI rozeti -- kartın ilk 3 saniyede okunan mesajının
+     PARÇASI: "bu bir skor değil, deneysel bir formasyon sinyalidir". */
+  .experimental-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 7px var(--space-5);
+    border-radius: var(--radius-pill);
+    background: var(--abcd-accent-soft);
+    border: 1px solid var(--abcd-accent);
+    color: var(--abcd-accent-strong);
+    font-size: var(--text-caption);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+  }
+
+  .title-row { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-6); flex-wrap: wrap; }
+  .title-left { display: flex; flex-direction: column; gap: var(--space-2); }
+  .title-line { font-size: var(--text-h2); font-weight: var(--weight-bold); color: var(--ink-primary); letter-spacing: var(--tracking-normal); }
+  .ticker-row { display: flex; align-items: baseline; gap: var(--space-3); }
+  .ticker-big { font-size: var(--text-h1); font-weight: var(--weight-bold); color: var(--ink-primary); letter-spacing: var(--tracking-tight); }
+  .company-name { font-size: var(--text-body-lg); color: var(--ink-secondary); }
+  .meta-line { font-size: var(--text-caption); color: var(--ink-tertiary); letter-spacing: var(--tracking-normal); }
+  .dot-sep { margin: 0 var(--space-2); color: var(--ink-tertiary); }
+
+  /* --- Yön (BUY/SELL) rozeti -- KAHRAMAN katmanın ikinci parçası --- */
+  .direction-block { text-align: right; }
+  .direction-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-6);
+    border-radius: var(--radius-md);
+    font-family: var(--font-mono);
+    font-size: 30px;
+    font-weight: var(--weight-black);
+    letter-spacing: var(--tracking-wide);
+  }
+  .direction-badge.bull { color: var(--clr-positive); background: var(--clr-positive-soft); border: 1px solid var(--clr-positive); }
+  .direction-badge.bear { color: var(--clr-negative); background: var(--clr-negative-soft); border: 1px solid var(--clr-negative); }
+  .direction-date { margin-top: var(--space-2); font-size: var(--text-caption); color: var(--ink-tertiary); }
+
+  /* --- Bölüm ortak stili --- */
+  .section {
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    padding: var(--space-5) var(--space-6);
+    background: var(--bg-surface);
+  }
+
+  .section-title {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+    padding-left: var(--space-3);
+    border-left: var(--accent-bar-w) solid var(--abcd-accent);
+    font-size: var(--text-h2);
+    font-weight: var(--weight-bold);
+    color: var(--ink-primary);
+  }
+
+  .section-title .title-sub {
+    font-size: var(--text-caption);
+    font-weight: var(--weight-semibold);
+    color: var(--ink-tertiary);
+  }
+
+  .empty-note { color: var(--ink-tertiary); font-size: var(--text-body); text-align: center; padding: var(--space-7) 0; }
+
+  /* --- Formasyon grafiği (HERO görsel) --- */
+  .chart-wrap { position: relative; }
+  .chart-svg { width: 100%; height: 460px; display: block; }
+
+  .chart-gridline { stroke: var(--border-subtle); stroke-width: 1; }
+  .chart-grid-label { font-size: 12px; fill: var(--ink-tertiary); font-family: var(--font-mono); }
+
+  .candle-wick { stroke-width: 1.6; }
+  .candle-wick.up { stroke: var(--clr-positive); }
+  .candle-wick.down { stroke: var(--clr-negative); }
+  .candle-body.up { fill: var(--clr-positive); }
+  .candle-body.down { fill: var(--clr-negative); }
+
+  .formation-poly { stroke-width: 1.4; }
+  .formation-poly.bull { fill: var(--clr-positive-soft); stroke: var(--clr-positive); }
+  .formation-poly.bear { fill: var(--clr-negative-soft); stroke: var(--clr-negative); }
+
+  .abcd-point-dot { fill: var(--abcd-accent-strong); stroke: var(--bg-canvas); stroke-width: 1.5; }
+  .abcd-point-label {
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: 800;
+    fill: var(--ink-primary);
+    text-anchor: middle;
+  }
+  .abcd-point-date {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    fill: var(--ink-tertiary);
+    text-anchor: middle;
+  }
+
+  .level-line { stroke-width: 1.6; stroke-dasharray: 7 5; }
+  .level-line.entry { stroke: var(--ink-primary); }
+  .level-line.tp1 { stroke: var(--brand-teal); }
+  .level-line.tp2 { stroke: var(--clr-positive); }
+  .level-line.sl { stroke: var(--clr-negative); }
+
+  .level-label-group text {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .level-label-group .level-tag { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; }
+  .level-label-group.entry text { fill: var(--ink-primary); }
+  .level-label-group.tp1 text { fill: var(--brand-teal); }
+  .level-label-group.tp2 text { fill: var(--clr-positive); }
+  .level-label-group.sl text { fill: var(--clr-negative); }
+
+  .chart-range-row { display: flex; justify-content: space-between; font-size: var(--text-micro); color: var(--ink-tertiary); margin-top: var(--space-2); }
+
+  /* --- Seviye şeridi (İKİNCİL katman: Entry/TP1/TP2/SL) --- */
+  .levels-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-4);
+  }
+
+  .level-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-4) var(--space-5);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-default);
+    background: var(--bg-surface-sunken);
+  }
+
+  .level-item.entry { border-left: var(--accent-bar-w) solid var(--ink-primary); }
+  .level-item.tp1 { border-left: var(--accent-bar-w) solid var(--brand-teal); }
+  .level-item.tp2 { border-left: var(--accent-bar-w) solid var(--clr-positive); }
+  .level-item.sl { border-left: var(--accent-bar-w) solid var(--clr-negative); }
+
+  .level-item-label {
+    font-size: var(--text-micro);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-wider);
+    color: var(--ink-tertiary);
+    text-transform: uppercase;
+  }
+
+  .level-item-value {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--text-h3);
+    font-weight: var(--weight-bold);
+    color: var(--ink-primary);
+  }
+
+  .level-item.tp1 .level-item-value { color: var(--brand-teal); }
+  .level-item.tp2 .level-item-value { color: var(--clr-positive); }
+  .level-item.sl .level-item-value { color: var(--clr-negative); }
+
+  .level-item-note { font-size: var(--text-micro); color: var(--ink-tertiary); }
+
+  /* --- ABCD kırılım tablosu (ÜÇÜNCÜL katman) --- */
+  .abcd-detail-row {
+    display: flex;
+    gap: var(--space-5);
+    align-items: stretch;
+  }
+
+  .abcd-table {
+    flex: 2;
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-body);
+  }
+
+  .abcd-table th {
+    text-align: right;
+    font-size: var(--text-caption);
+    color: var(--ink-tertiary);
+    font-weight: var(--weight-bold);
+    padding: var(--space-2) 4px;
+    border-bottom: 1px solid var(--border-default);
+  }
+
+  .abcd-table th.col-label, .abcd-table td.label-cell { text-align: left; }
+
+  .abcd-table td {
+    text-align: right;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    padding: var(--space-3) 4px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .abcd-table td.label-cell {
+    font-family: var(--font-sans);
+    font-weight: var(--weight-bold);
+    color: var(--abcd-accent-strong);
+  }
+
+  .ratio-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    justify-content: center;
+    padding: 0 var(--space-5);
+    border-left: 1px solid var(--border-default);
+  }
+
+  .ratio-item { display: flex; justify-content: space-between; align-items: baseline; }
+  .ratio-name { font-size: var(--text-body); color: var(--ink-secondary); }
+  .ratio-value {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--text-h3);
+    font-weight: var(--weight-bold);
+    color: var(--abcd-accent-strong);
+  }
+
+  /* --- Uyarılar --- */
+  .warnings { display: flex; flex-direction: column; gap: var(--space-1); }
+  .warning-line { font-size: var(--text-micro); color: var(--ink-tertiary); letter-spacing: var(--tracking-normal); }
+  .warning-strong { color: var(--abcd-accent-strong); font-weight: var(--weight-bold); }
+
+  /* --- Alt bant --- */
+  .bottom-band {
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--border-default);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .footer-meta { font-size: var(--text-micro); color: var(--ink-tertiary); opacity: 0.85; }
+  .footer-handle { color: var(--ink-primary); font-weight: var(--weight-bold); opacity: 0.9; }
+</style>
+</head>
+<body>
+<div id="abcd-card" class="abcd-card">
+
+  <header class="top-band">
+    <div class="masthead">
+      <div class="masthead-left">
+        <img class="masthead-logo" src="{{ logo_data_uri }}" alt="QuaxisLabs">
+        <span class="masthead-text"><span class="masthead-brand">QUAXIS<span class="masthead-accent">LABS</span></span><span class="masthead-product"> · BİLANÇO RADAR</span></span>
+      </div>
+      <span class="experimental-badge">⚠ Deneysel Sinyal · Formasyon Tarayıcı</span>
+    </div>
+    <div class="title-row">
+      <div class="title-left">
+        <span class="title-line">AB=CD FORMASYONU</span>
+        <div class="ticker-row">
+          <span class="ticker-big">{{ ticker }}</span>
+          {% if company_name %}<span class="company-name">{{ company_name }}</span>{% endif %}
+        </div>
+        <div class="meta-line">{{ market_label }}<span class="dot-sep">·</span>{{ tf_label }}<span class="dot-sep">·</span>Üretim: {{ report_timestamp }}</div>
+      </div>
+      <div class="direction-block">
+        <span class="direction-badge {{ direction_class }}">{{ direction_label }}</span>
+        <div class="direction-date">Onay barı: {{ signal_date_display }}</div>
+      </div>
+    </div>
+  </header>
+
+  <section class="section">
+    <div class="section-title">Formasyon Grafiği<span class="title-sub">Mum grafiği · A-B-C / B-C-D üçgenleri</span></div>
+    {% if chart.has_data %}
+    <div class="chart-wrap">
+      <svg class="chart-svg" viewBox="0 0 {{ chart.viewbox_width }} {{ chart.viewbox_height }}" preserveAspectRatio="none">
+        {% for gridline in chart.gridlines %}
+        <line class="chart-gridline" x1="0" y1="{{ gridline.y }}" x2="{{ chart.viewbox_width }}" y2="{{ gridline.y }}"></line>
+        <text class="chart-grid-label" x="4" y="{{ (gridline.y|float - 4) }}">{{ gridline.price_display }}</text>
+        {% endfor %}
+
+        {% for candle in chart.candles %}
+        <line class="candle-wick {{ 'up' if candle.is_bull else 'down' }}" x1="{{ candle.x }}" y1="{{ candle.wick_y1 }}" x2="{{ candle.x }}" y2="{{ candle.wick_y2 }}"></line>
+        <rect class="candle-body {{ 'up' if candle.is_bull else 'down' }}" x="{{ candle.body_x }}" y="{{ candle.body_y }}" width="{{ candle.body_width }}" height="{{ candle.body_height }}"></rect>
+        {% endfor %}
+
+        <polygon class="formation-poly {{ 'bull' if direction == 'BUY' else 'bear' }}" points="{{ chart.triangle_abc_points }}"></polygon>
+        <polygon class="formation-poly {{ 'bull' if direction == 'BUY' else 'bear' }}" points="{{ chart.triangle_bcd_points }}"></polygon>
+
+        {% for point in chart.abcd_points %}
+        <circle class="abcd-point-dot" cx="{{ point.x }}" cy="{{ point.y }}" r="4.5"></circle>
+        <text class="abcd-point-label" x="{{ point.x }}" y="{{ (point.label_y|float + 5) }}">{{ point.label }}</text>
+        {% if point.bar_date_display %}
+        <text class="abcd-point-date" x="{{ point.x }}" y="{{ (point.label_y|float + (20 if point.above else -12)) }}">{{ point.bar_date_display }}</text>
+        {% endif %}
+        {% endfor %}
+
+        {% for line in (chart.entry_line, chart.tp1_line, chart.tp2_line, chart.sl_line) %}
+        {% if line %}
+        <line class="level-line {{ line.css_class }}" x1="{{ line.x_start }}" y1="{{ line.y }}" x2="{{ line.x_end }}" y2="{{ line.y }}"></line>
+        <g class="level-label-group {{ line.css_class }}">
+          <text class="level-tag" x="{{ chart.label_column_x }}" y="{{ (line.y|float - 3) }}">{{ line.label_text }}</text>
+          <text x="{{ chart.label_column_x }}" y="{{ (line.y|float + 13) }}">{{ line.price_display }}</text>
+        </g>
+        {% endif %}
+        {% endfor %}
+      </svg>
+      <div class="chart-range-row">
+        <span>{{ chart.start_date_display }}</span>
+        <span>{{ chart.end_date_display }}</span>
+      </div>
+    </div>
+    {% else %}
+    <div class="empty-note">Formasyon grafiği için yeterli bar verisi yok.</div>
+    {% endif %}
+  </section>
+
+  <section class="section">
+    <div class="section-title">Giriş / Hedef / Zarar-Durdur<span class="title-sub">D barının onaylanma kapanışına göre</span></div>
+    <div class="levels-strip">
+      <div class="level-item entry">
+        <span class="level-item-label">Entry (Giriş)</span>
+        <span class="level-item-value">{{ entry_display }}</span>
+        <span class="level-item-note">D barı kapanışı</span>
+      </div>
+      <div class="level-item tp1">
+        <span class="level-item-label">TP1</span>
+        <span class="level-item-value">{{ tp1_display }}</span>
+        <span class="level-item-note">D ± %38,2 AD (Fibonacci geri çekilme)</span>
+      </div>
+      <div class="level-item tp2">
+        <span class="level-item-label">TP2</span>
+        <span class="level-item-value">{{ tp2_display }}</span>
+        <span class="level-item-note">C seviyesi</span>
+      </div>
+      <div class="level-item sl">
+        <span class="level-item-label">SL (Zarar-Durdur)</span>
+        <span class="level-item-value">{{ sl_display }}</span>
+        <span class="level-item-note">D ± ATR(14) × çarpan</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-title">Formasyon Kırılımı<span class="title-sub">Pivot noktaları ve Fibonacci oranları</span></div>
+    <div class="abcd-detail-row">
+      <table class="abcd-table">
+        <thead>
+          <tr><th class="col-label">Nokta</th><th>Fiyat</th><th>Tarih</th></tr>
+        </thead>
+        <tbody>
+          {% for row in abcd_table %}
+          <tr>
+            <td class="label-cell">{{ row.label }}</td>
+            <td>{{ row.price_display }}</td>
+            <td>{{ row.date_display }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="ratio-panel">
+        <div class="ratio-item">
+          <span class="ratio-name">BC Geri Çekilme (|C-B| / |A-B|)</span>
+          <span class="ratio-value">{{ bc_ratio_display }}</span>
+        </div>
+        <div class="ratio-item">
+          <span class="ratio-name">CD Uzantısı (|D-C| / |A-B|)</span>
+          <span class="ratio-value">{{ cd_ratio_display }}</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="warnings">
+    <div class="warning-line warning-strong">{{ experimental_note }}</div>
+    <div class="warning-line">{{ disclaimer }}</div>
+  </div>
+
+  <footer class="bottom-band">
+    <div class="footer-meta">Kaynak: {{ data_sources_note }}</div>
+    <div class="footer-meta">Üretim: {{ report_timestamp }}<span class="dot-sep">·</span><span class="footer-handle">@QuaxisLabs</span></div>
+  </footer>
+</div>
+</body>
+</html>

@@ -20,9 +20,9 @@ def _callback_data_grid(markup) -> list[list[str]]:
     return [[button.callback_data for button in row] for row in markup.inline_keyboard]
 
 
-def test_build_root_menu_dokuz_dal_icerir() -> None:
-    """Faz 20 devamı: '🆕 Halka Arz İnceleme' (menu:halkaarz) eklendi --
-    eskiden sekiz dal vardı (bkz. git geçmişi)."""
+def test_build_root_menu_on_dal_icerir() -> None:
+    """Faz 6: '🔺 Formasyonlar' (menu:formasyonlar) eklendi -- eskiden dokuz
+    dal vardı (bkz. git geçmişi)."""
     grid = _callback_data_grid(menu.build_root_menu())
     assert grid == [
         ["menu:analiz"],
@@ -32,6 +32,7 @@ def test_build_root_menu_dokuz_dal_icerir() -> None:
         ["menu:fonanaliz"],
         ["menu:halkaarz"],
         ["menu:takvim"],
+        ["menu:formasyonlar"],
         ["menu:son"],
         ["menu:hakkinda"],
     ]
@@ -75,6 +76,55 @@ def test_build_derin_bekleniyor_menu_derinanaliz_ekranina_doner() -> None:
 def test_build_takvim_menu_bist_nasdaq_ve_geri_icerir() -> None:
     grid = _callback_data_grid(menu.build_takvim_menu())
     assert grid == [["menu:takvim:bist"], ["menu:takvim:nasdaq"], ["menu:root"]]
+
+
+# --- Formasyonlar / ABCD (Faz 6) -----------------------------------------------------
+
+
+def test_build_formasyonlar_menu_abcd_ve_geri_icerir() -> None:
+    grid = _callback_data_grid(menu.build_formasyonlar_menu())
+    assert grid == [["abcd:menu"], ["menu:root"]]
+
+
+def test_abcd_mode_keyboard_tekli_tarama_ve_geri_icerir() -> None:
+    grid = _callback_data_grid(menu.abcd_mode_keyboard())
+    assert grid == [["abcd:mode:tekli"], ["abcd:mode:tarama"], ["menu:formasyonlar"]]
+
+
+@pytest.mark.parametrize("mode", ["tekli", "tarama"])
+def test_abcd_tf_keyboard_bes_zaman_dilimi_tek_satirda_ve_geri(mode: str) -> None:
+    grid = _callback_data_grid(menu.abcd_tf_keyboard(mode))
+    assert grid == [
+        [f"abcd:tf:{mode}:60", f"abcd:tf:{mode}:120", f"abcd:tf:{mode}:240", f"abcd:tf:{mode}:1D", f"abcd:tf:{mode}:1W"],
+        ["abcd:menu"],
+    ]
+
+
+def test_build_abcd_bekleniyor_menu_ayni_moda_doner() -> None:
+    grid = _callback_data_grid(menu.build_abcd_bekleniyor_menu("tekli"))
+    assert grid == [["abcd:mode:tekli"]]
+
+
+@pytest.mark.parametrize("callback_data", ["menu:formasyonlar", "abcd:menu", "abcd:mode:tekli", "abcd:mode:tarama", "abcd:tf:tekli:240", "abcd:tf:tarama:1D"])
+def test_abcd_callback_data_degerleri_64_byte_siniri_altinda(callback_data: str) -> None:
+    assert len(callback_data.encode("utf-8")) <= 64
+
+
+def test_set_bekleyen_islem_extra_alani_abcd_zaman_dilimini_tasir() -> None:
+    user_data: dict = {}
+    menu.set_bekleyen_islem(user_data, tip="abcd", market="BIST", extra="240")
+    islem = menu.peek_bekleyen_islem(user_data)
+    assert islem.tip == "abcd"
+    assert islem.market == "BIST"
+    assert islem.extra == "240"
+
+
+def test_set_bekleyen_islem_extra_varsayilan_none_geriye_uyumlu() -> None:
+    """Mevcut cagiranlar (extra parametresiz) yeni alanla KIRILMAMALI."""
+    user_data: dict = {}
+    menu.set_bekleyen_islem(user_data, tip="analiz", market="BIST")
+    islem = menu.peek_bekleyen_islem(user_data)
+    assert islem.extra is None
 
 
 def test_build_analiz_bekleniyor_menu_geri_analiz_menusune_doner() -> None:

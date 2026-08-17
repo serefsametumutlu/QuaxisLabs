@@ -68,11 +68,26 @@ _MDV2_SPECIAL = r"_*[]()~`>#+-=|{}.!"
 @dataclass
 class ScannedSignal:
     """Tarama baglaminda etiketlenmis tek bir `Signal` (Pine parity'nin
-    parcasi degil)."""
+    parcasi degil).
+
+    KULLANICI KAFA KARISIKLIGI (canli test, 2026-08-18): `bars_ago`
+    D pivotunun kendisinin degil, ONAY barinin (`signal_bar = d_bar +
+    pivot_lookback`) kac bar once oldugunu olcer -- bu, Pine-parity
+    look-ahead-siz tasarimin DOGRUDAN sonucudur (bkz. abcd_pattern.py modul
+    notu: bir pivot, olustuktan `pivot_lookback` bar SONRA bilinir hale
+    gelir, TradingView'in ta.pivothigh/pivotlow'u ile AYNI). Bir kullanici
+    "D BUY tam su mumda gelmis" deyip grafikte D'nin kendisini (`d_bar`)
+    bulup `bars_ago` ile KARSILASTIRDIGINDA fark var gibi gorunuyor ama
+    ikisi FARKLI seyler olcuyor -- bug degil. Bu karisikligi onlemek icin
+    `d_bars_ago` (D pivotunun kendisinin kac bar once OLUSTUGU, salt
+    `bars_ago + pivot_lookback` aritmetigiyle, ek bir df/network erisimi
+    GEREKMEZ) ayri bir alan olarak eklendi -- raporlar ARTIK ikisini de
+    acikca gosterir."""
 
     symbol: str
     signal: Signal
-    bars_ago: int  # 0 = en son barda onaylandi
+    bars_ago: int  # 0 = en son barda ONAYLANDI (signal_bar'a gore)
+    d_bars_ago: int  # D pivotunun KENDISI kac bar once OLUSTU (= bars_ago + pivot_lookback)
     late: bool  # onaydan bu yana kapanis zaten TP1/SL'e ulasti mi
 
 
@@ -144,6 +159,7 @@ def _scan_one(
             symbol=symbol,
             signal=sig,
             bars_ago=bars_ago,
+            d_bars_ago=bars_ago + params.pivot_lookback,
             late=_is_late(last_close, sig),
         )
         (buys if sig.direction > 0 else sells).append(scanned)
@@ -222,10 +238,15 @@ def _escape_code_block(text: str) -> str:
 
 
 def _fmt_line(item: ScannedSignal) -> str:
+    """D'nin KENDISININ kac bar once olustugunu (`d_bars_ago`) VE onay
+    barinin kac bar once oldugunu (`bars_ago`) AYRI AYRI gosterir --
+    ikisini TEK bir "X bar once" ifadesine indirgemek kullanici karisikligina
+    yol acmisti (bkz. `ScannedSignal` modul notu, canli test 2026-08-18)."""
     sig = item.signal
-    ago = "bu bar" if item.bars_ago == 0 else f"{item.bars_ago} bar once"
+    d_ago = "bu bar" if item.d_bars_ago == 0 else f"{item.d_bars_ago} bar once"
+    confirm_ago = "bu bar" if item.bars_ago == 0 else f"{item.bars_ago} bar once"
     line = (
-        f"{item.symbol} | {ago} | giris {sig.entry_ref:.4g} | "
+        f"{item.symbol} | D olustu: {d_ago} (onay: {confirm_ago}) | giris {sig.entry_ref:.4g} | "
         f"TP1 {sig.tp1:.4g} | TP2 {sig.tp2:.4g} | SL {sig.sl:.4g}"
     )
     if item.late:

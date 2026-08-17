@@ -150,6 +150,27 @@ def test_scan_buy_sell_ayrimi_ve_bars_ago(scan_universe):
     assert result.sells[0].bars_ago == 1
 
 
+def test_scan_d_bars_ago_onay_gecikmesini_ayri_gosterir(scan_universe):
+    """Kullanici karisikligi (canli test, 2026-08-18): D pivotunun kendisi
+    onay barindan `pivot_lookback` bar ONCE olusur -- `d_bars_ago`,
+    `bars_ago`'dan tam `pivot_lookback` kadar buyuk olmali, ikisi
+    KARISTIRILMAMALI."""
+    params = abcd_scanner.Params(pivot_lookback=5)
+    result = abcd_scanner.scan(["AAA", "BBB", "EMPTY"], "240", params, lookback_bars=10)
+
+    buy = result.buys[0]
+    assert buy.bars_ago == 0
+    assert buy.d_bars_ago == 5  # 0 + pivot_lookback
+
+    sell = result.sells[0]
+    assert sell.bars_ago == 1
+    assert sell.d_bars_ago == 6  # 1 + pivot_lookback
+
+    report = abcd_scanner.format_report(result, markdown=False)
+    assert "D olustu: 5 bar once (onay: bu bar)" in report
+    assert "D olustu: 6 bar once (onay: 1 bar once)" in report
+
+
 def test_scan_hata_toleransi_bir_sembol_patlarsa_digerleri_etkilenmez(scan_universe):
     result = abcd_scanner.scan(["AAA", "BBB", "EMPTY"], "240", abcd_scanner.Params(), lookback_bars=5)
 

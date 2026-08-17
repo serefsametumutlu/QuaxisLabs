@@ -221,6 +221,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", default=str(_DEFAULT_OUT_MD), help=f"Markdown rapor cikti yolu (varsayilan: {_DEFAULT_OUT_MD}).")
     parser.add_argument("--out-csv", default=str(_DEFAULT_OUT_CSV), help=f"Ham tablo CSV cikti yolu (varsayilan: {_DEFAULT_OUT_CSV}).")
     parser.add_argument("--limit-symbols", type=int, default=None, help="TEST/dogrulama amacli: sadece ilk N sembolle calistir.")
+    parser.add_argument(
+        "--pivot-lookback", type=int, default=5,
+        help="abcd_pattern.Params.pivot_lookback (varsayilan: 5, Pine kaynagiyla AYNI). Dusurmek "
+        "onay gecikmesini azaltir (bkz. abcd_scanner.py ScannedSignal modul notu) ama pivot tespitini "
+        "gurultuye acar -- bu script FARKLI degerleri KARSILASTIRMAK icin var, TEK BASINA bir tavsiye DEGIL.",
+    )
     args = parser.parse_args(argv)
 
     if args.symbols:
@@ -246,17 +252,20 @@ def main(argv: list[str] | None = None) -> int:
         f"(LONG+SHORT ayri backtest, ~{args.years} yil gecmis)."
     )
 
+    if args.pivot_lookback != 5:
+        print(f"UYARI: pivot_lookback={args.pivot_lookback} (Pine varsayilani 5 DEGIL) -- karsilastirma/deney kosusu.")
+
     print(f"[1/2] LONG grid calisiyor ({len(symbols)} sembol x {len(tfs)} tf x {len(currencies)} para birimi)...")
     long_summary, long_warning = _run_direction_grid(
         symbols, tfs, currencies, args.years, args.min_trades_show, args.min_trades_trustworthy,
-        yon="LONG", detector_params=Params(enable_long=True, enable_short=False),
+        yon="LONG", detector_params=Params(enable_long=True, enable_short=False, pivot_lookback=args.pivot_lookback),
     )
     print(f"  LONG tamamlandi: {len(long_summary)} hucre uretildi.")
 
     print(f"[2/2] SHORT grid calisiyor ({len(symbols)} sembol x {len(tfs)} tf x {len(currencies)} para birimi)...")
     short_summary, short_warning = _run_direction_grid(
         symbols, tfs, currencies, args.years, args.min_trades_show, args.min_trades_trustworthy,
-        yon="SHORT", detector_params=Params(enable_long=False, enable_short=True),
+        yon="SHORT", detector_params=Params(enable_long=False, enable_short=True, pivot_lookback=args.pivot_lookback),
     )
     print(f"  SHORT tamamlandi: {len(short_summary)} hucre uretildi.")
 

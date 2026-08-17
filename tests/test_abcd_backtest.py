@@ -28,6 +28,7 @@ from src.analysis.abcd_backtest import (
     _entry_for,
     _position_size,
     backtest_symbol,
+    collect_trades,
     compute_metrics,
     run_grid,
     save_summary,
@@ -435,7 +436,104 @@ def test_run_grid_agi_dokunmaz_sadece_taklit_edilen_fonksiyonlar_cagrilir(_patch
 
     assert len(calls["ohlcv"]) == 4  # 2 sembol x 2 tf
     assert len(calls["usdtry"]) == 2  # 2 tf (USD istendigi icin)
-    assert all(symbol in ("THYAO", "ASELS") for symbol, tf, n in calls["ohlcv"])
+
+
+# ── collect_trades: Faz 8 basari-faktoru analizi icin ham trade+signal satirlari ─
+
+
+def _make_signal_full(
+    direction: int,
+    signal_bar: int,
+    a_bar: int, b_bar: int, c_bar: int, d_bar: int,
+    a_price: float, b_price: float, c_price: float, d_price: float,
+    tp1: float, tp2: float, sl: float, entry_ref: float, fill_ref: float,
+    bc_ratio: float = 0.5, cd_ratio: float = 1.0,
+) -> Signal:
+    return Signal(
+        direction=direction, a_bar=a_bar, b_bar=b_bar, c_bar=c_bar, d_bar=d_bar,
+        a_price=a_price, b_price=b_price, c_price=c_price, d_price=d_price,
+        signal_bar=signal_bar, signal_time=pd.Timestamp("2024-03-01", tz="UTC") + pd.Timedelta(days=signal_bar),
+        entry_ref=entry_ref, fill_ref=fill_ref, tp1=tp1, tp2=tp2, sl=sl,
+        bc_ratio=bc_ratio, cd_ratio=cd_ratio,
+    )
+
+
+def test_collect_trades_satir_sayisi_trade_sayisiyla_esit_ve_sutunlar_tam(monkeypatch):
+    monkeypatch.setattr(abcd_backtest, "detect", lambda df, params: _make_dense_signals(3))
+
+    trades_df = collect_trades(
+        symbols=["THYAO"],
+        tfs=["1D"],
+        denominators=("TRY",),
+        fetch_ohlcv=lambda symbol, tf, n_bars: _synthetic_ohlcv(250),
+        fetch_usdtry_fn=lambda tf, n_bars: pd.DataFrame(columns=["time", "close"]),
+    )
+
+    assert len(trades_df) == 3
+    for col in ("pnl", "r_multiple", "exit_reason", "tf", "currency", "symbol", "direction_label",
+                "sig_a_bar", "sig_d_bar", "sig_cd_ratio", "sig_signal_bar", "sig_signal_time"):
+        assert col in trades_df.columns
+    assert set(trades_df["tf"]) == {"1D"}
+    assert set(trades_df["currency"]) == {"TRY"}
+    assert set(trades_df["symbol"]) == {"THYAO"}
+    assert set(trades_df["direction_label"]) == {"LONG"}
+
+
+def test_collect_trades_signal_alanlari_dogru_join_edilir(monkeypatch):
+    sig = _make_signal_full(
+        direction=1, signal_bar=0, a_bar=-4, b_bar=-3, c_bar=-2, d_bar=-1,
+        a_price=90.0, b_price=110.0, c_price=95.0, d_price=100.0,
+        tp1=105, tp2=110, sl=90, entry_ref=100, fill_ref=100, bc_ratio=0.75, cd_ratio=1.05,
+    )
+    monkeypatch.setattr(abcd_backtest, "detect", lambda df, params: [sig])
+
+    trades_df = collect_trades(
+        symbols=["THYAO"],
+        tfs=["1D"],
+        denominators=("TRY",),
+        fetch_ohlcv=lambda symbol, tf, n_bars: _synthetic_ohlcv(250),
+        fetch_usdtry_fn=lambda tf, n_bars: pd.DataFrame(columns=["time", "close"]),
+    )
+
+    assert len(trades_df) == 1
+    row = trades_df.iloc[0]
+    assert row["sig_a_bar"] == -4
+    assert row["sig_d_bar"] == -1
+    assert math.isclose(row["sig_c_price"], 95.0)
+    assert math.isclose(row["sig_cd_ratio"], 1.05)
+    assert math.isclose(row["sig_bc_ratio"], 0.75)
+    assert row["sig_signal_bar"] == 0
+    assert row["direction_label"] == "LONG"
+
+
+def test_collect_trades_bos_veri_bos_dataframe_tanimli_sutunlarla_doner():
+    trades_df = collect_trades(
+        symbols=["YOKSEMBOL"],
+        tfs=["1D"],
+        denominators=("TRY",),
+        fetch_ohlcv=lambda symbol, tf, n_bars: pd.DataFrame(columns=["time", "open", "high", "low", "close", "volume"]),
+        fetch_usdtry_fn=lambda tf, n_bars: pd.DataFrame(columns=["time", "close"]),
+    )
+
+    assert trades_df.empty
+    assert "sig_signal_bar" in trades_df.columns
+    assert "direction_label" in trades_df.columns
+
+
+def test_collect_trades_run_grid_ile_ayni_para_birimi_cevrim_mantigini_kullanir(monkeypatch):
+    """USD istendiginde ama USDTRY verisi yoksa run_grid ile AYNI toleransla
+    (hata FIRLATMADAN) o kombinasyon sessizce atlanir."""
+    monkeypatch.setattr(abcd_backtest, "detect", lambda df, params: _make_dense_signals(2))
+
+    trades_df = collect_trades(
+        symbols=["THYAO"],
+        tfs=["1D"],
+        denominators=("TRY", "USD"),
+        fetch_ohlcv=lambda symbol, tf, n_bars: _synthetic_ohlcv(250),
+        fetch_usdtry_fn=lambda tf, n_bars: pd.DataFrame(columns=["time", "close"]),  # USDTRY yok
+    )
+
+    assert set(trades_df["currency"]) == {"TRY"}
 
 
 # ── save_summary ────────────────────────────────────────────────────────

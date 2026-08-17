@@ -70,6 +70,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, fields
 from pathlib import Path
+from typing import Callable
 
 import numpy as np
 import pandas as pd
@@ -387,6 +388,29 @@ _CURRENCY_NOTE_USD = (
 )
 
 
+def _resolve_denominated_df(
+    df_try: pd.DataFrame, denom: str, usdtry_df: pd.DataFrame | None
+) -> pd.DataFrame | None:
+    """(tf, symbol) icin zaten cekilmis TL `df_try`'i istenen `denom` para
+    birimine cevirir. `None` doner: bu kombinasyon ATLANMALI (USDTRY verisi
+    yok/bos, cevrim basarisiz, ya da sonuc bos) -- `run_grid` VE `collect_trades`
+    bu fonksiyonu PAYLASIR, ikisinin para-birimi-cevrim mantigi hicbir zaman
+    birbirinden SAPMAMALIDIR."""
+    if denom == "USD":
+        if usdtry_df is None or usdtry_df.empty:
+            return None
+        try:
+            df = to_usd(df_try, usdtry_df)
+        except ValueError:
+            return None
+    elif denom == "TRY":
+        df = df_try
+    else:
+        raise ValueError(f"Desteklenmeyen para birimi: {denom!r}")
+
+    return df if not df.empty else None
+
+
 def run_grid(
     symbols: list[str],
     tfs: list[str] = ("240", "1D"),
@@ -430,19 +454,8 @@ def run_grid(
                 continue
 
             for denom in denom_iter:
-                if denom == "USD":
-                    if usdtry_df is None or usdtry_df.empty:
-                        continue
-                    try:
-                        df = to_usd(df_try, usdtry_df)
-                    except ValueError:
-                        continue
-                elif denom == "TRY":
-                    df = df_try
-                else:
-                    raise ValueError(f"Desteklenmeyen para birimi: {denom!r}")
-
-                if df.empty:
+                df = _resolve_denominated_df(df_try, denom, usdtry_df)
+                if df is None:
                     continue
 
                 for dp in dp_iter:
@@ -531,3 +544,106 @@ def save_summary(summary: pd.DataFrame, path: Path | None = None) -> Path:
     target.parent.mkdir(parents=True, exist_ok=True)
     summary.to_csv(target, index=False)
     return target
+
+
+# ── Faz 8 (basari faktoru analizi) icin HAM islem satirlari ───────────────
+
+_SIGNAL_JOIN_FIELDS = (
+    "a_bar", "b_bar", "c_bar", "d_bar",
+    "a_price", "b_price", "c_price", "d_price",
+    "bc_ratio", "cd_ratio", "signal_bar", "signal_time",
+)
+
+
+def collect_trades(
+    symbols: list[str],
+    tfs: list[str] = ("240", "1D"),
+    params: Params = Params(),
+    backtest_params: BacktestParams = BacktestParams(),
+    denominators: tuple[str, ...] = ("TRY", "USD"),
+    years: float = 2.0,
+    fetch_ohlcv: Callable[[str, str, int], pd.DataFrame] = fetch_ohlcv_abcd,
+    fetch_usdtry_fn: Callable[[str, int], pd.DataFrame] = fetch_usdtry,
+) -> pd.DataFrame:
+    """`run_grid` ile AYNI veri-cekme/para-birimi-cevrim orkestrasyonunu
+    kullanir (`_resolve_denominated_df` PAYLASILIR) ama `run_grid`'in
+    aksine -- ki bu SADECE siralama-amacli toplu ozet metrikler uretir,
+    `cell["trades"].extend(trades)` ile toplanan HAM islem listesini cagirana
+    hicbir sekilde geri VERMEZ -- bu fonksiyon HER `Trade`'i TEK SATIR olarak
+    doner: `Trade`'in tum alanlari + `tf`, `currency`, `symbol`,
+    `direction_label` (LONG/SHORT, `Trade.direction` int alaniyla CAKISMASIN
+    diye ayri sutun) + o trade'in kaynagi olan `Signal`'in alanlari
+    (`sig_` onekiyle -- `Signal.signal_bar` ile `Trade.signal_bar` isim
+    CAKISMASINI onlemek icin).
+
+    Faz 8 basari-faktoru analizinin (`abcd_factor_analysis.py`) girdisidir:
+    RSI/MACD/hacim/ADX/Bollinger gibi ozellikler D onay bari (`sig_signal_bar`)
+    aninda hesaplanmali, bunun icin hem `Trade` (kazanan/kaybeden etiketi icin
+    `pnl`) hem kaynak `Signal` (A/B/C/D bar indeksleri, cd_ratio) gerekir --
+    `run_grid`in hucre-basina havuzlanmis ozet istatistikleri bu amaca
+    UYGUN DEGILDIR.
+
+    `run_grid`in AKSINE tek bir detector `Params` seti alir (grid-parametre
+    taramasi degil, sabit bir tespit konfigurasyonuyla trade+ozellik
+    eslestirmesi yeterlidir).
+
+    `fetch_ohlcv`/`fetch_usdtry_fn` -- `abcd_scanner.get_bist_universe`'in
+    `session` parametresiyle AYNI DI ilkesi: testler gercek ag cagrisi
+    yapmadan sahte fonksiyon enjekte edebilir, `fetch_ohlcv_abcd`/
+    `fetch_usdtry`'i monkeypatch etmeye gerek kalmaz.
+
+    Veri getirilemeyen (bos) sembol/tf/para-birimi kombinasyonlari `run_grid`
+    ile AYNI toleransla sessizce ATLANIR (hata FIRLATILMAZ). Hicbir islem
+    bulunamazsa sutunlari tanimli BOS bir DataFrame doner.
+    """
+    tf_iter = list(tfs)
+    denom_iter = list(denominators)
+
+    trade_fields = [f.name for f in fields(Trade)]  # `Trade.symbol` zaten dahil -- asagida TEKRAR eklenmez
+    columns = trade_fields + ["tf", "currency", "direction_label"] + [
+        f"sig_{f}" for f in _SIGNAL_JOIN_FIELDS
+    ]
+
+    rows: list[dict] = []
+
+    for tf in tf_iter:
+        n_bars = _bars_for_years(tf, years)
+        usdtry_df = None
+        if "USD" in denom_iter:
+            usdtry_df = fetch_usdtry_fn(tf, n_bars)
+
+        for symbol in symbols:
+            df_try = fetch_ohlcv(symbol, tf, n_bars)
+            if df_try.empty:
+                continue
+
+            for denom in denom_iter:
+                df = _resolve_denominated_df(df_try, denom, usdtry_df)
+                if df is None:
+                    continue
+
+                signals = detect(df, params)
+                signal_by_bar = {s.signal_bar: s for s in signals}
+                trades, _curve = backtest_symbol(df, symbol, signals, backtest_params)
+
+                for trade in trades:
+                    row = {f: getattr(trade, f) for f in trade_fields}
+                    row["tf"] = tf
+                    row["currency"] = denom
+                    row["symbol"] = symbol
+                    row["direction_label"] = "LONG" if trade.direction > 0 else "SHORT"
+
+                    # Her Trade `backtest_symbol` icinde `sorted(signals, key=lambda
+                    # s: s.signal_bar)` uzerinden, `trade.signal_bar == sinyalin
+                    # kendi signal_bar'i` esitligiyle uretilir -- bu eslesme
+                    # TEORIK olarak hep bulunur; yine de savunmaci: kaybolursa
+                    # satir ATILMAZ, sig_* alanlari None birakilir.
+                    sig = signal_by_bar.get(trade.signal_bar)
+                    for f in _SIGNAL_JOIN_FIELDS:
+                        row[f"sig_{f}"] = getattr(sig, f) if sig is not None else None
+
+                    rows.append(row)
+
+    if not rows:
+        return pd.DataFrame(columns=columns)
+    return pd.DataFrame(rows, columns=columns)

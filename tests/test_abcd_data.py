@@ -167,6 +167,67 @@ def test_fetch_usdtry_ag_hatasinda_bos_dataframe_doner_firlatmaz(monkeypatch, tm
     assert list(result.columns) == abcd_data.USDTRY_COLUMNS
 
 
+# --- Negatif onbellek (gece nobeti, 2026-08-18) ----------------------------
+
+
+def test_hicbir_onbellegi_olmayan_sembol_basarisiz_olunca_negatif_onbellege_isaretlenir(monkeypatch, tmp_path):
+    monkeypatch.setattr(abcd_data, "_CACHE_DIR", tmp_path)
+    monkeypatch.setattr(abcd_data._time, "sleep", lambda *_: None)
+    calls = []
+
+    def _raise(yf_symbol, interval, period):
+        calls.append(1)
+        raise ConnectionError("ag hatasi (test)")
+
+    monkeypatch.setattr(abcd_data, "_yf_history", _raise)
+
+    abcd_data.fetch_ohlcv_abcd("OLU", "1D")
+
+    assert abcd_data._is_marked_dead("OLU", "1D") is True
+    assert len(calls) == 3  # _retry'nin 3 denemesi tuketildi
+
+
+def test_negatif_onbellekteki_sembol_ag_cagrisi_yapmadan_bos_doner(monkeypatch, tmp_path):
+    monkeypatch.setattr(abcd_data, "_CACHE_DIR", tmp_path)
+    abcd_data._mark_dead("OLU", "1D")
+    calls = []
+
+    def _should_not_be_called(yf_symbol, interval, period):
+        calls.append(1)
+        raise AssertionError("ag'a HIC gidilmemeliydi -- negatif onbellek atlanmadi")
+
+    monkeypatch.setattr(abcd_data, "_yf_history", _should_not_be_called)
+
+    result = abcd_data.fetch_ohlcv_abcd("OLU", "1D")
+
+    assert result.empty
+    assert list(result.columns) == abcd_data.OHLCV_COLUMNS
+    assert len(calls) == 0
+
+
+def test_basarili_onbellegi_olan_sembol_negatif_onbellekten_ETKILENMEZ(monkeypatch, tmp_path):
+    """Daha once basarili veri cekmis (parquet onbellegi var) bir sembol,
+    tek bir gecici ag hatasinda ASLA negatif onbellege duşmemeli -- sadece
+    HIC basarili onbellegi olmayan semboller icin gecerlidir (bkz. modul
+    ust notu)."""
+    monkeypatch.setattr(abcd_data, "_CACHE_DIR", tmp_path)
+    monkeypatch.setattr(abcd_data._time, "sleep", lambda *_: None)
+
+    times = pd.date_range("2026-01-01", periods=5, freq="D", tz=abcd_data.TZ_ISTANBUL)
+    good_df = _fake_yf_frame(times, [1.0] * 5, [1.0] * 5, [1.0] * 5, [1.0] * 5, [1.0] * 5)
+
+    def _first_ok_then_fail(yf_symbol, interval, period):
+        raise ConnectionError("ikinci cagri her zaman basarisiz (test)")
+
+    monkeypatch.setattr(abcd_data, "_yf_history", lambda *a, **k: good_df)
+    abcd_data.fetch_ohlcv_abcd("CANLI", "1D")  # ilk cagri basarili, parquet yazilir
+
+    monkeypatch.setattr(abcd_data, "_yf_history", _first_ok_then_fail)
+    abcd_data.fetch_ohlcv_abcd("CANLI", "1D")  # ikinci cagri (yenileme) basarisiz
+
+    assert abcd_data._is_marked_dead("CANLI", "1D") is False
+
+
 def test_fetch_ohlcv_abcd_bos_yfinance_yaniti_bos_dataframe_doner(monkeypatch, tmp_path):
     monkeypatch.setattr(abcd_data, "_CACHE_DIR", tmp_path)
     monkeypatch.setattr(abcd_data, "_yf_history", lambda yf_symbol, interval, period: pd.DataFrame())

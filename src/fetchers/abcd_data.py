@@ -52,8 +52,10 @@ ASLA bloke OLMAMALIDIR.
 
 from __future__ import annotations
 
+import json
 import logging
 import time as _time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable
 from zoneinfo import ZoneInfo
@@ -194,6 +196,58 @@ def _cache_path(cache_key: str, tf: str) -> Path:
     return _CACHE_DIR / f"{cache_key}_{tf}.parquet"
 
 
+# --- Negatif onbellek (olu/veri-yok sembol-tf ciftleri) --------------------
+#
+# GECE NOBETI BULGUSU (2026-08-18): BIST evreninde ~657 tickerin ~65'i
+# yfinance'te hic veri DONDURMUYOR (borsadan cikmis/yeni halka arz/hic
+# kapsanmiyor -- "possibly delisted" hatasi). Her arastirma kosusu (5-10
+# ayri run_grid cagrisi, her biri TUM evreni tarayan) bu AYNI ~65 sembolu
+# TEKRAR TEKRAR agdan denemek zorunda kaliyordu (basarisiz cekim hic
+# onbelleklenmiyordu) -- tek bir gece nobetinde AYNI hatalar 4+ kez
+# tekrarlandi, saatlerce bosa harcanan ag/retry suresi. Bu sozluk, bir
+# (symbol,tf) cifti ag/parse hatasiyla (VE onceden HIC basarili onbellegi
+# yokken) basarisiz olduğunda `_DEAD_TTL_DAYS` gun boyunca ATLANMASINI
+# saglar -- eger sembol yeniden listelenirse/yfinance kapsama alirsa,
+# TTL dolunca otomatik yeniden denenir (kalici bir "kara liste" DEGIL).
+_DEAD_TTL_DAYS = 30
+
+
+def _dead_symbols_path() -> Path:
+    _CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    return _CACHE_DIR / "_dead_symbols.json"
+
+
+def _load_dead_symbols() -> dict[str, str]:
+    path = _dead_symbols_path()
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:  # bozuk/kismi yazilmis dosya -- sessizce sifirdan basla, FIRLATMA
+        return {}
+
+
+def _save_dead_symbols(data: dict[str, str]) -> None:
+    try:
+        _dead_symbols_path().write_text(json.dumps(data), encoding="utf-8")
+    except Exception as exc:  # disk/izin hatasi -- onbellek yazilamasa da akis DEVAM eder
+        logger.warning("abcd_data: negatif onbellek diske yazilamadi: %s", exc)
+
+
+def _is_marked_dead(cache_key: str, tf: str) -> bool:
+    entry = _load_dead_symbols().get(f"{cache_key}_{tf}")
+    if entry is None:
+        return False
+    marked_at = datetime.fromisoformat(entry)
+    return datetime.now(timezone.utc) - marked_at < timedelta(days=_DEAD_TTL_DAYS)
+
+
+def _mark_dead(cache_key: str, tf: str) -> None:
+    data = _load_dead_symbols()
+    data[f"{cache_key}_{tf}"] = datetime.now(timezone.utc).isoformat()
+    _save_dead_symbols(data)
+
+
 def _estimate_new_bars(tf: str, last_time: pd.Timestamp) -> int:
     elapsed = (pd.Timestamp.now(tz=TZ_ISTANBUL) - last_time).total_seconds()
     return max(int(elapsed // _APPROX_BAR_SECONDS[tf]) + 5, 10)
@@ -234,6 +288,12 @@ def _cached_fetch(
     path = _cache_path(cache_key, tf)
     cached = pd.read_parquet(path) if path.exists() and not force_refresh else pd.DataFrame(columns=columns)
 
+    if cached.empty and not force_refresh and _is_marked_dead(cache_key, tf):
+        # Negatif onbellek: daha once (n gun icinde) hicbir onbellegi
+        # olmadan basarisiz olmustu -- ag'a HIC gitmeden hizlica bos don
+        # (bkz. modul-ici "Negatif onbellek" notu).
+        return pd.DataFrame(columns=columns)
+
     try:
         if cached.empty:
             combined = _retry(lambda: raw_fetch(n_bars))
@@ -244,6 +304,12 @@ def _cached_fetch(
     except Exception as exc:  # tum retry denemeleri tukendi -- Kural 9, FIRLATMA
         logger.warning("abcd_data: %s (%s) yenilenemedi, mevcut onbellek donuluyor: %s", cache_key, tf, exc)
         combined = cached
+        if cached.empty:
+            # Daha once HIC basarili onbellegi olmayan bir sembol yine
+            # basarisiz oldu -- muhtemelen borsadan cikmis/kapsanmiyor,
+            # negatif onbellege isaretle (gelecekteki kosular agi
+            # bosa harcamasin, bkz. modul-ici not).
+            _mark_dead(cache_key, tf)
 
     if combined.empty:
         return combined

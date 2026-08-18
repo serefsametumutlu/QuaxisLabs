@@ -119,6 +119,23 @@ _LEVEL_LINE_START_GAP = 34
 _WINDOW_PAD_BEFORE_A = 8
 _WINDOW_PAD_AFTER_SIGNAL = 12
 
+# CANLI KULLANICI RAPORU (2026-08-18): sadece A-8/signal+12 barlık pencere
+# bazı formasyonlarda "son 1 ay" kadar dar kalıyordu, kullanıcı en az "son
+# 3 ay" görmek istedi. Yukarıdaki A/signal tabanlı pencere formasyonun
+# SINIRLARINI asla kırpmaz (min olarak korunur), ama pattern kısa sürede
+# oluştuysa gösterilen toplam bar sayısı bu ZEMİN değerin ALTINA düşmesin
+# diye sol tarafa (geçmişe doğru) genişletilir. Zaman dilimine göre "3 ay"a
+# karşılık gelen bar sayısı YAKLAŞIKTIR (yfinance işlem günü sayımı; tam
+# takvim ayı hesaplanmaz, K2 ruhunda basit/yeterli bir yaklaşıklık).
+_MIN_WINDOW_BARS_BY_TF: dict[str, int] = {
+    "1D": 63, "1d": 63,
+    "1W": 13, "1wk": 13,
+    "240": 126, "240m": 126, "4h": 126,
+    "120": 252, "120m": 252, "2h": 252,
+    "60": 441, "60m": 441, "1h": 441,
+}
+_MIN_WINDOW_BARS_DEFAULT = 63
+
 # RSI/MACD/Hacim mini panelleri -- technical_card.py'nin
 # `_MINI_CHART_VIEWBOX_HEIGHT`/`_scale_series_to_points` deseniyle AYNI
 # ilke. `_MINI_VIEWBOX_WIDTH`, import edilen `_scale_series_to_points`'in
@@ -133,18 +150,24 @@ _RSI_ASIRI_ALIM_ESIGI = Decimal(70)
 _RSI_ASIRI_SATIM_ESIGI = Decimal(30)
 
 
-def _compute_window(signal: Signal, n: int) -> tuple[int, int]:
+def _compute_window(signal: Signal, n: int, tf: str = "1D") -> tuple[int, int]:
     """Formasyonun (A..D + onay barı) etrafında dar bir [start, end) bar
     aralığı hesaplar -- bkz. modül üst notu Faz 5.1(1). `n <= 0` ise
     (0, 0) döner (çağıran taraf boş pencereyi zaten "veri yok" olarak ele
     alır, bkz. `_build_chart`/mini panel fonksiyonlarının `has_data=False`
-    kısa yolları)."""
+    kısa yolları). Formasyon kısa sürdüyse pencere sola (geçmişe) doğru
+    `_MIN_WINDOW_BARS_BY_TF[tf]`'e kadar genişletilir (bkz. modül üst notu
+    "CANLI KULLANICI RAPORU") -- formasyonun kendi sınırları (A-8/signal+12)
+    asla bunun ALTINA kırpılmaz, sadece daha DAR ise genişletilir."""
     if n <= 0:
         return 0, 0
     start = max(0, signal.a_bar - _WINDOW_PAD_BEFORE_A)
     end = min(n, signal.signal_bar + _WINDOW_PAD_AFTER_SIGNAL + 1)
     if end <= start:
         end = min(n, start + 1)
+    min_bars = _MIN_WINDOW_BARS_BY_TF.get(tf, _MIN_WINDOW_BARS_DEFAULT)
+    if end - start < min_bars:
+        start = max(0, end - min_bars)
     return start, end
 
 
@@ -177,6 +200,45 @@ def _macd_series(close: np.ndarray, fast: int = 12, slow: int = 26, signal_span:
     return macd_line, signal_line, macd_line - signal_line
 
 
+_RSI_ORTA_ESIK = Decimal(50)
+
+
+def _rsi_color_segments(
+    rsi_dec: tuple[Decimal | None, ...], min_v: Decimal, span: Decimal, n: int
+) -> list[dict]:
+    """RSI çizgisini 50 eşiğine göre yeşil/kırmızı ALT-ÇİZGİLERE böler
+    (kullanıcı referansı: tr.tradingview.com/v/cA2d5Vcd/ -- RSI>50 iken
+    yeşil, RSI<50 iken kırmızı çizgi). Eşik geçişlerinde ARA NOKTA lineer
+    interpolasyonla eklenir ki çizgi kesiksiz/pürüzsüz görünsün (renk
+    SADECE görsel sınıf, RSI değerinin KENDİSİ değiştirilmez -- K1
+    istisnası, `_scale_series_to_points` ile AYNI "sadece ölçekleme"
+    ilkesi)."""
+    points: list[tuple[Decimal, Decimal, Decimal]] = []
+    for i, value in enumerate(rsi_dec):
+        if value is None:
+            continue
+        x = Decimal(i) / Decimal(n - 1) * _MINI_VIEWBOX_WIDTH if n > 1 else Decimal(0)
+        y = _value_to_y(value, min_v, span, _MINI_VIEWBOX_HEIGHT, _MINI_PADDING)
+        points.append((x, y, value))
+    if len(points) < 2:
+        return []
+
+    segments: list[dict] = []
+    current = [points[0]]
+    current_up = points[0][2] >= _RSI_ORTA_ESIK
+    for (x0, y0, v0), (x1, y1, v1) in zip(points, points[1:]):
+        if (v0 >= _RSI_ORTA_ESIK) != (v1 >= _RSI_ORTA_ESIK) and v1 != v0:
+            t = (_RSI_ORTA_ESIK - v0) / (v1 - v0)
+            xc, yc = x0 + (x1 - x0) * t, y0 + (y1 - y0) * t
+            current.append((xc, yc, _RSI_ORTA_ESIK))
+            segments.append({"points": " ".join(f"{x:.1f},{y:.1f}" for x, y, _ in current), "up": current_up})
+            current_up = v1 >= _RSI_ORTA_ESIK
+            current = [(xc, yc, _RSI_ORTA_ESIK)]
+        current.append((x1, y1, v1))
+    segments.append({"points": " ".join(f"{x:.1f},{y:.1f}" for x, y, _ in current), "up": current_up})
+    return segments
+
+
 def _build_rsi_panel(bars: list[dict], window_start: int, window_end: int) -> dict:
     """RSI(14) -- TAM `bars` üzerinde hesaplanır (ısınma dönemi için gerçek
     geçmişe ihtiyaç duyar), SADECE görüntü pencereye kırpılır (bkz. modül
@@ -194,16 +256,19 @@ def _build_rsi_panel(bars: list[dict], window_start: int, window_end: int) -> di
     span = max_v - min_v
     overbought_y = _value_to_y(_RSI_ASIRI_ALIM_ESIGI, min_v, span, _MINI_VIEWBOX_HEIGHT, _MINI_PADDING)
     oversold_y = _value_to_y(_RSI_ASIRI_SATIM_ESIGI, min_v, span, _MINI_VIEWBOX_HEIGHT, _MINI_PADDING)
+    mid_y = _value_to_y(_RSI_ORTA_ESIK, min_v, span, _MINI_VIEWBOX_HEIGHT, _MINI_PADDING)
     current = next((v for v in reversed(rsi_dec) if v is not None), None)
 
     return {
         "has_data": True,
         "viewbox_width": _MINI_VIEWBOX_WIDTH,
         "viewbox_height": _MINI_VIEWBOX_HEIGHT,
-        "rsi_points": _scale_series_to_points(rsi_dec, min_v, span, n, _MINI_VIEWBOX_HEIGHT, _MINI_PADDING),
+        "rsi_segments": _rsi_color_segments(rsi_dec, min_v, span, n),
         "overbought_y": f"{overbought_y:.1f}",
         "oversold_y": f"{oversold_y:.1f}",
+        "mid_y": f"{mid_y:.1f}",
         "current_display": _indicator_num(current, 1),
+        "current_up": current is not None and current >= _RSI_ORTA_ESIK,
     }
 
 
@@ -242,6 +307,26 @@ def _build_macd_panel(bars: list[dict], window_start: int, window_end: int) -> d
             }
         )
 
+    # Kırılım (crossover) noktaları -- kullanıcı isteği (2026-08-18): MACD
+    # çizgisi sinyal çizgisini AŞAĞIDAN YUKARI keserse yeşil, YUKARIDAN
+    # AŞAĞI keserse kırmızı nokta. Histogram (= line - signal) TAM OLARAK
+    # bu kesişim anlarında sıfırı geçer -- ayrı bir line/signal karşılaştırması
+    # YERİNE zaten hesaplanmış histogramın işaret değişimi kullanılır (aynı
+    # matematiksel olay, tekrar hesaplama YOK).
+    cross_markers = []
+    prev_v = None
+    for i, value in enumerate(hist_dec):
+        if value is None:
+            continue
+        if prev_v is not None and line_dec[i] is not None:
+            bullish = prev_v < 0 and value >= 0
+            bearish = prev_v > 0 and value <= 0
+            if bullish or bearish:
+                x = Decimal(i) / Decimal(n - 1) * _MINI_VIEWBOX_WIDTH if n > 1 else Decimal(0)
+                y = _value_to_y(line_dec[i], min_v, span, _MINI_VIEWBOX_HEIGHT, _MINI_PADDING)
+                cross_markers.append({"x": f"{x:.1f}", "y": f"{y:.1f}", "bullish": bullish})
+        prev_v = value
+
     last_macd = next((v for v in reversed(line_dec) if v is not None), None)
     last_signal = next((v for v in reversed(signal_dec) if v is not None), None)
 
@@ -252,6 +337,7 @@ def _build_macd_panel(bars: list[dict], window_start: int, window_end: int) -> d
         "line_points": _scale_series_to_points(line_dec, min_v, span, n, _MINI_VIEWBOX_HEIGHT, _MINI_PADDING),
         "signal_points": _scale_series_to_points(signal_dec, min_v, span, n, _MINI_VIEWBOX_HEIGHT, _MINI_PADDING),
         "histogram_bars": histogram_bars,
+        "cross_markers": cross_markers,
         "zero_line_y": f"{zero_y:.1f}",
         "macd_display": _indicator_num(last_macd, 3),
         "signal_display": _indicator_num(last_signal, 3),
@@ -263,11 +349,21 @@ def _build_volume_panel(bars: list[dict], window_start: int, window_end: int) ->
     `technical_card._build_volume_history_chart`'ın (20 günlük ortalama)
     AYNASI değil -- burada ortalama, gösterilen PENCERE'nin kendisidir
     (formasyonun döneminde hacim nasıl davrandığını göstermek amacıyla,
-    sabit 20-bar'lık dış bir ortalama DEĞİL)."""
+    sabit 20-bar'lık dış bir ortalama DEĞİL).
+
+    Kullanıcı isteği (2026-08-18): çubuklar TradingView'deki gibi yeşil/
+    kırmızı -- bar'ın kapanışı bir ÖNCEKİ barın kapanışından yüksekse
+    yeşil, düşükse kırmızı (TradingView'in yerleşik "Volume" göstergesinin
+    varsayılan kuralı). Önceki kapanış PENCERE SINIRINI da aşabileceği
+    için (pencerenin ilk barı) karşılaştırma `bars`'ın TAMAMINDAN
+    (`close_full`) yapılır, sadece pencere İÇİNDEKİ barlar çizilir --
+    `_build_rsi_panel`/`_build_macd_panel` ile AYNI "tam seride hesapla,
+    pencereye kırp" ilkesi."""
     volumes = _volume_array(bars)[window_start:window_end]
     n = len(volumes)
     if n < 2:
         return {"has_data": False}
+    close_full = _close_array(bars)
 
     max_v = float(volumes.max()) or 1.0
     usable_height = Decimal(_MINI_VIEWBOX_HEIGHT - _MINI_PADDING)
@@ -277,12 +373,16 @@ def _build_volume_panel(bars: list[dict], window_start: int, window_end: int) ->
     for i, value in enumerate(volumes):
         x = Decimal(i) / Decimal(n - 1) * _MINI_VIEWBOX_WIDTH if n > 1 else Decimal(0)
         height = Decimal(str(value / max_v)) * usable_height
+        abs_idx = window_start + i
+        prev_idx = abs_idx - 1 if abs_idx > 0 else abs_idx
+        positive = bool(close_full[abs_idx] >= close_full[prev_idx])
         volume_bars.append(
             {
                 "x": f"{(x - bar_width / 2):.1f}",
                 "y": f"{(Decimal(_MINI_VIEWBOX_HEIGHT) - height):.1f}",
                 "width": f"{bar_width:.1f}",
                 "height": f"{height:.1f}",
+                "positive": positive,
             }
         )
 
@@ -551,7 +651,7 @@ def build_abcd_card_context(
     tf_label = _TF_LABELS.get(tf, tf)
     is_bull = signal.direction == 1
 
-    window_start, window_end = _compute_window(signal, len(bars))
+    window_start, window_end = _compute_window(signal, len(bars), tf)
     windowed_bars = bars[window_start:window_end]
 
     return {

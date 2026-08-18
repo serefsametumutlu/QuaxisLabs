@@ -21,8 +21,12 @@ i_squeezePct = input.float(1.0,"Squeeze Threshold %", minval=0.01, step=0.1, gro
 // ─────────────────────────────────────────────────────────────────
 // GROUP: Volume Surge
 // ─────────────────────────────────────────────────────────────────
-i_volLen  = input.int(20,    "SMA Length", minval=1,   group="Volume Surge")
-i_volMult = input.float(1.5, "Multiplier", minval=1.0, step=0.1, group="Volume Surge")
+i_volLen    = input.int(20,    "SMA Length",       minval=1,   group="Volume Surge")
+i_volMult   = input.float(1.5, "Multiplier (min)", minval=1.0, step=0.1, group="Volume Surge")
+i_volMaxMult = input.float(3.0, "Multiplier (max, upper band)", minval=1.0, step=0.1, group="Volume Surge",
+     tooltip="Hacim SMA'nin bu katindan FAZLASINI da ELER (asiri hacimli barlar). " +
+             "Tam BIST backtesti (2026-08-19, MOMENTUM_CONFLUENCE_OPTIMIZASYON.md): bu ust sinir " +
+             "olmadan V1/240 PF=1.17, bu sinirla (3.0x) PF=1.25 -- en etkili tek iyilestirme.")
 
 // ─────────────────────────────────────────────────────────────────
 // TWIN RANGE FILTER  (exact colinmck v4 → v6)
@@ -71,9 +75,10 @@ bool  emaBreakout  = close > emaMax and close[1] <= emaMax[1]
 bool  emaConfluence = isSqueezed and emaBreakout
 
 // ─────────────────────────────────────────────────────────────────
-// VOLUME SURGE
+// VOLUME SURGE (alt sinir) + UST BAND (asiri hacimli barlari da ele)
 // ─────────────────────────────────────────────────────────────────
-bool volSurge = volume >= i_volMult * ta.sma(volume, i_volLen)
+float volSma   = ta.sma(volume, i_volLen)
+bool  volSurge = volume >= i_volMult * volSma and volume <= i_volMaxMult * volSma
 
 // ─────────────────────────────────────────────────────────────────
 // CONFLUENCE SIGNAL — all three must fire on the EXACT same candle

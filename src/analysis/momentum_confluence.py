@@ -61,9 +61,14 @@ class Params:
     ema_mid: int = 8
     ema_slow: int = 13
     squeeze_pct: float = 1.0
-    # Volume Surge
+    # Volume Surge -- alt sinir (min) + ust bant (max, 2026-08-19 eklendi).
+    # Kullanici karari: "hacim üst bandını kesin ekliyoruz", dayanagi
+    # `docs/spec/MOMENTUM_CONFLUENCE_OPTIMIZASYON.md` (tam BIST, 11 varyant
+    # ablasyonu) -- ust bant tek basina en etkili iyilestirmeydi: V1/240
+    # PF 1.17->1.25, V2/240 PF 1.24->1.41 (asiri hacimli barlar da elenince).
     vol_len: int = 20
     vol_mult: float = 1.5
+    vol_mult_max: float = 3.0
     # WaveTrend (SADECE V2)
     wt_chan_len: int = 10
     wt_avg_len: int = 21
@@ -253,7 +258,11 @@ def detect(df: pd.DataFrame, params: Params, variant: str = "v1") -> list[Signal
 
         is_squeezed = not np.isnan(ema_spread[i]) and ema_spread[i] <= params.squeeze_pct
         ema_breakout = close[i] > ema_max[i] and close[i - 1] <= ema_max[i - 1]
-        vol_surge = not np.isnan(vol_ratio[i]) and volume[i] >= params.vol_mult * vol_sma[i]
+        vol_surge = (
+            not np.isnan(vol_ratio[i])
+            and volume[i] >= params.vol_mult * vol_sma[i]
+            and volume[i] <= params.vol_mult_max * vol_sma[i]
+        )
 
         if variant == "v1":
             ema_confluence = is_squeezed and ema_breakout

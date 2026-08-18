@@ -249,27 +249,32 @@ def detect_variant(df: pd.DataFrame, params: Params, flags: VariantFlags) -> lis
 #     eklesek/cikarsak") -- V1/V2'nin SABIT kombinasyonlarinin OTESINDE,
 #     her degisikligin TEK BASINA etkisini izole eder. -----------------------
 VARIANTS: dict[str, VariantFlags] = {
-    "V1_BASELINE": VariantFlags(name="V1_BASELINE", require_volume=True),
+    # BASELINE ARTIK hacim UST BANDINI (3.0x) icerir -- kullanici karari
+    # (2026-08-19): `MOMENTUM_CONFLUENCE_OPTIMIZASYON.md` sonuclarina dayanarak
+    # "kesin ekliyoruz" dedi, `momentum_confluence.Params.vol_mult_max`
+    # varsayilani da 3.0 oldu (bkz. o modulun ust notu) -- BASELINE burada
+    # ONUNLA PARITY icin AYNI degeri tasir (eskiden vol_ratio_max=None'di).
+    "V1_BASELINE": VariantFlags(name="V1_BASELINE", require_volume=True, vol_ratio_max=3.0),
     "V1_HACIMSIZ": VariantFlags(name="V1_HACIMSIZ", require_volume=False),
-    "V1_HACIM_BANDI": VariantFlags(name="V1_HACIM_BANDI", require_volume=True, vol_ratio_max=3.0),
-    "V1_HACIM_GEVSEK": VariantFlags(name="V1_HACIM_GEVSEK", require_volume=True, vol_mult=1.2),
-    "V1_ARTI_WT": VariantFlags(name="V1_ARTI_WT", require_volume=True, require_wavetrend=True),
-    "V1_ARTI_YESIL": VariantFlags(name="V1_ARTI_YESIL", require_volume=True, require_green_candle=True),
-    "V1_ARTI_SIKI_EMA": VariantFlags(name="V1_ARTI_SIKI_EMA", require_volume=True, require_strict_ema=True),
+    "V1_HACIM_BANTSIZ": VariantFlags(name="V1_HACIM_BANTSIZ", require_volume=True, vol_ratio_max=None),
+    "V1_HACIM_GEVSEK": VariantFlags(name="V1_HACIM_GEVSEK", require_volume=True, vol_mult=1.2, vol_ratio_max=3.0),
+    "V1_ARTI_WT": VariantFlags(name="V1_ARTI_WT", require_volume=True, vol_ratio_max=3.0, require_wavetrend=True),
+    "V1_ARTI_YESIL": VariantFlags(name="V1_ARTI_YESIL", require_volume=True, vol_ratio_max=3.0, require_green_candle=True),
+    "V1_ARTI_SIKI_EMA": VariantFlags(name="V1_ARTI_SIKI_EMA", require_volume=True, vol_ratio_max=3.0, require_strict_ema=True),
     "V2_BASELINE": VariantFlags(
-        name="V2_BASELINE", require_volume=True, require_wavetrend=True,
+        name="V2_BASELINE", require_volume=True, vol_ratio_max=3.0, require_wavetrend=True,
         require_green_candle=True, require_strict_ema=True,
     ),
     "V2_YESILSIZ": VariantFlags(
-        name="V2_YESILSIZ", require_volume=True, require_wavetrend=True,
+        name="V2_YESILSIZ", require_volume=True, vol_ratio_max=3.0, require_wavetrend=True,
         require_green_candle=False, require_strict_ema=True,
     ),
     "V2_GEVSEK_HACIM": VariantFlags(
-        name="V2_GEVSEK_HACIM", require_volume=True, vol_mult=1.2, require_wavetrend=True,
+        name="V2_GEVSEK_HACIM", require_volume=True, vol_mult=1.2, vol_ratio_max=3.0, require_wavetrend=True,
         require_green_candle=True, require_strict_ema=True,
     ),
-    "V2_ARTI_HACIM_BANDI": VariantFlags(
-        name="V2_ARTI_HACIM_BANDI", require_volume=True, vol_ratio_max=3.0, require_wavetrend=True,
+    "V2_HACIM_BANTSIZ": VariantFlags(
+        name="V2_HACIM_BANTSIZ", require_volume=True, vol_ratio_max=None, require_wavetrend=True,
         require_green_candle=True, require_strict_ema=True,
     ),
 }

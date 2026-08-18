@@ -33,7 +33,9 @@ zaten hesapladığı alanlardan ... mevcut alanları TABLOLA").
 
 from __future__ import annotations
 
+import csv
 import dataclasses
+import functools
 import json
 import logging
 from datetime import datetime
@@ -720,6 +722,73 @@ def _faaliyet_raporu_block(row: MarketScanResult) -> dict[str, Any] | None:
     }
 
 
+# --- İş anlaşmaları (kullanıcı isteği, 2026-08-19: "hisse detaylarına
+#     girdiğimde iş anlaşmaları olan hisselerde bunu görebilmek istiyorum") --
+#
+# Kaynak: `scripts/is_anlasma_arastirma.py` tarafından ÖNCEDEN üretilmiş
+# `data/abcd_cache/is_anlasmalari_yillik.csv` -- BU MODÜL bu araştırmayı
+# TEKRAR ÇALIŞTIRMAZ (ağa GİTMEZ, KAP/fetcher import ETMEZ), sadece o
+# CSV'nin ZATEN hesaplanmış satırlarını okuyup şirkete göre filtreler +
+# Türkçe biçimlendirir (quaxis-mimari anayasa ile AYNI ilke -- dashboard.py
+# da benzer şekilde DB'den ÖNCEDEN hesaplanmış `MarketScanResult` okur).
+#
+# `docs/spec/IS_ANLASMALARI_FORWARD_RETURN.md` bulgusu (2026-08-19): eşiği
+# GEÇEN (n=11) ile GEÇMEYEN (n=98) grupların 6 aylık ileri getirisi arasında
+# istatistiksel olarak anlamlı fark BULUNAMADI (p=0.52) -- bu bölüm bu
+# yüzden AÇIKÇA "yatırım tavsiyesi değildir, bilgilendirme amaçlıdır" notu
+# taşır (Kural: bir ilişkiyi KANITLANMAMIŞ bir öngörü gibi SUNMAK YASAK).
+_IS_ANLASMA_CSV = config.DATA_DIR / "abcd_cache" / "is_anlasmalari_yillik.csv"
+
+IS_ANLASMALARI_ACIKLAMA = (
+    "\"Eşiği geçti\" -- şirketin o yıl duyurduğu YENİ (mevcut/yenileme anlaşmaları HARİÇ) iş "
+    "anlaşmalarının toplamı, bir önceki yılın TÜM satış gelirinden en az %20 FAZLA mı (yeni iş ≥ "
+    "önceki yıl hasılatının 1,2 katı) -- yani şirket tek başına yeni anlaşmalarla bile bir önceki "
+    "yılın cirosunu aşmış mı, sorusuna cevap verir (çok yüksek bir çıta, çoğu şirket geçemez). "
+    "⚠️ İlk istatistiksel testte (n=11 eşiği geçen vs n=98 geçmeyen, Mann-Whitney p=0,52) bu eşiği "
+    "geçmenin sonraki 6 aylık hisse performansını öngördüğüne dair bir kanıt BULUNAMADI -- bu bölüm "
+    "SADECE bilgilendirme amaçlıdır, yatırım tavsiyesi DEĞİLDİR."
+)
+
+
+@functools.lru_cache(maxsize=1)
+def _load_is_anlasma_rows() -> dict[str, list[dict[str, str]]]:
+    """CSV'yi bir kez okuyup ticker'a göre gruplar -- `_write_all_details`
+    yüzlerce şirket için tek tek dosya AÇMASIN diye modül-seviyesinde
+    önbelleklenir (CSV değişirse süreç yeniden başlatılmalı, tarama_toplu.py
+    ile AYNI "process ömrü boyunca sabit" varsayımı)."""
+    if not _IS_ANLASMA_CSV.exists():
+        return {}
+    by_ticker: dict[str, list[dict[str, str]]] = {}
+    with _IS_ANLASMA_CSV.open(encoding="utf-8", newline="") as f:
+        for row in csv.DictReader(f):
+            by_ticker.setdefault(row["ticker"], []).append(row)
+    return by_ticker
+
+
+def _is_anlasmalari_block(ticker: str) -> list[dict[str, Any]] | None:
+    rows = _load_is_anlasma_rows().get(ticker)
+    if not rows:
+        return None
+    out: list[dict[str, Any]] = []
+    for r in sorted(rows, key=lambda r: r["yil"], reverse=True):
+        esik_gecti = r["esik_gecti_mi"].strip().lower() == "true"
+        oran = _decimal_or_none(r.get("oran"))
+        yeni_is = _decimal_or_none(r.get("yeni_is_toplami_try"))
+        onceki_hasilat = _decimal_or_none(r.get("onceki_yil_hasilat_try"))
+        kapsam = _decimal_or_none(r.get("kapsam_pct"))
+        out.append({
+            "yil": r["yil"],
+            "esik_gecti": esik_gecti,
+            "esik_gecti_display": "✅ Eşiği geçti (yeni iş ≥ önceki yıl cirosunun 1,2 katı)" if esik_gecti else "◻ Eşiği geçmedi",
+            "oran_display": format_percent_tr(oran * Decimal("100"), decimals=1) if oran is not None else "N/A",
+            "yeni_is_toplami_display": format_currency_short(yeni_is, symbol="₺") if yeni_is is not None else "N/A",
+            "onceki_yil_hasilat_display": format_currency_short(onceki_hasilat, symbol="₺") if onceki_hasilat is not None else "N/A",
+            "n_anlasma": r.get("n_anlasma", "—"),
+            "kapsam_display": format_percent_tr(kapsam, decimals=0) if kapsam is not None else "N/A",
+        })
+    return out
+
+
 def build_company_detail_data(session: Session, ticker: str, market: str, *, now: datetime | None = None) -> dict[str, Any] | None:
     """`MarketScanResult` + `mercekler_detay` + `get_financials()`'ı company
     detay sayfası şemasına çevirir. Satır YOKSA veya piyasa uyuşmuyorsa
@@ -792,6 +861,8 @@ def build_company_detail_data(session: Session, ticker: str, market: str, *, now
         "financials": _build_financials_block(session, row),
         "faaliyet_raporu": _faaliyet_raporu_block(row),
         "faaliyet_raporu_placeholder": FAALIYET_RAPORU_PLACEHOLDER,
+        "is_anlasmalari": _is_anlasmalari_block(row.ticker),
+        "is_anlasmalari_aciklama": IS_ANLASMALARI_ACIKLAMA,
         "dashboard_relative_url": "../dashboard.html",
     }
 

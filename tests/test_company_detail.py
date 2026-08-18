@@ -472,3 +472,48 @@ def test_build_and_write_company_detail_satir_yoksa_none(session, tmp_path) -> N
 
 def test_detail_relative_path_deseni() -> None:
     assert company_detail.detail_relative_path("THYAO", "BIST") == "detay/BIST_THYAO.html"
+
+
+# --- İş anlaşmaları bölümü (kullanıcı isteği, 2026-08-19) -------------------
+
+
+@pytest.fixture()
+def is_anlasma_csv(tmp_path, monkeypatch):
+    csv_path = tmp_path / "is_anlasmalari_yillik.csv"
+    csv_path.write_text(
+        "ticker,yil,yeni_is_toplami_try,n_anlasma,n_ayristirilan,kapsam_pct,onceki_yil_hasilat_try,oran,esik_gecti_mi\n"
+        "ASELS,2025,256086637336.8,30,30,100.0,157339901315.0,1.6276,True\n"
+        "ASELS,2026,219246077174.8,9,9,100.0,212489200293.0,1.0318,False\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(company_detail, "_IS_ANLASMA_CSV", csv_path)
+    company_detail._load_is_anlasma_rows.cache_clear()
+    yield csv_path
+    company_detail._load_is_anlasma_rows.cache_clear()
+
+
+def test_is_anlasmalari_block_yeniden_eskiye_siralanir(is_anlasma_csv) -> None:
+    block = company_detail._is_anlasmalari_block("ASELS")
+    assert block is not None
+    assert [r["yil"] for r in block] == ["2026", "2025"]
+
+
+def test_is_anlasmalari_block_esik_gecti_ve_gecmedi_dogru_etiketlenir(is_anlasma_csv) -> None:
+    block = company_detail._is_anlasmalari_block("ASELS")
+    gecen = next(r for r in block if r["yil"] == "2025")
+    gecmeyen = next(r for r in block if r["yil"] == "2026")
+    assert gecen["esik_gecti"] is True
+    assert "Eşiği geçti" in gecen["esik_gecti_display"]
+    assert gecmeyen["esik_gecti"] is False
+    assert "Eşiği geçmedi" in gecmeyen["esik_gecti_display"]
+
+
+def test_is_anlasmalari_block_veri_olmayan_ticker_icin_none(is_anlasma_csv) -> None:
+    assert company_detail._is_anlasmalari_block("YOKTUR") is None
+
+
+def test_is_anlasmalari_block_csv_yoksa_none(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(company_detail, "_IS_ANLASMA_CSV", tmp_path / "hic_yok.csv")
+    company_detail._load_is_anlasma_rows.cache_clear()
+    assert company_detail._is_anlasmalari_block("ASELS") is None
+    company_detail._load_is_anlasma_rows.cache_clear()

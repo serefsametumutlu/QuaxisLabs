@@ -276,6 +276,29 @@ def test_run_factor_analysis_gurultu_ozellik_fdr_anlamli_degil(monkeypatch):
     assert noise_row["significant_train"] is False
 
 
+def test_run_factor_analysis_label_fn_ile_vindicated_etiketi_kullanilabilir(monkeypatch):
+    """`scripts/harmonic_xabcd_vindication_factors.py`nin dayandigi genisleme:
+    `label_fn` verilirse `pnl` DEGIL, cagiranin belirttigi ikili sonuc
+    kullanilir -- `pnl`'i tersine cevirip `vindicated`i `pnl`den bagimsiz
+    (ama orijinal `label` ile AYNI) kuran bir fixture'la, sadece `label_fn`
+    ile hala dogru sonuc (rsi14 anlamli+dogrulanmis) alindigini kanitlar."""
+    trades_df, ohlcv_cache = _synthetic_trades_and_ohlcv(monkeypatch)
+    trades_df = trades_df.copy()
+    trades_df["vindicated"] = (trades_df["pnl"] > 0).astype(int)
+    trades_df["pnl"] = -trades_df["pnl"]  # pnl KASITLI ters -- varsayilan label_fn kullanilsaydi sonuc TERSINE cikardi
+
+    custom_note = "OZEL METODOLOJI NOTU -- vindication testi"
+    result = run_factor_analysis(
+        trades_df, ohlcv_cache, label_fn=lambda row: int(row["vindicated"]), methodology_note=custom_note
+    )
+
+    rsi_row = next(r for r in result["univariate"] if r["feature"] == "rsi14")
+    assert rsi_row["significant_train"] is True
+    assert rsi_row["validated"] is True
+    assert result["methodology_note"] == custom_note
+    assert custom_note in format_report(result)
+
+
 def test_run_factor_analysis_kronolojik_split_70_30():
     n = 200
     trades_df = pd.DataFrame(

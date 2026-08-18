@@ -66,7 +66,7 @@ from __future__ import annotations
 
 import math
 import warnings
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
@@ -512,6 +512,8 @@ def run_factor_analysis(
     min_group_n_train: int = MIN_GROUP_N_TRAIN,
     fdr_q: float = FDR_Q,
     holdout_alpha: float = HOLDOUT_ALPHA,
+    label_fn: Callable[[pd.Series], int] | None = None,
+    methodology_note: str | None = None,
 ) -> dict[str, Any]:
     """Metodolojinin TUM disiplinini (kronolojik split, FDR, holdout
     dogrulama, underpowered etiketleme, lojistik regresyon, nedensellik-
@@ -528,17 +530,29 @@ def run_factor_analysis(
     veri o trade'i SESSIZCE atlar (hata FIRLATMAZ), atlanan sayisi
     `n_skipped` alaninda raporlanir.
 
+    `label_fn`: satir basina 0/1 etiketi cikaran fonksiyon (varsayilan:
+    `pnl>0`). Faz 8'in ORIJINAL kullanimi (kazanan/kaybeden) bunu HIC
+    vermez -- davranis DEGISMEZ. `harmonic_xabcd`nin PRZ "dogrulanma"
+    arastirmasi gibi FARKLI bir ikili sonucu (orn. "sonradan onaylandi mi")
+    AYNI istatistik motoruyla (kronolojik split/FDR/holdout/lojistik
+    regresyon -- hesaplama mantigi IKI YERDE YASAMASIN ilkesi) test etmek
+    icin eklendi; `methodology_note` de aynı gerekceyle raporun basligini
+    ozellestirmeye izin verir (varsayilan: kazanan/kaybeden ILISKISEL dili).
+
     Donen sozluk hicbir zaman "etki yok" iddiasi icermez -- yetersiz
     orneklemli ozellikler "underpowered" etiketlenir, train'de anlamli ama
     holdoutta dogrulanmayanlar "muhtemelen sans" etiketiyle SONUCTA KALIR
     (silinmez).
     """
+    label_fn = label_fn or (lambda row: 1 if row["pnl"] > 0 else 0)
+    methodology_note = methodology_note or _METHODOLOGY_NOTE
+
     if trades_df.empty:
         return {
             "n_total": 0, "n_train": 0, "n_holdout": 0, "n_skipped": 0,
             "error": "trades_df bos -- analiz yapilamadi.",
             "univariate": [], "logistic_regression": None,
-            "methodology_note": _METHODOLOGY_NOTE,
+            "methodology_note": methodology_note,
         }
 
     currencies = trades_df["currency"].dropna().unique()
@@ -564,7 +578,7 @@ def run_factor_analysis(
         except (ValueError, KeyError, TypeError):
             skipped += 1
             continue
-        feats["label"] = 1 if trade_row["pnl"] > 0 else 0
+        feats["label"] = int(label_fn(trade_row))
         feats["entry_time"] = trade_row["entry_time"]
         rows.append(feats)
 
@@ -575,7 +589,7 @@ def run_factor_analysis(
             "n_total": 0, "n_train": 0, "n_holdout": 0, "n_skipped": skipped,
             "error": "hicbir islem icin ozellik hesaplanamadi (ohlcv_cache eksik/yetersiz veri).",
             "univariate": [], "logistic_regression": None,
-            "methodology_note": _METHODOLOGY_NOTE,
+            "methodology_note": methodology_note,
         }
 
     feat_df = feat_df.sort_values("entry_time").reset_index(drop=True)
@@ -645,7 +659,7 @@ def run_factor_analysis(
         "target_total_n": TARGET_TOTAL_N,
         "univariate": univariate,
         "logistic_regression": logreg,
-        "methodology_note": _METHODOLOGY_NOTE,
+        "methodology_note": methodology_note,
     }
 
 
@@ -653,6 +667,19 @@ _METHODOLOGY_NOTE = (
     "Butun bulgular ILISKISEL dildedir, NEDENSELLIK iddia edilmez -- 'X ozelligi basariyi "
     "artirir' turu ifadeler YASAKTIR; sadece 'kazananlarda X ile birlikte gorulur, n=.., p=.., "
     "FDR q=.., holdout: dogrulandi/dogrulanmadi' turu ifadeler kullanilir."
+)
+
+# `scripts/harmonic_xabcd_vindication_factors.py` icin -- ayni istatistik
+# motoru, "kazanan/kaybeden" yerine "PRZ dokunmasi sonradan onaylandi mi
+# (vindicated) / hicbir zaman onaylanmadi mi (false-start)" ikili sonucunu
+# test eder (bkz. `run_factor_analysis`in `label_fn` parametresi).
+HARMONIC_XABCD_METHODOLOGY_NOTE = (
+    "Butun bulgular ILISKISEL dildedir, NEDENSELLIK iddia edilmez -- 'X ozelligi PRZ'yi "
+    "dogrular' turu ifadeler YASAKTIR; sadece 'sonradan dogrulanan (vindicated) PRZ olaylarinda "
+    "X ile birlikte gorulur, n=.., p=.., FDR q=.., holdout: dogrulandi/dogrulanmadi' turu "
+    "ifadeler kullanilir. 'Kazanan/kaybeden' (pnl) DEGIL, 'PRZ dokunmasi sonradan gercek "
+    "onayli bir formasyona mi donustu (vindicated=1) yoksa hicbir zaman onaylanmadi mi "
+    "(false-start=0)' ikili sonucu test edilir -- bkz. docs/spec/ABCD_XABCD_V2_ARASTIRMASI.md."
 )
 
 

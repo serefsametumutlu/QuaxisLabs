@@ -47,6 +47,14 @@ config.setup_logging()
 _SOURCE_MD = BASE_DIR / "bist-yeni-is-anlasmalari-2025-2026.md"
 _OUT_MD = BASE_DIR / "docs" / "spec" / "IS_ANLASMALARI_ARASTIRMA.md"
 _OUT_CSV = config.DATA_DIR / "abcd_cache" / "is_anlasmalari_yillik.csv"
+# Kullanici isteği (2026-08-19): "iş anlaşmaları ve miktarları belli olan
+# her hisse için yazmak zorundayız hepsini yazabilecek şekilde güncelle" --
+# yillik TOPLAM'in yaninda, TEK TEK anlasma satirlarini da (tarih/karsi
+# taraf/aciklama/tutar) ayri bir CSV'de saklariz ki company_detail.py
+# HERHANGI bir ticker icin GERCEKTEN neyin dahil/haric oldugunu gosterebilsin
+# (yenileme sozlesmeleri DAHIL -- toplama katilmazlar ama GORUNMEZ degiller,
+# "yenileme_mi" bayragiyla ACIKCA isaretlenir, Kural 3: sessizce gizlenmez).
+_OUT_DEAL_CSV = config.DATA_DIR / "abcd_cache" / "is_anlasmalari_detay.csv"
 _ORAN_ESIGI = Decimal("1.20")  # kullanicinin "%20 daha fazla" -> oran >= 1.20
 
 
@@ -112,7 +120,7 @@ def main() -> int:
     n_renewal = len(all_rows) - len(rows)
     print(f"Yenileme (haric tutulan): {n_renewal} | Kalan (yeni is): {len(rows)}")
 
-    earliest = min(r.deal_date for r in rows) - timedelta(days=10)
+    earliest = min(r.deal_date for r in all_rows) - timedelta(days=10)
     print(f"FX serileri cekiliyor ({earliest} -> bugun)...")
     usdtry = _fetch_fx_series("USDTRY=X", earliest)
     eurtry = _fetch_fx_series("EURTRY=X", earliest)
@@ -164,6 +172,28 @@ def main() -> int:
     out_csv.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(out_csv, index=False)
     print(f"Ham CSV kaydedildi: {out_csv}")
+
+    # Tek tek anlasma satirlari (yenileme DAHIL, ACIKCA isaretli) -- bkz.
+    # modul ust notu, kullanici isteği (2026-08-19).
+    deal_csv_rows = []
+    for r in sorted(all_rows, key=lambda r: (r.ticker, r.deal_date)):
+        try_value = _to_try(r, usdtry, eurtry, gbptry) if not r.is_renewal else None
+        deal_csv_rows.append(
+            {
+                "ticker": r.ticker,
+                "tarih": r.deal_date.isoformat(),
+                "karsi_taraf": r.counterparty,
+                "aciklama": r.description,
+                "tutar_ham": r.amount_raw,
+                "tutar_try": float(try_value) if try_value is not None else None,
+                "yenileme_mi": r.is_renewal,
+            }
+        )
+    deal_df = pd.DataFrame(deal_csv_rows)
+    out_deal_csv = _OUT_DEAL_CSV
+    out_deal_csv.parent.mkdir(parents=True, exist_ok=True)
+    deal_df.to_csv(out_deal_csv, index=False)
+    print(f"Anlasma-detay CSV kaydedildi: {out_deal_csv} ({len(deal_df)} satir)")
 
     n_with_revenue = int(df["oran"].notna().sum())
     n_over_threshold = int(df["esik_gecti_mi"].sum())

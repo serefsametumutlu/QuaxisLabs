@@ -597,12 +597,39 @@
         <td>{{ r.oran_display }}</td>
         <td>{{ r.n_anlasma }}</td>
         <td>{{ r.kapsam_display }}</td>
-        <td class="badge-text {{ 'saglam' if r.esik_gecti else 'yetersiz' }}">{{ r.esik_gecti_display }}</td>
+        <td class="badge-text {{ 'saglam' if r.esik_gecti else ('karisik' if r.yil_tamamlanmadi else 'yetersiz') }}">{{ r.esik_gecti_display }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
+{% if data.is_anlasma_detaylari %}
+<h3 style="margin-bottom: var(--space-3);">Tek Tek Anlaşmalar ({{ data.is_anlasma_detaylari | length }})</h3>
+<div class="financial-card" style="margin-bottom: var(--space-6); overflow-x: auto;">
+  <table class="financial-table">
+    <thead>
+      <tr>
+        <th class="col-left">Tarih</th>
+        <th class="col-left">Karşı Taraf</th>
+        <th class="col-left">Açıklama</th>
+        <th>Tutar (ham)</th>
+        <th>Tutar (₺)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in data.is_anlasma_detaylari %}
+      <tr style="{{ 'opacity: 0.55;' if d.yenileme_mi else '' }}">
+        <td class="col-left">{{ d.tarih }}{% if d.yenileme_mi %} <span class="badge-text yetersiz" style="font-size: var(--text-micro);">yenileme</span>{% endif %}</td>
+        <td class="col-left">{{ d.karsi_taraf }}</td>
+        <td class="col-left">{{ d.aciklama }}</td>
+        <td>{{ d.tutar_ham }}</td>
+        <td>{{ d.tutar_try_display }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
 {% endif %}
 
 <p class="footer-note">

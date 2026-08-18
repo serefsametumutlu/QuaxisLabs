@@ -6,6 +6,7 @@ isteği ATILMAZ, izole bir SQLite dosyasına yazılan sentetik `MarketScanResult
 
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 
 import pytest
@@ -492,28 +493,83 @@ def is_anlasma_csv(tmp_path, monkeypatch):
     company_detail._load_is_anlasma_rows.cache_clear()
 
 
+_NOW_2026 = datetime(2026, 8, 19)
+
+
 def test_is_anlasmalari_block_yeniden_eskiye_siralanir(is_anlasma_csv) -> None:
-    block = company_detail._is_anlasmalari_block("ASELS")
+    block = company_detail._is_anlasmalari_block("ASELS", _NOW_2026)
     assert block is not None
     assert [r["yil"] for r in block] == ["2026", "2025"]
 
 
 def test_is_anlasmalari_block_esik_gecti_ve_gecmedi_dogru_etiketlenir(is_anlasma_csv) -> None:
-    block = company_detail._is_anlasmalari_block("ASELS")
+    block = company_detail._is_anlasmalari_block("ASELS", _NOW_2026)
     gecen = next(r for r in block if r["yil"] == "2025")
-    gecmeyen = next(r for r in block if r["yil"] == "2026")
     assert gecen["esik_gecti"] is True
     assert "Eşiği geçti" in gecen["esik_gecti_display"]
-    assert gecmeyen["esik_gecti"] is False
-    assert "Eşiği geçmedi" in gecmeyen["esik_gecti_display"]
+
+
+def test_is_anlasmalari_block_tamamlanmamis_yil_esik_yargisi_gizlenir(is_anlasma_csv) -> None:
+    """DÜZELTME (kullanıcı denetimi, 2026-08-19): `now.year` ile aynı olan
+    (henüz tamamlanmamış) bir yıl için kesin Evet/Hayır YERİNE "yıl
+    tamamlanmadı" notu gösterilmeli -- kısmi yıl verisini tam bir önceki
+    yılla kıyaslamak yanıltıcı olurdu."""
+    block = company_detail._is_anlasmalari_block("ASELS", _NOW_2026)
+    tamamlanmamis = next(r for r in block if r["yil"] == "2026")
+    assert tamamlanmamis["yil_tamamlanmadi"] is True
+    assert tamamlanmamis["esik_gecti"] is False  # yargı GİZLENİR, kesin False iddia edilmez ama flag de True olamaz
+    assert "tamamlanmadı" in tamamlanmamis["esik_gecti_display"]
+    assert "Eşiği geçmedi" not in tamamlanmamis["esik_gecti_display"]
+    # Ham rakamlar (kısmi de olsa) SAKLANMAZ -- kullanıcı yine görebilir.
+    assert tamamlanmamis["yeni_is_toplami_display"] != "N/A"
 
 
 def test_is_anlasmalari_block_veri_olmayan_ticker_icin_none(is_anlasma_csv) -> None:
-    assert company_detail._is_anlasmalari_block("YOKTUR") is None
+    assert company_detail._is_anlasmalari_block("YOKTUR", _NOW_2026) is None
 
 
 def test_is_anlasmalari_block_csv_yoksa_none(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr(company_detail, "_IS_ANLASMA_CSV", tmp_path / "hic_yok.csv")
     company_detail._load_is_anlasma_rows.cache_clear()
-    assert company_detail._is_anlasmalari_block("ASELS") is None
+    assert company_detail._is_anlasmalari_block("ASELS", _NOW_2026) is None
     company_detail._load_is_anlasma_rows.cache_clear()
+
+
+# --- İş anlaşması TEK TEK detayları (kullanıcı isteği, 2026-08-19) ---------
+
+
+@pytest.fixture()
+def is_anlasma_deal_csv(tmp_path, monkeypatch):
+    csv_path = tmp_path / "is_anlasmalari_detay.csv"
+    csv_path.write_text(
+        "ticker,tarih,karsi_taraf,aciklama,tutar_ham,tutar_try,yenileme_mi\n"
+        "YEOTK,2025-02-05,Doğuş Grubu,GES EPC işi,4.882.651 USD,150000000.0,False\n"
+        "YEOTK,2025-03-10,Enerjisa,RES elektrifikasyon,6.900.000 USD,220000000.0,False\n"
+        "YEOTK,2024-01-01,Eski Müşteri,Sözleşme yenilenmesi,1.000.000 USD,,True\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(company_detail, "_IS_ANLASMA_DETAY_CSV", csv_path)
+    company_detail._load_is_anlasma_deal_rows.cache_clear()
+    yield csv_path
+    company_detail._load_is_anlasma_deal_rows.cache_clear()
+
+
+def test_is_anlasma_detaylari_block_tum_anlasmalari_listeler(is_anlasma_deal_csv) -> None:
+    block = company_detail._is_anlasma_detaylari_block("YEOTK")
+    assert block is not None
+    assert len(block) == 3  # yenileme DAHIL -- hicbiri gizlenmez
+
+
+def test_is_anlasma_detaylari_block_yenilemeyi_acikca_etiketler(is_anlasma_deal_csv) -> None:
+    block = company_detail._is_anlasma_detaylari_block("YEOTK")
+    yenileme = next(r for r in block if r["yenileme_mi"])
+    assert yenileme["tutar_try_display"] == "yenileme (hariç)"
+
+
+def test_is_anlasma_detaylari_block_yeniden_eskiye_siralanir(is_anlasma_deal_csv) -> None:
+    block = company_detail._is_anlasma_detaylari_block("YEOTK")
+    assert block[0]["tarih"] == "2025-03-10"
+
+
+def test_is_anlasma_detaylari_block_veri_olmayan_ticker_icin_none(is_anlasma_deal_csv) -> None:
+    assert company_detail._is_anlasma_detaylari_block("YOKTUR") is None

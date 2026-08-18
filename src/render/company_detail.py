@@ -738,6 +738,12 @@ def _faaliyet_raporu_block(row: MarketScanResult) -> dict[str, Any] | None:
 # yüzden AÇIKÇA "yatırım tavsiyesi değildir, bilgilendirme amaçlıdır" notu
 # taşır (Kural: bir ilişkiyi KANITLANMAMIŞ bir öngörü gibi SUNMAK YASAK).
 _IS_ANLASMA_CSV = config.DATA_DIR / "abcd_cache" / "is_anlasmalari_yillik.csv"
+# Kullanıcı isteği (2026-08-19): "iş anlaşmaları ve miktarları belli olan
+# her hisse için yazmak zorundayız hepsini yazabilecek şekilde güncelle" --
+# yıllık TOPLAM'ın yanında TEK TEK anlaşma satırları da gösterilir (bkz.
+# `scripts/is_anlasma_arastirma.py`nin ÜRETTİĞİ, ÖNCEDEN hesaplanmış CSV --
+# bu modül YİNE hiçbir parse/FX-çevrim işlemi TEKRARLAMAZ, sadece okur).
+_IS_ANLASMA_DETAY_CSV = config.DATA_DIR / "abcd_cache" / "is_anlasmalari_detay.csv"
 
 IS_ANLASMALARI_ACIKLAMA = (
     "\"Eşiği geçti\" -- şirketin o yıl duyurduğu YENİ (mevcut/yenileme anlaşmaları HARİÇ) iş "
@@ -765,7 +771,7 @@ def _load_is_anlasma_rows() -> dict[str, list[dict[str, str]]]:
     return by_ticker
 
 
-def _is_anlasmalari_block(ticker: str) -> list[dict[str, Any]] | None:
+def _is_anlasmalari_block(ticker: str, now: datetime) -> list[dict[str, Any]] | None:
     rows = _load_is_anlasma_rows().get(ticker)
     if not rows:
         return None
@@ -776,15 +782,64 @@ def _is_anlasmalari_block(ticker: str) -> list[dict[str, Any]] | None:
         yeni_is = _decimal_or_none(r.get("yeni_is_toplami_try"))
         onceki_hasilat = _decimal_or_none(r.get("onceki_yil_hasilat_try"))
         kapsam = _decimal_or_none(r.get("kapsam_pct"))
+        # DÜZELTME (kullanıcı denetimi, 2026-08-19): içinde bulunulan yıl
+        # (örn. 2026) HENÜZ TAMAMLANMADIYSA, o yılın (kısmi) yeni-iş toplamını
+        # bir ÖNCEKİ yılın TAM cirosuyla kıyaslayıp kesin "Evet/Hayır"
+        # göstermek YANILTICI olur (yıl bitmeden oran sistematik olarak
+        # DÜŞÜK çıkar) -- bu durumda eşik yargısı GİZLENİR, sadece "yıl
+        # tamamlanmadı" notu + ham rakamlar gösterilir (Kural 3: sahte
+        # kesinlik YOK, ama VAR OLAN veri de saklanmaz).
+        yil_tamamlanmadi = int(r["yil"]) >= now.year
+        if yil_tamamlanmadi:
+            esik_display = f"◐ {now.year} yılı henüz tamamlanmadı -- eşik karşılaştırması (henüz) yapılamaz"
+        else:
+            esik_display = "✅ Eşiği geçti (yeni iş ≥ önceki yıl cirosunun 1,2 katı)" if esik_gecti else "◻ Eşiği geçmedi"
         out.append({
             "yil": r["yil"],
-            "esik_gecti": esik_gecti,
-            "esik_gecti_display": "✅ Eşiği geçti (yeni iş ≥ önceki yıl cirosunun 1,2 katı)" if esik_gecti else "◻ Eşiği geçmedi",
+            "esik_gecti": esik_gecti and not yil_tamamlanmadi,
+            "yil_tamamlanmadi": yil_tamamlanmadi,
+            "esik_gecti_display": esik_display,
             "oran_display": format_percent_tr(oran * Decimal("100"), decimals=1) if oran is not None else "N/A",
             "yeni_is_toplami_display": format_currency_short(yeni_is, symbol="₺") if yeni_is is not None else "N/A",
             "onceki_yil_hasilat_display": format_currency_short(onceki_hasilat, symbol="₺") if onceki_hasilat is not None else "N/A",
             "n_anlasma": r.get("n_anlasma", "—"),
             "kapsam_display": format_percent_tr(kapsam, decimals=0) if kapsam is not None else "N/A",
+        })
+    return out
+
+
+@functools.lru_cache(maxsize=1)
+def _load_is_anlasma_deal_rows() -> dict[str, list[dict[str, str]]]:
+    if not _IS_ANLASMA_DETAY_CSV.exists():
+        return {}
+    by_ticker: dict[str, list[dict[str, str]]] = {}
+    with _IS_ANLASMA_DETAY_CSV.open(encoding="utf-8", newline="") as f:
+        for row in csv.DictReader(f):
+            by_ticker.setdefault(row["ticker"], []).append(row)
+    return by_ticker
+
+
+def _is_anlasma_detaylari_block(ticker: str) -> list[dict[str, Any]] | None:
+    """Yıllık toplamın YANINDA, TEK TEK anlaşma satırları -- kullanıcı
+    isteği (2026-08-19): "miktarları belli olan her hisse için ... hepsini
+    yazabilecek şekilde". Yenileme sözleşmeleri de listede GÖRÜNÜR (toplama
+    katılmazlar ama SAKLANMAZLAR) -- `yenileme_mi` ile açıkça etiketlenir."""
+    rows = _load_is_anlasma_deal_rows().get(ticker)
+    if not rows:
+        return None
+    out: list[dict[str, Any]] = []
+    for r in sorted(rows, key=lambda r: r["tarih"], reverse=True):
+        yenileme = r["yenileme_mi"].strip().lower() == "true"
+        tutar_try = _decimal_or_none(r.get("tutar_try"))
+        out.append({
+            "tarih": r["tarih"],
+            "karsi_taraf": r.get("karsi_taraf") or "—",
+            "aciklama": r.get("aciklama") or "—",
+            "tutar_ham": r.get("tutar_ham") or "—",
+            "tutar_try_display": format_currency_short(tutar_try, symbol="₺") if tutar_try is not None else (
+                "yenileme (hariç)" if yenileme else "N/A (ayrıştırılamadı)"
+            ),
+            "yenileme_mi": yenileme,
         })
     return out
 
@@ -861,7 +916,8 @@ def build_company_detail_data(session: Session, ticker: str, market: str, *, now
         "financials": _build_financials_block(session, row),
         "faaliyet_raporu": _faaliyet_raporu_block(row),
         "faaliyet_raporu_placeholder": FAALIYET_RAPORU_PLACEHOLDER,
-        "is_anlasmalari": _is_anlasmalari_block(row.ticker),
+        "is_anlasmalari": _is_anlasmalari_block(row.ticker, now),
+        "is_anlasma_detaylari": _is_anlasma_detaylari_block(row.ticker),
         "is_anlasmalari_aciklama": IS_ANLASMALARI_ACIKLAMA,
         "dashboard_relative_url": "../dashboard.html",
     }

@@ -104,6 +104,19 @@ def main(argv: list[str] | None = None) -> int:
     print(f"\n{len(tickers)} sirket hedefli olarak yeniden taraniyor (v2 cok-mercekli motor, MarketScanResult upsert)...")
     counts = _run_batch(tickers, "BIST", dry_run=False)
     print(f"\nBitti: {counts}")
+
+    # CANLI HATA + DUZELTME (kullanici raporu, 2026-08-18): output/dashboard.html
+    # VE output/detay/*.html birer ANLIK GORUNTU dosyasidir (build_and_write_*()
+    # SADECE cagirildigi anda MarketScanResult'i render eder, DB degisince
+    # KENDILIGINDEN guncellenmez). Ilk duzeltme sadece dashboard.html'i yeniledi
+    # ama kullanici hisse DETAY sayfalarinin (output/detay/{market}_{ticker}.html)
+    # hala eski kaldigini bildirdi -- `build_and_write_dashboard_with_details()`
+    # kullanilmali, dashboard.html'in YANI SIRA TUM detay sayfalarini da uretir
+    # (bkz. o fonksiyonun docstring'i). Ag GEREKTIRMEZ, sadece DB okur.
+    from src.render import dashboard
+
+    dashboard_path, detail_paths = dashboard.build_and_write_dashboard_with_details()
+    print(f"Dashboard + {len(detail_paths)} detay sayfasi yenilendi: {dashboard_path}")
     return 0
 
 

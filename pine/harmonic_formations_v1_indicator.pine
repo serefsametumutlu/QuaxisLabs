@@ -1,70 +1,50 @@
 // This Pine Script® code is subject to the terms of the Mozilla Public License 2.0
-// © serefsamett — Harmonic Formations V2.1 (Gartley / Bat / Butterfly / Crab / ABCD), INDICATOR
+// © serefsamett — Harmonic Formations V2.2 (Gartley / Bat / Butterfly / Crab / ABCD), INDICATOR
 //
 // `pine/abcd_v2_5_indicator.pine`nin (bilanco-radar/QuaxisLabs "Formasyonlar"
-// ozelligi Faz 0-10 arastirmasinin kaynagi) pivot state machine + cizim/alert
-// iskeletini korur, ama ilk taslaktan (V1) SONRA kullanici canli TradingView
-// testinde (TUPRS, 2026-08-18) somut bir sorun bildirdi: Gartley/Bat/Butterfly
-// (bazen digerleri de) SUREKLI AYNI noktada birlikte tetikleniyordu -- yani
-// formasyonlar gercekte ayirt edilmiyordu.
+// ozelligi Faz 0-10 arastirmasinin kaynagi) pivot state machine cekirdegini
+// korur. Bu dosyanin gecmisi: V1 (4 formasyon ayni noktada tetikleniyordu,
+// COK genis/ortusen bantlar) -> V2.1 (X noktasi + BC-goreli CD + XD/XA +
+// dogru yon duzeltmesi, ARTI opsiyonel/ikincil bir "PRZ erken uyari" katmani,
+// varsayilan KAPALI) -> **V2.2 (bu surum)**.
 //
-// KOK NEDEN (V1'de): sadece 4 nokta (A-B-C-D) takip ediliyordu, CD bandi da
-// AB'ye goreli "en genis olasi" bir bilesik/yaklasik donusumle kontrol
-// ediliyordu (bkz. src/analysis/harmonic_presets.py "KRITIK matematiksel not").
-// Bu iki basitlestirme BIRLIKTE bantlari asiri genis/ortusen yapiyordu.
+// V2.2 KESIN KULLANICI KARARI (2026-08-18): "her formasyon icin lookback
+// tamamen 0 olmali, C onaylandiktan sonra istatistiksel D bolgesine fiyat
+// GIRER GIRMEZ sinyal anlik gorunmeli, 3-5 mum SONRA degil." Onceki V2.1'de
+// onayli D sinyali HER ZAMAN D'nin kendisinden `pivot_lookback` bar SONRA
+// geliyordu (ta.pivothigh/low'un dogasi geregi) -- bu arada fiyat cogu zaman
+// TP1'e ulasip donuyordu. V2.2 bunu KOKTEN degistirir: eski "PRZ" projeksiyon
+// katmani (onceden ikincil/opsiyonel) artik TEK ve ANA sinyal mekanizmasidir.
 //
-// V2 DUZELTMESI -- literatur-doğru XABCD tanimina donuldu:
-//   1) 5. nokta (X capa) artik AYRICA takip ediliyor (rolling state 4->5 nokta).
-//   2) Gartley/Bat/Butterfly/Crab icin CD artik AB'ye DEGIL, dogrudan BC'ye
-//      goreli olcülüyor (cd_bc_r = |D-C|/|C-B|) -- Carney'nin standart
-//      CD/BC tablolariyla BIREBIR, dar bant (bkz. asagidaki formation preset
-//      tablosu). ABCD (klasik AB=CD) ve Custom modu ESKI AB-goreli tanimini
-//      KORUR (bu ikisi icin davranis DEGISMEDI, Python abcd_pattern.py ile
-//      Pine-parity gerekliligi SADECE bu ikisini kapsiyordu).
-//   3) Gartley/Bat/Butterfly/Crab icin XD/XA tamamlanma orani (formasyonun
-//      literatürdeki ASIL ayirt edici olcusu) artik AYRICA kontrol ediliyor
-//      (Gartley 0.786, Bat 0.886, Butterfly 1.27, Crab 1.618 -- bu 4 hedef
-//      birbirinden yeterince uzak oldugu icin ayni pivot durumu artik cok
-//      daha NADIREN birden fazla aileyle eslesir).
+// NASIL CALISIR: X-A-B-C noktalari HALA `pivot_lookback` kadar onay bekler
+// (bu matematiksel bir zorunluluk -- bir pivotun GERCEKTEN pivot oldugu
+// ancak sonrasi gorulunce bilinir, DEGISTIRILEMEZ). Ama D icin ARTIK AYRI
+// bir pivot onayi BEKLENMEZ: X-A-B-C onaylanir onaylanmaz, D'nin Fibonacci
+// matematigine gore OLMASI gereken fiyat bolgesi (CD/BC + XD/XA
+// projeksiyonlarinin KESISIMI -- gercek harmonik tarayicilarin "PRZ" ilkesi)
+// hesaplanir; fiyat bu bolgeye CANLI (mum kapanmadan, `barstate.isconfirmed`
+// DISINDA) girdigi ANDA D sinyali (tam ucgen cizimi + TP1/TP2/SL + alert)
+// ANINDA verilir.
 //
-// BILINCLI KALAN SINIRLAMA: AB/XA retracement bandi (literatürdeki IKINCI
-// ayirt edici olcu, orn. Gartley AB~0.618 XA) HALA kontrol edilmiyor --
-// XD/XA tek basina buyuk iyilesme sagladigi icin bu asamada eklenmedi,
-// "bilinen sinir, blocker degil" disiplini (spec_abcd_mimari_kararlar.md
-// Karar 3 ile ayni ruhta). Gerekirse ayri bir adimda eklenir.
+// BILINCLI ODUN (kullaniciya acikca soylenmis, ONAYLANMIS karar): bu sinyal
+// REPAINT EDEBILIR -- fiyat bolgeye deyip formasyonu hic TAMAMLAMADAN devam
+// edebilir, cunku D artik "gercekten bir pivot oldugu once/sonra dogrulanmis"
+// bir nokta DEGIL, sadece "fiyat matematiksel hedefe ulasti" anidir. Bu,
+// projenin genelindeki "asla look-ahead/repaint yok" ilkesinden BILEREK,
+// kullanici talebiyle sapma -- geriye donuk "onayli, repaint'siz" mod
+// istenirse `pivot_lookback`u ARTIRIP fiyatin bolgeye NE KADAR ERKEN
+// girdigini gormek yerine formasyonun TAMAMLANMASINI beklemek gerekir (bu
+// artik bu script'te bir secenek olarak SUNULMUYOR, kullanici acikca "3-5
+// mum sonra degil, anlik" istedi).
 //
-// ONEMLI -- Python/Telegram tarafi HENUZ senkron DEGIL: src/analysis/
-// harmonic_presets.py + abcd_pattern.py hala SADECE 4 nokta (X/XD yok, CD
-// hala AB-goreli) kullaniyor -- docs/spec/ABCD_HARMONIK_FORMASYON_
-// KARSILASTIRMASI.md'deki backtest sayilari BU V2 tanimini YANSITMAZ, ESKI
-// (V1) tanimla uretildi. Telegram entegrasyonuna gecmeden once Python
-// tarafinin da AYNI X/XD mantigina tasinmasi (ayri bir faz) gerekiyor --
-// bu script SADECE TradingView'de manuel dogrulama icindir.
-//
-// Bir pivot durumu YINE DE birden fazla aileyle eslesebilir (Bat/Butterfly
-// CD/BC bantlari kismi ortusuyor, 1.618-2.24 araligi), bu YINE de bilinen
-// bir literatur gercegi -- ama artik cok daha SEYREK ve XD farkli oldugu icin
-// cogu durumda sadece biri gecerli olacaktir. Script yine TEK SEFERDE SADECE
-// dropdown'dan secilen aileyi tarar (5'ini ayni anda cizmek karisik olurdu).
-//
-// V2.1 EKLENTISI -- PRZ (Potential Reversal Zone) opsiyonel ERKEN uyarisi
-// (kullanici karari, 2026-08-18: "onayli sinyali koru + opsiyonel PRZ
-// on-uyarisi ekle"): pivot_lookback (varsayilan 5) onayi geregi D sinyali
-// HER ZAMAN D'nin kendisinden pivot_lookback bar SONRA gelir -- bu arada
-// fiyat cogu zaman TP1'e cok yaklasir/ulasir, kullanicinin bildirdigi asil
-// sikayet buydu. GRP_PRZ altindaki "PRZ On-Uyarisi Goster" acilirsa (varsayilan
-// KAPALI), X-A-B-C (hepsi ONAYLI) tamamlandiginda D icin Fibonacci
-// projeksiyonuyla bir fiyat bolgesi hesaplanir (CD/BC + XD/XA projeksiyonlarinin
-// KESISIMI -- gercek harmonik tarayicilarin "PRZ = birden fazla Fib seviyesinin
-// kumelenmesi" ilkesiyle AYNI) ve fiyat bu bolgeye CANLI (mum kapanmadan)
-// girdiginde AYRI, acikca "(teyitsiz)" etiketli turuncu bir kutu + erken alert
-// verir. Bu erken sinyal REPAINT EDEBILIR (bolgeye girip formasyon hic
-// tamamlanmayabilir) -- mevcut onayli "D BUY/SELL" sinyali bundan HICBIR
-// SEKILDE etkilenmez, iki katman TAMAMEN BAGIMSIZ ve gorsel olarak ayri
-// (turuncu/teyitsiz vs yesil-kirmizi/onayli).
+// Formasyon on-ayarlarinin matematiksel gerekcesi (BC/AB bandi, CD/BC
+// oranlari, XD/XA hedefleri) ve "ayni pivot birden fazla aileyle eslesebilir"
+// notu DEGISMEDI -- bkz. `src/analysis/harmonic_presets.py` ve
+// `src/analysis/harmonic_xabcd.py` (Python tarafi, henuz bu V2.2 anlik-
+// sinyal mantigina TASINMADI -- SADECE TradingView manuel dogrulama icin).
 
 //@version=6
-indicator("Harmonic Formations V2.1 (Gartley/Bat/Butterfly/Crab/ABCD)", shorttitle="Harmonic V2.1",
+indicator("Harmonic Formations V2.2 (Gartley/Bat/Butterfly/Crab/ABCD)", shorttitle="Harmonic V2.2",
      overlay=true, max_lines_count=500, max_labels_count=500, max_polylines_count=100)
 
 // ══════════════════════════════════════════════════════════
@@ -73,21 +53,21 @@ indicator("Harmonic Formations V2.1 (Gartley/Bat/Butterfly/Crab/ABCD)", shorttit
 var string GRP_FORM = "Formation"
 var string GRP_CORE = "Core Detection"
 var string GRP_CUST = "Custom bantlar (sadece 'Custom' secilirse kullanilir)"
-var string GRP_PRZ  = "PRZ Erken Uyari (opsiyonel, TEYITSIZ/repaint riskli)"
 var string GRP_VIZ  = "Visual & UX Settings"
 
 formation = input.string("Crab", "Formation Preset",
      options=["ABCD (exact 1.0)", "Gartley", "Bat", "Butterfly", "Crab", "Custom"],
-     tooltip="Gartley/Bat/Butterfly/Crab artik 5-noktali (X-A-B-C-D) literatur-dogru tanim " +
-             "kullanir: CD/BC bandi + XD/XA tamamlanma orani. ABCD ve Custom eski AB-goreli " +
-             "CD tanimini korur (Python abcd_pattern.py ile Pine-parity).", group=GRP_FORM)
+     tooltip="Gartley/Bat/Butterfly/Crab 5-noktali (X-A-B-C-D) literatur-dogru tanim kullanir: " +
+             "CD/BC bandi + XD/XA tamamlanma orani. ABCD ve Custom eski AB-goreli CD tanimini " +
+             "korur. 'ABCD (exact 1.0)' secilirse, klasik AB=CD gostergeleriyle (orn. Advanced " +
+             "AB=CD Harmonic PRO) AYNI matematigi kullanir -- Crab/Gartley/Bat/Butterfly cok DAHA " +
+             "SIKI/nadir kosullardir, bu YUZDEN cok daha az sinyal verir (bug degil, kasitli).",
+     group=GRP_FORM)
 
-// pivot_lookback varsayilani 5 -- BILINCLI: 2026-08-18 gecesi pivot_lookback=3
-// (erken yakalama denemesi) TAM BIST evreninde AYRICA test edildi, sonuc
-// TERSI cikti (tek karli kosul olan LONG+1D+TRY icin Profit Factor 1.38 -> 0.95
-// dustu, bkz. docs/spec/ABCD_BACKTEST_L3_SONUCLARI.md) -- Pine kaynaginin
-// kendi varsayilanini DEGISTIRMEK icin veri-temelli bir gerekce YOK.
-pivot_lookback = input.int  (5,     "Pivot Lookback Period",             minval=2,     maxval=20,              group=GRP_CORE)
+// pivot_lookback SADECE X/A/B/C pivotlarinin ONAYINI etkiler (bu asla 0
+// olamaz -- bir pivotun pivot oldugunu bilmenin matematiksel tek yolu budur).
+// D ARTIK bu bekelemeye tabi DEGIL (bkz. dosya ust notu V2.2).
+pivot_lookback = input.int  (5,     "Pivot Lookback Period (SADECE X/A/B/C icin)", minval=2,     maxval=20,              group=GRP_CORE)
 fib_tolerance  = input.float(0.05,  "Fibonacci Tolerance (ε)",           minval=0.01,  maxval=0.20, step=0.01, group=GRP_CORE)
 atr_mult       = input.float(1.0,   "ATR SL Multiplier",                 minval=0.5,   maxval=5.0,  step=0.1,  group=GRP_CORE)
 enable_long    = input.bool (true,  "Enable Long (Bullish) Patterns",                                          group=GRP_CORE)
@@ -99,44 +79,33 @@ cust_use_exact_cd   = input.bool (true,  "Use Exact 1.000 CD Extension",        
 cust_cd_min_ext     = input.float(0.886, "Min CD/AB Extension (if not exact)", minval=0.3,   maxval=4.0,             group=GRP_CUST)
 cust_cd_max_ext     = input.float(1.272, "Max CD/AB Extension (if not exact)", minval=0.3,   maxval=4.0,             group=GRP_CUST)
 
-enable_prz = input.bool(false, "PRZ On-Uyarisi Goster (varsayilan KAPALI)",
-     tooltip="ACIK ise: X-A-B-C onaylandiktan sonra, D icin Fibonacci projeksiyon " +
-             "bolgesine fiyat CANLI girer girmez turuncu 'teyitsiz' bir on-uyari verir " +
-             "(D henuz pivot olarak ONAYLANMADI, repaint edebilir). Mevcut onayli D " +
-             "sinyalini DEGISTIRMEZ, sadece EK bir erken katmandir.", group=GRP_PRZ)
-
 bull_color  = input.color(color.lime, "Bullish Color",                                                         group=GRP_VIZ)
 bear_color  = input.color(color.red,  "Bearish Color",                                                         group=GRP_VIZ)
 fill_transp = input.int  (90,  "Fill Transparency (70-99)",               minval=70, maxval=99,                group=GRP_VIZ)
 show_labels = input.bool (true, "Show TP/SL Labels",                                                           group=GRP_VIZ)
 tp_sl_bars  = input.int  (20,  "TP/SL Line Length (bars)",                minval=5,  maxval=100,               group=GRP_VIZ)
+show_zone_box = input.bool(true, "D bolgesi beklenirken kutu goster",                                          group=GRP_VIZ)
 
 // ══════════════════════════════════════════════════════════
 // FORMATION PRESET -> bantlar
 // ══════════════════════════════════════════════════════════
 is_xabcd = formation == "Gartley" or formation == "Bat" or formation == "Butterfly" or formation == "Crab"
 
-// BC/AB bandi -- 4 XABCD ailesinin TAMAMI icin ORTAK (Carney, Harmonic
-// Trading Vol. 1, Bolum 3-6); ABCD/Custom kendi bandini kullanir.
 eff_min_bc_retrace = formation == "Custom" ? cust_min_bc_retrace : 0.382
 eff_max_bc_retrace = formation == "Custom" ? cust_max_bc_retrace : 0.886
 
-// ABCD/Custom icin ESKI AB-goreli CD tanimi (DEGISMEDI, Pine-parity).
 eff_use_exact_cd = formation == "ABCD (exact 1.0)" ? true : formation == "Custom" ? cust_use_exact_cd : true
 eff_cd_min_ext   = formation == "Custom" ? cust_cd_min_ext : 0.886
 eff_cd_max_ext   = formation == "Custom" ? cust_cd_max_ext : 1.272
 
-// XABCD (Gartley/Bat/Butterfly/Crab) icin YENI, dogrudan BC-goreli CD bandi
-// (kaynak: harmonic_presets.py'nin "standart CD/BC orani" yorum satirlari --
-// artik AB'ye cevrilmeden DOGRUDAN kullaniliyor, cok daha dar/ayirt edici).
 eff_cd_bc_min = formation == "Gartley" ? 1.272 : formation == "Bat" ? 1.618 : formation == "Butterfly" ? 1.618 : formation == "Crab" ? 2.24 : 1.272
 eff_cd_bc_max = formation == "Gartley" ? 1.618 : formation == "Bat" ? 2.618 : formation == "Butterfly" ? 2.24  : formation == "Crab" ? 3.618 : 1.618
 
-// XD/XA tamamlanma orani -- literatürdeki ASIL ayirt edici formasyon olcusu.
 eff_xd_target = formation == "Gartley" ? 0.786 : formation == "Bat" ? 0.886 : formation == "Butterfly" ? 1.27 : formation == "Crab" ? 1.618 : 0.786
 
 // ══════════════════════════════════════════════════════════
-// ROLLING 5-PIVOT STATE (X-A-B-C-D) — scalar vars, zero array overhead
+// ROLLING 4-PIVOT STATE (X-A-B-C) — D artik burada TUTULMUYOR, ANLIK
+// hesaplanip aninda sinyale donusuyor (bkz. dosya ust notu V2.2).
 // ══════════════════════════════════════════════════════════
 var float pX_price = na
 var int   pX_bar   = -1
@@ -150,58 +119,28 @@ var int   pB_type  = 0
 var float pC_price = na
 var int   pC_bar   = -1
 var int   pC_type  = 0
-var float pD_price = na
-var int   pD_bar   = -1
-var int   pD_type  = 0
-var int   last_ptype   = 0
-var int   last_d_drawn = -1
+var int   last_ptype = 0
 
-// PRZ (opsiyonel erken uyari) durumu -- ayri, bagimsiz katman
-var box   przBox       = na
-var bool  przAlerted   = false
-var int   przActiveC   = -2
+// D bolgesi durumu -- hangi C icin zaten sinyal verildigini/kutu cizildigini
+// izler (ayni C icin tekrar tekrar sinyal/kutu URETILMEZ).
+var box  dZoneBox     = na
+var bool dAlertedForC = false
+var int  dActiveCBar  = -2
 
 // ══════════════════════════════════════════════════════════
-// PATTERN VALIDATION
-//   - ABCD/Custom: ESKI AB-goreli CD kontrolu (Pine-parity, DEGISMEDI).
-//   - Gartley/Bat/Butterfly/Crab: YENI BC-goreli CD + XD/XA kontrolu.
+// PATTERN VALIDATION -- X-A-B-C icin yapisal siralama + BC oran kontrolu.
+// ("D icindeki" strict kontrol -- eskiden `d_p < b_p` -- artik burada YOK,
+// D henuz bir pivot DEGIL; bu D olustugunda ayrica dogrulanir, bkz. asagida
+// `d_valid` -- ayni katilik, sadece D artik canli/projekte edilen bir fiyat.)
 // ══════════════════════════════════════════════════════════
-isValidHarmonic(x_p, a_p, b_p, c_p, d_p, is_bearish) =>
+bcOk(a_p, b_p, c_p, is_bearish) =>
     ab = math.abs(b_p - a_p)
     bc = math.abs(c_p - b_p)
-    result = false
-    if ab > 0.0
-        bc_r  = bc / ab
-        strct = is_bearish ?
-                 (a_p < c_p and c_p < b_p and d_p > b_p) :
-                 (a_p > c_p and c_p > b_p and d_p < b_p)
-        bc_ok = bc_r >= eff_min_bc_retrace - fib_tolerance and bc_r <= eff_max_bc_retrace + fib_tolerance
-
-        cd_ok = false
-        if is_xabcd
-            if bc > 0.0
-                cd_bc_r = math.abs(d_p - c_p) / bc
-                cd_ok := cd_bc_r >= eff_cd_bc_min - fib_tolerance and cd_bc_r <= eff_cd_bc_max + fib_tolerance
-        else
-            cd_r = math.abs(d_p - c_p) / ab
-            cd_ok := eff_use_exact_cd ?
-                      math.abs(cd_r - 1.0) <= fib_tolerance :
-                      (cd_r >= eff_cd_min_ext - fib_tolerance and cd_r <= eff_cd_max_ext + fib_tolerance)
-
-        xd_ok = true
-        if is_xabcd
-            // DUZELTME (2026-08-18, kullanici canli test raporu -- "sinyaller
-            // cok azaldi + PRZ bazen alakasiz"): xd_r'nin dogru tanimi D'nin
-            // A'dan XA bacagina goreli RETRACEMENT'idir (|D-A|/XA), X'e olan
-            // uzakligi DEGIL (|D-X|/XA bunun TAMAMLAYANIdir, 1-target verir --
-            // eski satir bu yuzden YANLIS/ters bir bolgeyi ariyordu). Asagidaki
-            // PRZ projeksiyon formulu (xd_center = A +/- target*XA) HER ZAMAN
-            // dogruydu -- bu satir simdi ona TUTARLI hale getirildi.
-            xa = math.abs(a_p - x_p)
-            xd_ok := xa > 0.0 and math.abs(math.abs(d_p - a_p) / xa - eff_xd_target) <= fib_tolerance
-
-        result := strct and bc_ok and cd_ok and xd_ok
-    result
+    // A-B-C yapisal siralamasi: bearish'te A<C<B, bullish'te A>C>B (eski
+    // `isValidHarmonic`deki `strct`in D-BAGIMSIZ yarisi -- BC orani TEK
+    // BASINA C'nin A ile B ARASINDA kaldigini GARANTI ETMEZ, bkz. commit notu).
+    strct = is_bearish ? (a_p < c_p and c_p < b_p) : (a_p > c_p and c_p > b_p)
+    strct and ab > 0.0 and (bc / ab) >= eff_min_bc_retrace - fib_tolerance and (bc / ab) <= eff_max_bc_retrace + fib_tolerance
 
 // ══════════════════════════════════════════════════════════
 // SERIES
@@ -212,15 +151,13 @@ atr14 = ta.atr(14)
 
 sig_buy  = false
 sig_sell = false
-early_sig_buy  = false
-early_sig_sell = false
 
 // ══════════════════════════════════════════════════════════
-// MAIN LOGIC — bar-close gate, fully additive drawing
+// STEP 1 — X/A/B/C pivot alimi (kesin alternans). SADECE bu adim
+// `barstate.isconfirmed` icinde -- rolling state bar basina TEK KEZ
+// kaymali, canli tick'lerde TEKRAR TEKRAR degil.
 // ══════════════════════════════════════════════════════════
 if barstate.isconfirmed
-
-    // ── Step 1: Pivot ingestion (strict alternation, 5-nokta zincir) ────
     new_price = float(na)
     new_bar   = int(na)
     new_type  = 0
@@ -244,247 +181,193 @@ if barstate.isconfirmed
         pB_price   := pC_price
         pB_bar     := pC_bar
         pB_type    := pC_type
-        pC_price   := pD_price
-        pC_bar     := pD_bar
-        pC_type    := pD_type
-        pD_price   := new_price
-        pD_bar     := new_bar
-        pD_type    := new_type
+        pC_price   := new_price
+        pC_bar     := new_bar
+        pC_type    := new_type
         last_ptype := new_type
 
-    // ── Step 2: Pattern scan ─────────────────────────────────────
-    if not na(pA_price) and pD_bar != last_d_drawn
-
-        pattern_ok = false
-        is_bear    = false
-
-        // XABCD (Gartley/Bat/Butterfly/Crab) icin X noktasi da AYNI zigzag
-        // alternansina uymali (X, B ve D ile AYNI tur) -- pX_type baslangicta
-        // 0 oldugu icin X henuz olusmadiysa bu kosul dogal olarak FALSE olur.
-        if enable_short and pA_type == -1 and pB_type == 1 and pC_type == -1 and pD_type == 1 and (not is_xabcd or pX_type == 1)
-            if isValidHarmonic(pX_price, pA_price, pB_price, pC_price, pD_price, true)
-                pattern_ok := true
-                is_bear    := true
-
-        if enable_long and pA_type == 1 and pB_type == -1 and pC_type == 1 and pD_type == -1 and (not is_xabcd or pX_type == -1)
-            if isValidHarmonic(pX_price, pA_price, pB_price, pC_price, pD_price, false)
-                pattern_ok := true
-                is_bear    := false
-
-        if pattern_ok
-            last_d_drawn := pD_bar
-
-            // Entry = close of the D pivot bar
-            entry_price = close[pivot_lookback]
-
-            // ── TP / SL — structural levels anchored at D pivot ─────
-            ad_range = math.abs(pA_price - pD_price)
-            tp1      = is_bear ? pD_price - ad_range * 0.382 : pD_price + ad_range * 0.382
-            tp2      = pC_price
-            sl       = is_bear ? pD_price + atr_mult * atr14 : pD_price - atr_mult * atr14
-
-            // ── Colors ───────────────────────────────────────────────
-            base_col = is_bear ? bear_color : bull_color
-            fill_col = color.new(is_bear ? color.red : color.green, fill_transp)
-            line_col = color.new(base_col, 10)
-            lbl_col  = color.new(base_col, 20)
-            x_end    = pD_bar + tp_sl_bars
-
-            // ── X-A-B triangle (SADECE XABCD ailelerinde -- X-capa gorunur olsun) ──
-            if is_xabcd
-                polyline.new(
-                     array.from(chart.point.from_index(pX_bar, pX_price),
-                                 chart.point.from_index(pA_bar, pA_price),
-                                 chart.point.from_index(pB_bar, pB_price)),
-                     closed=true, fill_color=fill_col, line_color=line_col, line_width=1)
-                label.new(pX_bar, pX_price, "X",
-                          style     = pX_type == 1 ? label.style_label_down : label.style_label_up,
-                          color     = color.new(base_col, 75),
-                          textcolor = lbl_col, size=size.small)
-
-            // ── Triangles (A-B-C and B-C-D legs) ─────────────────────
-            polyline.new(
-                 array.from(chart.point.from_index(pA_bar, pA_price),
-                             chart.point.from_index(pB_bar, pB_price),
-                             chart.point.from_index(pC_bar, pC_price)),
-                 closed=true, fill_color=fill_col, line_color=line_col, line_width=1)
-            polyline.new(
-                 array.from(chart.point.from_index(pB_bar, pB_price),
-                             chart.point.from_index(pC_bar, pC_price),
-                             chart.point.from_index(pD_bar, pD_price)),
-                 closed=true, fill_color=fill_col, line_color=line_col, line_width=1)
-
-            // ── A / B / C labels ─────────────────────────────────────
-            label.new(pA_bar, pA_price, "A",
-                      style     = pA_type == 1 ? label.style_label_down : label.style_label_up,
-                      color     = color.new(base_col, 75),
-                      textcolor = lbl_col, size=size.small)
-            label.new(pB_bar, pB_price, "B",
-                      style     = pB_type == 1 ? label.style_label_down : label.style_label_up,
-                      color     = color.new(base_col, 75),
-                      textcolor = lbl_col, size=size.small)
-            label.new(pC_bar, pC_price, "C",
-                      style     = pC_type == 1 ? label.style_label_down : label.style_label_up,
-                      color     = color.new(base_col, 75),
-                      textcolor = lbl_col, size=size.small)
-
-            // ── D signal label (formasyon adi + yon, orn. "CRAB D BUY") ──
-            label.new(pD_bar, pD_price,
-                      formation + (is_bear ? " D SELL" : " D BUY"),
-                      style     = is_bear ? label.style_label_down : label.style_label_up,
-                      color     = line_col,
-                      textcolor = color.white,
-                      size      = size.normal)
-
-            // ── Entry line at D-bar close (dashed, white) + ENTRY label
-            line.new(pD_bar, entry_price, x_end, entry_price,
-                     color=color.white, width=2, style=line.style_dashed)
-            label.new(x_end, entry_price, "ENTRY",
-                      style     = label.style_label_left,
-                      color     = color.new(color.white, 60),
-                      textcolor = color.white,
-                      size      = size.small)
-
-            // ── TP / SL dashed lines ──────────────────────────────────
-            line.new(pD_bar, tp1, x_end, tp1,
-                     color=color.teal,                width=1, style=line.style_dashed)
-            line.new(pD_bar, tp2, x_end, tp2,
-                     color=color.new(color.green, 0), width=1, style=line.style_dashed)
-            line.new(pD_bar, sl,  x_end, sl,
-                     color=color.new(color.red,   0), width=1, style=line.style_dashed)
-
-            // ── TP / SL price labels ──────────────────────────────────
-            if show_labels
-                label.new(x_end, tp1,
-                          "TP1 38.2% AD  " + str.tostring(tp1, format.mintick),
-                          style=label.style_label_left, color=color.new(color.teal,  70),
-                          textcolor=color.white, size=size.small)
-                label.new(x_end, tp2,
-                          "TP2 C Level  " + str.tostring(tp2, format.mintick),
-                          style=label.style_label_left, color=color.new(color.green, 70),
-                          textcolor=color.white, size=size.small)
-                label.new(x_end, sl,
-                          "SL ATR  " + str.tostring(sl, format.mintick),
-                          style=label.style_label_left, color=color.new(color.red,   70),
-                          textcolor=color.white, size=size.small)
-
-            // ── Alert (parse-friendly; formasyon adi mesaja gomulu) ────
-            sig_buy  := not is_bear
-            sig_sell := is_bear
-            alert(formation + "|" + syminfo.ticker + "|" + timeframe.period + "|" +
-                  (is_bear ? "SELL" : "BUY") +
-                  "|D=" + str.tostring(pD_price, format.mintick) +
-                  "|ENTRY=" + str.tostring(entry_price, format.mintick) +
-                  "|TP1=" + str.tostring(tp1, format.mintick) +
-                  "|TP2=" + str.tostring(tp2, format.mintick) +
-                  "|SL=" + str.tostring(sl, format.mintick),
-                  alert.freq_once_per_bar_close)
-
 // ══════════════════════════════════════════════════════════
-// PRZ ERKEN UYARI (opsiyonel, `if barstate.isconfirmed` DISINDA -- her tick'te
-// canli calisir, mum kapanmasini BEKLEMEZ). Onayli X-A-B-C (=guncel pA..pD)
-// zincirini "bir sonraki D icin beklenen tamamlanma bolgesi" olarak yeniden
-// yorumlar: guncel pA/pB/pC/pD sirasiyla PROSPEKTIF X/A/B/C rolune gecer,
-// D henuz OLUSMAMISTIR -- projeksiyon SADECE fiyat/oran matematigidir, hicbir
-// gelecek bar verisine bakmaz (bkz. dosya ust notu "V2.1 EKLENTISI").
+// STEP 2 — D BOLGESI + ANLIK SINYAL (`barstate.isconfirmed` DISINDA --
+// her tick'te canli calisir, mum kapanmasini BEKLEMEZ). Onayli X-A-B-C
+// icin D'nin Fibonacci matematigine gore OLMASI gereken fiyat bolgesini
+// hesaplar; fiyat bu bolgeye deydigi ANDA tam sinyali (ucgen + TP/SL +
+// alert) uretir -- bkz. dosya ust notu V2.2.
 // ══════════════════════════════════════════════════════════
-if enable_prz
-    qX_price = pA_price
-    qA_price = pB_price
-    qB_price = pC_price
-    qC_price = pD_price
-    qC_bar   = pD_bar
+valid_pending = not na(pA_price) and not na(pB_price) and not na(pC_price)
+ab2 = valid_pending ? math.abs(pB_price - pA_price) : float(na)
+bc2 = valid_pending ? math.abs(pC_price - pB_price) : float(na)
+xa2 = (is_xabcd and not na(pX_price)) ? math.abs(pA_price - pX_price) : float(na)
 
-    valid_pending = not na(qA_price) and not na(qB_price) and not na(qC_price)
-    ab2 = valid_pending ? math.abs(qB_price - qA_price) : float(na)
-    bc2 = valid_pending ? math.abs(qC_price - qB_price) : float(na)
-    xa2 = (is_xabcd and not na(qX_price)) ? math.abs(qA_price - qX_price) : float(na)
+is_bear = pC_type == -1  // C bir DIP ise beklenen D bir TEPE -> SHORT kurulumu
+dir_ok  = (is_bear and enable_short) or ((not is_bear) and enable_long)
+x_type_ok = not is_xabcd or (is_bear ? pX_type == 1 : pX_type == -1)
 
-    is_bear2 = pD_type == -1  // guncel D (=prospektif C) bir DIP ise, beklenen D bir TEPE -> SHORT kurulumu
-    dir_ok   = (is_bear2 and enable_short) or ((not is_bear2) and enable_long)
+bc_ok = valid_pending and bcOk(pA_price, pB_price, pC_price, is_bear)
 
-    bc_r2  = (valid_pending and ab2 > 0) ? bc2 / ab2 : float(na)
-    bc_ok2 = not na(bc_r2) and bc_r2 >= eff_min_bc_retrace - fib_tolerance and bc_r2 <= eff_max_bc_retrace + fib_tolerance
+zone_low  = float(na)
+zone_high = float(na)
 
-    zone_low  = float(na)
-    zone_high = float(na)
-
-    if valid_pending and bc_ok2 and dir_ok and bc2 > 0
-        cd_lo = float(na)
-        cd_hi = float(na)
-        if is_xabcd
-            // CD/BC projeksiyonu, prospektif C (=qC_price) noktasindan
-            if is_bear2
-                cd_lo := qC_price + (eff_cd_bc_min - fib_tolerance) * bc2
-                cd_hi := qC_price + (eff_cd_bc_max + fib_tolerance) * bc2
-            else
-                cd_lo := qC_price - (eff_cd_bc_max + fib_tolerance) * bc2
-                cd_hi := qC_price - (eff_cd_bc_min - fib_tolerance) * bc2
+if valid_pending and bc_ok and dir_ok and x_type_ok and bc2 > 0
+    cd_lo = float(na)
+    cd_hi = float(na)
+    if is_xabcd
+        if is_bear
+            cd_lo := pC_price + (eff_cd_bc_min - fib_tolerance) * bc2
+            cd_hi := pC_price + (eff_cd_bc_max + fib_tolerance) * bc2
         else
-            // ABCD/Custom: eski AB-goreli CD tanimi, ayni oranlar
-            cd_min_use = eff_use_exact_cd ? (1.0 - fib_tolerance) : (eff_cd_min_ext - fib_tolerance)
-            cd_max_use = eff_use_exact_cd ? (1.0 + fib_tolerance) : (eff_cd_max_ext + fib_tolerance)
-            if is_bear2
-                cd_lo := qC_price + cd_min_use * ab2
-                cd_hi := qC_price + cd_max_use * ab2
-            else
-                cd_lo := qC_price - cd_max_use * ab2
-                cd_hi := qC_price - cd_min_use * ab2
-
-        if is_xabcd and not na(xa2) and xa2 > 0
-            // XD/XA projeksiyonu, prospektif A (=qA_price) noktasindan --
-            // PRZ = CD ve XD projeksiyonlarinin KESISIMI (gercek harmonik
-            // tarayicilarin "birden fazla Fib seviyesinin kumelenmesi" ilkesi).
-            xd_center = is_bear2 ? qA_price + eff_xd_target * xa2 : qA_price - eff_xd_target * xa2
-            xd_half   = fib_tolerance * xa2
-            zone_low  := math.max(cd_lo, xd_center - xd_half)
-            zone_high := math.min(cd_hi, xd_center + xd_half)
-        else
-            zone_low  := cd_lo
-            zone_high := cd_hi
-
-    zone_valid = not na(zone_low) and not na(zone_high) and zone_low <= zone_high
-
-    // Prospektif C (guncel pD) degistiyse (yeni bir pivot onaylandi) -- eski
-    // kutu/alert durumunu SIFIRLA, yeni beklenti icin baştan hesapla.
-    if qC_bar != przActiveC
-        if not na(przBox)
-            box.delete(przBox)
-        przBox     := na
-        przAlerted := false
-        przActiveC := qC_bar
-
-    if zone_valid
-        if na(przBox)
-            przBox := box.new(qC_bar, zone_high, bar_index, zone_low,
-                 border_color=color.orange, border_width=1, bgcolor=color.new(color.orange, 85),
-                 text="PRZ " + formation + " (teyitsiz)", text_color=color.orange, text_size=size.tiny)
-        else
-            box.set_right(przBox, bar_index)
-            box.set_top(przBox, zone_high)
-            box.set_bottom(przBox, zone_low)
-
-        entered = low <= zone_high and high >= zone_low
-        if entered and not przAlerted
-            przAlerted := true
-            early_sig_buy  := not is_bear2
-            early_sig_sell := is_bear2
-            label.new(bar_index, is_bear2 ? zone_high : zone_low,
-                      "ERKEN " + formation + (is_bear2 ? " SELL (teyitsiz)" : " BUY (teyitsiz)"),
-                      style     = is_bear2 ? label.style_label_down : label.style_label_up,
-                      color     = color.new(color.orange, 15),
-                      textcolor = color.black, size=size.small)
-            alert(formation + "|ERKEN-TEYITSIZ|" + syminfo.ticker + "|" + timeframe.period + "|" +
-                  (is_bear2 ? "SELL" : "BUY") +
-                  "|ZONE_LOW=" + str.tostring(zone_low, format.mintick) +
-                  "|ZONE_HIGH=" + str.tostring(zone_high, format.mintick),
-                  alert.freq_once_per_bar)
+            cd_lo := pC_price - (eff_cd_bc_max + fib_tolerance) * bc2
+            cd_hi := pC_price - (eff_cd_bc_min - fib_tolerance) * bc2
     else
-        if not na(przBox)
-            box.delete(przBox)
-            przBox := na
+        cd_min_use = eff_use_exact_cd ? (1.0 - fib_tolerance) : (eff_cd_min_ext - fib_tolerance)
+        cd_max_use = eff_use_exact_cd ? (1.0 + fib_tolerance) : (eff_cd_max_ext + fib_tolerance)
+        if is_bear
+            cd_lo := pC_price + cd_min_use * ab2
+            cd_hi := pC_price + cd_max_use * ab2
+        else
+            cd_lo := pC_price - cd_max_use * ab2
+            cd_hi := pC_price - cd_min_use * ab2
 
-alertcondition(sig_buy,  "Harmonic BUY",  "{{ticker}} {{interval}} — Harmonic BUY (bkz. formasyon adi icin alert mesaji)")
-alertcondition(sig_sell, "Harmonic SELL", "{{ticker}} {{interval}} — Harmonic SELL (bkz. formasyon adi icin alert mesaji)")
-alertcondition(early_sig_buy,  "Harmonic EARLY BUY (teyitsiz)",  "{{ticker}} {{interval}} — PRZ bolgesine giris, D HENUZ TEYITLI DEGIL")
-alertcondition(early_sig_sell, "Harmonic EARLY SELL (teyitsiz)", "{{ticker}} {{interval}} — PRZ bolgesine giris, D HENUZ TEYITLI DEGIL")
+    if is_xabcd and not na(xa2) and xa2 > 0
+        xd_center = is_bear ? pA_price + eff_xd_target * xa2 : pA_price - eff_xd_target * xa2
+        xd_half   = fib_tolerance * xa2
+        zone_low  := math.max(cd_lo, xd_center - xd_half)
+        zone_high := math.min(cd_hi, xd_center + xd_half)
+    else
+        zone_low  := cd_lo
+        zone_high := cd_hi
+
+zone_valid = not na(zone_low) and not na(zone_high) and zone_low <= zone_high
+
+// Aktif C degistiyse (yeni bir X/A/B/C pivotu onaylandi) -- eski kutu/
+// sinyal durumunu SIFIRLA, yeni beklenti icin bastan basla.
+if pC_bar != dActiveCBar
+    if not na(dZoneBox)
+        box.delete(dZoneBox)
+    dZoneBox      := na
+    dAlertedForC  := false
+    dActiveCBar   := pC_bar
+
+if zone_valid and show_zone_box and not dAlertedForC
+    if na(dZoneBox)
+        dZoneBox := box.new(pC_bar, zone_high, bar_index, zone_low,
+             border_color=color.orange, border_width=1, bgcolor=color.new(color.orange, 88),
+             text="D bolgesi (" + formation + ")", text_color=color.orange, text_size=size.tiny)
+    else
+        box.set_right(dZoneBox, bar_index)
+        box.set_top(dZoneBox, zone_high)
+        box.set_bottom(dZoneBox, zone_low)
+else if not zone_valid and not na(dZoneBox)
+    box.delete(dZoneBox)
+    dZoneBox := na
+
+if zone_valid and not dAlertedForC
+    entered = low <= zone_high and high >= zone_low
+    // Yapisal D kontrolu (eski `isValidHarmonic`deki `d_p < b_p`/`d_p > b_p`
+    // yarisi -- D, B'nin ARKASINDA/OTESINDE kalmali, C'ye cok yakin bir
+    // "sahte" bolge eslesmesi OLMAMALI). Bolgenin ilk deydigi kenar
+    // (zone_high uzun/zone_low kisa icin) test edilir.
+    d_candidate = is_bear ? zone_high : zone_low
+    d_structurally_ok = is_bear ? d_candidate > pB_price : d_candidate < pB_price
+    if entered and d_structurally_ok
+        dAlertedForC := true
+        if not na(dZoneBox)
+            box.delete(dZoneBox)
+            dZoneBox := na
+
+        d_price     = is_bear ? zone_high : zone_low  // bolgeye ILK deydigi kenar (fiyat yonunun geldigi taraf)
+        d_bar       = bar_index
+        entry_price = close
+
+        ad_range = math.abs(pA_price - d_price)
+        tp1      = is_bear ? d_price - ad_range * 0.382 : d_price + ad_range * 0.382
+        tp2      = pC_price
+        sl       = is_bear ? d_price + atr_mult * atr14 : d_price - atr_mult * atr14
+
+        base_col = is_bear ? bear_color : bull_color
+        fill_col = color.new(is_bear ? color.red : color.green, fill_transp)
+        line_col = color.new(base_col, 10)
+        lbl_col  = color.new(base_col, 20)
+        x_end    = d_bar + tp_sl_bars
+
+        if is_xabcd
+            polyline.new(
+                 array.from(chart.point.from_index(pX_bar, pX_price),
+                             chart.point.from_index(pA_bar, pA_price),
+                             chart.point.from_index(pB_bar, pB_price)),
+                 closed=true, fill_color=fill_col, line_color=line_col, line_width=1)
+            label.new(pX_bar, pX_price, "X",
+                      style     = pX_type == 1 ? label.style_label_down : label.style_label_up,
+                      color     = color.new(base_col, 75),
+                      textcolor = lbl_col, size=size.small)
+
+        polyline.new(
+             array.from(chart.point.from_index(pA_bar, pA_price),
+                         chart.point.from_index(pB_bar, pB_price),
+                         chart.point.from_index(pC_bar, pC_price)),
+             closed=true, fill_color=fill_col, line_color=line_col, line_width=1)
+        polyline.new(
+             array.from(chart.point.from_index(pB_bar, pB_price),
+                         chart.point.from_index(pC_bar, pC_price),
+                         chart.point.from_index(d_bar, d_price)),
+             closed=true, fill_color=fill_col, line_color=line_col, line_width=1)
+
+        label.new(pA_bar, pA_price, "A",
+                  style     = pA_type == 1 ? label.style_label_down : label.style_label_up,
+                  color     = color.new(base_col, 75),
+                  textcolor = lbl_col, size=size.small)
+        label.new(pB_bar, pB_price, "B",
+                  style     = pB_type == 1 ? label.style_label_down : label.style_label_up,
+                  color     = color.new(base_col, 75),
+                  textcolor = lbl_col, size=size.small)
+        label.new(pC_bar, pC_price, "C",
+                  style     = pC_type == 1 ? label.style_label_down : label.style_label_up,
+                  color     = color.new(base_col, 75),
+                  textcolor = lbl_col, size=size.small)
+
+        // ── D sinyal etiketi (ANLIK -- mum kapanmadan) ──────────────────
+        label.new(d_bar, d_price,
+                  formation + (is_bear ? " D SELL (anlik)" : " D BUY (anlik)"),
+                  style     = is_bear ? label.style_label_down : label.style_label_up,
+                  color     = line_col,
+                  textcolor = color.white,
+                  size      = size.normal)
+
+        line.new(d_bar, entry_price, x_end, entry_price,
+                 color=color.white, width=2, style=line.style_dashed)
+        label.new(x_end, entry_price, "ENTRY",
+                  style     = label.style_label_left,
+                  color     = color.new(color.white, 60),
+                  textcolor = color.white,
+                  size      = size.small)
+
+        line.new(d_bar, tp1, x_end, tp1, color=color.teal,                width=1, style=line.style_dashed)
+        line.new(d_bar, tp2, x_end, tp2, color=color.new(color.green, 0), width=1, style=line.style_dashed)
+        line.new(d_bar, sl,  x_end, sl,  color=color.new(color.red,   0), width=1, style=line.style_dashed)
+
+        if show_labels
+            label.new(x_end, tp1,
+                      "TP1 38.2% AD  " + str.tostring(tp1, format.mintick),
+                      style=label.style_label_left, color=color.new(color.teal,  70),
+                      textcolor=color.white, size=size.small)
+            label.new(x_end, tp2,
+                      "TP2 C Level  " + str.tostring(tp2, format.mintick),
+                      style=label.style_label_left, color=color.new(color.green, 70),
+                      textcolor=color.white, size=size.small)
+            label.new(x_end, sl,
+                      "SL ATR  " + str.tostring(sl, format.mintick),
+                      style=label.style_label_left, color=color.new(color.red,   70),
+                      textcolor=color.white, size=size.small)
+
+        sig_buy  := not is_bear
+        sig_sell := is_bear
+        alert(formation + "|" + syminfo.ticker + "|" + timeframe.period + "|" +
+              (is_bear ? "SELL" : "BUY") +
+              "|D=" + str.tostring(d_price, format.mintick) +
+              "|ENTRY=" + str.tostring(entry_price, format.mintick) +
+              "|TP1=" + str.tostring(tp1, format.mintick) +
+              "|TP2=" + str.tostring(tp2, format.mintick) +
+              "|SL=" + str.tostring(sl, format.mintick),
+              alert.freq_once_per_bar)
+
+alertcondition(sig_buy,  "Harmonic BUY (anlik)",  "{{ticker}} {{interval}} — Harmonic BUY, D bolgesine anlik giris")
+alertcondition(sig_sell, "Harmonic SELL (anlik)", "{{ticker}} {{interval}} — Harmonic SELL, D bolgesine anlik giris")

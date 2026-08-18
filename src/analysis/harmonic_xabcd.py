@@ -353,6 +353,17 @@ def detect_prz(df: pd.DataFrame, params: Params) -> list[PrzEvent]:
         if not is_bear2 and not params.enable_long:
             continue
 
+        # Yapisal siralama (CANLI HATA + DUZELTME, 2026-08-18, kullanici
+        # Pine karsilastirmasi -- ayni eksiklik `pine/harmonic_formations_v1_
+        # indicator.pine`de de bulunup duzeltildi): BC orani TEK BASINA
+        # q_c'nin q_a ile q_b ARASINDA kaldigini GARANTI ETMEZ (sadece
+        # |q_c-q_b|/|q_a-q_b| BUYUKLUGUNU olcer, YONU/SIRALAMAYI degil) --
+        # bu kontrol olmadan A'yi ASAN bir "sahte" C de ayni orani
+        # tutturabilirdi.
+        strct2 = (q_a[0] < q_c[0] < q_b[0]) if is_bear2 else (q_a[0] > q_c[0] > q_b[0])
+        if not strct2:
+            continue
+
         ab2 = abs(q_b[0] - q_a[0])
         bc2 = abs(q_c[0] - q_b[0])
         if not (ab2 > 0.0 and bc2 > 0.0):
@@ -388,8 +399,15 @@ def detect_prz(df: pd.DataFrame, params: Params) -> list[PrzEvent]:
         if not entered:
             continue
 
-        prz_alerted = True
         touch_price = zone_high if not is_bear2 else zone_low
+        # Yapisal D kontrolu (CANLI HATA + DUZELTME, ayni gerekce -- D, B'nin
+        # ARKASINDA/OTESINDE kalmali, C'ye cok yakin sahte bir bolge
+        # eslesmesi OLMAMALI).
+        d_structurally_ok = touch_price > q_b[0] if is_bear2 else touch_price < q_b[0]
+        if not d_structurally_ok:
+            continue
+
+        prz_alerted = True
         d_bar = i
         signal_bar = i
         entry_ref = float(close[i])

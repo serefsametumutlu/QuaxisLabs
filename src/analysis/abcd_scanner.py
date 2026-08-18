@@ -89,6 +89,7 @@ class ScannedSignal:
     bars_ago: int  # 0 = en son barda ONAYLANDI (signal_bar'a gore)
     d_bars_ago: int  # D pivotunun KENDISI kac bar once OLUSTU (= bars_ago + pivot_lookback)
     late: bool  # onaydan bu yana kapanis zaten TP1/SL'e ulasti mi
+    confidence: str  # bkz. guven_etiketi() -- backtest-temelli, sinyali GIZLEMEZ
 
 
 @dataclass
@@ -127,6 +128,32 @@ def get_bist_universe(session: Session | None = None) -> list[str]:
     return sorted(rows)
 
 
+# Kullanici karari (2026-08-18, ABCD_BACKTEST_TAM_SONUCLARI.md'ye dayanarak):
+# tarama/kart ciktilarinda backtest'in ARTIK dogruladigi (ya da dogrulamadigi)
+# guven seviyesi ACIKCA gosterilsin -- sinyal HICBIR ZAMAN gizlenmez (GUVENSIZ
+# etiketi disiplini, bkz. abcd_backtest.py run_grid ile AYNI ilke), sadece
+# etiketlenir. Kaynak tablo (TAM BIST, 657 sembol, TRY, ~2 yil, n>=100=GUVENILIR):
+#   LONG  1D (n=206,PF=1.38) / 240 (n=291,PF=1.19) -> KARLI+GUVENILIR
+#   LONG  1W (n=69)                                -> kucuk orneklem, notr
+#   LONG  60/120 (PF=0.75/0.81)                    -> GUVENILIR ornek ama KARSIZ
+#   SHORT tum zaman dilimleri (PF 0.39-0.76)       -> HEP KARSIZ
+_ABCD_KARLI_GUVENILIR_LONG_TF = frozenset({"1D", "240"})
+_ABCD_KUCUK_ORNEKLEM_LONG_TF = frozenset({"1W"})
+
+
+def guven_etiketi(tf: str, direction: int) -> str:
+    """`tf`/`direction` (Signal.direction, +1/-1) icin backtest-temelli guven
+    etiketi -- bkz. modul ust notu. Sinyali GIZLEMEZ, sadece kullaniciya
+    "bu kombinasyon gecmiste kar etti mi" bilgisini tasir."""
+    if direction < 0:
+        return "⚠️ ZAYIF (backtest: SHORT hicbir zaman dilim inde karli cikmadi)"
+    if tf in _ABCD_KARLI_GUVENILIR_LONG_TF:
+        return "✅ GÜVENİLİR (backtest: karli, n≥100)"
+    if tf in _ABCD_KUCUK_ORNEKLEM_LONG_TF:
+        return "◻ KÜÇÜK ÖRNEKLEM (backtest: n<100, henüz kanıtlanmadı)"
+    return "⚠️ ZAYIF (backtest: bu zaman diliminde kârsız çıktı)"
+
+
 def _is_late(last_close: float, signal: Signal) -> bool:
     if signal.direction > 0:
         return last_close >= signal.tp1 or last_close <= signal.sl
@@ -161,6 +188,7 @@ def _scan_one(
             bars_ago=bars_ago,
             d_bars_ago=bars_ago + params.pivot_lookback,
             late=_is_late(last_close, sig),
+            confidence=guven_etiketi(tf, sig.direction),
         )
         (buys if sig.direction > 0 else sells).append(scanned)
     return buys, sells
@@ -247,7 +275,7 @@ def _fmt_line(item: ScannedSignal) -> str:
     confirm_ago = "bu bar" if item.bars_ago == 0 else f"{item.bars_ago} bar once"
     line = (
         f"{item.symbol} | D olustu: {d_ago} (onay: {confirm_ago}) | giris {sig.entry_ref:.4g} | "
-        f"TP1 {sig.tp1:.4g} | TP2 {sig.tp2:.4g} | SL {sig.sl:.4g}"
+        f"TP1 {sig.tp1:.4g} | TP2 {sig.tp2:.4g} | SL {sig.sl:.4g} | {item.confidence}"
     )
     if item.late:
         line += " | GEC (LATE)"
@@ -264,7 +292,8 @@ def format_report(result: ScanResult, markdown: bool = False) -> str:
     title = f"AB=CD Tarama -- {result.tf} (son {result.lookback_bars} bar)"
     header = f"*{_escape_mdv2(title)}*" if markdown else title
 
-    body_lines = ["BUY:"]
+    body_lines = ["(Guven etiketleri gecmis backtest sonucuna gore -- sinyal gizlenmez, sadece bilgilendirir)", ""]
+    body_lines.append("BUY:")
     if result.buys:
         body_lines.extend(_fmt_line(s) for s in result.buys)
     else:

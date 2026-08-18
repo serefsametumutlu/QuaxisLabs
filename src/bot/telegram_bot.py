@@ -912,8 +912,14 @@ async def _gonder_abcd_sinyal(chat_id: int, context: ContextTypes.DEFAULT_TYPE, 
         return
 
     try:
+        # Kullanici karari (2026-08-18, ABCD_BACKTEST_TAM_SONUCLARI.md): hangi
+        # (yon, zaman dilimi) kombinasyonunun gecmiste gercekten karli ciktigi
+        # ARTIK caption'da da acikca gosterilir -- sinyal GIZLENMEZ, sadece
+        # etiketlenir (abcd_scanner.guven_etiketi ile AYNI, TEK kaynak).
+        guven = abcd_scanner.guven_etiketi(tf, signal.direction)
         caption = (
-            f"🔺 #{ticker} AB=CD Formasyonu ({tf})\n\n"
+            f"🔺 #{ticker} AB=CD Formasyonu ({tf})\n"
+            f"{guven}\n\n"
             "⚠ Deneysel sinyal üreticidir, temel/teknik analiz skorlarından bağımsızdır.\n"
             "Bu içerik yatırım tavsiyesi değildir; yatırım kararı için profesyonel danışmanlık alınmalıdır."
         )

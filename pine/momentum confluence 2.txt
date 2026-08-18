@@ -1,0 +1,127 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © serefsamett
+
+//@version=6
+indicator("VOL2 Momentum Confluence · TRF + EMA Squeeze + Volume + WaveTrend", overlay=true)
+
+// ─────────────────────────────────────────────────────────────────
+// GROUP: TRF Settings
+// ─────────────────────────────────────────────────────────────────
+i_src   = input.source(close, "Source",       group="TRF Settings")
+i_per1  = input.int(12,    "Fast Period",      minval=1,   group="TRF Settings")
+i_mult1 = input.float(1.0, "Fast Range",       minval=0.1, step=0.1, group="TRF Settings")
+i_per2  = input.int(4,     "Slow Period",      minval=1,   group="TRF Settings")
+i_mult2 = input.float(2.0, "Slow Range",       minval=0.1, step=0.1, group="TRF Settings")
+
+// ─────────────────────────────────────────────────────────────────
+// GROUP: EMA Squeeze Breakout
+// ─────────────────────────────────────────────────────────────────
+i_ema5       = input.int(5,    "EMA Fast",            minval=1,   group="EMA Squeeze Breakout")
+i_ema8       = input.int(8,    "EMA Mid",             minval=1,   group="EMA Squeeze Breakout")
+i_ema13      = input.int(13,   "EMA Slow",            minval=1,   group="EMA Squeeze Breakout")
+i_squeezePct = input.float(1.0,"Squeeze Threshold %", minval=0.01, step=0.1, group="EMA Squeeze Breakout")
+
+// ─────────────────────────────────────────────────────────────────
+// GROUP: Volume Surge
+// ─────────────────────────────────────────────────────────────────
+i_volLen  = input.int(20,    "SMA Length", minval=1,   group="Volume Surge")
+i_volMult = input.float(1.5, "Multiplier", minval=1.0, step=0.1, group="Volume Surge")
+
+// ─────────────────────────────────────────────────────────────────
+// GROUP: WaveTrend (LazyBear)
+// ─────────────────────────────────────────────────────────────────
+i_wtChanLen = input.int(10, "WT Channel Length", minval=1, group="WaveTrend")
+i_wtAvgLen  = input.int(21, "WT Average Length", minval=1, group="WaveTrend")
+i_wtSmooth  = input.int(4,  "WT Signal Smoothing", minval=1, group="WaveTrend")
+i_wtMaxLvl  = input.float(15.0, "WT Max Cross Level", step=1.0, group="WaveTrend")
+
+// ─────────────────────────────────────────────────────────────────
+// TWIN RANGE FILTER  (exact colinmck v4 → v6)
+// ─────────────────────────────────────────────────────────────────
+float smrng1 = ta.ema(ta.ema(math.abs(i_src - i_src[1]), i_per1), i_per1 * 2 - 1) * i_mult1
+float smrng2 = ta.ema(ta.ema(math.abs(i_src - i_src[1]), i_per2), i_per2 * 2 - 1) * i_mult2
+float smrng  = (smrng1 + smrng2) / 2.0
+
+var float filt = na
+float prevFilt = nz(filt[1], i_src)
+filt := i_src > prevFilt ? (i_src - smrng < prevFilt ? prevFilt : i_src - smrng) : (i_src + smrng > prevFilt ? prevFilt : i_src + smrng)
+
+var float upward   = 0.0
+var float downward = 0.0
+upward   := filt > filt[1] ? nz(upward[1])   + 1 : filt < filt[1] ? 0 : nz(upward[1])
+downward := filt < filt[1] ? nz(downward[1]) + 1 : filt > filt[1] ? 0 : nz(downward[1])
+
+bool longCond  = (i_src > filt and i_src > i_src[1] and upward   > 0) or (i_src > filt and i_src < i_src[1] and upward   > 0)
+bool shortCond = (i_src < filt and i_src < i_src[1] and downward > 0) or (i_src < filt and i_src > i_src[1] and downward > 0)
+
+var int condIni = 0
+condIni := longCond ? 1 : shortCond ? -1 : nz(condIni[1])
+
+bool trfLongTrigger = longCond and condIni[1] == -1
+
+// ─────────────────────────────────────────────────────────────────
+// EMA SQUEEZE & BREAKOUT
+// ─────────────────────────────────────────────────────────────────
+float ema5  = ta.ema(close, i_ema5)
+float ema8  = ta.ema(close, i_ema8)
+float ema13 = ta.ema(close, i_ema13)
+
+float emaMax = math.max(ema5, ema8, ema13)
+float emaMin = math.min(ema5, ema8, ema13)
+
+float emaSpread     = (emaMax - emaMin) / emaMin * 100
+bool  isSqueezed    = emaSpread <= i_squeezePct
+bool  emaBreakout   = close > emaMax and close[1] <= emaMax[1]
+bool  emaOrderOK    = ema5 >= ema8
+bool  emaAbovePct   = close >= ema5 * 1.0075
+bool  emaConfluence = isSqueezed and emaBreakout and emaOrderOK and emaAbovePct
+
+// ─────────────────────────────────────────────────────────────────
+// VOLUME SURGE
+// ─────────────────────────────────────────────────────────────────
+bool volSurge = volume >= i_volMult * ta.sma(volume, i_volLen)
+
+// ─────────────────────────────────────────────────────────────────
+// WAVETREND OSCILLATOR  (exact LazyBear v1 → v6)
+// ─────────────────────────────────────────────────────────────────
+float ap  = hlc3
+float esa = ta.ema(ap, i_wtChanLen)
+float d   = ta.ema(math.abs(ap - esa), i_wtChanLen)
+float ci  = (ap - esa) / (0.015 * d)
+float wt1 = ta.ema(ci, i_wtAvgLen)
+float wt2 = ta.sma(wt1, i_wtSmooth)
+
+// STRICT WT CONFLUENCE
+//   1) Exact cross on the current bar
+//   2) 2-bar prior history: wt1 strictly below wt2 on [1] and [2]
+//   3) Level constraint: wt1 < i_wtMaxLvl (default 15) on signal bar
+bool wtExactCross   = ta.crossover(wt1, wt2)
+bool wtPriorHistory = (wt1[1] < wt2[1]) and (wt1[2] < wt2[2])
+bool wtLevelOK      = wt1 < i_wtMaxLvl
+bool wtConfluence   = wtExactCross and wtPriorHistory and wtLevelOK
+
+// ─────────────────────────────────────────────────────────────────
+// GREEN CANDLE FILTER — breakout candle must be strictly bullish
+// ─────────────────────────────────────────────────────────────────
+bool greenCandle = close > open
+
+// ─────────────────────────────────────────────────────────────────
+// CONFLUENCE SIGNAL — all five must fire on the EXACT same candle
+// ─────────────────────────────────────────────────────────────────
+bool buySignal = trfLongTrigger and emaConfluence and volSurge and wtConfluence and greenCandle
+
+// ─────────────────────────────────────────────────────────────────
+// VISUALS
+// ─────────────────────────────────────────────────────────────────
+plot(ema5,  "EMA 5",  color=color.new(color.lime,   0), linewidth=1)
+plot(ema8,  "EMA 8",  color=color.new(color.yellow, 0), linewidth=1)
+plot(ema13, "EMA 13", color=color.new(color.orange, 0), linewidth=2)
+
+plotshape(buySignal,
+     title     = "BUY Signal",
+     style     = shape.labelup,
+     location  = location.belowbar,
+     color     = color.new(color.aqua, 0),
+     textcolor = color.black,
+     text      = "BUY",
+     size      = size.normal)

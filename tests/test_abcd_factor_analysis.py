@@ -299,6 +299,45 @@ def test_run_factor_analysis_label_fn_ile_vindicated_etiketi_kullanilabilir(monk
     assert custom_note in format_report(result)
 
 
+def test_run_factor_analysis_ozel_ozellik_kumesiyle_calisir(monkeypatch):
+    """`scripts/momentum_confluence_arastirma.py`nin dayandigi genisleme:
+    `feature_names`/`categorical_features`/`extract_features_fn` verilirse
+    ABCD'ye ozgu 13 ozellik DEGIL, cagiranin KENDI (A/B/C/D pivotu olmayan
+    bir sinyal ailesi icin) kucuk ozellik kumesi kullanilir."""
+    n = 200
+    rng = np.random.default_rng(11)
+    label = rng.integers(0, 2, n)
+    custom_feature = np.where(label == 1, rng.normal(10, 1, n), rng.normal(0, 1, n))
+    trades_df = pd.DataFrame(
+        {
+            "symbol": ["AAA"] * n,
+            "tf": ["1D"] * n,
+            "currency": ["TRY"] * n,
+            "pnl": np.where(label == 1, 100.0, -100.0),
+            "entry_time": pd.date_range("2023-01-01", periods=n, freq="6h", tz="UTC"),
+            "ozel_ozellik": custom_feature,
+        }
+    )
+
+    def _fake_extract(trade_row, ohlcv_df):
+        return {"ozel_ozellik": trade_row["ozel_ozellik"]}
+
+    result = run_factor_analysis(
+        trades_df,
+        {("AAA", "1D"): _DUMMY_OHLCV},
+        feature_names=["ozel_ozellik"],
+        categorical_features=[],
+        extract_features_fn=_fake_extract,
+    )
+
+    assert len(result["univariate"]) == 1
+    row = result["univariate"][0]
+    assert row["feature"] == "ozel_ozellik"
+    assert row["significant_train"] is True
+    assert row["validated"] is True
+    assert result["logistic_regression"]["features_used"] == ["ozel_ozellik"]
+
+
 def test_run_factor_analysis_tamamen_eksik_ozellik_lojistik_regresyonu_engellemez(monkeypatch):
     """CANLI HATA + DUZELTME regresyon testi (harmonic_xabcd_vindication_
     factors.py kosusu, 2026-08-18): `cd_ratio_dev` gibi bir ozellik TRAIN'de

@@ -422,23 +422,28 @@ def _direction_matches(train_result: dict[str, Any], holdout_result: dict[str, A
     return (tw - tl > 0) == (hw - hl > 0)
 
 
-def _fit_logistic_regression(train_df: pd.DataFrame) -> dict[str, Any]:
+def _fit_logistic_regression(train_df: pd.DataFrame, feature_names: list[str]) -> dict[str, Any]:
     """Yorumlanabilir lojistik regresyon (bkz. modul-ust notu: neden
     statsmodels). Standardize edilmis (z-skor) ozellikler kullanilir; VIF>10
     olan ozellik iteratif olarak modelden CIKARILIR (coklu-dogrusallik).
 
+    `feature_names`: `run_factor_analysis`in `feature_names` parametresiyle
+    AYNI liste (varsayilan: `ALL_FEATURES`) -- baska bir sinyal ailesi
+    (orn. `momentum_confluence_factors.py`) FARKLI bir ozellik kumesiyle
+    AYNI istatistik motorunu kullanabilsin diye parametrik yapildi.
+
     CANLI HATA + DUZELTME (harmonic_xabcd_vindication_factors.py kosusu,
-    2026-08-18): `ALL_FEATURES`deki bir ozellik TAMAMEN eksikse (orn.
+    2026-08-18): `feature_names`deki bir ozellik TAMAMEN eksikse (orn.
     `cd_ratio_dev`, PRZ olaylarinda D henuz onayli olmadigi icin HER ZAMAN
     None -- bkz. o scriptin `sig_cd_ratio=None` notu), eski kod
-    `train_df[ALL_FEATURES + ['label']].dropna()`in o TEK sutun yuzunden
+    `train_df[feature_names + ['label']].dropna()`in o TEK sutun yuzunden
     TUM satirlari (n=3741 dahil) sildigini fark etmiyordu (`n=0, lojistik
     regresyon calismadi` sessizce donuyordu). Simdi: train'de HICBIR degeri
     olmayan ozellikler modelden BASTAN cikarilir (`features_excluded_all_nan`
     ile acikca raporlanir), geri kalan ozellikler icin normal dropna/VIF
     akisina devam edilir."""
-    usable = [f for f in ALL_FEATURES if train_df[f].notna().any()]
-    excluded_all_nan = [f for f in ALL_FEATURES if f not in usable]
+    usable = [f for f in feature_names if train_df[f].notna().any()]
+    excluded_all_nan = [f for f in feature_names if f not in usable]
 
     sub = train_df[usable + ["label"]].dropna()
     if len(sub) < 30 or sub["label"].nunique() < 2:
@@ -531,6 +536,9 @@ def run_factor_analysis(
     holdout_alpha: float = HOLDOUT_ALPHA,
     label_fn: Callable[[pd.Series], int] | None = None,
     methodology_note: str | None = None,
+    feature_names: list[str] | None = None,
+    categorical_features: list[str] | None = None,
+    extract_features_fn: Callable[[pd.Series, pd.DataFrame], dict[str, float | int | None]] | None = None,
 ) -> dict[str, Any]:
     """Metodolojinin TUM disiplinini (kronolojik split, FDR, holdout
     dogrulama, underpowered etiketleme, lojistik regresyon, nedensellik-
@@ -556,6 +564,14 @@ def run_factor_analysis(
     icin eklendi; `methodology_note` de aynı gerekceyle raporun basligini
     ozellestirmeye izin verir (varsayilan: kazanan/kaybeden ILISKISEL dili).
 
+    `feature_names`/`categorical_features`/`extract_features_fn`: AYNI
+    gerekceyle -- FARKLI bir sinyal ailesinin (orn. `momentum_confluence`,
+    A/B/C/D pivotu YOK) kendi ozellik kumesiyle AYNI istatistik motorunu
+    (kronolojik split/FDR/holdout/VIF-budanmis lojistik regresyon)
+    kullanabilmesi icin. Varsayilan: `ALL_FEATURES`/`CATEGORICAL_FEATURES`/
+    `extract_features` (bu modulun ABCD'ye ozgu 13 ozelligi) -- davranis
+    DEGISMEZ.
+
     Donen sozluk hicbir zaman "etki yok" iddiasi icermez -- yetersiz
     orneklemli ozellikler "underpowered" etiketlenir, train'de anlamli ama
     holdoutta dogrulanmayanlar "muhtemelen sans" etiketiyle SONUCTA KALIR
@@ -563,6 +579,9 @@ def run_factor_analysis(
     """
     label_fn = label_fn or (lambda row: 1 if row["pnl"] > 0 else 0)
     methodology_note = methodology_note or _METHODOLOGY_NOTE
+    feature_names = feature_names if feature_names is not None else ALL_FEATURES
+    categorical_features = categorical_features if categorical_features is not None else CATEGORICAL_FEATURES
+    extract_features_fn = extract_features_fn or extract_features
 
     if trades_df.empty:
         return {
@@ -591,7 +610,7 @@ def run_factor_analysis(
             skipped += 1
             continue
         try:
-            feats = extract_features(trade_row, ohlcv_df)
+            feats = extract_features_fn(trade_row, ohlcv_df)
         except (ValueError, KeyError, TypeError):
             skipped += 1
             continue
@@ -619,8 +638,8 @@ def run_factor_analysis(
     univariate: list[dict[str, Any]] = []
     train_pvals: list[float] = []
     train_pval_idx: list[int] = []
-    for i, feature in enumerate(ALL_FEATURES):
-        result = _univariate_test(train_df, feature, feature in CATEGORICAL_FEATURES, min_group_n_train)
+    for i, feature in enumerate(feature_names):
+        result = _univariate_test(train_df, feature, feature in categorical_features, min_group_n_train)
         univariate.append(result)
         if result["p_train"] is not None and not math.isnan(result["p_train"]):
             train_pvals.append(result["p_train"])
@@ -640,7 +659,7 @@ def run_factor_analysis(
         feature = result["feature"]
         if result["significant_train"]:
             holdout_result = _univariate_test(
-                holdout_df, feature, feature in CATEGORICAL_FEATURES, min_group_n_train=0
+                holdout_df, feature, feature in categorical_features, min_group_n_train=0
             )
             result["p_holdout"] = holdout_result["p_train"]
             validated = (
@@ -664,7 +683,7 @@ def run_factor_analysis(
                 else "train'de FDR (q<%.2f) esigini gecmedi" % fdr_q
             )
 
-    logreg = _fit_logistic_regression(train_df)
+    logreg = _fit_logistic_regression(train_df, feature_names)
 
     return {
         "n_total": n_total,

@@ -83,7 +83,25 @@ def test_build_takvim_menu_bist_nasdaq_ve_geri_icerir() -> None:
 
 def test_build_formasyonlar_menu_abcd_ve_geri_icerir() -> None:
     grid = _callback_data_grid(menu.build_formasyonlar_menu())
-    assert grid == [["abcd:menu"], ["menu:root"]]
+    assert grid == [["abcd:menu"], ["harm:menu"], ["menu:root"]]
+
+
+def test_build_harm_formation_menu_5_formasyon_hepsi_ve_geri_icerir() -> None:
+    grid = _callback_data_grid(menu.build_harm_formation_menu())
+    assert grid == [
+        ["harm:tfmenu:ABCD"],
+        ["harm:tfmenu:GARTLEY"],
+        ["harm:tfmenu:BAT"],
+        ["harm:tfmenu:BUTTERFLY"],
+        ["harm:tfmenu:CRAB"],
+        ["harm:tfmenu:HEPSI"],
+        ["menu:formasyonlar"],
+    ]
+
+
+def test_build_harm_tf_menu_secilen_formasyonu_callback_datayla_tasir() -> None:
+    grid = _callback_data_grid(menu.build_harm_tf_menu("CRAB"))
+    assert grid == [["harm:tf:CRAB:240", "harm:tf:CRAB:1D"], ["harm:menu"]]
 
 
 def test_abcd_mode_keyboard_tekli_tarama_ve_geri_icerir() -> None:

@@ -25,7 +25,7 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fi
 
 import config
 from src.ai import commentary
-from src.analysis import abcd_scanner, calculator, technical, trends
+from src.analysis import abcd_scanner, calculator, harmonic_scanner, technical, trends
 from src.analysis.abcd_pattern import Params as AbcdParams
 from src.analysis.abcd_pattern import detect as abcd_detect
 from src.bot import fund_pipeline, ipo_pipeline, menu, pipeline
@@ -124,6 +124,10 @@ _TICKER_RE_FON = re.compile(r"^[A-Z]{2,5}$")  # TEFAS fon kodlari (orn. PHE, TLY
 # ile ESLESIR (bkz. dosya sonundaki add_handler kaydi). abcd-project bot.py'nin
 # WIZ sabitiyle AYNI savunmaci desen (parts[0] != WIZ_ABCD -> sessizce cik).
 WIZ_ABCD = "abcd"
+
+# Harmonik (Anlik D / V2.2) tarama akisi -- ABCD ile AYNI savunmaci desen,
+# AYRI bir on ek ("harm:..."), AYRI bir CallbackQueryHandler (pattern=r"^harm:").
+WIZ_HARM = "harm"
 
 # --- Es zamanlilik / hiz siniri (bellek-ici, tek surec varsayimiyla) -----------------------------------------------------
 
@@ -964,6 +968,125 @@ async def handle_abcd_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             return
 
 
+# --- Harmonik (Anlik D / V2.2) tarama (Faz 6 uzantisi, 2026-08-19) -----------------------------------------------------
+#
+# `_execute_abcd_scan`in AYNI ilerleme-checkpoint deseni -- tek fark:
+# `harmonic_scanner.scan()` TEK gecişte secilen TUM formasyonlari tarar
+# (bkz. o modulun ust notu), bu yuzden burada formasyon basina AYRI bir
+# dongu YOK.
+_HARM_SCAN_N_BARS = 1000
+_HARM_LOOKBACK_BARS = 5
+
+
+async def _execute_harm_scan(status_message, context: ContextTypes.DEFAULT_TYPE, formation: str, tf: str) -> None:
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    async def _safe_edit(text: str) -> None:
+        try:
+            await status_message.edit_text(text)
+        except Exception:
+            pass
+
+    formations = harmonic_scanner.FORMATION_NAMES if formation == "HEPSI" else (formation,)
+    etiket = "TÜM formasyonlar" if formation == "HEPSI" else formation
+
+    symbols = await asyncio.to_thread(abcd_scanner.get_bist_universe)
+    total = len(symbols)
+    milestones = _abcd_progress_milestones(total)
+
+    await _safe_edit(f"🌀 Harmonik ({etiket}, {tf}) taranıyor: 0/{total}")
+
+    def on_progress(done: int, done_total: int) -> None:
+        if loop is not None and done in milestones:
+            asyncio.run_coroutine_threadsafe(
+                _safe_edit(f"🌀 Harmonik ({etiket}, {tf}) taranıyor: {done}/{done_total}"), loop
+            )
+
+    try:
+        result = await asyncio.to_thread(
+            harmonic_scanner.scan,
+            symbols,
+            tf,
+            formations,
+            _HARM_LOOKBACK_BARS,
+            _HARM_SCAN_N_BARS,
+            _ABCD_SCAN_WORKERS,
+            on_progress,
+        )
+    except Exception:
+        logger.exception("Harmonik taraması başarısız oldu (formasyon=%s, tf=%s)", formation, tf)
+        await _safe_edit("⚠️ Tarama başarısız oldu, birkaç dakika sonra tekrar dene.")
+        return
+
+    report = harmonic_scanner.format_report(result, markdown=True)
+    # Coklu-formasyon (HEPSI) raporu Telegram'in 4096 karakter mesaj sinirini
+    # asabilir -- MarkdownV2 fenced code block PARCALAMA gerektirir (tek
+    # mesaj icinde bolunmus bir ``` bloğu BOZULUR). Basitce formasyon
+    # basina AYRI mesaj gonderilir (HEPSI'de), tek formasyonda TEK mesaj yeter.
+    if formation != "HEPSI" or len(report) <= 4000:
+        try:
+            await status_message.edit_text(report, parse_mode="MarkdownV2")
+        except Exception:
+            logger.exception("Harmonik tarama raporu gönderilemedi (formasyon=%s, tf=%s)", formation, tf)
+            await _safe_edit("Tarama tamamlandı ama rapor gönderilemedi (mesaj çok uzun olabilir).")
+        return
+
+    try:
+        await status_message.edit_text(f"✅ Harmonik tarama tamamlandı ({etiket}, {tf}) -- formasyon başına gönderiliyor:")
+    except Exception:
+        pass
+    for single_formation in formations:
+        single_result = harmonic_scanner.HarmonicScanResult(
+            tf=result.tf,
+            scanned_at=result.scanned_at,
+            lookback_bars=result.lookback_bars,
+            formations=(single_formation,),
+            buys={single_formation: result.buys[single_formation]},
+            sells={single_formation: result.sells[single_formation]},
+            errors=result.errors,
+        )
+        single_report = harmonic_scanner.format_report(single_result, markdown=True)
+        try:
+            await context.bot.send_message(
+                chat_id=status_message.chat_id, text=single_report, parse_mode="MarkdownV2"
+            )
+        except Exception:
+            logger.exception("Harmonik tarama alt-raporu gönderilemedi (formasyon=%s)", single_formation)
+
+
+async def handle_harm_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """'🔺 Formasyonlar > 🌀 Harmonik Tarama (Anlık D)' akışının TEK giriş
+    noktası. callback_data: 'harm:menu' | 'harm:tfmenu:{formation}' |
+    'harm:tf:{formation}:{tf}' (bkz. menu.py 'Harmonik tarama akışı' bölümü)."""
+    query = update.callback_query
+    await query.answer()
+
+    parts = (query.data or "").split(":")
+    if parts[0] != WIZ_HARM:
+        return
+
+    action = parts[1] if len(parts) > 1 else None
+
+    if action == "menu":
+        await query.edit_message_text(menu.HARM_MENU_TEXT, reply_markup=menu.build_harm_formation_menu())
+        return
+
+    if action == "tfmenu" and len(parts) >= 3:
+        formation = parts[2]
+        await query.edit_message_text(menu.HARM_TF_TEXT, reply_markup=menu.build_harm_tf_menu(formation))
+        return
+
+    if action == "tf" and len(parts) >= 4:
+        formation, tf = parts[2], parts[3]
+        etiket = "TÜM formasyonlar" if formation == "HEPSI" else formation
+        status = await query.edit_message_text(f"🌀 Harmonik ({etiket}, {tf}) taraması başlıyor...")
+        await _execute_harm_scan(status, context, formation, tf)
+        return
+
+
 async def handle_halkaarz_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """callback_data: 'halkaarz:goster:{ticker}' (bkz. menu.build_halkaarz_menu)."""
     query = update.callback_query
@@ -1778,6 +1901,7 @@ def build_application() -> Application:
     application.add_handler(CallbackQueryHandler(handle_derin_analiz_callback, pattern=r"^derin:"))
     application.add_handler(CallbackQueryHandler(handle_halkaarz_callback, pattern=r"^halkaarz:"))
     application.add_handler(CallbackQueryHandler(handle_abcd_callback, pattern=r"^abcd:"))
+    application.add_handler(CallbackQueryHandler(handle_harm_callback, pattern=r"^harm:"))
     application.add_handler(CallbackQueryHandler(handle_menu_callback, pattern=r"^menu:"))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_ticker_message))
     application.add_error_handler(_on_error)

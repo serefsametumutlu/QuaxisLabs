@@ -198,7 +198,8 @@ def build_formasyonlar_menu() -> InlineKeyboardMarkup:
     olarak tutulur -- ileride yeni formasyon türleri EKLENEBİLİR diye."""
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("🔍 ABCD Formasyonu", callback_data="abcd:menu")],
+            [InlineKeyboardButton("🔍 ABCD Formasyonu (onaylı)", callback_data="abcd:menu")],
+            [InlineKeyboardButton("🌀 Harmonik Tarama (Anlık D)", callback_data="harm:menu")],
             [InlineKeyboardButton("⬅️ Geri", callback_data="menu:root")],
         ]
     )
@@ -249,6 +250,40 @@ def build_abcd_bekleniyor_menu(mode: str) -> InlineKeyboardMarkup:
 
 def _geri_menu(hedef_callback_data: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Geri", callback_data=hedef_callback_data)]])
+
+
+# --- Harmonik (Anlık D / V2.2) tarama akışı (Faz 6 uzantısı, 2026-08-19) ----------
+#
+# `harm:...` callback_data ailesi -- `harm:menu` (formasyon seçimi) ->
+# `harm:tf:{FORMASYON}:{tf}` (zaman dilimi seçimi + doğrudan tarama başlar,
+# `abcd:tf:tarama:{tf}` ile AYNI desen: metin istemeden başlar). `FORMASYON`
+# `src.analysis.harmonic_scanner.FORMATION_NAMES`teki 5 isimden biri VEYA
+# "HEPSI" (tümü, tek taramada 5 formasyonun hepsi). Kullanıcı talebi
+# (2026-08-19): "abcd gartley grab gibi tüm formasyonları seçebileyim ...
+# birde hepsi seçeneği olsun". `menu.py` katman disiplini gereği
+# `harmonic_scanner.FORMATION_NAMES` BURAYA import EDİLMEZ (SAF UI) --
+# aynı 5 isim bağımsız bir kopya olarak tutulur (abcd_tf_keyboard'daki
+# `_ABCD_TIMEFRAMES` ile AYNI gerekçe).
+_HARM_FORMATIONS: tuple[str, ...] = ("ABCD", "GARTLEY", "BAT", "BUTTERFLY", "CRAB")
+_HARM_TIMEFRAMES: tuple[str, ...] = ("240", "1D")  # sadece bu ikisi backtest edildi (bkz. harmonic_scanner._PF_TABLE)
+
+HARM_MENU_TEXT = (
+    "🌀 Harmonik Tarama (Anlık D) — hangi formasyonu taratayım?\n"
+    "⚠️ D, kendi pivot onayını BEKLEMEDEN anlık üretilir (repaint edebilir)."
+)
+HARM_TF_TEXT = "Zaman dilimini seç:"
+
+
+def build_harm_formation_menu() -> InlineKeyboardMarkup:
+    rows = [[InlineKeyboardButton(f, callback_data=f"harm:tfmenu:{f}")] for f in _HARM_FORMATIONS]
+    rows.append([InlineKeyboardButton("🌐 HEPSİ (5 formasyon)", callback_data="harm:tfmenu:HEPSI")])
+    rows.append([InlineKeyboardButton("⬅️ Geri", callback_data="menu:formasyonlar")])
+    return InlineKeyboardMarkup(rows)
+
+
+def build_harm_tf_menu(formation: str) -> InlineKeyboardMarkup:
+    tf_row = [InlineKeyboardButton(tf, callback_data=f"harm:tf:{formation}:{tf}") for tf in _HARM_TIMEFRAMES]
+    return InlineKeyboardMarkup([tf_row, [InlineKeyboardButton("⬅️ Geri", callback_data="harm:menu")]])
 
 
 def build_analiz_bekleniyor_menu() -> InlineKeyboardMarkup:

@@ -89,16 +89,42 @@ class Params:
     atr_mult: float = 1.0
     enable_long: bool = True
     enable_short: bool = True
+    # V2.2 EKLENTISI (2026-08-18, kullanici canli test raporu -- TATGD'de
+    # "ABCD exact 1.0" sectigi halde sinyal gelmiyordu): Pine V2.2
+    # (`harmonic_formations_v1_indicator.pine`) artik klasik AB=CD'yi de
+    # AYNI anlik-D mekanizmasinin bir preseti olarak isliyor -- bu alanlar
+    # o "else" (is_xabcd=False) dalini Python'da da mumkun kilar. `is_xabcd
+    # =False` iken cd_bc_min/max/xd_target KULLANILMAZ (X noktasi da hic
+    # gerekmez), yerine klasik AB-goreli CD tanimi (`abcd_pattern.py` ile
+    # AYNI formul) gecerlidir.
+    is_xabcd: bool = True
+    use_exact_cd: bool = True
+    cd_min_ext: float = 0.886
+    cd_max_ext: float = 1.272
 
 
 # Pine `eff_cd_bc_min/max`/`eff_xd_target` ternary zincirleriyle BIREBIR AYNI
-# sayilar (bkz. o dosyanin "FORMATION PRESET -> bantlar" bolumu).
+# sayilar (bkz. o dosyanin "FORMATION PRESET -> bantlar" bolumu). SADECE
+# XABCD (X-noktali) 4 aileyi icerir -- `ABCD_PRESET` (klasik AB=CD, is_xabcd
+# =False) KASITLI olarak buraya EKLENMEDI: bu sozluk uzerinde `for name,
+# params in HARMONIC_XABCD_PRESETS.items()` diye donen mevcut scriptler
+# (harmonic_xabcd_research.py/vindication_factors.py/prz_filter_backtest.py,
+# bkz. onlarin ust notlari) zaten calisip commit edilmis SONUCLAR uretti --
+# buraya sessizce 5. bir eleman eklemek o scriptleri (ve gecmis raporlarini)
+# SESSIZCE degistirebilirdi. ABCD preseti ayri tutulur (asagida).
 HARMONIC_XABCD_PRESETS: dict[str, Params] = {
     "GARTLEY": Params(name="GARTLEY", cd_bc_min=1.272, cd_bc_max=1.618, xd_target=0.786),
     "BAT": Params(name="BAT", cd_bc_min=1.618, cd_bc_max=2.618, xd_target=0.886),
     "BUTTERFLY": Params(name="BUTTERFLY", cd_bc_min=1.618, cd_bc_max=2.24, xd_target=1.27),
     "CRAB": Params(name="CRAB", cd_bc_min=2.24, cd_bc_max=3.618, xd_target=1.618),
 }
+
+# Klasik AB=CD (Pine V2.2'nin "ABCD (exact 1.0)" preseti, is_xabcd=False --
+# X noktasi/XD kontrolu YOK, CD AB'ye goreli). `HARMONIC_XABCD_PRESETS`e
+# BILINCLI olarak DAHIL EDILMEDI (yukaridaki not) -- SADECE V2.2'nin "anlik
+# D" mekanizmasini TUM 5 formasyon icin backtest eden yeni scriptler bunu
+# ayrica import eder.
+ABCD_PRESET = Params(name="ABCD", is_xabcd=False, use_exact_cd=True)
 
 
 @dataclass(frozen=True)
@@ -332,10 +358,22 @@ def detect_prz(df: pd.DataFrame, params: Params) -> list[PrzEvent]:
             pD = (new_price, new_bar, new_type)
             last_ptype = new_type
 
-        # Prospektif X/A/B/C = guncel pA/pB/pC/pD (D henuz olusmamis).
-        if pA is None or pB is None or pC is None:
+        # Prospektif A/B/C = guncel pB/pC/pD (D henuz olusmamis) -- bu UCU,
+        # HERHANGI bir projeksiyon (XABCD veya klasik ABCD) icin MINIMUM
+        # gereksinimdir. Prospektif X (=pA) SADECE `is_xabcd` formasyonlar
+        # icin (XD projeksiyonu icin) gerekir.
+        #
+        # CANLI HATA + DUZELTME (2026-08-18, kullanici TATGD karsilastirmasi
+        # -- "ABCD exact 1.0 secmeme ragmen hic sinyal gelmiyor"): eski kod
+        # `pA is None` (=X henuz yok) durumunda da TUM barlari atliyordu --
+        # klasik ABCD'nin (`is_xabcd=False`) X'e HICBIR ZAMAN ihtiyaci
+        # olmadigi halde, sadece 3 pivot (A,B,C) yeterliyken 4 pivot (X,A,B,C)
+        # birikene kadar HICBIR projeksiyon denenmiyordu -- ilk formasyon
+        # dongusunu tamamen KACIRIYORDU. Pine V2.2 (`valid_pending`) zaten
+        # SADECE 3 nokta gerektiriyordu, bu satir simdi ONA UYDURULDU.
+        if pB is None or pC is None or pD is None:
             continue
-        q_x = pA
+        q_x = pA  # None OLABILIR -- asagida is_xabcd icin ayrica kontrol edilir
         q_a = pB
         q_b = pC
         q_c = pD
@@ -377,21 +415,41 @@ def detect_prz(df: pd.DataFrame, params: Params) -> list[PrzEvent]:
         ):
             continue
 
-        if is_bear2:
-            cd_lo = q_c[0] + (params.cd_bc_min - params.fib_tolerance) * bc2
-            cd_hi = q_c[0] + (params.cd_bc_max + params.fib_tolerance) * bc2
+        # CD projeksiyonu -- XABCD (Gartley/Bat/Butterfly/Crab): BC-goreli,
+        # dar CD/BC bandi. Klasik ABCD (`params.is_xabcd=False`, Pine V2.2'nin
+        # "ABCD (exact 1.0)"/Custom preseti): AB-goreli, `abcd_pattern.py` ile
+        # AYNI tanim (`use_exact_cd`/`cd_min_ext`/`cd_max_ext`).
+        if params.is_xabcd:
+            if is_bear2:
+                cd_lo = q_c[0] + (params.cd_bc_min - params.fib_tolerance) * bc2
+                cd_hi = q_c[0] + (params.cd_bc_max + params.fib_tolerance) * bc2
+            else:
+                cd_lo = q_c[0] - (params.cd_bc_max + params.fib_tolerance) * bc2
+                cd_hi = q_c[0] - (params.cd_bc_min - params.fib_tolerance) * bc2
         else:
-            cd_lo = q_c[0] - (params.cd_bc_max + params.fib_tolerance) * bc2
-            cd_hi = q_c[0] - (params.cd_bc_min - params.fib_tolerance) * bc2
+            cd_min_use = (1.0 - params.fib_tolerance) if params.use_exact_cd else (params.cd_min_ext - params.fib_tolerance)
+            cd_max_use = (1.0 + params.fib_tolerance) if params.use_exact_cd else (params.cd_max_ext + params.fib_tolerance)
+            if is_bear2:
+                cd_lo = q_c[0] + cd_min_use * ab2
+                cd_hi = q_c[0] + cd_max_use * ab2
+            else:
+                cd_lo = q_c[0] - cd_max_use * ab2
+                cd_hi = q_c[0] - cd_min_use * ab2
 
-        xa2 = abs(q_a[0] - q_x[0])
-        if not xa2 > 0.0:
-            continue
-        xd_center = q_a[0] + params.xd_target * xa2 if is_bear2 else q_a[0] - params.xd_target * xa2
-        xd_half = params.fib_tolerance * xa2
-        xd_lo, xd_hi = xd_center - xd_half, xd_center + xd_half
-
-        zone_low, zone_high = max(cd_lo, xd_lo), min(cd_hi, xd_hi)
+        if params.is_xabcd:
+            if q_x is None:
+                continue  # XABCD icin X sart -- klasik ABCD'nin aksine burada zarif "degrade" YOK (XD tanimlayici olcu)
+            xa2 = abs(q_a[0] - q_x[0])
+            if not xa2 > 0.0:
+                continue
+            xd_center = q_a[0] + params.xd_target * xa2 if is_bear2 else q_a[0] - params.xd_target * xa2
+            xd_half = params.fib_tolerance * xa2
+            xd_lo, xd_hi = xd_center - xd_half, xd_center + xd_half
+            zone_low, zone_high = max(cd_lo, xd_lo), min(cd_hi, xd_hi)
+        else:
+            # Klasik ABCD: X noktasi/XD kontrolu YOK (Pine'in `not is_xabcd`
+            # dalinda oldugu gibi) -- bolge dogrudan CD projeksiyonudur.
+            zone_low, zone_high = cd_lo, cd_hi
         if zone_low > zone_high:
             continue
 
@@ -426,8 +484,8 @@ def detect_prz(df: pd.DataFrame, params: Params) -> list[PrzEvent]:
         events.append(
             PrzEvent(
                 direction=-1 if is_bear2 else 1,
-                x_bar=q_x[1], a_bar=q_a[1], b_bar=q_b[1], c_bar=q_c[1], d_bar=d_bar,
-                x_price=q_x[0], a_price=q_a[0], b_price=q_b[0], c_price=q_c[0], d_price=touch_price,
+                x_bar=(q_x[1] if q_x is not None else -1), a_bar=q_a[1], b_bar=q_b[1], c_bar=q_c[1], d_bar=d_bar,
+                x_price=(q_x[0] if q_x is not None else float("nan")), a_price=q_a[0], b_price=q_b[0], c_price=q_c[0], d_price=touch_price,
                 signal_bar=signal_bar,
                 signal_time=time_col.iloc[signal_bar],
                 entry_ref=entry_ref, fill_ref=fill_ref,

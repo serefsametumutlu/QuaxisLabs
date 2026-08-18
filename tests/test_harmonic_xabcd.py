@@ -14,13 +14,19 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from dataclasses import replace
+
+from src.analysis import abcd_pattern
 from src.analysis.harmonic_xabcd import (
+    ABCD_PRESET,
     HARMONIC_XABCD_PRESETS,
     Params,
     detect,
     detect_prz,
     match_prz_to_confirmed,
 )
+
+ABCD_PRESET_L2 = replace(ABCD_PRESET, pivot_lookback=2)
 
 EPS = 0.05
 
@@ -153,3 +159,40 @@ def test_match_prz_to_confirmed_farkli_c_bar_icin_dogrulanmaz():
     fake_event = detect_prz(df, PARAMS_GARTLEY_L2)[0]
     fake_event = fake_event.__class__(**{**fake_event.__dict__, "c_bar": 999})
     assert match_prz_to_confirmed([fake_event], confirmed) == [False]
+
+
+# ── ABCD_PRESET (klasik AB=CD, is_xabcd=False) -- V2.2 "anlik D" ─────────
+
+
+def test_abcd_preset_sadece_3_pivotla_projeksiyon_yapabilir():
+    """CANLI HATA + DUZELTME regresyon testi (2026-08-18, kullanici TATGD
+    karsilastirmasi): eski kod X (4. bir onceki pivot) yoksa TUM projeksiyonu
+    atliyordu -- klasik ABCD'nin (is_xabcd=False) X'e HICBIR ZAMAN ihtiyaci
+    olmadigi halde. `abcd_pattern._bullish_df` (test_abcd_pattern.py) ile
+    AYNI, cd_r=1.0 TAM hedefte olacak sekilde tasarlanmis veri kullanilir --
+    A(100)@2 B(80)@7 C(90)@12 D(70)@17, SADECE 3 pivot (X yok) mevcutken
+    bile detect_prz bir olay URETMELI."""
+    anchors = [(0, 95), (2, 100), (7, 80), (12, 90), (17, 70), (19, 75)]
+    df = _zigzag_df(anchors)
+    events = detect_prz(df, ABCD_PRESET_L2)
+    assert len(events) >= 1
+    ev = events[0]
+    assert ev.direction == 1
+    assert ev.c_bar == 12  # prospektif C = onceki testteki "C" (90@12)
+
+
+def test_abcd_preset_anlik_sinyal_onayli_sinyalden_ONCE_gelir():
+    """V2.2'nin ASIL amaci: 'anlik' (PRZ tabanli) sinyal, D pivotunun
+    KENDISININ onaylanmasini (`pivot_lookback` bar) BEKLEYEN klasik
+    `abcd_pattern.detect()` sinyalinden ONCE (ya da en gec AYNI barda)
+    gelmeli -- ASLA SONRA."""
+    anchors = [(0, 95), (2, 100), (7, 80), (12, 90), (17, 70), (19, 75)]
+    df = _zigzag_df(anchors)
+    confirmed = abcd_pattern.detect(df, abcd_pattern.Params(pivot_lookback=2))
+    instant = detect_prz(df, ABCD_PRESET_L2)
+
+    assert len(confirmed) == 1
+    assert len(instant) >= 1
+    matching_instant = [ev for ev in instant if ev.c_bar == confirmed[0].c_bar]
+    assert matching_instant
+    assert matching_instant[0].signal_bar <= confirmed[0].signal_bar

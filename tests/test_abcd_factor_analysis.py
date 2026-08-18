@@ -299,6 +299,34 @@ def test_run_factor_analysis_label_fn_ile_vindicated_etiketi_kullanilabilir(monk
     assert custom_note in format_report(result)
 
 
+def test_run_factor_analysis_tamamen_eksik_ozellik_lojistik_regresyonu_engellemez(monkeypatch):
+    """CANLI HATA + DUZELTME regresyon testi (harmonic_xabcd_vindication_
+    factors.py kosusu, 2026-08-18): `cd_ratio_dev` gibi bir ozellik TRAIN'de
+    HICBIR satirda dolu degilse (hepsi None), eski kod `dropna()` yuzunden
+    TUM satirlari silip n=0 ile 'yeterli veri yok' donuyordu -- digger 10
+    ozellik dolu olsa BILE. Simdi o ozellik BASTAN cikarilmali, model geri
+    kalan ozelliklerle CALISMALI."""
+    trades_df, ohlcv_cache = _synthetic_trades_and_ohlcv(monkeypatch)
+    trades_df = trades_df.copy()
+    trades_df["cd_ratio_dev"] = np.nan  # TAMAMEN eksik -- eski davranista tum modeli cokertiyordu
+    # Fixture'daki `bb_percent_b` KASITLI %95 eksik (underpowered testi icin) --
+    # bu test SADECE "tamamen eksik ozellik" senaryosunu izole etmek istiyor,
+    # o yuzden bu AYRI/beklenen kismi-eksiklik konfuzu doldurulur.
+    rng = np.random.default_rng(7)
+    trades_df["bb_percent_b"] = rng.normal(0.5, 0.2, len(trades_df))
+
+    result = run_factor_analysis(trades_df, ohlcv_cache)
+
+    logreg = result["logistic_regression"]
+    # Odak: yapisal duzeltme (tamamen-eksik ozellik BASTAN cikarilip n=0'a
+    # DUSMEMELI) -- gercek MLE yakinsamasi (guclu sentetik ayrisma yuzunden
+    # statsmodels'in kendi numerik durumu) bu testin KAPSAMI DISINDA.
+    assert "cd_ratio_dev" in logreg["features_excluded_all_nan"]
+    assert "cd_ratio_dev" not in logreg["features_used"]
+    assert logreg["n_used"] >= 150  # cd_ratio_dev cikarilmadan ONCE n=0 donuyordu -- artik cogunluk kaliyor
+    assert "yeterli tam-veri satiri yok" not in logreg["note"]
+
+
 def test_run_factor_analysis_kronolojik_split_70_30():
     n = 200
     trades_df = pd.DataFrame(

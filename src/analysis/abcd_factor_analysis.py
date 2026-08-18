@@ -425,8 +425,22 @@ def _direction_matches(train_result: dict[str, Any], holdout_result: dict[str, A
 def _fit_logistic_regression(train_df: pd.DataFrame) -> dict[str, Any]:
     """Yorumlanabilir lojistik regresyon (bkz. modul-ust notu: neden
     statsmodels). Standardize edilmis (z-skor) ozellikler kullanilir; VIF>10
-    olan ozellik iteratif olarak modelden CIKARILIR (coklu-dogrusallik)."""
-    sub = train_df[ALL_FEATURES + ["label"]].dropna()
+    olan ozellik iteratif olarak modelden CIKARILIR (coklu-dogrusallik).
+
+    CANLI HATA + DUZELTME (harmonic_xabcd_vindication_factors.py kosusu,
+    2026-08-18): `ALL_FEATURES`deki bir ozellik TAMAMEN eksikse (orn.
+    `cd_ratio_dev`, PRZ olaylarinda D henuz onayli olmadigi icin HER ZAMAN
+    None -- bkz. o scriptin `sig_cd_ratio=None` notu), eski kod
+    `train_df[ALL_FEATURES + ['label']].dropna()`in o TEK sutun yuzunden
+    TUM satirlari (n=3741 dahil) sildigini fark etmiyordu (`n=0, lojistik
+    regresyon calismadi` sessizce donuyordu). Simdi: train'de HICBIR degeri
+    olmayan ozellikler modelden BASTAN cikarilir (`features_excluded_all_nan`
+    ile acikca raporlanir), geri kalan ozellikler icin normal dropna/VIF
+    akisina devam edilir."""
+    usable = [f for f in ALL_FEATURES if train_df[f].notna().any()]
+    excluded_all_nan = [f for f in ALL_FEATURES if f not in usable]
+
+    sub = train_df[usable + ["label"]].dropna()
     if len(sub) < 30 or sub["label"].nunique() < 2:
         return {
             "converged": False,
@@ -435,17 +449,18 @@ def _fit_logistic_regression(train_df: pd.DataFrame) -> dict[str, Any]:
             "vif": {},
             "features_used": [],
             "features_dropped_vif": [],
+            "features_excluded_all_nan": excluded_all_nan,
             "n_used": len(sub),
         }
 
-    X = sub[ALL_FEATURES].astype(float)
+    X = sub[usable].astype(float)
     y = sub["label"].astype(float)
 
     stds = X.std(ddof=0).replace(0, 1.0)
     means = X.mean()
     X_std = (X - means) / stds
 
-    features_used = list(ALL_FEATURES)
+    features_used = list(usable)
     dropped: list[tuple[str, float]] = []
     vifs: dict[str, float] = {}
 
@@ -476,6 +491,7 @@ def _fit_logistic_regression(train_df: pd.DataFrame) -> dict[str, Any]:
             "vif": vifs,
             "features_used": features_used,
             "features_dropped_vif": dropped,
+            "features_excluded_all_nan": excluded_all_nan,
             "n_used": len(sub),
         }
 
@@ -501,6 +517,7 @@ def _fit_logistic_regression(train_df: pd.DataFrame) -> dict[str, Any]:
         "vif": vifs,
         "features_used": features_used,
         "features_dropped_vif": dropped,
+        "features_excluded_all_nan": excluded_all_nan,
         "n_used": len(sub),
     }
 
@@ -736,6 +753,11 @@ def format_report(result: dict[str, Any]) -> str:
         note = logreg.get("note") if logreg else "hesaplanamadi (girdi yok)"
         lines.append(f"\n_Model yakinsamadi/uygulanamadi: {note}_\n")
     else:
+        if logreg.get("features_excluded_all_nan"):
+            lines.append(
+                f"\n- Train'de HICBIR degeri olmadigi icin BASTAN cikarilan: "
+                f"{', '.join(logreg['features_excluded_all_nan'])}\n"
+            )
         if logreg.get("features_dropped_vif"):
             dropped_str = ", ".join(f"{f} (VIF={v:.1f})" for f, v in logreg["features_dropped_vif"])
             lines.append(f"\n- VIF>{VIF_THRESHOLD:.0f} nedeniyle modelden cikarilan: {dropped_str}\n")

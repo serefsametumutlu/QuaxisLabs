@@ -41,7 +41,13 @@ class VariantFlags:
     """Hangi kosullarin `confluence` bayragina dahil edildigini kontrol
     eder -- her biri bagimsiz acilip/kapatilabilir (V1/V2'nin sabit
     kombinasyonlarinin OTESINDE, kullanicinin "neyi ekleyip cikarsak"
-    sorusuna cevap vermek icin)."""
+    sorusuna cevap vermek icin).
+
+    2026-08-19 EKLENTISI: kullanici "MACD, RSI, Stokastik RSI, Bollinger
+    Bant gibi VAROLMAYAN kosullari tek tek dene" dedi -- bu 4 gosterge
+    kaynak Pine dosyalarinda YOKTU, SADECE bu deneysel modulde vardir
+    (momentum_confluence.py'nin Pine-parity `detect()`'ine ASLA eklenmez,
+    bkz. dosya ust notu)."""
 
     name: str
     require_volume: bool = True
@@ -50,6 +56,13 @@ class VariantFlags:
     require_wavetrend: bool = False
     require_green_candle: bool = False
     require_strict_ema: bool = False  # ema5>=ema8 VE close>=ema5*ema_above_pct
+    # --- YENI gostergeler (kaynak Pine'da YOK, kullanici talebiyle eklendi) ---
+    require_rsi_ok: bool = False  # rsi_min <= RSI(14) <= rsi_max
+    rsi_min: float = 50.0
+    rsi_max: float = 75.0
+    require_macd_bullish: bool = False  # MACD line > signal line
+    require_stoch_rsi_ok: bool = False  # %K > %D ve %K < 80 (asiri alim degil)
+    require_bb_not_extended: bool = False  # close <= Bollinger UST bandi (asiri uzamis kirilim degil)
 
 
 def _sma(values: np.ndarray, length: int) -> np.ndarray:
@@ -107,6 +120,61 @@ def _compute_trf(src: np.ndarray, per1: int, mult1: float, per2: int, mult2: flo
     return filt, upward
 
 
+def _rma(values: np.ndarray, length: int) -> np.ndarray:
+    """Wilder smoothing -- `abcd_pattern.atr_wilder` ile AYNI tanim (SMA
+    seed, ardindan `out[i] = out[i-1] + (values[i]-out[i-1])/length`)."""
+    n = len(values)
+    out = np.full(n, np.nan)
+    if n >= length:
+        out[length - 1] = float(np.mean(values[:length]))
+        for i in range(length, n):
+            out[i] = out[i - 1] + (values[i] - out[i - 1]) / length
+    return out
+
+
+def _rsi(close: np.ndarray, length: int = 14) -> np.ndarray:
+    n = len(close)
+    delta = np.zeros(n)
+    delta[1:] = close[1:] - close[:-1]
+    gain = np.where(delta > 0, delta, 0.0)
+    loss = np.where(delta < 0, -delta, 0.0)
+    avg_gain = _rma(gain, length)
+    avg_loss = _rma(loss, length)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        rs = np.where(avg_loss > 0, avg_gain / avg_loss, np.inf)
+    rsi = 100.0 - 100.0 / (1.0 + rs)
+    rsi = np.where(avg_loss == 0, 100.0, rsi)
+    rsi = np.where(np.isnan(avg_gain) | np.isnan(avg_loss), np.nan, rsi)
+    return rsi
+
+
+def _macd(close: np.ndarray, fast: int = 12, slow: int = 26, signal: int = 9) -> tuple[np.ndarray, np.ndarray]:
+    macd_line = _ema(close, fast) - _ema(close, slow)
+    signal_line = _ema(macd_line, signal)
+    return macd_line, signal_line
+
+
+def _stoch_rsi(close: np.ndarray, rsi_len: int = 14, stoch_len: int = 14, k_smooth: int = 3, d_smooth: int = 3) -> tuple[np.ndarray, np.ndarray]:
+    rsi = _rsi(close, rsi_len)
+    rsi_series = pd.Series(rsi)
+    roll_min = rsi_series.rolling(stoch_len).min().to_numpy()
+    roll_max = rsi_series.rolling(stoch_len).max().to_numpy()
+    with np.errstate(divide="ignore", invalid="ignore"):
+        stoch = np.where(roll_max > roll_min, (rsi - roll_min) / (roll_max - roll_min) * 100.0, 0.0)
+    stoch = np.where(np.isnan(roll_min) | np.isnan(roll_max), np.nan, stoch)
+    k = _sma(stoch, k_smooth)
+    d = _sma(k, d_smooth)
+    return k, d
+
+
+def _bollinger(close: np.ndarray, length: int = 20, mult: float = 2.0) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    basis = _sma(close, length)
+    std = pd.Series(close).rolling(length).std(ddof=0).to_numpy()
+    upper = basis + mult * std
+    lower = basis - mult * std
+    return basis, upper, lower
+
+
 def _compute_wavetrend(high: np.ndarray, low: np.ndarray, close: np.ndarray, chan_len: int, avg_len: int, smooth: int) -> tuple[np.ndarray, np.ndarray]:
     ap = (high + low + close) / 3.0
     esa = _ema(ap, chan_len)
@@ -159,6 +227,17 @@ def detect_variant(df: pd.DataFrame, params: Params, flags: VariantFlags) -> lis
     wt1 = wt2 = None
     if flags.require_wavetrend:
         wt1, wt2 = _compute_wavetrend(high, low, close, params.wt_chan_len, params.wt_avg_len, params.wt_smooth)
+
+    rsi = _rsi(close, 14) if (flags.require_rsi_ok or flags.require_stoch_rsi_ok) else None
+    macd_line = macd_signal = None
+    if flags.require_macd_bullish:
+        macd_line, macd_signal = _macd(close)
+    stoch_k = stoch_d = None
+    if flags.require_stoch_rsi_ok:
+        stoch_k, stoch_d = _stoch_rsi(close)
+    bb_upper = None
+    if flags.require_bb_not_extended:
+        _bb_basis, bb_upper, _bb_lower = _bollinger(close)
 
     vol_mult_eff = flags.vol_mult if flags.vol_mult is not None else params.vol_mult
 
@@ -213,6 +292,22 @@ def detect_variant(df: pd.DataFrame, params: Params, flags: VariantFlags) -> lis
 
         if flags.require_green_candle and not (close[i] > open_[i]):
             continue
+
+        if flags.require_rsi_ok:
+            if np.isnan(rsi[i]) or not (flags.rsi_min <= rsi[i] <= flags.rsi_max):
+                continue
+
+        if flags.require_macd_bullish:
+            if np.isnan(macd_line[i]) or np.isnan(macd_signal[i]) or not (macd_line[i] > macd_signal[i]):
+                continue
+
+        if flags.require_stoch_rsi_ok:
+            if np.isnan(stoch_k[i]) or np.isnan(stoch_d[i]) or not (stoch_k[i] > stoch_d[i] and stoch_k[i] < 80.0):
+                continue
+
+        if flags.require_bb_not_extended:
+            if np.isnan(bb_upper[i]) or not (close[i] <= bb_upper[i]):
+                continue
 
         entry_ref = float(close[i])
         fill_bar = i + 1
@@ -276,5 +371,28 @@ VARIANTS: dict[str, VariantFlags] = {
     "V2_HACIM_BANTSIZ": VariantFlags(
         name="V2_HACIM_BANTSIZ", require_volume=True, vol_ratio_max=None, require_wavetrend=True,
         require_green_candle=True, require_strict_ema=True,
+    ),
+    # --- YENI gosterge ablasyonu (2026-08-19, kullanici talebi): MACD/RSI/
+    #     StochRSI/Bollinger -- her biri V1/V2 baseline'a (hacim bandi DAHIL)
+    #     TEK BASINA eklenir, tek tek etkisi izole edilir. ---------------------
+    "V1_ARTI_RSI": VariantFlags(name="V1_ARTI_RSI", require_volume=True, vol_ratio_max=3.0, require_rsi_ok=True),
+    "V1_ARTI_MACD": VariantFlags(name="V1_ARTI_MACD", require_volume=True, vol_ratio_max=3.0, require_macd_bullish=True),
+    "V1_ARTI_STOCHRSI": VariantFlags(name="V1_ARTI_STOCHRSI", require_volume=True, vol_ratio_max=3.0, require_stoch_rsi_ok=True),
+    "V1_ARTI_BB": VariantFlags(name="V1_ARTI_BB", require_volume=True, vol_ratio_max=3.0, require_bb_not_extended=True),
+    "V2_ARTI_RSI": VariantFlags(
+        name="V2_ARTI_RSI", require_volume=True, vol_ratio_max=3.0, require_wavetrend=True,
+        require_green_candle=True, require_strict_ema=True, require_rsi_ok=True,
+    ),
+    "V2_ARTI_MACD": VariantFlags(
+        name="V2_ARTI_MACD", require_volume=True, vol_ratio_max=3.0, require_wavetrend=True,
+        require_green_candle=True, require_strict_ema=True, require_macd_bullish=True,
+    ),
+    "V2_ARTI_STOCHRSI": VariantFlags(
+        name="V2_ARTI_STOCHRSI", require_volume=True, vol_ratio_max=3.0, require_wavetrend=True,
+        require_green_candle=True, require_strict_ema=True, require_stoch_rsi_ok=True,
+    ),
+    "V2_ARTI_BB": VariantFlags(
+        name="V2_ARTI_BB", require_volume=True, vol_ratio_max=3.0, require_wavetrend=True,
+        require_green_candle=True, require_strict_ema=True, require_bb_not_extended=True,
     ),
 }

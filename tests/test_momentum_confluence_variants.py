@@ -136,6 +136,59 @@ def test_gevsek_hacim_esigi_daha_fazla_veya_esit_sinyal_uretir():
     assert len(loose) >= len(strict)
 
 
+# ── Yeni gostergeler (RSI/MACD/StochRSI/Bollinger) -- 2026-08-19 ──────────
+
+
+def test_rsi_surekli_yukselen_seride_yuksek_kalir():
+    close = np.cumsum(np.full(60, 1.0)) + 100.0  # kesintisiz artan
+    rsi = mcv._rsi(close, length=14)
+    assert not np.isnan(rsi[-1])
+    assert rsi[-1] > 90.0  # hic kayip yok -> RSI ~100'e yakin
+
+
+def test_rsi_surekli_dusen_seride_dusuk_kalir():
+    close = 200.0 - np.cumsum(np.full(60, 1.0))
+    rsi = mcv._rsi(close, length=14)
+    assert rsi[-1] < 10.0
+
+
+def test_macd_yukselen_trendde_pozitiftir():
+    close = np.cumsum(np.full(80, 1.0)) + 100.0
+    macd_line, signal_line = mcv._macd(close)
+    assert macd_line[-1] > 0
+    assert macd_line[-1] > signal_line[-1]
+
+
+def test_bollinger_duz_fiyatta_bantlar_esittir():
+    close = np.full(30, 100.0)
+    basis, upper, lower = mcv._bollinger(close, length=20)
+    assert upper[-1] == pytest.approx(basis[-1], abs=1e-9)
+    assert lower[-1] == pytest.approx(basis[-1], abs=1e-9)
+
+
+def test_stoch_rsi_0_100_araliginda_kalir():
+    rng = np.random.default_rng(5)
+    close = 100.0 + np.cumsum(rng.normal(0, 1, 100))
+    k, d = mcv._stoch_rsi(close)
+    valid_k = k[~np.isnan(k)]
+    valid_d = d[~np.isnan(d)]
+    assert len(valid_k) > 0
+    assert (valid_k >= -1e-6).all() and (valid_k <= 100.0 + 1e-6).all()
+    assert (valid_d >= -1e-6).all() and (valid_d <= 100.0 + 1e-6).all()
+
+
+def test_yeni_gosterge_flagleri_sinyal_sayisini_asla_arttirmaz():
+    """Her yeni gosterge kosulu, V1/V2 baseline'a EK bir filtre olarak
+    eklenir -- bu yapisal olarak sinyal sayisini ASLA ARTTIRAMAZ (sadece
+    daraltabilir/ayni kalabilir)."""
+    df = _dusustensonra_patlamali_kirilim_serisi()
+    params = mc.Params()
+    v1_baseline = mcv.detect_variant(df, params, mcv.VARIANTS["V1_BASELINE"])
+    for name in ("V1_ARTI_RSI", "V1_ARTI_MACD", "V1_ARTI_STOCHRSI", "V1_ARTI_BB"):
+        variant_signals = mcv.detect_variant(df, params, mcv.VARIANTS[name])
+        assert len(variant_signals) <= len(v1_baseline), name
+
+
 def test_variants_sozlugu_tum_flagleri_hatasiz_calistirir():
     """`VARIANTS`teki HER kombinasyon en azindan HATASIZ calismali (crash
     YOK) -- gercek sinyal sayisi 0 olabilir, bu gecerli bir sonuc, hata

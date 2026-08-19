@@ -184,7 +184,7 @@ def test_yeni_gosterge_flagleri_sinyal_sayisini_asla_arttirmaz():
     df = _dusustensonra_patlamali_kirilim_serisi()
     params = mc.Params()
     v1_baseline = mcv.detect_variant(df, params, mcv.VARIANTS["V1_BASELINE"])
-    for name in ("V1_ARTI_RSI", "V1_ARTI_MACD", "V1_ARTI_STOCHRSI", "V1_ARTI_BB"):
+    for name in ("V1_ARTI_RSI", "V1_ARTI_MACD", "V1_ARTI_STOCHRSI", "V1_ARTI_BB", "V1_ARTI_HURST"):
         variant_signals = mcv.detect_variant(df, params, mcv.VARIANTS[name])
         assert len(variant_signals) <= len(v1_baseline), name
 

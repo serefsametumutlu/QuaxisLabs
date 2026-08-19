@@ -32,6 +32,7 @@ import pandas as pd
 
 from src.analysis.abcd_pattern import atr_wilder
 from src.analysis.momentum_confluence import Params, Signal
+from src.analysis.regime_filters import TREND_THRESHOLD, rolling_hurst
 
 OHLC_COLUMNS = ("time", "open", "high", "low", "close", "volume")
 
@@ -63,6 +64,14 @@ class VariantFlags:
     require_macd_bullish: bool = False  # MACD line > signal line
     require_stoch_rsi_ok: bool = False  # %K > %D ve %K < 80 (asiri alim degil)
     require_bb_not_extended: bool = False  # close <= Bollinger UST bandi (asiri uzamis kirilim degil)
+    # --- REJIM FILTRESI (2026-08-19, kullanici harici arastirma kaynagi --
+    #     "Hurst Regime Switcher"): momentum/trend-takip stratejileri H>0.55
+    #     (kalici/trend) rejiminde daha guvenilir olmali, bkz. regime_filters.py
+    #     ust notu. `momentum_confluence.py`nin Pine-parity `detect()`'inde
+    #     hicbir zaman YOK -- SADECE bu deneysel modulde.
+    require_hurst_trend: bool = False
+    hurst_window: int = 100
+    hurst_max_lag: int = 50
 
 
 def _sma(values: np.ndarray, length: int) -> np.ndarray:
@@ -239,6 +248,10 @@ def detect_variant(df: pd.DataFrame, params: Params, flags: VariantFlags) -> lis
     if flags.require_bb_not_extended:
         _bb_basis, bb_upper, _bb_lower = _bollinger(close)
 
+    hurst = None
+    if flags.require_hurst_trend:
+        hurst = rolling_hurst(close, window=flags.hurst_window, max_lag=flags.hurst_max_lag)
+
     vol_mult_eff = flags.vol_mult if flags.vol_mult is not None else params.vol_mult
 
     cond_ini = 0
@@ -307,6 +320,10 @@ def detect_variant(df: pd.DataFrame, params: Params, flags: VariantFlags) -> lis
 
         if flags.require_bb_not_extended:
             if np.isnan(bb_upper[i]) or not (close[i] <= bb_upper[i]):
+                continue
+
+        if flags.require_hurst_trend:
+            if not (hurst[i] > TREND_THRESHOLD):
                 continue
 
         entry_ref = float(close[i])
@@ -394,5 +411,13 @@ VARIANTS: dict[str, VariantFlags] = {
     "V2_ARTI_BB": VariantFlags(
         name="V2_ARTI_BB", require_volume=True, vol_ratio_max=3.0, require_wavetrend=True,
         require_green_candle=True, require_strict_ema=True, require_bb_not_extended=True,
+    ),
+    # --- REJIM FILTRESI ablasyonu (2026-08-19, harici kaynak: "Hurst Regime
+    #     Switcher") -- H>0.55 (kalici/trend rejimi) sarti V1/V2 baseline'a
+    #     TEK BASINA eklenir, bkz. regime_filters.py ust notu. -------------------
+    "V1_ARTI_HURST": VariantFlags(name="V1_ARTI_HURST", require_volume=True, vol_ratio_max=3.0, require_hurst_trend=True),
+    "V2_ARTI_HURST": VariantFlags(
+        name="V2_ARTI_HURST", require_volume=True, vol_ratio_max=3.0, require_wavetrend=True,
+        require_green_candle=True, require_strict_ema=True, require_hurst_trend=True,
     ),
 }

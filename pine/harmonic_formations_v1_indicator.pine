@@ -58,6 +58,12 @@
 // TP2 TANIMI DEGISTI: eskiden C seviyesiydi, artik 0.618 Altin Oran (AD
 // bacaginin 61.8'i) -- kullanici karari, Python tarafi (`harmonic_xabcd.py`)
 // ile AYNI committe LOCKSTEP guncellendi.
+//
+// V2.3 DUZELTME (2026-08-19, kullanici geri bildirimi): onay detayi ARTIK
+// D etiketine YAZILMIYOR -- D etiketi SADECE "{Formasyon} BUY/SELL" (baska
+// hicbir sey). Onay kontrol listesi (RSI/MACD/Mum/Hacim + skor + D fiyati)
+// SAG UST kosede AYRI bir tabloda (`confTable`) gosterilir, her yeni D
+// sinyalinde uzerine yazilir (en son sinyali gosterir, gecmis biriktirmez).
 
 //@version=6
 indicator("Harmonic Formations V2.3 (Gartley/Bat/Butterfly/Crab/ABCD)", shorttitle="Harmonic V2.3",
@@ -154,6 +160,12 @@ var float pC_rsi = na
 var box  dZoneBox     = na
 var bool dAlertedForC = false
 var int  dActiveCBar  = -2
+
+// Onay kontrol listesi tablosu -- SAG UST kose, kullanici karari (2026-08-19):
+// "hangi sartin saglandigi/saglanmadigi D etiketine DEGIL, ayri bir tabloya
+// yazilsin". Satirlar SADECE en SON D sinyalinde guncellenir (var table --
+// bar bar YENIDEN OLUSTURULMEZ, hucreler ustune yazilir).
+var table confTable = table.new(position.top_right, 2, 6, border_width=1, frame_width=1)
 
 // ══════════════════════════════════════════════════════════
 // PATTERN VALIDATION -- X-A-B-C icin yapisal siralama + BC oran kontrolu.
@@ -358,6 +370,24 @@ if zone_valid and not dAlertedForC
              " Mum:" + candleLbl + " Hacim:" + (volOk ? "OK" : "x") + " [" + str.tostring(confScore) + "/4]"
 
         base_col = is_bear ? bear_color : bull_color
+
+        // ── Onay tablosu (SAG UST) -- D etiketi ARTIK sadece formasyon+yon,
+        // detay burada (bkz. GRP_CONF / kullanici karari 2026-08-19) ──────
+        if show_confirmation
+            ok_col  = color.new(color.teal, 0)
+            bad_col = color.new(color.gray, 40)
+            table.cell(confTable, 0, 0, formation + (is_bear ? " SELL" : " BUY"), text_color=color.white, bgcolor=base_col, text_size=size.small)
+            table.cell(confTable, 1, 0, "[" + str.tostring(confScore) + "/4]", text_color=color.white, bgcolor=base_col, text_size=size.small)
+            table.cell(confTable, 0, 1, "RSI", text_color=color.gray, text_size=size.small)
+            table.cell(confTable, 1, 1, rsiOk ? "✓" : "✕", text_color=rsiOk ? ok_col : bad_col, text_size=size.small)
+            table.cell(confTable, 0, 2, "MACD", text_color=color.gray, text_size=size.small)
+            table.cell(confTable, 1, 2, macdOk ? "✓" : "✕", text_color=macdOk ? ok_col : bad_col, text_size=size.small)
+            table.cell(confTable, 0, 3, "Mum", text_color=color.gray, text_size=size.small)
+            table.cell(confTable, 1, 3, candleOk ? candleLbl : "✕", text_color=candleOk ? ok_col : bad_col, text_size=size.small)
+            table.cell(confTable, 0, 4, "Hacim", text_color=color.gray, text_size=size.small)
+            table.cell(confTable, 1, 4, volOk ? "✓" : "✕", text_color=volOk ? ok_col : bad_col, text_size=size.small)
+            table.cell(confTable, 0, 5, "D fiyatı", text_color=color.gray, text_size=size.small)
+            table.cell(confTable, 1, 5, str.tostring(d_price, format.mintick), text_color=color.silver, text_size=size.small)
         fill_col = color.new(is_bear ? color.red : color.green, fill_transp)
         line_col = color.new(base_col, 10)
         lbl_col  = color.new(base_col, 20)
@@ -398,11 +428,11 @@ if zone_valid and not dAlertedForC
                   color     = color.new(base_col, 75),
                   textcolor = lbl_col, size=size.small)
 
-        // ── D sinyal etiketi (ANLIK -- mum kapanmadan) ──────────────────
-        d_label_text = formation + (is_bear ? " D SELL (anlik)" : " D BUY (anlik)") +
-             (show_confirmation ? "\n" + confText : "")
+        // ── D sinyal etiketi (ANLIK -- mum kapanmadan). SADECE formasyon +
+        // yon -- kullanici karari (2026-08-19): "baska bir sey yazmasin,
+        // hangi formasyonda geldiyse o yazsin". Onay detayi confTable'da.
         label.new(d_bar, d_price,
-                  d_label_text,
+                  formation + (is_bear ? " SELL" : " BUY"),
                   style     = is_bear ? label.style_label_down : label.style_label_up,
                   color     = line_col,
                   textcolor = color.white,

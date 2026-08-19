@@ -50,3 +50,12 @@ yfinance>=0.2
 # modulde kullanilir.
 scipy>=1.11
 statsmodels>=0.14
+
+# Wavelet Trend Rider stratejisi icin (bkz. src/analysis/wavelet_trend_rider.py) --
+# Daubechies-8 dalgacik gurultu temizlemesi, sadece bu modulde kullanilir.
+PyWavelets>=1.5
+
+# Yeni strateji arastirmasi -- ornek sinyal mumlarini gorsellestirmek icin
+# (bkz. scripts/strateji_arastirma_backtest.py), sadece scripts/ katmaninda.
+matplotlib>=3.8
+mplfinance>=0.12

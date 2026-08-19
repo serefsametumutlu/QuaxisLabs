@@ -64,9 +64,12 @@ parity zorunlulugu, Decimal istisnasi `abcd_pattern.py` ile AYNI gerekce).
 Eskiden `tp2 = c_price` (D'nin C'ye geri donusu) idi. Kullanicinin paylastigi
 "Harmonik Formasyonlar Gelistirilmis Teknik Analiz Raporu" TP2'yi ACIKCA
 "0.618 Altin Oran" olarak tanimliyor -- artik `tp2 = d_price +/- ad_range *
-0.618` (TP1'in 0.382'sinin AYNI dogrultuda devami, `abcd_backtest`in %50/%50
-kismi cikis motoruyla dogrudan uyumlu: TP1'de yari pozisyon + SL basabasa,
-TP2'de kalan yari kapanir). Pine kaynagi (`pine/harmonic_formations_v1_
+0.618` (TP1'in 0.382'sinin AYNI dogrultuda devami). `abcd_backtest.
+BacktestParams.tp1_pct` (varsayilan 0.40) TP1'de pozisyonun %40'ini kapatir,
+KALAN %60 TP2/SL'den HANGISI ONCE gelirse orada kapanir -- kullanicinin
+raporundaki "TP1'de SL basabasa cekilir" (breakeven move) `abcd_backtest.py`
+motorunda YOK (bu, kullaniciya acikca soylenmesi gereken bir FARK, sessizce
+"uyumlu" varsayilmadi). Pine kaynagi (`pine/harmonic_formations_v1_
 indicator.pine`) AYNI committe guncellendi. Bu, `docs/spec/HARMONIC_INSTANT_
 D_BACKTEST.md`deki ESKI PF tablosunu GECERSIZ kilar (TP2 farkli oldugu icin
 R-multiple'lar degisir) -- `harmonic_scanner._PF_TABLE` bu yuzden `docs/spec/

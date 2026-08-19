@@ -58,6 +58,19 @@ gercekten bir onayli `Signal` uretilip uretilmedigine bakilarak (bkz.
 Katman disiplini: `abcd_pattern.py` ile AYNI -- `src.fetchers.*`/`src.db.*`
 HICBIR modulu import etmez, tamamen float + numpy/pandas (Pine float64
 parity zorunlulugu, Decimal istisnasi `abcd_pattern.py` ile AYNI gerekce).
+
+## TP2 tanimi degisti (2026-08-19, kullanici karari)
+
+Eskiden `tp2 = c_price` (D'nin C'ye geri donusu) idi. Kullanicinin paylastigi
+"Harmonik Formasyonlar Gelistirilmis Teknik Analiz Raporu" TP2'yi ACIKCA
+"0.618 Altin Oran" olarak tanimliyor -- artik `tp2 = d_price +/- ad_range *
+0.618` (TP1'in 0.382'sinin AYNI dogrultuda devami, `abcd_backtest`in %50/%50
+kismi cikis motoruyla dogrudan uyumlu: TP1'de yari pozisyon + SL basabasa,
+TP2'de kalan yari kapanir). Pine kaynagi (`pine/harmonic_formations_v1_
+indicator.pine`) AYNI committe guncellendi. Bu, `docs/spec/HARMONIC_INSTANT_
+D_BACKTEST.md`deki ESKI PF tablosunu GECERSIZ kilar (TP2 farkli oldugu icin
+R-multiple'lar degisir) -- `harmonic_scanner._PF_TABLE` bu yuzden `docs/spec/
+HARMONIC_CONFIRMATION_OPTIMIZASYON.md` yeni sonuclariyla guncellenmelidir.
 """
 
 from __future__ import annotations
@@ -295,11 +308,12 @@ def detect(df: pd.DataFrame, params: Params) -> list[Signal]:
                 ad_range = abs(a_price - d_price)
                 if is_bear:
                     tp1 = d_price - ad_range * 0.382
+                    tp2 = d_price - ad_range * 0.618
                     sl = d_price + params.atr_mult * atr14[signal_bar]
                 else:
                     tp1 = d_price + ad_range * 0.382
+                    tp2 = d_price + ad_range * 0.618
                     sl = d_price - params.atr_mult * atr14[signal_bar]
-                tp2 = c_price
 
                 signals.append(
                     Signal(
@@ -475,11 +489,12 @@ def detect_prz(df: pd.DataFrame, params: Params) -> list[PrzEvent]:
         ad_range = abs(q_a[0] - touch_price)
         if is_bear2:
             tp1 = touch_price - ad_range * 0.382
+            tp2 = touch_price - ad_range * 0.618
             sl = touch_price + params.atr_mult * atr14[signal_bar]
         else:
             tp1 = touch_price + ad_range * 0.382
+            tp2 = touch_price + ad_range * 0.618
             sl = touch_price - params.atr_mult * atr14[signal_bar]
-        tp2 = q_c[0]
 
         events.append(
             PrzEvent(

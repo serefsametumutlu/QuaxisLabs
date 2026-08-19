@@ -33,6 +33,7 @@ from datetime import datetime, timezone
 from typing import Callable
 
 from src.analysis import harmonic_xabcd
+from src.analysis.harmonic_confirmation import ConfirmationFlags, compute_indicator_series, evaluate_confirmations
 from src.analysis.harmonic_xabcd import Params, PrzEvent, detect_prz
 from src.fetchers.abcd_data import fetch_ohlcv_abcd
 
@@ -88,6 +89,7 @@ class ScannedPrz:
     event: PrzEvent
     bars_ago: int  # 0 = bu bar (en guncel) icinde D bolgesine deydi
     confidence: str
+    confirmation: ConfirmationFlags  # RSI/MACD/mum/hacim kontrol listesi (bkz. harmonic_confirmation.py)
 
 
 @dataclass
@@ -111,6 +113,7 @@ def _scan_one_symbol(
         raise RuntimeError("veri donmedi (bos DataFrame)")
 
     n = len(df)
+    indicators = compute_indicator_series(df)  # sembol basina TEK SEFER (bkz. IndicatorSeries docstring)
     out: dict[str, tuple[list[ScannedPrz], list[ScannedPrz]]] = {}
     for formation in formation_names:
         params = ALL_FORMATIONS[formation]
@@ -121,12 +124,14 @@ def _scan_one_symbol(
             bars_ago = (n - 1) - ev.signal_bar
             if bars_ago < 0 or bars_ago >= lookback_bars:
                 continue
+            flags = evaluate_confirmations(df, indicators, ev.direction, ev.b_bar, ev.b_price, ev.d_bar, ev.d_price)
             scanned = ScannedPrz(
                 symbol=symbol,
                 formation=formation,
                 event=ev,
                 bars_ago=bars_ago,
                 confidence=guven_etiketi(formation, tf, ev.direction),
+                confirmation=flags,
             )
             (buys if ev.direction > 0 else sells).append(scanned)
         out[formation] = (buys, sells)
@@ -198,12 +203,25 @@ def _escape_code_block(text: str) -> str:
     return text.replace("\\", "\\\\").replace("`", "\\`")
 
 
+def _fmt_confirmation(c: ConfirmationFlags) -> str:
+    """Kullanici talebi (2026-08-19): sinyalde sadece formasyonun olustugu
+    degil, RSI/MACD/mum/hacim kosullarinin AYRI AYRI durumu da gorulmeli --
+    HICBIRI sinyali FILTRELEMEZ, sadece bilgilendirir (bkz. modul ust notu)."""
+    rsi_mark = "✅" if c.rsi_ok else "❌"
+    macd_mark = "✅" if c.macd_ok else "❌"
+    candle_mark = f"✅({c.candle_pattern})" if c.candle_ok else "❌"
+    vol_mark = "✅" if c.volume_ok else "❌"
+    rsi_val = f"{c.rsi_value:.0f}" if c.rsi_value is not None else "n/a"
+    return f"RSI{rsi_mark}({rsi_val}) MACD{macd_mark} Mum{candle_mark} Hacim{vol_mark} [{c.score}/4]"
+
+
 def _fmt_line(item: ScannedPrz) -> str:
     ev = item.event
     ago = "bu bar" if item.bars_ago == 0 else f"{item.bars_ago} bar once"
     return (
         f"{item.symbol} | D bolgesine giris: {ago} | giris {ev.entry_ref:.4g} | "
-        f"TP1 {ev.tp1:.4g} | TP2 {ev.tp2:.4g} | SL {ev.sl:.4g} | {item.confidence}"
+        f"TP1 {ev.tp1:.4g} | TP2 {ev.tp2:.4g} | SL {ev.sl:.4g} | {item.confidence}\n"
+        f"    Onay: {_fmt_confirmation(item.confirmation)}"
     )
 
 

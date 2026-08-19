@@ -25,12 +25,12 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fi
 
 import config
 from src.ai import commentary
-from src.analysis import abcd_scanner, calculator, harmonic_scanner, technical, trends
+from src.analysis import abcd_scanner, calculator, harmonic_scanner, momentum_scanner, technical, trends
 from src.analysis.abcd_pattern import Params as AbcdParams
 from src.analysis.abcd_pattern import detect as abcd_detect
 from src.bot import fund_pipeline, ipo_pipeline, menu, pipeline
 from src.db import models, repository
-from src.fetchers import kap_ipo, price_history
+from src.fetchers import abcd_data, kap_ipo, price_history
 from src.fetchers.abcd_data import fetch_ohlcv_abcd
 from src.formatting import format_number_tr
 from src.render import (
@@ -128,6 +128,11 @@ WIZ_ABCD = "abcd"
 # Harmonik (Anlik D / V2.2) tarama akisi -- ABCD ile AYNI savunmaci desen,
 # AYRI bir on ek ("harm:..."), AYRI bir CallbackQueryHandler (pattern=r"^harm:").
 WIZ_HARM = "harm"
+
+# Indikatorler (Momentum Confluence V1/V2 tarama, 2026-08-19) -- HARM ile
+# AYNI savunmaci desen, AYRI bir on ek ("ind:..."), AYRI bir
+# CallbackQueryHandler (pattern=r"^ind:").
+WIZ_IND = "ind"
 
 # --- Es zamanlilik / hiz siniri (bellek-ici, tek surec varsayimiyla) -----------------------------------------------------
 
@@ -871,8 +876,10 @@ async def _execute_abcd_scan(status_message, tf: str) -> None:
         await _safe_edit("⚠️ Tarama başarısız oldu, birkaç dakika sonra tekrar dene.")
         return
 
-    report = abcd_scanner.format_report(result, markdown=True)
+    # format_report try/except ICINE alindi -- bkz. handle_indikator_callback
+    # yanindaki "DUZELTILEN BUG" notu (2026-08-19, AYNI Kural 9 bosluğu).
     try:
+        report = abcd_scanner.format_report(result, markdown=True)
         await status_message.edit_text(report, parse_mode="MarkdownV2")
     except Exception:
         logger.exception("ABCD tarama raporu gönderilemedi (tf=%s)", tf)
@@ -1021,7 +1028,15 @@ async def _execute_harm_scan(status_message, context: ContextTypes.DEFAULT_TYPE,
         await _safe_edit("⚠️ Tarama başarısız oldu, birkaç dakika sonra tekrar dene.")
         return
 
-    report = harmonic_scanner.format_report(result, markdown=True)
+    # format_report try/except ICINE alindi -- bkz. handle_indikator_callback
+    # yanindaki "DUZELTILEN BUG" notu (2026-08-19, AYNI Kural 9 bosluğu).
+    try:
+        report = harmonic_scanner.format_report(result, markdown=True)
+    except Exception:
+        logger.exception("Harmonik tarama raporu bicimlendirilemedi (formasyon=%s, tf=%s)", formation, tf)
+        await _safe_edit("Tarama tamamlandı ama rapor hazırlanamadı.")
+        return
+
     # Coklu-formasyon (HEPSI) raporu Telegram'in 4096 karakter mesaj sinirini
     # asabilir -- MarkdownV2 fenced code block PARCALAMA gerektirir (tek
     # mesaj icinde bolunmus bir ``` bloğu BOZULUR). Basitce formasyon
@@ -1048,8 +1063,8 @@ async def _execute_harm_scan(status_message, context: ContextTypes.DEFAULT_TYPE,
             sells={single_formation: result.sells[single_formation]},
             errors=result.errors,
         )
-        single_report = harmonic_scanner.format_report(single_result, markdown=True)
         try:
+            single_report = harmonic_scanner.format_report(single_result, markdown=True)
             await context.bot.send_message(
                 chat_id=status_message.chat_id, text=single_report, parse_mode="MarkdownV2"
             )
@@ -1084,6 +1099,128 @@ async def handle_harm_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         etiket = "TÜM formasyonlar" if formation == "HEPSI" else formation
         status = await query.edit_message_text(f"🌀 Harmonik ({etiket}, {tf}) taraması başlıyor...")
         await _execute_harm_scan(status, context, formation, tf)
+        return
+
+
+# --- İndikatörler (Momentum Confluence V1/V2 tarama, 2026-08-19) -----------------------------------------------------
+#
+# `_execute_harm_scan`in AYNI ilerleme-checkpoint deseni -- tek fark:
+# `momentum_scanner.scan()` TEK varyanti (v1 veya v2) tarar, BUY/SELL ayrimi
+# yok (kaynakta SADECE LONG var, bkz. momentum_confluence.py modul ust notu).
+_IND_SCAN_N_BARS = 300  # 1000'den dusuruldu (2026-08-19): EMA/TRF warmup icin FAZLASIYLA yeterli
+_IND_LOOKBACK_BARS = 5
+
+# GUVENLIK AGI (2026-08-19, canli kullanici raporu: tekrarlanan "657/657'de
+# takili, hic cevap gelmiyor" -- yerel senkron testlerde tarama guvenilir
+# sekilde ~1-2 dakikada bitiyor, ama canli sunucunun ag kosullari farkli
+# olabilir ve tam kok neden KESIN teshis edilemedi). Bu, kok nedeni
+# COZMEZ -- sadece kullaniciya HER DURUMDA (tarama gercekten cok uzun
+# surse BILE) sinirli surede bir YANIT gitmesini garanti eder; sonsuz
+# sessizlik yerine acikca "zaman asimi" mesaji. Arka plandaki thread
+# zorla DURDURULAMAZ (Python threadleri iptal edilemez) ama bu ZARARSIZ --
+# sonucu artik kimse beklemiyor.
+_IND_SCAN_TIMEOUT_SECONDS = 240
+
+
+async def _execute_ind_scan(status_message, variant: str, tf: str) -> None:
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    async def _safe_edit(text: str) -> None:
+        try:
+            await status_message.edit_text(text)
+        except Exception:
+            pass
+
+    label = momentum_scanner.VARIANT_LABELS.get(variant, variant)
+
+    def _fetch_symbols() -> list[str]:
+        # Bilinen-olu (negatif onbellekli) semboller EVRENDEN ONCEDEN
+        # elenir (2026-08-19, kullanici istegi) -- `_cached_fetch` zaten
+        # bunlari ag'a gitmeden bos donduruyordu, bu SADECE ilerleme
+        # sayacini/thread havuzu baskisini kucultur, davranissal fark
+        # YARATMAZ.
+        all_symbols = abcd_scanner.get_bist_universe()
+        return [s for s in all_symbols if not abcd_data.is_marked_dead(s, tf)]
+
+    symbols = await asyncio.to_thread(_fetch_symbols)
+    total = len(symbols)
+    milestones = _abcd_progress_milestones(total)
+
+    await _safe_edit(f"📶 {label} ({tf}) taranıyor: 0/{total}")
+
+    def on_progress(done: int, done_total: int) -> None:
+        if loop is not None and done in milestones:
+            asyncio.run_coroutine_threadsafe(_safe_edit(f"📶 {label} ({tf}) taranıyor: {done}/{done_total}"), loop)
+
+    try:
+        result = await asyncio.wait_for(
+            asyncio.to_thread(
+                momentum_scanner.scan,
+                symbols,
+                tf,
+                variant,
+                _IND_LOOKBACK_BARS,
+                _IND_SCAN_N_BARS,
+                _ABCD_SCAN_WORKERS,
+                on_progress,
+            ),
+            timeout=_IND_SCAN_TIMEOUT_SECONDS,
+        )
+    except TimeoutError:
+        logger.warning("İndikatör taraması zaman aşımına uğradı (varyant=%s, tf=%s, %ss)", variant, tf, _IND_SCAN_TIMEOUT_SECONDS)
+        await _safe_edit(
+            f"⏱️ Tarama {_IND_SCAN_TIMEOUT_SECONDS}s içinde bitmedi (ağ yavaş olabilir), zaman aşımına uğradı. Birkaç dakika sonra tekrar dene."
+        )
+        return
+    except Exception:
+        logger.exception("İndikatör taraması başarısız oldu (varyant=%s, tf=%s)", variant, tf)
+        await _safe_edit("⚠️ Tarama başarısız oldu, birkaç dakika sonra tekrar dene.")
+        return
+
+    # DUZELTILEN BUG (2026-08-19, canli tarama raporu: tarama "657/657"e
+    # ulasiyor ama HICBIR mesaj gelmiyordu): `format_report` cagrisi eskiden
+    # try/except DISINDAYDI -- icinde beklenmeyen bir istisna olursa (Kural
+    # 9 ihlali) coroutine SESSIZCE cokuyordu, kullaniciya HICBIR mesaj
+    # gitmiyordu (PTB'nin global hata isleyicisi sadece LOGLAR, kullaniciya
+    # bir sey GONDERMEZ). Simdi format_report de ayni guvenlik agina alindi.
+    try:
+        report = momentum_scanner.format_report(result, markdown=True)
+        await status_message.edit_text(report, parse_mode="MarkdownV2")
+    except Exception:
+        logger.exception("İndikatör tarama raporu gönderilemedi (varyant=%s, tf=%s)", variant, tf)
+        await _safe_edit(f"Tarama tamamlandı ({len(result.signals)} sinyal) ama rapor gönderilemedi.")
+
+
+async def handle_indikator_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """'📶 İndikatörler' akışının TEK giriş noktası. callback_data: 'ind:menu'
+    | 'ind:tfmenu:{variant}' | 'ind:tf:{variant}:{tf}' (bkz. menu.py
+    'İndikatörler' bölümü)."""
+    query = update.callback_query
+    await query.answer()
+
+    parts = (query.data or "").split(":")
+    if parts[0] != WIZ_IND:
+        return
+
+    action = parts[1] if len(parts) > 1 else None
+
+    if action == "menu":
+        await query.edit_message_text(menu.IND_MENU_TEXT, reply_markup=menu.build_indikator_menu())
+        return
+
+    if action == "tfmenu" and len(parts) >= 3:
+        variant = parts[2]
+        await query.edit_message_text(menu.IND_TF_TEXT, reply_markup=menu.build_indikator_tf_menu(variant))
+        return
+
+    if action == "tf" and len(parts) >= 4:
+        variant, tf = parts[2], parts[3]
+        label = momentum_scanner.VARIANT_LABELS.get(variant, variant)
+        status = await query.edit_message_text(f"📶 {label} ({tf}) taraması başlıyor...")
+        await _execute_ind_scan(status, variant, tf)
         return
 
 
@@ -1786,6 +1923,11 @@ async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         await query.edit_message_text(menu.FORMASYONLAR_MENU_TEXT, reply_markup=menu.build_formasyonlar_menu())
         return
 
+    if screen == "indikator":
+        menu.clear_bekleyen_islem(context.user_data)
+        await query.edit_message_text(menu.IND_MENU_TEXT, reply_markup=menu.build_indikator_menu())
+        return
+
     if screen == "fonanaliz":
         if sub == "tekli":
             menu.set_bekleyen_islem(context.user_data, tip="fonanaliz", market="-")
@@ -1890,9 +2032,10 @@ def build_application() -> Application:
     application.add_handler(CommandHandler("teknik", cmd_teknik))
     application.add_handler(CommandHandler("temel", cmd_temel))
     application.add_handler(CommandHandler("degerleme", cmd_degerleme))
-    application.add_handler(CommandHandler("fon", cmd_fon))
+    # /fon ve /son kaldirildi (kullanici karari, 2026-08-19): 'Fon Analiz' ve
+    # 'Son Kartlar' ana menuden cikarildi -- alttaki cmd_fon/cmd_son/
+    # fund_pipeline kodu ve testleri DOKUNULMADAN kaldi (kolay geri donus).
     application.add_handler(CommandHandler("halkaarz", cmd_halkaarz))
-    application.add_handler(CommandHandler("son", cmd_son))
     application.add_handler(CommandHandler("takvim", cmd_takvim))
     application.add_handler(CommandHandler("piyasa", cmd_piyasa))
     application.add_handler(CommandHandler("hakkinda", cmd_hakkinda))
@@ -1902,6 +2045,7 @@ def build_application() -> Application:
     application.add_handler(CallbackQueryHandler(handle_halkaarz_callback, pattern=r"^halkaarz:"))
     application.add_handler(CallbackQueryHandler(handle_abcd_callback, pattern=r"^abcd:"))
     application.add_handler(CallbackQueryHandler(handle_harm_callback, pattern=r"^harm:"))
+    application.add_handler(CallbackQueryHandler(handle_indikator_callback, pattern=r"^ind:"))
     application.add_handler(CallbackQueryHandler(handle_menu_callback, pattern=r"^menu:"))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_ticker_message))
     application.add_error_handler(_on_error)

@@ -84,17 +84,21 @@ def get_son_market(user_data: dict) -> str:
 
 
 def build_root_menu() -> InlineKeyboardMarkup:
+    """Kullanıcı kararı (2026-08-19): '💰 Fon Analiz' ve '🕘 Son Kartlar' dalları
+    ana menüden kaldırıldı (sadece menü/komut erişimi -- alttaki fund_pipeline/
+    _son_kartlar_metni kodu ve testleri DOKUNULMADAN kalır, kolay geri
+    dönüşe izin vermek için bkz. telegram_bot.py CommandHandler kaydı notu).
+    Yerine '📶 İndikatörler' eklendi (Momentum Confluence V1/V2 taraması)."""
     return InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("📊 Bilanço Analizi", callback_data="menu:analiz")],
             [InlineKeyboardButton("📈 Teknik Görünüm", callback_data="menu:teknikanaliz")],
             [InlineKeyboardButton("🔬 Detaylı Analiz (Derin Kart)", callback_data="menu:derinanaliz")],
             [InlineKeyboardButton("🧮 Değerleme", callback_data="menu:degerleme")],
-            [InlineKeyboardButton("💰 Fon Analiz", callback_data="menu:fonanaliz")],
             [InlineKeyboardButton("🆕 Halka Arz İnceleme", callback_data="menu:halkaarz")],
             [InlineKeyboardButton("📅 Yaklaşan Bilanço Tarihleri", callback_data="menu:takvim")],
             [InlineKeyboardButton("🔺 Formasyonlar", callback_data="menu:formasyonlar")],
-            [InlineKeyboardButton("🕘 Son Kartlar", callback_data="menu:son")],
+            [InlineKeyboardButton("📶 İndikatörler", callback_data="menu:indikator")],
             [InlineKeyboardButton("ℹ️ Hakkında", callback_data="menu:hakkinda")],
         ]
     )
@@ -284,6 +288,34 @@ def build_harm_formation_menu() -> InlineKeyboardMarkup:
 def build_harm_tf_menu(formation: str) -> InlineKeyboardMarkup:
     tf_row = [InlineKeyboardButton(tf, callback_data=f"harm:tf:{formation}:{tf}") for tf in _HARM_TIMEFRAMES]
     return InlineKeyboardMarkup([tf_row, [InlineKeyboardButton("⬅️ Geri", callback_data="harm:menu")]])
+
+
+# --- İndikatörler (Momentum Confluence V1/V2 tarama, 2026-08-19) -----------------------------------------------------
+#
+# `ind:...` callback_data ailesi -- `harm:...` ile AYNI 3-adimli desen
+# (`ind:menu` varyant secimi -> `ind:tfmenu:{variant}` zaman dilimi secimi ->
+# `ind:tf:{variant}:{tf}` DOGRUDAN tum BIST taramasi baslar, tekli hisse
+# modu YOK -- kullanici karari: Harmonik Tarama'nin basit akisi model alindi).
+# `variant` "v1" | "v2" (`src.analysis.momentum_confluence.detect`in
+# `variant` parametresiyle AYNI degerler). Sadece 240/1D backtest edildi
+# (bkz. `docs/spec/MOMENTUM_CONFLUENCE_OPTIMIZASYON.md`), `_HARM_TIMEFRAMES`
+# ile AYNI iki zaman dilimi kullanilir.
+_IND_VARIANTS: tuple[tuple[str, str], ...] = (("v1", "🌊 Momentum Confluence V1"), ("v2", "🌊 Momentum Confluence V2"))
+_IND_TIMEFRAMES: tuple[str, ...] = ("240", "1D")
+
+IND_MENU_TEXT = "📶 İndikatörler — hangi göstergeyi taratayım?"
+IND_TF_TEXT = "Zaman dilimini seç:"
+
+
+def build_indikator_menu() -> InlineKeyboardMarkup:
+    rows = [[InlineKeyboardButton(label, callback_data=f"ind:tfmenu:{variant}")] for variant, label in _IND_VARIANTS]
+    rows.append([InlineKeyboardButton("⬅️ Geri", callback_data="menu:root")])
+    return InlineKeyboardMarkup(rows)
+
+
+def build_indikator_tf_menu(variant: str) -> InlineKeyboardMarkup:
+    tf_row = [InlineKeyboardButton(tf, callback_data=f"ind:tf:{variant}:{tf}") for tf in _IND_TIMEFRAMES]
+    return InlineKeyboardMarkup([tf_row, [InlineKeyboardButton("⬅️ Geri", callback_data="ind:menu")]])
 
 
 def build_analiz_bekleniyor_menu() -> InlineKeyboardMarkup:

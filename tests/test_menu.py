@@ -21,19 +21,19 @@ def _callback_data_grid(markup) -> list[list[str]]:
 
 
 def test_build_root_menu_on_dal_icerir() -> None:
-    """Faz 6: '🔺 Formasyonlar' (menu:formasyonlar) eklendi -- eskiden dokuz
-    dal vardı (bkz. git geçmişi)."""
+    """2026-08-19: 'menu:fonanaliz'/'menu:son' ana menüden kaldırıldı,
+    'menu:indikator' (Momentum Confluence V1/V2 tarama) eklendi -- eskiden
+    on dal vardı (bkz. git geçmişi)."""
     grid = _callback_data_grid(menu.build_root_menu())
     assert grid == [
         ["menu:analiz"],
         ["menu:teknikanaliz"],
         ["menu:derinanaliz"],
         ["menu:degerleme"],
-        ["menu:fonanaliz"],
         ["menu:halkaarz"],
         ["menu:takvim"],
         ["menu:formasyonlar"],
-        ["menu:son"],
+        ["menu:indikator"],
         ["menu:hakkinda"],
     ]
 
@@ -109,6 +109,16 @@ def test_abcd_mode_keyboard_tekli_tarama_ve_geri_icerir() -> None:
     assert grid == [["abcd:mode:tekli"], ["abcd:mode:tarama"], ["menu:formasyonlar"]]
 
 
+def test_build_indikator_menu_v1_v2_ve_geri_icerir() -> None:
+    grid = _callback_data_grid(menu.build_indikator_menu())
+    assert grid == [["ind:tfmenu:v1"], ["ind:tfmenu:v2"], ["menu:root"]]
+
+
+def test_build_indikator_tf_menu_secilen_varyanti_callback_datayla_tasir() -> None:
+    grid = _callback_data_grid(menu.build_indikator_tf_menu("v2"))
+    assert grid == [["ind:tf:v2:240", "ind:tf:v2:1D"], ["ind:menu"]]
+
+
 @pytest.mark.parametrize("mode", ["tekli", "tarama"])
 def test_abcd_tf_keyboard_bes_zaman_dilimi_tek_satirda_ve_geri(mode: str) -> None:
     grid = _callback_data_grid(menu.abcd_tf_keyboard(mode))
@@ -176,6 +186,9 @@ def test_build_alt_ekran_menu_geri_ana_menuye_doner() -> None:
         "menu:takvim:bist",
         "menu:takvim:nasdaq",
         "menu:son",
+        "menu:indikator",
+        "ind:tfmenu:v1",
+        "ind:tf:v2:240",
         "menu:hakkinda",
         "menu:root",
     ],

@@ -100,6 +100,86 @@ def test_resample_to_hours_origin_09_00_istanbul_a_sabitlenir():
     assert result.iloc[0]["close"] == 13.5
 
 
+def test_resample_to_hours_1h_bari_4h_sinirini_boler_bug_kaniti():
+    """DUZELTILEN BUG'in KENDISI (bkz. abcd_data.py modul ust notu, HURGZ
+    2026-08-19): 1sa'lik "16:30" etiketli bar gercekte [16:30,17:30)
+    kapsar -- 4H sinirini (17:00) icten boler ve pandas resample onu
+    TAMAMEN 13:00 kovanina atar, oysa 17:00-17:30 kismi GERCEKTE 17:00
+    kovanina aittir. Bu test SADECE 1sa kaynakla bu bulanikligin var
+    OLDUGUNU kanitlar (hibrit/30dk duzeltmesi _fetch_raw_ohlcv testinde)."""
+    tz = abcd_data.TZ_ISTANBUL
+    times = pd.to_datetime(
+        ["2026-08-18 13:30", "2026-08-18 14:30", "2026-08-18 15:30", "2026-08-18 16:30", "2026-08-18 17:30"]
+    ).tz_localize(tz)
+    df = pd.DataFrame(
+        {
+            "time": times,
+            "open": [7.38, 7.5, 7.3, 7.23, 7.84],
+            "high": [7.65, 7.6, 7.4, 7.96, 8.10],
+            "low": [7.23, 7.3, 7.2, 7.23, 7.82],
+            # "16:30" barinin close'u (7.84) [16:30,17:30) icindeki 17:00
+            # SONRASI fiyatidir -- gercekte 17:00 kovanina ait olmali.
+            "close": [7.5, 7.3, 7.24, 7.84, 7.96],
+            "volume": [100] * 5,
+        }
+    )
+
+    result = abcd_data._resample_to_hours(df, hours=4)
+
+    kovan_13 = result[result["time"].dt.hour == 13].iloc[0]
+    # BUG: 13:00 kovani "16:30" barini (ve onun 17:00-sonrasi fiyatini) yutar.
+    assert kovan_13["close"] == 7.84
+    assert kovan_13["high"] == 7.96
+
+
+def test_fetch_raw_ohlcv_240_son_gunler_30dk_kaynagindan_gelir(monkeypatch):
+    """Hibrit kaynak (kullanici karari, 2026-08-19): `_fetch_raw_ohlcv`
+    120/240dk icin SON `_RECENT_INTRADAY_DAYS` gunu 30dk'lik (sinir-kaymasi
+    OLMAYAN) veriden, daha eskisini 1sa'lik veriden alip 30dk kaynagin ilk
+    barindan KESEREK birlestirmeli."""
+    tz = abcd_data.TZ_ISTANBUL
+
+    def _fake_history(yf_symbol, interval, period):
+        if interval == "1h":
+            # Eski gun (17 Agustos), 1sa kaynaktan -- ":30" kaymali.
+            times = pd.to_datetime(
+                ["2026-08-17 09:30", "2026-08-17 10:30", "2026-08-17 11:30", "2026-08-17 12:30"]
+            ).tz_localize(tz)
+            return _fake_yf_frame(times, [7.6] * 4, [7.7] * 4, [7.5] * 4, [7.6] * 4, [100] * 4)
+        if interval == "30m":
+            # Son gun (18 Agustos), 30dk kaynaktan -- ":00/:30" hizali,
+            # 1sa kaynaktan FARKLI/ayirt edilebilir bir close (9.99) tasir.
+            times = pd.to_datetime(
+                ["2026-08-18 09:30", "2026-08-18 10:00", "2026-08-18 10:30", "2026-08-18 11:00"]
+            ).tz_localize(tz)
+            return _fake_yf_frame(times, [7.3] * 4, [7.4] * 4, [7.2] * 4, [7.3, 7.3, 7.3, 9.99], [50] * 4)
+        raise AssertionError(f"beklenmeyen interval: {interval!r}")
+
+    monkeypatch.setattr(abcd_data, "_yf_history", _fake_history)
+
+    result = abcd_data._fetch_raw_ohlcv("HURGZ.IS", "240", n_bars=10)
+
+    gun17 = result[result["time"].dt.date == pd.Timestamp("2026-08-17").date()]
+    gun18 = result[result["time"].dt.date == pd.Timestamp("2026-08-18").date()]
+    assert len(gun17) == 1 and gun17.iloc[0]["close"] == 7.6  # eski gun: 1sa kaynaktan
+    assert len(gun18) == 1 and gun18.iloc[0]["close"] == 9.99  # son gun: 30dk kaynaktan
+
+
+def test_fetch_raw_ohlcv_240_30dk_veri_bossa_eski_kaynaga_duser(monkeypatch):
+    def _fake_history(yf_symbol, interval, period):
+        if interval == "1h":
+            times = pd.to_datetime(["2026-08-17 09:30", "2026-08-17 10:30"]).tz_localize(abcd_data.TZ_ISTANBUL)
+            return _fake_yf_frame(times, [7.6, 7.6], [7.7, 7.7], [7.5, 7.5], [7.6, 7.6], [100, 100])
+        return pd.DataFrame()  # "30m" bos donuyor (orn. ag hatasi)
+
+    monkeypatch.setattr(abcd_data, "_yf_history", _fake_history)
+
+    result = abcd_data._fetch_raw_ohlcv("HURGZ.IS", "240", n_bars=10)
+
+    assert len(result) == 1
+    assert result.iloc[0]["close"] == 7.6
+
+
 def test_fetch_ohlcv_abcd_parquet_onbellek_dogru_path_te_olusur(monkeypatch, tmp_path):
     monkeypatch.setattr(abcd_data, "_CACHE_DIR", tmp_path)
 
@@ -184,7 +264,7 @@ def test_hicbir_onbellegi_olmayan_sembol_basarisiz_olunca_negatif_onbellege_isar
     abcd_data.fetch_ohlcv_abcd("OLU", "1D")
 
     assert abcd_data._is_marked_dead("OLU", "1D") is True
-    assert len(calls) == 3  # _retry'nin 3 denemesi tuketildi
+    assert len(calls) == 2  # _retry'nin 2 denemesi tuketildi (2026-08-19: 3'ten dusuruldu, bkz. modul ust notu)
 
 
 def test_negatif_onbellekteki_sembol_ag_cagrisi_yapmadan_bos_doner(monkeypatch, tmp_path):
@@ -203,6 +283,17 @@ def test_negatif_onbellekteki_sembol_ag_cagrisi_yapmadan_bos_doner(monkeypatch, 
     assert result.empty
     assert list(result.columns) == abcd_data.OHLCV_COLUMNS
     assert len(calls) == 0
+
+
+def test_is_marked_dead_public_sarmalayici(monkeypatch, tmp_path):
+    """`is_marked_dead` -- tarayicilarin (bkz. momentum_scanner/telegram_bot)
+    evreni ONCEDEN kucultmesi icin PUBLIC sarmalayici (2026-08-19)."""
+    monkeypatch.setattr(abcd_data, "_CACHE_DIR", tmp_path)
+
+    assert abcd_data.is_marked_dead("OLU", "240") is False
+    abcd_data._mark_dead("OLU", "240")
+    assert abcd_data.is_marked_dead("OLU", "240") is True
+    assert abcd_data.is_marked_dead("CANLI", "240") is False
 
 
 def test_basarili_onbellegi_olan_sembol_negatif_onbellekten_ETKILENMEZ(monkeypatch, tmp_path):
@@ -236,6 +327,74 @@ def test_fetch_ohlcv_abcd_bos_yfinance_yaniti_bos_dataframe_doner(monkeypatch, t
 
     assert result.empty
     assert list(result.columns) == abcd_data.OHLCV_COLUMNS
+
+
+def test_istisna_firlatmadan_bos_donen_sembol_de_negatif_onbellege_isaretlenir(monkeypatch, tmp_path):
+    """DUZELTILEN BUG (2026-08-19, canli tarama raporu: momentum confluence
+    240 taramasi ~120s suruyordu, "657/657'de takili" hissi verdi): yfinance
+    "possibly delisted" sembollerde ISTISNA FIRLATMAZ, sessizce BOS
+    DataFrame doner -- eski kod SADECE istisna firlayinca negatif onbellege
+    isaretliyordu, bu yuzden ~32 olu BIST sembolu HICBIR ZAMAN
+    onbelleklenmiyor, HER taramada agdan tekrar deneniyordu. Simdi: onceki
+    onbellek yokken bu deneme de (istisna OLMADAN) bos donerse YINE
+    isaretlenmeli."""
+    monkeypatch.setattr(abcd_data, "_CACHE_DIR", tmp_path)
+    calls = []
+
+    def _bos_ama_istisnasiz(yf_symbol, interval, period):
+        calls.append(1)
+        return pd.DataFrame()
+
+    monkeypatch.setattr(abcd_data, "_yf_history", _bos_ama_istisnasiz)
+
+    abcd_data.fetch_ohlcv_abcd("OLU2", "1D")
+    assert abcd_data._is_marked_dead("OLU2", "1D") is True
+    n_calls_ilk = len(calls)
+
+    abcd_data.fetch_ohlcv_abcd("OLU2", "1D")  # ikinci cagri -- negatif onbellek AGA HIC gitmemeli
+    assert len(calls) == n_calls_ilk
+
+
+def test_240_hibrit_yolda_iki_kaynak_da_bos_donerse_negatif_onbellege_isaretlenir(monkeypatch, tmp_path):
+    """Ayni bug, 120/240dk hibrit yolu (1sa + 30dk, bkz. `_fetch_raw_ohlcv`)
+    icin -- iki kaynak da (istisnasiz) bos donerse YINE negatif onbelleklenmeli,
+    aksi halde her tarama HER olu sembol icin CIFT bosa ag cagrisi yapar."""
+    monkeypatch.setattr(abcd_data, "_CACHE_DIR", tmp_path)
+    calls = []
+
+    def _bos_ama_istisnasiz(yf_symbol, interval, period):
+        calls.append(interval)
+        return pd.DataFrame()
+
+    monkeypatch.setattr(abcd_data, "_yf_history", _bos_ama_istisnasiz)
+
+    abcd_data.fetch_ohlcv_abcd("OLU3", "240")
+    assert abcd_data._is_marked_dead("OLU3", "240") is True
+    assert "1h" in calls and "30m" in calls  # her iki kaynak da denendi
+    n_calls_ilk = len(calls)
+
+    abcd_data.fetch_ohlcv_abcd("OLU3", "240")  # negatif onbellek -- AGA HIC gidilmemeli
+    assert len(calls) == n_calls_ilk
+
+
+def test_fetch_ohlcv_abcd_skip_recent_30m_30dk_kaynagina_hic_gitmez(monkeypatch, tmp_path):
+    """2026-08-19 performans duzeltmesi (rate-limit): `skip_recent_30m=True`
+    iken 120/240dk icin SADECE 1sa kaynagi denenmeli, 30dk'ya HIC gidilmemeli."""
+    monkeypatch.setattr(abcd_data, "_CACHE_DIR", tmp_path)
+    calls = []
+
+    def _fake_history(yf_symbol, interval, period):
+        calls.append(interval)
+        times = pd.date_range("2026-08-10 09:30", periods=20, freq="1h", tz=abcd_data.TZ_ISTANBUL)
+        return _fake_yf_frame(times, [10.0] * 20, [11.0] * 20, [9.0] * 20, [10.5] * 20, [100] * 20)
+
+    monkeypatch.setattr(abcd_data, "_yf_history", _fake_history)
+
+    result = abcd_data.fetch_ohlcv_abcd("THYAO", "240", n_bars=5, skip_recent_30m=True)
+
+    assert "30m" not in calls
+    assert "1h" in calls
+    assert not result.empty
 
 
 def test_fetch_ohlcv_abcd_desteklenmeyen_zaman_dilimi_bos_dataframe_doner(tmp_path, monkeypatch):

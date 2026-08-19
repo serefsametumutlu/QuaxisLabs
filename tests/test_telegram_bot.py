@@ -680,6 +680,29 @@ def test_handle_menu_callback_son_kartlar_metnini_gosterir(monkeypatch) -> None:
     assert grid == [["menu:root"]]
 
 
+def test_handle_menu_callback_indikator_menusunu_gosterir() -> None:
+    update, query = _fake_callback_update("menu:indikator")
+    _run_coro(telegram_bot.handle_menu_callback(update, _fake_context()))
+
+    (text,), kwargs = query.edit_message_text.await_args
+    assert text == menu.IND_MENU_TEXT
+    grid = [[b.callback_data for b in row] for row in kwargs["reply_markup"].inline_keyboard]
+    assert grid == [["ind:tfmenu:v1"], ["ind:tfmenu:v2"], ["menu:root"]]
+
+
+def test_handle_indikator_callback_tf_secimi_taramayi_baslatir(monkeypatch) -> None:
+    calls = AsyncMock()
+    monkeypatch.setattr(telegram_bot, "_execute_ind_scan", calls)
+    update, query = _fake_callback_update("ind:tf:v1:240")
+
+    _run_coro(telegram_bot.handle_indikator_callback(update, _fake_context()))
+
+    query.answer.assert_awaited_once()
+    calls.assert_awaited_once()
+    args, _ = calls.await_args
+    assert args[1:] == ("v1", "240")
+
+
 def test_handle_menu_callback_hakkinda_metnini_gosterir() -> None:
     update, query = _fake_callback_update("menu:hakkinda")
     _run_coro(telegram_bot.handle_menu_callback(update, _fake_context()))

@@ -415,9 +415,16 @@ VARIANTS: dict[str, VariantFlags] = {
     # --- REJIM FILTRESI ablasyonu (2026-08-19, harici kaynak: "Hurst Regime
     #     Switcher") -- H>0.55 (kalici/trend rejimi) sarti V1/V2 baseline'a
     #     TEK BASINA eklenir, bkz. regime_filters.py ust notu. -------------------
-    "V1_ARTI_HURST": VariantFlags(name="V1_ARTI_HURST", require_volume=True, vol_ratio_max=3.0, require_hurst_trend=True),
+    # hurst_window/max_lag varsayilandan (100/50) KUCUK tutuldu -- tam BIST
+    # taramasinda pratik hiz icin (kullanici karari, 2026-08-19): saf Python
+    # dongusu O(bar x max_lag), 657 sembolde varsayilanla saatler surerdi.
+    "V1_ARTI_HURST": VariantFlags(
+        name="V1_ARTI_HURST", require_volume=True, vol_ratio_max=3.0, require_hurst_trend=True,
+        hurst_window=50, hurst_max_lag=15,
+    ),
     "V2_ARTI_HURST": VariantFlags(
         name="V2_ARTI_HURST", require_volume=True, vol_ratio_max=3.0, require_wavetrend=True,
         require_green_candle=True, require_strict_ema=True, require_hurst_trend=True,
+        hurst_window=50, hurst_max_lag=15,
     ),
 }

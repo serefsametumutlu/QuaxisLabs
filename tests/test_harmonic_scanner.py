@@ -11,6 +11,7 @@ import pandas as pd
 import pytest
 
 from src.analysis import harmonic_scanner as hs
+from src.analysis.harmonic_confirmation import ConfirmationFlags
 from src.analysis.harmonic_xabcd import PrzEvent
 
 
@@ -140,3 +141,58 @@ def test_format_report_markdown_fenced_code_block(scan_universe):
 
     assert report.count("```") == 2
     assert "1" in report and "basarisiz" in report
+
+
+_FLAGS = ConfirmationFlags(
+    rsi_value=50.0, rsi_divergence=False, rsi_extreme_turn=False, rsi_ok=False,
+    macd_hist=0.1, macd_ok=False,
+    candle_pattern=None, candle_ok=False,
+    volume_ratio=1.0, volume_compression=False, volume_expansion=False, volume_ok=False,
+    score=0,
+)
+
+
+def _scanned(symbol: str, formation: str) -> hs.ScannedPrz:
+    return hs.ScannedPrz(
+        symbol=symbol, formation=formation, event=_make_event(direction=1, signal_bar=0),
+        bars_ago=0, confidence="◻ DOĞRULANMADI (test)", confirmation=_FLAGS,
+    )
+
+
+def test_format_report_chunks_kucuk_rapor_tek_parca_doner():
+    result = hs.HarmonicScanResult(
+        tf="1D", scanned_at=pd.Timestamp("2026-08-19", tz="UTC"), lookback_bars=5,
+        formations=("ABCD",), buys={"ABCD": [_scanned("AAA", "ABCD")]}, sells={"ABCD": []}, errors={},
+    )
+    chunks = hs.format_report_chunks(result, markdown=True)
+    assert len(chunks) == 1
+    assert "AAA" in chunks[0]
+    assert "parca" not in chunks[0].lower()
+
+
+def test_format_report_chunks_buyuk_rapor_birden_fazla_mesaja_bolunur_ve_hicbir_sinyal_kaybolmaz():
+    many_buys = [_scanned(f"SYM{i:04d}", "ABCD") for i in range(120)]
+    result = hs.HarmonicScanResult(
+        tf="1D", scanned_at=pd.Timestamp("2026-08-19", tz="UTC"), lookback_bars=5,
+        formations=("ABCD",), buys={"ABCD": many_buys}, sells={"ABCD": []}, errors={"ZZZ": "hata"},
+    )
+    chunks = hs.format_report_chunks(result, markdown=True, max_chars=1000)
+
+    assert len(chunks) > 1
+    for chunk in chunks:
+        assert len(chunk) < 4096  # Telegram sinirinin altinda kalmali
+    combined = "\n".join(chunks)
+    for i in range(120):
+        assert f"SYM{i:04d}" in combined  # HICBIR sinyal kaybolmamis
+    assert "parca 1/" in chunks[0].lower()
+    assert "basarisiz" in chunks[-1]  # hata ozeti SADECE son parcada
+
+
+def test_format_report_chunks_her_zaman_en_az_bir_mesaj_doner_bos_sonucta_bile():
+    result = hs.HarmonicScanResult(
+        tf="1D", scanned_at=pd.Timestamp("2026-08-19", tz="UTC"), lookback_bars=5,
+        formations=("ABCD",), buys={"ABCD": []}, sells={"ABCD": []}, errors={},
+    )
+    chunks = hs.format_report_chunks(result, markdown=True)
+    assert len(chunks) == 1
+    assert "(yok)" in chunks[0]

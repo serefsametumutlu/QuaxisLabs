@@ -225,35 +225,100 @@ def _fmt_line(item: ScannedPrz) -> str:
     )
 
 
-def format_report(result: HarmonicScanResult, markdown: bool = False) -> str:
-    """Her formasyon icin AYRI baslik + BUY/SELL listesi (kullanici talebi:
-    'her formasyon cesidinde ne sinyali oldugunu liste liste yazsin')."""
-    title = f"Harmonik Anlik-D Tarama -- {result.tf} (son {result.lookback_bars} bar)"
-    header = f"*{_escape_mdv2(title)}*" if markdown else title
+_REPORT_TITLE_TMPL = "Harmonik Anlik-D Tarama -- {tf} (son {lookback} bar)"
 
-    body_lines = [
+
+def _build_entries(result: HarmonicScanResult) -> list[str]:
+    """`format_report`/`format_report_chunks` ORTAK govde-satiri insasi --
+    her eleman BOLUNMEZ bir "birim" (bir sinyalin 2 satiri -- fiyat/onay --
+    HER ZAMAN birlikte kalir, bkz. `format_report_chunks` docstring'i)."""
+    entries = [
         "⚠️ D anlik/onaysiz -- REPAINT EDEBILIR. Guven etiketleri gecmis backtest "
         "sonucuna gore (sinyal gizlenmez, sadece bilgilendirir).",
         "",
     ]
     for formation in result.formations:
-        body_lines.append(f"── {formation} ──")
+        entries.append(f"── {formation} ──")
         f_buys = result.buys.get(formation, [])
         f_sells = result.sells.get(formation, [])
-        body_lines.append("BUY:")
-        body_lines.extend((_fmt_line(s) for s in f_buys) if f_buys else ["  (yok)"])
-        body_lines.append("SELL:")
-        body_lines.extend((_fmt_line(s) for s in f_sells) if f_sells else ["  (yok)"])
-        body_lines.append("")
+        entries.append("BUY:")
+        entries.extend((_fmt_line(s) for s in f_buys) if f_buys else ["  (yok)"])
+        entries.append("SELL:")
+        entries.extend((_fmt_line(s) for s in f_sells) if f_sells else ["  (yok)"])
+        entries.append("")
+    return entries
+
+
+def format_report(result: HarmonicScanResult, markdown: bool = False) -> str:
+    """Her formasyon icin AYRI baslik + BUY/SELL listesi (kullanici talebi:
+    'her formasyon cesidinde ne sinyali oldugunu liste liste yazsin').
+
+    TEK mesaj doner -- Telegram'in 4096 karakter sinirini asabilir (bkz.
+    `format_report_chunks`, CANLI HATA + DUZELTME 2026-08-19: ABCD gibi sik
+    formasyonlarda tek basina bile bu siniri asip mesaj SESSIZCE gonderilemeden
+    kaybolabiliyordu -- `telegram_bot.py` artik BU fonksiyonu DEGIL,
+    `format_report_chunks`u kullanir)."""
+    title = _REPORT_TITLE_TMPL.format(tf=result.tf, lookback=result.lookback_bars)
+    header = f"*{_escape_mdv2(title)}*" if markdown else title
+    entries = _build_entries(result)
 
     if markdown:
-        body = "\n".join(_escape_code_block(line) for line in body_lines)
+        body = "\n".join(_escape_code_block(line) for line in entries)
         parts = [header, f"```\n{body}\n```"]
     else:
-        parts = [header, "\n".join(body_lines)]
+        parts = [header, "\n".join(entries)]
 
     if result.errors:
         err_text = f"{len(result.errors)} sembol basarisiz oldu"
         parts.append(_escape_mdv2(err_text) if markdown else err_text)
 
     return "\n".join(parts)
+
+
+_MAX_CHUNK_CHARS = 3500  # Telegram 4096 siniri - baslik/fence/kacis payi (guvenlik marji)
+
+
+def format_report_chunks(result: HarmonicScanResult, markdown: bool = True, max_chars: int = _MAX_CHUNK_CHARS) -> list[str]:
+    """`format_report` ile AYNI icerik, ama Telegram'in 4096 karakter mesaj
+    sinirini asarsa BIRDEN FAZLA mesaja boler -- HICBIR sinyal/onay satiri
+    ORTADAN BOLUNMEZ (entry-atomik paketleme, bkz. `_build_entries`).
+
+    CANLI HATA (2026-08-19, kullanici raporu): "Hepsi" taramasinda ABCD
+    formasyonunun KENDI TEK BASINA raporu (en sik formasyon, en cok sinyal)
+    4096 siniri asinca `telegram_bot.py`deki eski kod SESSIZCE hicbir mesaj
+    GONDERMIYORDU (`except Exception: logger.exception(...)`, kullaniciya
+    HICBIR bilgi gitmiyordu -- Kural 9 ihlali). Bu fonksiyon o bosluk icin
+    yazildi -- her zaman EN AZ bir mesaj doner, asla sessizce kaybolmaz."""
+    title = _REPORT_TITLE_TMPL.format(tf=result.tf, lookback=result.lookback_bars)
+    entries = _build_entries(result)
+
+    raw_chunks: list[str] = []
+    current: list[str] = []
+    for entry in entries:
+        candidate = current + [entry]
+        if current and len("\n".join(candidate)) > max_chars:
+            raw_chunks.append("\n".join(current))
+            current = [entry]
+        else:
+            current = candidate
+    if current:
+        raw_chunks.append("\n".join(current))
+    if not raw_chunks:
+        raw_chunks = [""]
+
+    n = len(raw_chunks)
+    messages: list[str] = []
+    for i, body in enumerate(raw_chunks, start=1):
+        part_note = f"(parca {i}/{n})\n" if n > 1 else ""
+        head = f"*{_escape_mdv2(title)}*" if markdown else title
+        if markdown:
+            escaped = _escape_code_block(part_note + body)
+            messages.append(f"{head}\n```\n{escaped}\n```")
+        else:
+            messages.append(f"{head}\n{part_note}{body}")
+
+    if result.errors:
+        err_text = f"{len(result.errors)} sembol basarisiz oldu"
+        messages[-1] += "\n" + (_escape_mdv2(err_text) if markdown else err_text)
+
+    return messages

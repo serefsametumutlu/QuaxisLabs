@@ -1028,29 +1028,16 @@ async def _execute_harm_scan(status_message, context: ContextTypes.DEFAULT_TYPE,
         await _safe_edit("⚠️ Tarama başarısız oldu, birkaç dakika sonra tekrar dene.")
         return
 
-    # format_report try/except ICINE alindi -- bkz. handle_indikator_callback
-    # yanindaki "DUZELTILEN BUG" notu (2026-08-19, AYNI Kural 9 bosluğu).
+    # CANLI HATA + DUZELTME (2026-08-19, kullanici raporu: "Hepsi" taramasinda
+    # ABCD listesi hic gelmedi): eskiden formasyon basina TEK `format_report`
+    # mesaji gonderiliyordu -- ABCD gibi en sik formasyonun KENDI TEK BASINA
+    # raporu (onay kontrol listesi eklenince satirlar 2 katina cikti) 4096
+    # karakter sinirini asinca `except Exception: logger.exception(...)`
+    # SESSIZCE hicbir mesaj GONDERMIYORDU (Kural 9 ihlali). Artik HER
+    # formasyon (tek secili olsa BILE) `format_report_chunks` ile GEREKTIGI
+    # KADAR mesaja bolunur -- hicbir sinyal/formasyon sessizce kaybolmaz.
     try:
-        report = harmonic_scanner.format_report(result, markdown=True)
-    except Exception:
-        logger.exception("Harmonik tarama raporu bicimlendirilemedi (formasyon=%s, tf=%s)", formation, tf)
-        await _safe_edit("Tarama tamamlandı ama rapor hazırlanamadı.")
-        return
-
-    # Coklu-formasyon (HEPSI) raporu Telegram'in 4096 karakter mesaj sinirini
-    # asabilir -- MarkdownV2 fenced code block PARCALAMA gerektirir (tek
-    # mesaj icinde bolunmus bir ``` bloğu BOZULUR). Basitce formasyon
-    # basina AYRI mesaj gonderilir (HEPSI'de), tek formasyonda TEK mesaj yeter.
-    if formation != "HEPSI" or len(report) <= 4000:
-        try:
-            await status_message.edit_text(report, parse_mode="MarkdownV2")
-        except Exception:
-            logger.exception("Harmonik tarama raporu gönderilemedi (formasyon=%s, tf=%s)", formation, tf)
-            await _safe_edit("Tarama tamamlandı ama rapor gönderilemedi (mesaj çok uzun olabilir).")
-        return
-
-    try:
-        await status_message.edit_text(f"✅ Harmonik tarama tamamlandı ({etiket}, {tf}) -- formasyon başına gönderiliyor:")
+        await status_message.edit_text(f"✅ Harmonik tarama tamamlandı ({etiket}, {tf}) -- gönderiliyor:")
     except Exception:
         pass
     for single_formation in formations:
@@ -1064,12 +1051,21 @@ async def _execute_harm_scan(status_message, context: ContextTypes.DEFAULT_TYPE,
             errors=result.errors,
         )
         try:
-            single_report = harmonic_scanner.format_report(single_result, markdown=True)
-            await context.bot.send_message(
-                chat_id=status_message.chat_id, text=single_report, parse_mode="MarkdownV2"
-            )
+            chunks = harmonic_scanner.format_report_chunks(single_result, markdown=True)
         except Exception:
-            logger.exception("Harmonik tarama alt-raporu gönderilemedi (formasyon=%s)", single_formation)
+            logger.exception("Harmonik tarama alt-raporu bicimlendirilemedi (formasyon=%s)", single_formation)
+            await context.bot.send_message(
+                chat_id=status_message.chat_id, text=f"⚠️ {single_formation} raporu hazırlanamadı."
+            )
+            continue
+        for chunk in chunks:
+            try:
+                await context.bot.send_message(chat_id=status_message.chat_id, text=chunk, parse_mode="MarkdownV2")
+            except Exception:
+                logger.exception("Harmonik tarama alt-raporu gönderilemedi (formasyon=%s)", single_formation)
+                await context.bot.send_message(
+                    chat_id=status_message.chat_id, text=f"⚠️ {single_formation} raporunun bir parçası gönderilemedi."
+                )
 
 
 async def handle_harm_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

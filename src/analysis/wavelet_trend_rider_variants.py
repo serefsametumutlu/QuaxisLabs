@@ -321,3 +321,12 @@ VARIANTS: dict[str, VariantFlags] = {
         name="KOMBO_TUMU_SIKI", max_extension_atr=1.0, min_pullback_bars=2, exclude_new_high_20=True, adx_ceiling=40.0,
     ),
 }
+
+# TUR 2 KAZANANI (2026-08-20, tam BIST, n=403): PF 1.20 (BASELINE) -> 1.61,
+# Win Rate %44.9 -> %52.1. `pine/wavelet_trend_rider_v1_indicator.pine`
+# (V2) VARSAYILAN olarak AYNI formulu uygular -- Python/Pine parite icin
+# BURADA da isimlendirilmis, ileride Telegram/canli kullanim icin "resmi"
+# onerilen varyant BUDUR (kullanici onayladiginda).
+RECOMMENDED = VariantFlags(
+    name="RECOMMENDED", max_extension_atr=1.0, require_green_candle=True, adx_ceiling=40.0,
+)

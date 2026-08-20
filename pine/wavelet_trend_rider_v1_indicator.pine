@@ -1,50 +1,59 @@
 // This Pine Script® code is subject to the terms of the Mozilla Public License 2.0
-// © serefsamett — Wavelet Trend Rider V1 (causal), INDICATOR
+// © serefsamett — Wavelet Trend Rider V2 (causal + kotu-sinyal eleme), INDICATOR
 //
-// Python kaynagi: `src/analysis/wavelet_trend_rider.py` -- kullanicinin
-// masaustunde bulunan mevcut bir AxiQuant script'inin (strateji_1_wavelet_
-// trend_rider.py) bilanco-radar veri/backtest altyapisina PORTUDUR. Tam
-// BIST backtest sonucu (657 sembol, tf=240 birincil + 1D MTF onay, ~1200
-// bar, 2026-08-20): **PF=2.21, Win Rate=%59.3, n=7191 islem** -- 10 yeni
-// stratejinin EN GUCLU sonucu (bkz. docs/spec/YENI_10_STRATEJI_BACKTEST.md).
+// Python kaynagi: `src/analysis/wavelet_trend_rider.py` + `wavelet_trend_
+// rider_variants.py` -- kullanicinin masaustunde bulunan mevcut bir AxiQuant
+// script'inin (strateji_1_wavelet_trend_rider.py) bilanco-radar veri/
+// backtest altyapisina PORTUDUR.
 //
-// ⚠️ KRITIK METODOLOJI FARKI -- Python backtest NEDEN bu Pine ile BIREBIR
-// AYNI SAYILARI URETMEZ:
+// ## GECMIS -- V1'den V2'ye NEDEN degisti (2026-08-20)
 //
-// Python tarafi `pywt.wavedec()`/`waverec()` KULLANIR -- bu fonksiyonlar
-// TUM fiyat dizisini TEK SEFERDE (batch) isler: (1) gurultu esigi (sigma),
-// TUM dizinin katsayilarindan (GELECEGI DE ICEREN) hesaplanir, (2) ters-
-// donusum (waverec) matematiksel olarak NON-CAUSAL'dir (bir noktadaki
-// deger, hem ONCEKI hem SONRAKI barlardan etkilenir). Yani Python'daki
-// PF=2.21 sonucu, bir miktar ILERI-BAKIS (look-ahead) sizintisi ICEREBILIR
-// -- bu, projenin genelindeki "asla look-ahead yok" ilkesinin BILINCLI
-// bir ISTISNASIdir (kullaniciya ACIKCA bildirilmesi gereken bir sinirlama,
-// spec dosyasinda bu sekilde belgelenmemisti -- bu Pine dosyasi ilk kez
-// acikca isaret ediyor).
+// V1'in ilk backtest sonucu (PF=2.21, n=7191) `pywt.wavedec/waverec`
+// (batch, NON-CAUSAL) kullanan Python koduna dayaniyordu -- kullanici bu
+// V1'i TradingView'de canli test edince "sinyallerin cogu hissenin
+// tepesinde geliyor, SL'ye gidiyor" GERI BILDIRIMI verdi. Bu, non-causal
+// backtest'in ILERI-BAKIS SIZINTISIYLA sisirilmis oldugunu KANITLADI.
 //
-// Bu Pine script'i TAMAMEN CAUSAL calismak ZORUNDA (TradingView canli
-// grafikte "gelecegi gormek" mumkun degil) -- bu yuzden dalgacik gurultu
-// temizlemesi, Python'un pywt.wavedec/waverec'inin YERINE, matematiksel
-// olarak FARKLI ama es-deger bir teknikle yapilir: **causal à trous (SWT/
-// "starlet") Daubechies-8 kaskadi** (Starck & Murtagh; Percival & Walden,
-// "Wavelet Methods for Time Series Analysis" -- bu, gercek zamanli/canli
-// ortamlar icin STANDART, literatur-kaynakli, dogru dalgacik-tabanli
-// yaklasimdir, "wavelet" adini hak eder, ama pywt.wavedec ile SAYISAL
-// OLARAK OZDES DEGILDIR).
+// Duzeltme adimlari: (1) Python tarafi TAMAMEN CAUSAL yapildi (asagidaki
+// à trous kaskadinin AYNISI, bkz. `wavelet_trend_rider.py` ust notu) --
+// causal BASELINE'in GERCEK backtest sonucu COK daha mutevazi cikti:
+// **PF=1.20, WR=%44.9, n=5027** (657 sembol, tf=240+1D, 2026-08-20). (2)
+// Kullanicinin "bu kotu sinyalleri eleyecek bir formul bulalim" istegi
+// uzerine 6 hipotez (asiri-uzama, pullback-sartsizligi, yeni-tepe, ADX
+// tavani, yesil mum, hacim onayi) 26 varyant halinde ablasyona sokuldu
+// (bkz. `scripts/wavelet_trend_rider_optimizasyon.py`, `docs/spec/WAVELET_
+// TREND_RIDER_OPTIMIZASYON.md`). KAZANAN KOMBINASYON:
 //
-// Yontem: db8'in ayrisim alcak-gecis filtresi (H, 16 katsayi) sqrt(2)'ye
-// bolunerek NORMALIZE edilir (sum(H)=1 -- ayrik/decimated DWT icin H'nin
-// dogal normu sqrt(2)'dir, ama à trous/undecimated kullanimda bu YANLIS
-// olcekte patlamaya yol acar -- bu Pine dosyasi bu duzeltmeyi ICERIR,
-// python tarafinda test edilip DOGRULANMISTIR). 4 seviye kaskad (adim
-// 1,2,4,8), her seviye ONCEKI seviyenin CIKTISINI girdi alir (klasik
-// à trous algoritmasi) -- seviye 4'un ciktisi "denoised" (temiz/duz)
-// fiyat cizgisidir. Detay/gurultu katsayilari (Python'daki soft-threshold
-// asamasi) BU SURUMDE ATLANMISTIR -- basitlik + kararlilik icin (rolling
-// esik pencere boyutu KIRILGAN/ayarlanmasi gereken bir parametre olurdu,
-// bkz. bu script'in gelistirme sirasinda Python'da yapilan onceki-deneme
-// notlari) -- sadece kaskadin KENDISI (4 ardisik alcak-gecis filtreleme)
-// zaten guclu bir gurultu-temizleme etkisi verir.
+//   **fiyat, temizlenmis trendden <=1.0xATR uzakta OLMALI (asiri-uzama
+//   filtresi) + sinyal barinin KENDISI yesil (close>open) OLMALI + ADX
+//   40'i ASMAMALI (asiri isinmis/tukenme riskli trend disi tutulur)**
+//
+//   -> PF 1.20'den 1.61'e (n=403, hala guvenilir), Win Rate %44.9'dan
+//   %52.1'e cikti. Asiri-uzama TEK BASINA en guclu tekil katki (PF 1.41,
+//   n=797) -- "fiyat zaten cok uzamissa alma" dogrudan kullanicinin
+//   "tepede alim" sikayetini hedef alir. BEKLENMEDIK bulgu: "gercek bir
+//   dip sonrasi devam" sarti (pullback_bars>=1/2/3) HICBIR IYILESME
+//   SAGLAMADI (PF 1.16, BASELINE'dan bile hafif kotu) -- bu hipotez
+//   YANLISLANDI, eklenmedi.
+//
+// Bu V2, kazanan formulu VARSAYILAN olarak (ayarlanabilir input'larla)
+// UYGULAR -- V1'deki HICBIR cekirdek mantik (EMA/ADX/RSI/MTF/causal
+// dalgacik/TP-SL) DEGISMEDI, SADECE 3 YENI FILTRE EKLENDI.
+//
+// ⚠️ KRITIK METODOLOJI FARKI -- Python `pywt` ARTIK KULLANMIYOR (2026-08-20
+// duzeltmesinden SONRA): Python tarafi da BU Pine ile AYNI causal à trous
+// (SWT) Daubechies-8 kaskadini kullanir (Starck & Murtagh, "starlet"
+// algoritmasi; Percival & Walden, "Wavelet Methods for Time Series
+// Analysis") -- katsayilar `pywt.Wavelet('db8').dec_lo / sqrt(2)`den
+// (sqrt(2) -- ayrik/decimated DWT normu, à trous/undecimated kullanimda
+// DUZELTILMESI gereken olcek) Python'da TEK SEFER uretilip HER IKI tarafa
+// da (Pine + Python) SABIT gomuldu -- artik SAYISAL OLARAK OZDESLER (Python
+// tarafinda regresyon testiyle "gelecegi degistirmek gecmisi etkilemez"
+// dogrulandi, bkz. `tests/test_wavelet_trend_rider.py`).
+//
+// 4 seviye kaskad (adim 1,2,4,8), her seviye ONCEKI seviyenin CIKTISINI
+// girdi alir (klasik à trous algoritmasi) -- seviye 4'un ciktisi "denoised"
+// (temiz/duz) fiyat cizgisidir.
 //
 // Isinma suresi: seviye-4 ciktisi icin en az ~225 bar GECMIS gerekir (16
 // katsayili filtrenin 4 kademede birikmis gecikmesi) -- bu barlardan
@@ -57,23 +66,21 @@
 // Pine PORTUDUR. Canli dogrulama kullaniciya AITTIR.
 //
 // ⚠️ EN IYI ZAMAN DILIMI -- SADECE 240 (4H) + 1D onay TEST EDILDI:
-// `scripts/strateji_arastirma_backtest.py` bu stratejiyi SADECE 240 (4H)
-// birincil + 1D MTF onay kombinasyonunda calistirdi (PF=2.21, n=7191).
-// 1D-tek-basina, 1W, veya baska bir birincil zaman dilimi HIC test
-// EDILMEDI -- "en iyi zaman dilimi 4H'dir" iddiasi sadece "TEK test edilen
-// ve KARLI cikan budur" anlamina gelir, "digerlerinden DAHA IYI" anlamina
-// GELMEZ (baskalari denenmedi). Grafigi 240 (4H) olarak ayarlayip test
-// etmen onerilir -- 1D (gunluk) girdisi bu script'in KENDISI (request.
-// security ile) otomatik ceker, ayrica 1D grafige gecmen GEREKMEZ.
+// `scripts/wavelet_trend_rider_optimizasyon.py` bu stratejiyi SADECE 240
+// (4H) birincil + 1D MTF onay kombinasyonunda calistirdi. 1D-tek-basina,
+// 1W, veya baska bir birincil zaman dilimi HIC test EDILMEDI -- "en iyi
+// zaman dilimi 4H'dir" iddiasi sadece "TEK test edilen ve KARLI cikan
+// budur" anlamina gelir, "digerlerinden DAHA IYI" anlamina GELMEZ.
 
 //@version=6
-indicator("Wavelet Trend Rider V1 (causal SWT db8)", shorttitle="WaveletTR V1", overlay=true, max_lines_count=200, max_labels_count=200)
+indicator("Wavelet Trend Rider V2 (causal SWT db8 + eleme)", shorttitle="WaveletTR V2", overlay=true, max_lines_count=200, max_labels_count=200)
 
 // ══════════════════════════════════════════════════════════
 // INPUTS
 // ══════════════════════════════════════════════════════════
 var string GRP_CORE = "Core (EMA/ADX/RSI)"
 var string GRP_MTF  = "Coklu Zaman Dilimi Onayi"
+var string GRP_FILT = "Kotu Sinyal Eleme (2026-08-20 ablasyon kazanani)"
 var string GRP_RISK = "Risk (ATR SL/TP)"
 var string GRP_VIZ  = "Gorsel"
 
@@ -86,6 +93,13 @@ rsiUpper   = input.float(70.0, "RSI Ust Sinir (max, asiri-alim disi)", minval=50
 
 dailyTF        = input.timeframe("1D", "Gunluk Onay Zaman Dilimi", group=GRP_MTF)
 dailyEmaLen    = input.int(50, "Gunluk EMA Uzunluk", minval=5, maxval=200, group=GRP_MTF)
+
+useExtensionFilter = input.bool(true, "Asiri-uzama filtresi kullan (EN GUCLU tekil filtre)", group=GRP_FILT)
+maxExtensionAtr    = input.float(1.0, "Maks. uzama (fiyat - temiz trend, ATR kati)", minval=0.25, maxval=5.0, step=0.25,
+     tooltip="Kapanis, temizlenmis trend cizgisinden bu kadar ATR'den FAZLA uzaktaysa sinyal REDDEDILIR -- 'tepede alim' sikayetini dogrudan hedefler. Ablasyon: 1.0 en iyi tekil deger (PF 1.20->1.41).", group=GRP_FILT)
+useGreenCandleFilter = input.bool(true, "Yesil mum onayi kullan (sinyal bari close>open olmali)", group=GRP_FILT)
+useAdxCeiling      = input.bool(true, "ADX tavani kullan (asiri isinmis trend disi)", group=GRP_FILT)
+adxCeiling         = input.float(40.0, "ADX Tavani (max)", minval=25.0, maxval=60.0, group=GRP_FILT)
 
 atrLen   = input.int(14,  "ATR Uzunluk", minval=5, maxval=50, group=GRP_RISK)
 slMult   = input.float(2.0, "SL = Giris - N x ATR", minval=0.5, maxval=6.0, step=0.1, group=GRP_RISK)
@@ -143,11 +157,20 @@ dailyCloseConfirmed = request.security(syminfo.tickerid, dailyTF, close[1], look
 dailyEmaConfirmed   = request.security(syminfo.tickerid, dailyTF, ta.ema(close, dailyEmaLen)[1], lookahead=barmerge.lookahead_off)
 
 // ══════════════════════════════════════════════════════════
+// KOTU SINYAL ELEME (2026-08-20 ablasyon kazanani -- bkz. dosya ust notu)
+// ══════════════════════════════════════════════════════════
+extensionAtr = atrValue > 0 ? (close - denoised) / atrValue : na
+extensionOk  = not useExtensionFilter or (not na(extensionAtr) and extensionAtr <= maxExtensionAtr)
+greenCandleOk = not useGreenCandleFilter or (close > open)
+adxCeilingOk  = not useAdxCeiling or (adxValue <= adxCeiling)
+
+// ══════════════════════════════════════════════════════════
 // SINYAL (SADECE LONG -- kaynak Python modulu de SADECE LONG uretiyor)
 // ══════════════════════════════════════════════════════════
 longOk = close > emaFast and emaFast > emaSlow and adxValue > adxThresh and
      velocity > 0 and acceleration > 0 and rsiValue < rsiUpper and
-     not na(dailyCloseConfirmed) and dailyCloseConfirmed > dailyEmaConfirmed
+     not na(dailyCloseConfirmed) and dailyCloseConfirmed > dailyEmaConfirmed and
+     extensionOk and greenCandleOk and adxCeilingOk
 
 buyNow = longOk and not longOk[1]   // YENI sinyal -- kosullarin İLK saglandigi bar (etiket/alert spam'ini onler)
 
@@ -188,7 +211,7 @@ alertcondition(buyNow, "Wavelet Trend Rider BUY", "{{ticker}} {{interval}} — W
 // TESHIS TABLOSU (sag ust) -- Python ciktisiyla bar-bar karsilastirma
 // icin (kullanicinin "manuel kontrol" istegine yardimci).
 // ══════════════════════════════════════════════════════════
-var table diag = table.new(position.top_right, 2, 6, border_width=1, frame_width=1)
+var table diag = table.new(position.top_right, 2, 9, border_width=1, frame_width=1)
 if barstate.islast or buyNow
     table.cell(diag, 0, 0, "Temiz Fiyat", text_color=color.gray, text_size=size.small)
     table.cell(diag, 1, 0, str.tostring(denoised, format.mintick), text_color=color.silver, text_size=size.small)
@@ -203,3 +226,9 @@ if barstate.islast or buyNow
     table.cell(diag, 0, 5, "Gunluk Onay", text_color=color.gray, text_size=size.small)
     table.cell(diag, 1, 5, (not na(dailyCloseConfirmed) and dailyCloseConfirmed > dailyEmaConfirmed) ? "✓" : "✕",
          text_color=(not na(dailyCloseConfirmed) and dailyCloseConfirmed > dailyEmaConfirmed) ? color.lime : color.red, text_size=size.small)
+    table.cell(diag, 0, 6, "Uzama (ATR)", text_color=color.gray, text_size=size.small)
+    table.cell(diag, 1, 6, str.tostring(extensionAtr, "#.##"), text_color=extensionOk ? color.lime : color.red, text_size=size.small)
+    table.cell(diag, 0, 7, "Yesil Mum", text_color=color.gray, text_size=size.small)
+    table.cell(diag, 1, 7, greenCandleOk ? "✓" : "✕", text_color=greenCandleOk ? color.lime : color.red, text_size=size.small)
+    table.cell(diag, 0, 8, "ADX Tavan", text_color=color.gray, text_size=size.small)
+    table.cell(diag, 1, 8, adxCeilingOk ? "✓" : "✕", text_color=adxCeilingOk ? color.lime : color.red, text_size=size.small)

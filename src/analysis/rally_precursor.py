@@ -167,18 +167,25 @@ ALL_FEATURES: list[str] = [
     #     ozellik kutuphanesi" bolumu. ---
     "stoch_k", "williams_r", "cci20",
     "pct_from_52w_low", "vol_climax_ratio", "vol_dryup_min_ratio",
-    "gap_into_low_pct", "candle_pattern_at_low", "rsi_bullish_divergence",
-    "atr_pctrank", "ma_ribbon_score", "dist_from_ema20_pct", "month_of_year",
+    "gap_into_low_pct", "candle_pin_bar", "candle_engulfing", "rsi_bullish_divergence",
+    "atr_pctrank", "ma_ribbon_score", "dist_from_ema20_pct",
     "demand_zone_proximity_atr", "in_demand_zone", "wavelet_momentum_nearby",
     "vcp_pattern_nearby", "vol_breakout_nearby",
 ]
 CATEGORICAL_FEATURES: list[str] = [
     "macd_hist_sign", "macd_hist_rising", "adx_rising", "higher_low",
     "momentum_signal_nearby", "harmonic_signal_nearby",
-    "candle_pattern_at_low", "rsi_bullish_divergence", "month_of_year",
+    "candle_pin_bar", "candle_engulfing", "rsi_bullish_divergence",
     "wavelet_momentum_nearby", "vcp_pattern_nearby", "vol_breakout_nearby",
     "in_demand_zone",
 ]
+# `abcd_factor_analysis._univariate_test`nin kategorik dal (`float(win.mean())`)
+# SADECE 0/1/-1 gibi SAYISAL-kodlanmis kategoriler icin calisir (crosstab
+# CHI-KARE testi disinda bir "ozet ortalama" da beklenir) -- coklu-degerli
+# METIN kategoriler (orn. "PIN_BAR"/"ENGULFING"/"NONE") bunu BOZAR (TypeError).
+# `month_of_year` bu yuzden formal istatistik testine DAHIL EDILMEDI (12
+# deger, one-hot ETMEK kapsam disi) -- SADECE ham CSV'de betimsel olarak
+# durur, `ALL_FEATURES`e eklenmez.
 
 
 def _stoch_k(high: np.ndarray, low: np.ndarray, close: np.ndarray, period: int = 14, smooth: int = 3) -> np.ndarray:
@@ -415,7 +422,9 @@ def extract_features(candidate_row: pd.Series | dict, ohlcv_df: pd.DataFrame) ->
     else:
         features["gap_into_low_pct"] = None
 
-    features["candle_pattern_at_low"] = _candle_pattern_at(df, low_bar) or "NONE"
+    _pattern = _candle_pattern_at(df, low_bar)
+    features["candle_pin_bar"] = int(_pattern == "PIN_BAR")
+    features["candle_engulfing"] = int(_pattern == "ENGULFING")
 
     features["rsi_bullish_divergence"] = _rsi_bullish_divergence(rsi, low_bar, low_price, prior_low_price, row.get("prior_low_bar"))
 

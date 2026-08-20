@@ -28,6 +28,30 @@ ilkesine sadik kalmak icin BU MODULE OZEL, orijinalle BIREBIR ayni yerel
 kopyalar tutulur (`momentum_confluence_variants.py`nin kendi RSI/EMA
 kopyalarini tutma gerekcesiyle AYNI).
 
+## ⚠️ KRITIK SINIRLAMA -- `_wavelet_denoise()` NON-CAUSAL (look-ahead icerir)
+
+2026-08-20'de (Pine portu calismasi sirasinda) fark edildi: `pywt.wavedec()`/
+`waverec()` TUM `close` dizisini TEK SEFERDE (batch) isler -- gurultu esigi
+(sigma), dizinin SON barina kadarki TUM detay katsayilarindan hesaplanir,
+VE ters-donusum (waverec) matematiksel olarak non-causal'dir (bar `i`deki
+`clean_price[i]`, hem `i`den ONCEKI hem SONRAKI barlardan etkilenir). Yani
+`docs/spec/YENI_10_STRATEJI_BACKTEST.md`deki PF=2.21/WR=%59.3 sonucu bir
+miktar ILERI-BAKIS SIZINTISI icerebilir -- projenin genelindeki "asla
+look-ahead yok" ilkesinin FARKINA VARILMAMIS bir ihlalidir (bu modul ilk
+yazildiginda ACIKCA belgelenmemisti, simdi duzeltiliyor). Gercek/canli
+etki BILINMIYOR -- ne kadar sizinti oldugu olcumlenmedi.
+
+TradingView Pine portu (`pine/wavelet_trend_rider_v1_indicator.pine`)
+ZORUNLU olarak TAMAMEN CAUSAL calisir (canli grafikte gelecek gorulemez)
+-- bu yuzden Python'un `pywt.wavedec/waverec`i YERINE, matematiksel olarak
+FARKLI bir teknik (causal à trous/SWT Daubechies-8 kaskadi, Starck-Murtagh)
+kullanir. Iki taraf SAYISAL OLARAK OZDES DEGILDIR -- Pine sonuclari bu
+Python backtestindeki PF'yi AYNEN TEKRARLAMAYACAKTIR (muhtemelen DAHA
+MUTEVAZI, cunku look-ahead sizintisi YOK). Bu modul (Python) SADECE
+arastirma/backtest amaclidir, look-ahead-safe bir "canli" tarayici/kart
+icin KULLANILMAMALIDIR -- canli kullanim icin Pine portu (veya ondan
+turetilecek ayri bir causal Python modulu) tercih edilmelidir.
+
 TP/SL kaynakta zaten VARDI (SL=2xATR, TP1=3xATR, TP2=6xATR) -- DEGISTIRILMEDI.
 `abcd_backtest.backtest_symbol` ile duck-typing uyumlu (Signal alan adlari
 `momentum_confluence.Signal` ile AYNI ilke).

@@ -275,8 +275,20 @@ def detect_variant(df: pd.DataFrame, df_daily: pd.DataFrame, params: Params, fla
 # --- Arastirilacak varyantlar (2026-08-20, kullanici sorusu: "bu kotu
 #     sinyalleri eleyecek bir formul bulmamiz gerekiyor") -- baseline +
 #     her filtrenin TEK BASINA etkisi + birkac umut vaat eden kombinasyon. ---
+#
+# TUR 1 SONUCU (tam BIST, 657 sembol -- docs/spec/WAVELET_TREND_RIDER_
+# OPTIMIZASYON.md): acik ara EN GUCLU tekil filtre ARTI_UZAMA_1.0 (max_
+# extension_atr=1.0) -- PF 1.20->1.41 (n=5027->797, HALA buyuk/guvenilir).
+# Pullback sarti (1/2/3 bar) BEKLENENIN AKSINE HICBIR IYILESME saglamadi
+# (PF 1.16, BASELINE'dan bile hafif kotu) -- "gercek bir dip sonrasi devam"
+# hipotezi tam BIST olceginde YANLISLANDI, VARIANTS'ta REFERANS icin
+# tutuluyor (sessizce silinmedi). TUR 2: UZAMA_1.0'in daha da SIKI
+# esiklerle (0.5/0.75) ve en iyi 2. sirali filtrelerle (yesil mum, ADX
+# tavani, hacim) KOMBINE edilince daha da iyilesip iyilesmedigini test eder.
 VARIANTS: dict[str, VariantFlags] = {
     "BASELINE": VariantFlags(name="BASELINE"),
+    "ARTI_UZAMA_0.5": VariantFlags(name="ARTI_UZAMA_0.5", max_extension_atr=0.5),
+    "ARTI_UZAMA_0.75": VariantFlags(name="ARTI_UZAMA_0.75", max_extension_atr=0.75),
     "ARTI_UZAMA_1.0": VariantFlags(name="ARTI_UZAMA_1.0", max_extension_atr=1.0),
     "ARTI_UZAMA_1.5": VariantFlags(name="ARTI_UZAMA_1.5", max_extension_atr=1.5),
     "ARTI_UZAMA_2.0": VariantFlags(name="ARTI_UZAMA_2.0", max_extension_atr=2.0),
@@ -290,7 +302,15 @@ VARIANTS: dict[str, VariantFlags] = {
     "ARTI_HACIM_ONAY": VariantFlags(name="ARTI_HACIM_ONAY", require_volume_confirm=True),
     "ARTI_RSI_60": VariantFlags(name="ARTI_RSI_60", rsi_upper_override=60.0),
     "ARTI_RSI_55": VariantFlags(name="ARTI_RSI_55", rsi_upper_override=55.0),
-    # --- kombinasyonlar (tekil sonuclara gore en umut verici cift/uclu) ---
+    # --- TUR 2 kombinasyonlari -- UZAMA_1.0 (en iyi tekil) + 2. sirali adaylar ---
+    "KOMBO_UZAMA1.0_YESILMUM": VariantFlags(name="KOMBO_UZAMA1.0_YESILMUM", max_extension_atr=1.0, require_green_candle=True),
+    "KOMBO_UZAMA1.0_ADX40": VariantFlags(name="KOMBO_UZAMA1.0_ADX40", max_extension_atr=1.0, adx_ceiling=40.0),
+    "KOMBO_UZAMA1.0_HACIM": VariantFlags(name="KOMBO_UZAMA1.0_HACIM", max_extension_atr=1.0, require_volume_confirm=True),
+    "KOMBO_UZAMA0.75_YESILMUM": VariantFlags(name="KOMBO_UZAMA0.75_YESILMUM", max_extension_atr=0.75, require_green_candle=True),
+    "KOMBO_UZAMA1.0_YESILMUM_ADX40": VariantFlags(
+        name="KOMBO_UZAMA1.0_YESILMUM_ADX40", max_extension_atr=1.0, require_green_candle=True, adx_ceiling=40.0,
+    ),
+    # --- TUR 1'den kalan (referans/karsilastirma icin) ---
     "KOMBO_UZAMA1.5_PULLBACK1": VariantFlags(name="KOMBO_UZAMA1.5_PULLBACK1", max_extension_atr=1.5, min_pullback_bars=1),
     "KOMBO_UZAMA1.5_TEPEDISI": VariantFlags(name="KOMBO_UZAMA1.5_TEPEDISI", max_extension_atr=1.5, exclude_new_high_20=True),
     "KOMBO_PULLBACK1_ADX40": VariantFlags(name="KOMBO_PULLBACK1_ADX40", min_pullback_bars=1, adx_ceiling=40.0),

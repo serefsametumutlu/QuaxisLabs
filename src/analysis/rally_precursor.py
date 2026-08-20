@@ -162,11 +162,126 @@ ALL_FEATURES: list[str] = [
     "vol_ratio_recent", "dist_from_sma200_pct", "atr_pct_of_price",
     "fib_retracement", "fib_dist_from_618", "higher_low",
     "bars_since_prior_high", "momentum_signal_nearby", "harmonic_signal_nearby",
+    # --- 2026-08-20 genisletme (kullanici istegi: "en basitten en karisiga
+    #     tum kosullari cikaralim") -- bkz. modul ust notu "Genisletilmis
+    #     ozellik kutuphanesi" bolumu. ---
+    "stoch_k", "williams_r", "cci20",
+    "pct_from_52w_low", "vol_climax_ratio", "vol_dryup_min_ratio",
+    "gap_into_low_pct", "candle_pattern_at_low", "rsi_bullish_divergence",
+    "atr_pctrank", "ma_ribbon_score", "dist_from_ema20_pct", "month_of_year",
+    "demand_zone_proximity_atr", "in_demand_zone", "wavelet_momentum_nearby",
+    "vcp_pattern_nearby", "vol_breakout_nearby",
 ]
 CATEGORICAL_FEATURES: list[str] = [
     "macd_hist_sign", "macd_hist_rising", "adx_rising", "higher_low",
     "momentum_signal_nearby", "harmonic_signal_nearby",
+    "candle_pattern_at_low", "rsi_bullish_divergence", "month_of_year",
+    "wavelet_momentum_nearby", "vcp_pattern_nearby", "vol_breakout_nearby",
+    "in_demand_zone",
 ]
+
+
+def _stoch_k(high: np.ndarray, low: np.ndarray, close: np.ndarray, period: int = 14, smooth: int = 3) -> np.ndarray:
+    """Stokastik %K (yumusatilmis) -- standart `100*(close-LL)/(HH-LL)`,
+    sonra `smooth` bar SMA. Pine-parity ZORUNLU DEGIL (bu, cekirdek tespit
+    motoru degil, KESIF/istatistik ozelligi -- `abcd_factor_analysis.
+    _adx_wilder` docstring'indeki AYNI gerekce)."""
+    n = len(close)
+    ll = pd.Series(low).rolling(period).min().to_numpy()
+    hh = pd.Series(high).rolling(period).max().to_numpy()
+    with np.errstate(divide="ignore", invalid="ignore"):
+        raw_k = np.where(hh > ll, 100.0 * (close - ll) / (hh - ll), np.nan)
+    return pd.Series(raw_k).rolling(smooth).mean().to_numpy()
+
+
+def _williams_r(high: np.ndarray, low: np.ndarray, close: np.ndarray, period: int = 14) -> np.ndarray:
+    hh = pd.Series(high).rolling(period).max().to_numpy()
+    ll = pd.Series(low).rolling(period).min().to_numpy()
+    with np.errstate(divide="ignore", invalid="ignore"):
+        return np.where(hh > ll, -100.0 * (hh - close) / (hh - ll), np.nan)
+
+
+def _cci(high: np.ndarray, low: np.ndarray, close: np.ndarray, period: int = 20) -> np.ndarray:
+    tp = (high + low + close) / 3.0
+    tp_s = pd.Series(tp)
+    sma_tp = tp_s.rolling(period).mean()
+    mean_dev = tp_s.rolling(period).apply(lambda x: np.mean(np.abs(x - x.mean())), raw=True)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        return ((tp_s - sma_tp) / (0.015 * mean_dev)).to_numpy()
+
+
+def _is_bullish_pin_bar(o: float, h: float, l: float, c: float) -> bool:
+    """`harmonic_confirmation._is_bullish_pin_bar`den KOPYALANDI (bkz.
+    modul ust notu -- katman/kapsulleme ilkesi, `momentum_confluence_
+    variants.py` ile AYNI gerekce)."""
+    rng = h - l
+    if rng <= 0:
+        return False
+    body = abs(c - o)
+    lower_wick = min(o, c) - l
+    upper_wick = h - max(o, c)
+    return lower_wick >= 2.0 * body and upper_wick <= body and c >= (l + 0.5 * rng)
+
+
+def _is_bullish_engulfing(prev_o: float, prev_c: float, o: float, c: float) -> bool:
+    return c > o and prev_c < prev_o and c >= prev_o and o <= prev_c
+
+
+def _candle_pattern_at(df: pd.DataFrame, bar: int) -> str | None:
+    if bar < 0 or bar >= len(df):
+        return None
+    o, h, l, c = (float(df["open"].iloc[bar]), float(df["high"].iloc[bar]), float(df["low"].iloc[bar]), float(df["close"].iloc[bar]))
+    if _is_bullish_pin_bar(o, h, l, c):
+        return "PIN_BAR"
+    if bar >= 1:
+        prev_o, prev_c = float(df["open"].iloc[bar - 1]), float(df["close"].iloc[bar - 1])
+        if _is_bullish_engulfing(prev_o, prev_c, o, c):
+            return "ENGULFING"
+    return None
+
+
+# `extract_features` sembol basina ONLARCA kez (her aday icin bir kez)
+# cagrilir, ama Order Block taramasi `df`nin (o dip'e kadar KESILMIS
+# hali DEGIL, tam ohlcv_df) FONKSIYONU -- ayni sembol icin TEKRAR TEKRAR
+# TARAMAK yerine `id(ohlcv_df)`e gore ONBELLEKLENIR (performans -- bkz.
+# `harmonic_confirmation.IndicatorSeries`nin "TEK SEFER hesapla" ilkesiyle
+# AYNI ruh). Onbellek `ohlcv_df` NESNESININ omru boyunca gecerlidir --
+# script'ler sembol basina TEK bir df nesnesi kullandigi surece GUVENLIDIR.
+_order_block_cache: dict[int, list] = {}
+
+
+def _cached_order_blocks(ohlcv_df: pd.DataFrame) -> list:
+    from src.analysis.order_block_zones import _find_bullish_order_blocks
+
+    key = id(ohlcv_df)
+    if key not in _order_block_cache:
+        try:
+            _order_block_cache[key] = _find_bullish_order_blocks(ohlcv_df)
+        except Exception:
+            _order_block_cache[key] = []
+    return _order_block_cache[key]
+
+
+def _demand_zone_proximity_atr(df: pd.DataFrame, full_ohlcv_df: pd.DataFrame, low_bar: int, atr_val: float | None) -> float | None:
+    """`order_block_zones.py`nin TAM 3-asamali Order Block/Talep Bolgesi
+    tespitini kullanir (kaynak: `ABCD formasyonu/01_OrderBlock_Zone_
+    Architecture_V3.2.md`, bkz. o modulun ust notu) -- bu dip barinin
+    fiyati, `low_bar`e kadar (causal, `nearest_unmitigated_zone`in kendi
+    `as_of_bar` kesmesiyle) HALA UNMITIGATED VE kalite>=50 olan EN YAKIN
+    boga Order Block'a ATR cinsinden ne kadar uzakta (0 = TAM bolge
+    icinde/uzerinde). `full_ohlcv_df` -- onbellekleme icin TAM (kesilmemis)
+    seri, bkz. `_cached_order_blocks`."""
+    from src.analysis.order_block_zones import nearest_unmitigated_zone
+
+    if atr_val is None or not np.isfinite(atr_val) or atr_val <= 0:
+        return None
+    zones = _cached_order_blocks(full_ohlcv_df)
+    if not zones:
+        return None
+    close = df["close"].to_numpy(dtype=float)
+    low_price = float(df["low"].iloc[low_bar])
+    result = nearest_unmitigated_zone(zones, close, as_of_bar=low_bar, price=low_price, atr_val=atr_val)
+    return result[1] if result is not None else None
 
 
 def extract_features(candidate_row: pd.Series | dict, ohlcv_df: pd.DataFrame) -> dict[str, float | int | None]:
@@ -235,9 +350,16 @@ def extract_features(candidate_row: pd.Series | dict, ohlcv_df: pd.DataFrame) ->
     atr14 = atr_wilder(df, 14)
     features["atr_pct_of_price"] = float(atr14[low_bar] / low_price * 100.0) if not np.isnan(atr14[low_bar]) and low_price > 0 else None
 
+    # NOT: `row` bir pandas Series'ten `.to_dict()` ile geldiyse eksik
+    # degerler Python `None` DEGIL, `float('nan')` olur -- `x is not None`
+    # bu durumda YANLISLIKLA True doner (nan, None DEGILDIR ama BURADA
+    # "eksik" anlamina gelir). TUM opsiyonel alanlar bu yuzden `pd.isna()`
+    # ile kontrol edilir (2026-08-20 duzeltmesi -- bkz. `scripts/rally_
+    # precursor_arastirma.py`nin AYNI hatayi `_zone_for_row`de duzelttigi
+    # commit).
     prior_high_price = row.get("prior_high_price")
     prior_low_price = row.get("prior_low_price")
-    if prior_high_price is not None and prior_low_price is not None:
+    if not pd.isna(prior_high_price) and not pd.isna(prior_low_price):
         leg = float(prior_high_price) - float(prior_low_price)
         if leg > 0:
             retr = (float(prior_high_price) - low_price) / leg
@@ -251,15 +373,147 @@ def extract_features(candidate_row: pd.Series | dict, ohlcv_df: pd.DataFrame) ->
         features["fib_dist_from_618"] = None
 
     prev_low = row.get("prev_pivot_low_price")
-    features["higher_low"] = int(low_price > float(prev_low)) if prev_low is not None else None
+    features["higher_low"] = int(low_price > float(prev_low)) if not pd.isna(prev_low) else None
 
     prior_high_bar = row.get("prior_high_bar")
-    features["bars_since_prior_high"] = int(low_bar - int(prior_high_bar)) if prior_high_bar is not None else None
+    features["bars_since_prior_high"] = int(low_bar - int(prior_high_bar)) if not pd.isna(prior_high_bar) else None
 
     features["momentum_signal_nearby"] = _momentum_signal_nearby(df, low_bar)
     features["harmonic_signal_nearby"] = _harmonic_signal_nearby(df, low_bar)
+    features["wavelet_momentum_nearby"] = _wavelet_momentum_nearby(close, low_bar)
+    features["vcp_pattern_nearby"] = _vcp_pattern_nearby(df, low_bar)
+    features["vol_breakout_nearby"] = _vol_breakout_nearby(df, low_bar)
+
+    stoch_k = _stoch_k(high, low, close)
+    features["stoch_k"] = float(stoch_k[low_bar]) if low_bar < len(stoch_k) and not np.isnan(stoch_k[low_bar]) else None
+
+    wr = _williams_r(high, low, close)
+    features["williams_r"] = float(wr[low_bar]) if low_bar < len(wr) and not np.isnan(wr[low_bar]) else None
+
+    cci = _cci(high, low, close)
+    features["cci20"] = float(cci[low_bar]) if low_bar < len(cci) and not np.isnan(cci[low_bar]) else None
+
+    win_52w = low[max(0, low_bar - 251) : low_bar + 1]
+    low_52w = float(win_52w.min()) if len(win_52w) > 0 else np.nan
+    features["pct_from_52w_low"] = float((low_price - low_52w) / low_52w * 100.0) if not np.isnan(low_52w) and low_52w > 0 else None
+
+    vol_sma20 = pd.Series(volume).rolling(20).mean().to_numpy()
+    v_sma_at = vol_sma20[low_bar] if low_bar < len(vol_sma20) else np.nan
+    features["vol_climax_ratio"] = float(volume[low_bar] / v_sma_at) if not np.isnan(v_sma_at) and v_sma_at > 0 else None
+
+    dryup_start = max(0, low_bar - 9)
+    dryup_window_vol = volume[dryup_start : low_bar + 1]
+    dryup_window_sma = vol_sma20[dryup_start : low_bar + 1]
+    with np.errstate(divide="ignore", invalid="ignore"):
+        dryup_ratios = dryup_window_vol / dryup_window_sma
+    valid_dryup = dryup_ratios[np.isfinite(dryup_ratios)]
+    features["vol_dryup_min_ratio"] = float(valid_dryup.min()) if len(valid_dryup) > 0 else None
+
+    open_ = df["open"].to_numpy(dtype=float) if "open" in df.columns else np.full(n, np.nan)
+    if low_bar >= 1 and not np.isnan(open_[low_bar]) and close[low_bar - 1] != 0:
+        features["gap_into_low_pct"] = float((open_[low_bar] - close[low_bar - 1]) / close[low_bar - 1] * 100.0)
+    else:
+        features["gap_into_low_pct"] = None
+
+    features["candle_pattern_at_low"] = _candle_pattern_at(df, low_bar) or "NONE"
+
+    features["rsi_bullish_divergence"] = _rsi_bullish_divergence(rsi, low_bar, low_price, prior_low_price, row.get("prior_low_bar"))
+
+    atr14_full = atr_wilder(df, 14)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        atr_ratio_series = atr14_full / close
+    atr_rank = pd.Series(atr_ratio_series).rolling(120, min_periods=60).rank(pct=True).to_numpy()
+    features["atr_pctrank"] = float(atr_rank[low_bar]) if low_bar < len(atr_rank) and not np.isnan(atr_rank[low_bar]) else None
+
+    ema20 = pd.Series(close).ewm(span=20, adjust=False).mean().to_numpy()
+    ema50 = pd.Series(close).ewm(span=50, adjust=False).mean().to_numpy()
+    ema100 = pd.Series(close).ewm(span=100, adjust=False).mean().to_numpy()
+    ema200 = pd.Series(close).ewm(span=200, adjust=False).mean().to_numpy()
+    if low_bar < len(ema200):
+        e20, e50, e100, e200 = ema20[low_bar], ema50[low_bar], ema100[low_bar], ema200[low_bar]
+        score = int(low_price > e20) + int(e20 > e50) + int(e50 > e100) + int(e100 > e200)
+        features["ma_ribbon_score"] = score
+        features["dist_from_ema20_pct"] = float((low_price - e20) / e20 * 100.0) if e20 > 0 else None
+    else:
+        features["ma_ribbon_score"] = None
+        features["dist_from_ema20_pct"] = None
+
+    signal_time = row.get("signal_time")
+    if signal_time is None or pd.isna(signal_time):
+        signal_time = row.get("entry_time")
+    features["month_of_year"] = int(pd.Timestamp(signal_time).month) if signal_time is not None and not pd.isna(signal_time) else None
+
+    atr_at_low = atr14_full[low_bar] if low_bar < len(atr14_full) else np.nan
+    dz_dist = _demand_zone_proximity_atr(df, ohlcv_df, low_bar, float(atr_at_low) if not np.isnan(atr_at_low) else None)
+    features["demand_zone_proximity_atr"] = dz_dist
+    features["in_demand_zone"] = int(dz_dist is not None and dz_dist <= 0.1) if dz_dist is not None else None
 
     return features
+
+
+def _wavelet_momentum_nearby(close: np.ndarray, low_bar: int, window: int = 3) -> int | None:
+    """`wavelet_trend_rider._causal_wavelet_denoise`nin HAM momentum kosulu
+    (velocity>0 VE acceleration>0, MTF/EMA/ADX/RSI FILTRESIZ) BU dip
+    barinin +-`window` civarinda saglaniyor mu -- bkz. modul ust notu."""
+    from src.analysis.wavelet_trend_rider import _causal_wavelet_denoise
+
+    try:
+        denoised = _causal_wavelet_denoise(close)
+    except Exception:
+        return None
+    velocity = np.diff(denoised, prepend=np.nan)
+    acceleration = np.diff(velocity, prepend=np.nan)
+    lo = max(0, low_bar - window)
+    hi = min(len(close), low_bar + window + 1)
+    seg_v, seg_a = velocity[lo:hi], acceleration[lo:hi]
+    valid = ~np.isnan(seg_v) & ~np.isnan(seg_a)
+    if not valid.any():
+        return None
+    return int(bool(np.any((seg_v[valid] > 0) & (seg_a[valid] > 0))))
+
+
+def _vcp_pattern_nearby(df: pd.DataFrame, low_bar: int, window: int = 5) -> int | None:
+    """`vcp_breakout.detect()` BU dip barinin +-`window` civarinda bir
+    kirilim uretti mi (3 sikisan pullback + hacimli kirilim, bkz. o
+    modulun ust notu)."""
+    from src.analysis import vcp_breakout as vcp
+
+    try:
+        signals = vcp.detect(df)
+    except Exception:
+        return None
+    return int(any(abs(s.signal_bar - low_bar) <= window for s in signals))
+
+
+def _vol_breakout_nearby(df: pd.DataFrame, low_bar: int, window: int = 3) -> int | None:
+    """`vol_breakout_kestner.detect()` (Referans+kxATR oynaklik kirilimi)
+    BU dip barinin +-`window` civarinda bir LONG tetigi uretti mi."""
+    from src.analysis import vol_breakout_kestner as vbk
+
+    try:
+        signals = vbk.detect(df, vbk.Params(enable_short=False))
+    except Exception:
+        return None
+    return int(any(abs(s.signal_bar - low_bar) <= window for s in signals))
+
+
+def _rsi_bullish_divergence(
+    rsi: np.ndarray, low_bar: int, low_price: float, prior_low_price: float | None, prior_low_bar: float | None,
+) -> int | None:
+    """Fiyat bu dipte ONCEKI dipten (prior_low) DAHA DUSUK/ESIT ama RSI
+    DAHA YUKSEK ise (klasik boga uyumsuzlugu) 1, degilse 0 -- ONCEKI dip
+    YOKSA (seri basi) None. `harmonic_confirmation.py`nin B->D RSI
+    uyumsuzluk ilkesiyle AYNI mantik, farkli veri kaynagi (pivot dip
+    zinciri)."""
+    if prior_low_price is None or pd.isna(prior_low_price) or prior_low_bar is None or pd.isna(prior_low_bar):
+        return None
+    prior_low_bar_int = int(prior_low_bar)
+    if prior_low_bar_int < 0 or prior_low_bar_int >= len(rsi) or low_bar >= len(rsi):
+        return None
+    rsi_now, rsi_prior = rsi[low_bar], rsi[prior_low_bar_int]
+    if np.isnan(rsi_now) or np.isnan(rsi_prior):
+        return None
+    return int(low_price <= float(prior_low_price) and rsi_now > rsi_prior)
 
 
 def _momentum_signal_nearby(df: pd.DataFrame, low_bar: int, window: int = 3) -> int | None:

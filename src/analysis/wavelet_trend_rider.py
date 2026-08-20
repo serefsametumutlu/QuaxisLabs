@@ -4,15 +4,33 @@ ivmesi. SAF MATEMATIK, I/O YOK (`abcd_pattern.py` ile AYNI katman ilkesi).
 Kaynak (2026-08-19, kullanicinin masaustu arastirmasi): "Quant Playbook/
 strateji_1_wavelet_trend_rider.py" -- baska bir proje (AxiQuant) icin
 yazilmis, BIST30 4H+1D. Kullanici bunu "iyi gorunuyordu" diye ozellikle
-isaret etti -- bu modul, ORIJINAL SINYAL MANTIGINI DEGISTIRMEDEN, bilanco-
-radar'in veri/backtest altyapisina (`fetch_ohlcv_abcd` "240"+"1D",
-`abcd_backtest` duck-typing) PORT eder.
+isaret etti -- bu modul, ORIJINAL SINYAL MANTIGINI (EMA/ADX/RSI/velocity/
+acceleration/MTF kosullari) DEGISTIRMEDEN, bilanco-radar'in veri/backtest
+altyapisina (`fetch_ohlcv_abcd` "240"+"1D", `abcd_backtest` duck-typing)
+PORT eder.
 
-Yontem: kapanis fiyati Daubechies-8 dalgaciğiyla (pywt, seviye 4, yumusak
-esikleme, evrensel esik sigma*sqrt(2*ln(N))) gurultuden arindirilir; bu
-"temiz" fiyatin 1. farki (velocity) ve 2. farki (acceleration) momentum
-ivmesini olcer. LONG: close>EMA50>EMA100, ADX14>20, velocity>0, ivme>0,
-RSI14<70, GUNLUK kapanis>GUNLUK EMA50 (coklu-zaman-dilimi onayi).
+## Yontem -- CAUSAL à trous (SWT) Daubechies-8 kaskadi (2026-08-20 DUZELTME)
+
+Ilk surum `pywt.wavedec()`/`waverec()` kullaniyordu (kaynak script'in
+KENDI yontemi) -- ama bu, TUM `close` dizisini TEK SEFERDE (batch) islediği
+icin NON-CAUSAL'di: bar `i`deki `denoised[i]`, hem ONCEKI hem SONRAKI
+barlardan etkileniyordu (gurultu esigi TUM diziden hesaplaniyor, ters-
+donusum matematiksel olarak iki-yonlu). Bu, `docs/spec/YENI_10_STRATEJI_
+BACKTEST.md`deki PF=2.21 sonucunu ILERI-BAKIS SIZINTISIYLA sisirmis olabilir
+-- kullanicinin TradingView'de gordugu "sinyal cogu zaman tepe civarinda
+geliyor, SL'ye gidiyor" sikayeti bunun CANLI KANITIdir (bkz. `pine/wavelet_
+trend_rider_v1_indicator.pine`nin BUNU ilk fark ettigi commit).
+
+Bu surum artik TAMAMEN CAUSAL: `pywt.Wavelet('db8').dec_lo / sqrt(2)`den
+(sqrt(2) -- ayrik/decimated DWT normu, à trous/undecimated kullanimda
+DUZELTILMESI gereken olcek, bkz. `_DB8_H` ust notu) turetilmis 16 katsayili
+alcak-gecis filtresi, 4 seviyeli à trous (Starck-Murtagh "starlet") kaskadi
+ile uygulanir -- HER seviye SADECE kendinden ONCEKI seviyenin (ve ondan
+ONCEKI barlarin) verisini kullanir, gelecek ASLA sizmaz. Bu, artik `pine/
+wavelet_trend_rider_v1_indicator.pine` ile SAYISAL OLARAK OZDES (Python'da
+ayrica dogrulandi, bkz. `tests/test_wavelet_trend_rider.py` "causal"
+regresyon testi). `pywt` bagimliligi bu yuzden KALDIRILDI (katsayilar SABIT
+gomulu, tekrar hesaplamaya gerek yok).
 
 MTF hizalama -- neden orijinalden FARKLI: kaynak script pandas reindex/
 ffill kullaniyordu; bu port HER 4H bari icin "o barin takvim gununden
@@ -28,29 +46,16 @@ ilkesine sadik kalmak icin BU MODULE OZEL, orijinalle BIREBIR ayni yerel
 kopyalar tutulur (`momentum_confluence_variants.py`nin kendi RSI/EMA
 kopyalarini tutma gerekcesiyle AYNI).
 
-## ⚠️ KRITIK SINIRLAMA -- `_wavelet_denoise()` NON-CAUSAL (look-ahead icerir)
+## Kotu sinyal teshis alanlari (2026-08-20, kullanici canli TradingView
+raporu -- "sinyallerin cogu hissenin tepesinde geliyor, SL'ye gidiyor")
 
-2026-08-20'de (Pine portu calismasi sirasinda) fark edildi: `pywt.wavedec()`/
-`waverec()` TUM `close` dizisini TEK SEFERDE (batch) isler -- gurultu esigi
-(sigma), dizinin SON barina kadarki TUM detay katsayilarindan hesaplanir,
-VE ters-donusum (waverec) matematiksel olarak non-causal'dir (bar `i`deki
-`clean_price[i]`, hem `i`den ONCEKI hem SONRAKI barlardan etkilenir). Yani
-`docs/spec/YENI_10_STRATEJI_BACKTEST.md`deki PF=2.21/WR=%59.3 sonucu bir
-miktar ILERI-BAKIS SIZINTISI icerebilir -- projenin genelindeki "asla
-look-ahead yok" ilkesinin FARKINA VARILMAMIS bir ihlalidir (bu modul ilk
-yazildiginda ACIKCA belgelenmemisti, simdi duzeltiliyor). Gercek/canli
-etki BILINMIYOR -- ne kadar sizinti oldugu olcumlenmedi.
-
-TradingView Pine portu (`pine/wavelet_trend_rider_v1_indicator.pine`)
-ZORUNLU olarak TAMAMEN CAUSAL calisir (canli grafikte gelecek gorulemez)
--- bu yuzden Python'un `pywt.wavedec/waverec`i YERINE, matematiksel olarak
-FARKLI bir teknik (causal à trous/SWT Daubechies-8 kaskadi, Starck-Murtagh)
-kullanir. Iki taraf SAYISAL OLARAK OZDES DEGILDIR -- Pine sonuclari bu
-Python backtestindeki PF'yi AYNEN TEKRARLAMAYACAKTIR (muhtemelen DAHA
-MUTEVAZI, cunku look-ahead sizintisi YOK). Bu modul (Python) SADECE
-arastirma/backtest amaclidir, look-ahead-safe bir "canli" tarayici/kart
-icin KULLANILMAMALIDIR -- canli kullanim icin Pine portu (veya ondan
-turetilecek ayri bir causal Python modulu) tercih edilmelidir.
+`Signal`e 3 teshis alani eklendi (`dist_from_denoised_atr`, `is_new_high_20`,
+`pullback_bars`) -- bunlar HENUZ hicbir kosulu FILTRELEMIYOR (baseline
+`detect()` DEGISMEDI), sadece "kotu sinyal" hipotezlerini olcmek icin veri
+saglar. Gercek filtre ablasyonu `wavelet_trend_rider_variants.py`de (bkz. o
+modulun ust notu) ve `scripts/wavelet_trend_rider_optimizasyon.py`de yapilir
+-- bu modulun KENDISI `momentum_confluence.py`nin harmonic_xabcd.py'ye
+gore oynadigi ROLU oynar: "Pine-parity temel", deneysel filtreler AYRI.
 
 TP/SL kaynakta zaten VARDI (SL=2xATR, TP1=3xATR, TP2=6xATR) -- DEGISTIRILMEDI.
 `abcd_backtest.backtest_symbol` ile duck-typing uyumlu (Signal alan adlari
@@ -63,16 +68,29 @@ from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
-import pywt
 
 OHLC_COLUMNS = ("time", "open", "high", "low", "close", "volume")
+
+# `pywt.Wavelet('db8').dec_lo` (ayrisim alcak-gecis filtresi, 16 katsayi)
+# sqrt(2)'ye bolunerek NORMALIZE edilmistir -- ayrik/decimated DWT'nin dogal
+# normu sqrt(2)'dir (sum(dec_lo)=sqrt(2)), ama à trous/undecimated kullanimda
+# (bu modulun/Pine'in yaptigi gibi, HER seviyede AYNI filtreyi tekrar tekrar
+# uygulamak) bu normalizasyon OLMADAN deger her seviyede sqrt(2) kati
+# BUYUYUP patlar -- bu, gelistirme sirasinda Python'da SAYISAL olarak
+# tespit edilip (`sum(H)=1` olacak sekilde) DUZELTILDI, `pine/wavelet_
+# trend_rider_v1_indicator.pine` ile BIREBIR AYNI katsayilar (bkz. o
+# dosyanin ust notu -- ayni turetim).
+_DB8_H: tuple[float, ...] = (
+    -0.00008306863068661, 0.00047761485564963, -0.00027700227447939, -0.00344385962844181,
+    0.00618442240981592, 0.00988607964835076, -0.03117510332513943, -0.01228195052284841,
+    0.09103817842365775, 0.00033409704622012, -0.20082931639048901, -0.01119286766688022,
+    0.41390826621119586, 0.47774307521387360, 0.22123362357612489, 0.03847781105407623,
+)
+_DB8_LEVELS = 4
 
 
 @dataclass(frozen=True)
 class Params:
-    wavelet: str = "db8"
-    wavelet_level: int = 4
-    threshold_mode: str = "soft"
     ema_fast: int = 50
     ema_slow: int = 100
     adx_period: int = 14
@@ -100,6 +118,10 @@ class Signal:
     velocity: float
     acceleration: float
     adx: float
+    # --- teshis alanlari (2026-08-20, "kotu sinyal" hipotez testi -- bkz. modul ust notu) ---
+    dist_from_denoised_atr: float  # (entry - denoised)/ATR -- buyuk pozitif = fiyat trendden COK uzamis
+    is_new_high_20: bool  # kapanis, son 20 barin (bu bar DAHIL) en yuksegi mi
+    pullback_bars: int  # flip ONCESI ardisik kac bar velocity<=0 idi (0 = gercek bir "dip" YOK, duz devam)
 
 
 def _ema(series: np.ndarray, period: int) -> np.ndarray:
@@ -145,16 +167,37 @@ def _adx(high: np.ndarray, low: np.ndarray, close: np.ndarray, period: int) -> n
     return dx.ewm(span=period, adjust=False).mean().to_numpy()
 
 
-def _wavelet_denoise(prices: np.ndarray, wavelet: str, level: int, mode: str) -> np.ndarray:
-    prices = np.array(prices, dtype=float, copy=True)  # pywt yazilabilir/contiguous bellek ister
-    if len(prices) < 2**level:
-        return prices.copy()
-    coeffs = pywt.wavedec(prices, wavelet, level=level)
-    sigma = float(np.median(np.abs(coeffs[-1])) / 0.6745)
-    threshold = sigma * np.sqrt(2.0 * np.log(len(prices)))
-    denoised = [coeffs[0]] + [pywt.threshold(c, threshold, mode=mode) for c in coeffs[1:]]
-    result = pywt.waverec(denoised, wavelet)
-    return result[: len(prices)]
+def _db8_atrous_smooth(series: np.ndarray, step: int) -> np.ndarray:
+    """à trous (undecimated) TEK seviye alcak-gecis filtreleme -- `series[i]`
+    icin SADECE `series[i], series[i-step], ..., series[i-15*step]` kullanir
+    (look-ahead YOK). k uzerinde vektorize (n uzerinde DEGIL) -- 16 numpy
+    islemi, `n` buyuklugunden bagimsiz sabit maliyet (bkz. modul ust notu
+    performans notu, Python'da dogrulandi: loop-tabanli referans uygulamayla
+    BIREBIR AYNI sonuc, `tests/test_wavelet_trend_rider.py`)."""
+    n = len(series)
+    out = np.zeros(n)
+    valid = np.ones(n, dtype=bool)
+    for k, h in enumerate(_DB8_H):
+        lag = k * step
+        shifted = np.full(n, np.nan)
+        if lag == 0:
+            shifted = series.astype(float, copy=True)
+        else:
+            shifted[lag:] = series[:-lag]
+        out = out + h * np.nan_to_num(shifted, nan=0.0)
+        valid = valid & ~np.isnan(shifted)
+    return np.where(valid, out, np.nan)
+
+
+def _causal_wavelet_denoise(close: np.ndarray, levels: int = _DB8_LEVELS) -> np.ndarray:
+    """4 seviyeli à trous db8 kaskadi -- her seviye ONCEKI seviyenin
+    CIKTISINI girdi alir (adim 1,2,4,8,...). Seviye `levels`in ciktisi
+    "temizlenmis" (denoised) fiyattir -- Pine'daki `denoised` ile AYNI
+    (bkz. `pine/wavelet_trend_rider_v1_indicator.pine`)."""
+    c = close.astype(float, copy=True)
+    for j in range(1, levels + 1):
+        c = _db8_atrous_smooth(c, step=2 ** (j - 1))
+    return c
 
 
 def _daily_series_aligned(bar_times: pd.Series, daily_df: pd.DataFrame, daily_values: np.ndarray) -> np.ndarray:
@@ -175,7 +218,9 @@ def _daily_series_aligned(bar_times: pd.Series, daily_df: pd.DataFrame, daily_va
 
 def detect(df: pd.DataFrame, df_daily: pd.DataFrame, params: Params = Params()) -> list[Signal]:
     """`df` = 4H (tf="240") bar serisi, `df_daily` = 1D bar serisi (AYNI
-    sembol). Kaynak scriptin `generate_signals`inin PORTU."""
+    sembol). Kaynak scriptin `generate_signals`inin PORTU -- kosullar
+    DEGISMEDI, SADECE dalgacik hesaplamasi artik causal (bkz. modul ust
+    notu)."""
     p = params
     n = len(df)
     warmup = min(p.ema_slow, n // 3)
@@ -193,9 +238,11 @@ def detect(df: pd.DataFrame, df_daily: pd.DataFrame, params: Params = Params()) 
     rsi = _rsi(close, p.rsi_period)
     atr = _atr(high, low, close, p.atr_period)
 
-    clean = _wavelet_denoise(close, p.wavelet, p.wavelet_level, p.threshold_mode)
-    velocity = np.diff(clean, prepend=np.nan)
+    denoised = _causal_wavelet_denoise(close)
+    velocity = np.diff(denoised, prepend=np.nan)
     acceleration = np.diff(velocity, prepend=np.nan)
+
+    roll_high_20 = pd.Series(close).rolling(20, min_periods=1).max().to_numpy()
 
     daily_ema_series = _ema(df_daily["close"].to_numpy(dtype=float), p.ema_fast) if not df_daily.empty else np.array([])
     daily_ema = _daily_series_aligned(time_col, df_daily, daily_ema_series)
@@ -226,6 +273,12 @@ def detect(df: pd.DataFrame, df_daily: pd.DataFrame, params: Params = Params()) 
         tp1 = entry_ref + atr[i] * p.tp1_atr_mult
         tp2 = entry_ref + atr[i] * p.tp2_atr_mult
 
+        pullback_bars = 0
+        j = i - 1
+        while j >= 0 and not np.isnan(velocity[j]) and velocity[j] <= 0:
+            pullback_bars += 1
+            j -= 1
+
         signals.append(
             Signal(
                 direction=1,
@@ -239,6 +292,9 @@ def detect(df: pd.DataFrame, df_daily: pd.DataFrame, params: Params = Params()) 
                 velocity=float(velocity[i]),
                 acceleration=float(acceleration[i]),
                 adx=float(adx[i]),
+                dist_from_denoised_atr=float((entry_ref - denoised[i]) / atr[i]) if atr[i] > 0 else float("nan"),
+                is_new_high_20=bool(close[i] >= roll_high_20[i]),
+                pullback_bars=pullback_bars,
             )
         )
 

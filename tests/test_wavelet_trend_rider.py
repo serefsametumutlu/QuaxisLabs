@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.analysis.wavelet_trend_rider import Params, _daily_series_aligned, _wavelet_denoise, detect
+from src.analysis.wavelet_trend_rider import Params, _causal_wavelet_denoise, _daily_series_aligned, detect
 
 
 def _ohlcv_4h(close: np.ndarray, start: str = "2024-01-01") -> pd.DataFrame:
@@ -40,10 +40,35 @@ def _ohlcv_1d(close: np.ndarray, start: str = "2024-01-01") -> pd.DataFrame:
     )
 
 
-def test_wavelet_denoise_kisa_seride_cokmez_aynen_doner():
+def test_wavelet_denoise_kisa_seride_hepsi_nan_doner():
+    # 4 seviyeli a trous kaskadinin en az ~225 bar gecmise ihtiyaci var --
+    # bundan cok kisa bir seride HICBIR bar gecerli olamaz (look-ahead
+    # olmadan hesaplanamaz), FIRLATMAZ, sessizce NaN doner.
     prices = np.array([10.0, 11.0, 10.5])
-    out = _wavelet_denoise(prices, wavelet="db8", level=4, mode="soft")
-    assert np.allclose(out, prices)
+    out = _causal_wavelet_denoise(prices)
+    assert np.all(np.isnan(out))
+
+
+def test_wavelet_denoise_causal_gelecek_bari_degistirmek_gecmisi_ETKILEMEZ():
+    """KRITIK regresyon testi (2026-08-20): eski pywt.wavedec/waverec
+    (batch) yontemi NON-CAUSAL'di -- bu test o hatanin GERI GELMEDIGINI
+    dogrular. Aynı ilk N barla, N+50. bardan sonrasi FARKLI olan iki seri
+    -- ilk N bara ait denoised degerler AYNI olmali (gelecek hicbir
+    sekilde gecmisi etkilememeli)."""
+    rng = np.random.RandomState(7)
+    n_common = 400
+    common = 100.0 + np.cumsum(rng.normal(0, 1, n_common))
+    tail_a = common[-1] + np.cumsum(rng.normal(0, 1, 50))
+    tail_b = common[-1] + np.cumsum(rng.normal(5, 1, 50))  # TAMAMEN FARKLI gelecek
+
+    series_a = np.concatenate([common, tail_a])
+    series_b = np.concatenate([common, tail_b])
+
+    denoised_a = _causal_wavelet_denoise(series_a)
+    denoised_b = _causal_wavelet_denoise(series_b)
+
+    # Ilk n_common bar (ortak gecmis) -- gelecek FARKLI olsa bile BIREBIR AYNI olmali.
+    np.testing.assert_array_equal(denoised_a[:n_common], denoised_b[:n_common])
 
 
 def test_daily_series_aligned_ayni_gunu_asla_gormez():

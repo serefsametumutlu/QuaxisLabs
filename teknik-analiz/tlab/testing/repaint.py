@@ -166,7 +166,7 @@ def repaint_test(
         partial = indicator(partial_df)
         checked_cuts += 1
 
-        full_signals_upto = [s for s in full.signals if s.bar_time <= cut_time]
+        full_signals_upto = [s for s in full.signals if s.detected_at <= cut_time]
         _diff_signals(cut, cut_time, partial.signals, full_signals_upto, mismatches)
 
         full_levels_upto = [lv for lv in full.levels if lv.start is None or lv.start <= cut_time]

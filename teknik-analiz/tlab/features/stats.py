@@ -74,5 +74,5 @@ def adf_pvalue(spread: pd.Series) -> float:
     Düşük p-değeri -> durağanlık (mean-reversion) lehine kanıt.
     """
     clean = spread.dropna()
-    result = adfuller(clean.to_numpy(), result_object=False)
+    result = adfuller(clean.to_numpy())
     return float(result[1])

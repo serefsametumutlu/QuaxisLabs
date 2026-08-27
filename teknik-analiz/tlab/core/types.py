@@ -38,7 +38,7 @@ class Market(str, Enum):
 
 
 Direction = Literal["long", "short", "neutral"]
-SignalState = Literal["pending", "active", "confirmed", "invalidated", "completed"]
+SignalState = Literal["pending", "active", "confirmed", "invalidated", "completed", "expired"]
 
 
 @dataclass(frozen=True)

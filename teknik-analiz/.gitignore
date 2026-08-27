@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+build/
+dist/
+
+# Veri ve çıktılar (üretilen, git dışı — bkz. CLAUDE.md). Kök dizine
+# ("/") sabitlendi — aksi halde tlab/data/ (kaynak kod paketi) de eşleşirdi.
+/data/
+/outputs/
+
+# IDE
+.vscode/
+.idea/

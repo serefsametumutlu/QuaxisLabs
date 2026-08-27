@@ -1,0 +1,23 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        args: [--fix]
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: mypy tlab
+        language: system
+        pass_filenames: false
+      - id: pytest
+        name: pytest
+        entry: pytest -q
+        language: system
+        pass_filenames: false
+      - id: lint-lookahead
+        name: lint-lookahead (repaint statik denetim)
+        entry: python -m tlab.cli lint
+        language: system
+        pass_filenames: false

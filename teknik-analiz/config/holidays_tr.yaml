@@ -1,0 +1,69 @@
+# BIST resmi tatil takvimi.
+#
+# 2025 ve 2026: Borsa İstanbul'un yayınladığı resmi tatil tablolarına
+# dayanır (borsaistanbul.com/files/pay-piyasasi-{yıl}-yili-tatil-tablosu.pdf),
+# WebSearch ile 2026-08-27 tarihinde doğrulandı.
+#
+# 2027: Borsa İstanbul bu yazının yazıldığı tarihte (2026-08-27) henüz 2027
+# resmi tatil takvimini yayınlamamıştı. Sabit tarihli (millî/resmî) tatiller
+# kesindir; dinî bayramların (Ramazan/Kurban) tarihleri Diyanet'in ay
+# takvimine dayalı ÖNGÖRÜSÜdür — confirmed: false ile işaretlendi. Borsa
+# İstanbul 2027 takvimini yayınladığında borsaistanbul.com/en/official-holidays
+# üzerinden doğrulanıp bu dosya güncellenmeli.
+#
+# half_day: true → BIST'te yarım gün seansı (arife), kapanış 12:40 (bkz.
+# tlab/data/calendar.py:_BIST_HALF_DAY_CLOSE).
+bist:
+  2025:
+    - {date: "2025-01-01", name: "Yılbaşı"}
+    - {date: "2025-03-29", name: "Ramazan Bayramı Arifesi", half_day: true}
+    - {date: "2025-03-30", name: "Ramazan Bayramı"}
+    - {date: "2025-03-31", name: "Ramazan Bayramı"}
+    - {date: "2025-04-01", name: "Ramazan Bayramı"}
+    - {date: "2025-04-23", name: "Ulusal Egemenlik ve Çocuk Bayramı"}
+    - {date: "2025-05-01", name: "Emek ve Dayanışma Günü"}
+    - {date: "2025-05-19", name: "Atatürk'ü Anma, Gençlik ve Spor Bayramı"}
+    - {date: "2025-06-05", name: "Kurban Bayramı Arifesi", half_day: true}
+    - {date: "2025-06-06", name: "Kurban Bayramı"}
+    - {date: "2025-06-07", name: "Kurban Bayramı"}
+    - {date: "2025-06-08", name: "Kurban Bayramı"}
+    - {date: "2025-06-09", name: "Kurban Bayramı"}
+    - {date: "2025-07-15", name: "Demokrasi ve Milli Birlik Günü"}
+    - {date: "2025-08-30", name: "Zafer Bayramı"}
+    - {date: "2025-10-28", name: "Cumhuriyet Bayramı Arifesi", half_day: true}
+    - {date: "2025-10-29", name: "Cumhuriyet Bayramı"}
+  2026:
+    - {date: "2026-01-01", name: "Yılbaşı"}
+    - {date: "2026-03-19", name: "Ramazan Bayramı Arifesi", half_day: true}
+    - {date: "2026-03-20", name: "Ramazan Bayramı"}
+    - {date: "2026-03-21", name: "Ramazan Bayramı"}
+    - {date: "2026-03-22", name: "Ramazan Bayramı"}
+    - {date: "2026-04-23", name: "Ulusal Egemenlik ve Çocuk Bayramı"}
+    - {date: "2026-05-01", name: "Emek ve Dayanışma Günü"}
+    - {date: "2026-05-19", name: "Atatürk'ü Anma, Gençlik ve Spor Bayramı"}
+    - {date: "2026-05-26", name: "Kurban Bayramı Arifesi", half_day: true}
+    - {date: "2026-05-27", name: "Kurban Bayramı"}
+    - {date: "2026-05-28", name: "Kurban Bayramı"}
+    - {date: "2026-05-29", name: "Kurban Bayramı"}
+    - {date: "2026-05-30", name: "Kurban Bayramı"}
+    - {date: "2026-07-15", name: "Demokrasi ve Milli Birlik Günü"}
+    - {date: "2026-08-30", name: "Zafer Bayramı"}
+    - {date: "2026-10-28", name: "Cumhuriyet Bayramı Arifesi", half_day: true}
+    - {date: "2026-10-29", name: "Cumhuriyet Bayramı"}
+  2027:
+    - {date: "2027-01-01", name: "Yılbaşı"}
+    - {date: "2027-03-08", name: "Ramazan Bayramı Arifesi", half_day: true, confirmed: false}
+    - {date: "2027-03-09", name: "Ramazan Bayramı", confirmed: false}
+    - {date: "2027-03-10", name: "Ramazan Bayramı", confirmed: false}
+    - {date: "2027-03-11", name: "Ramazan Bayramı", confirmed: false}
+    - {date: "2027-04-23", name: "Ulusal Egemenlik ve Çocuk Bayramı"}
+    - {date: "2027-05-01", name: "Emek ve Dayanışma Günü"}
+    - {date: "2027-05-15", name: "Kurban Bayramı Arifesi", half_day: true, confirmed: false}
+    - {date: "2027-05-16", name: "Kurban Bayramı", confirmed: false}
+    - {date: "2027-05-17", name: "Kurban Bayramı", confirmed: false}
+    - {date: "2027-05-18", name: "Kurban Bayramı", confirmed: false}
+    - {date: "2027-05-19", name: "Kurban Bayramı / Atatürk'ü Anma, Gençlik ve Spor Bayramı (çakışma)", confirmed: false}
+    - {date: "2027-07-15", name: "Demokrasi ve Milli Birlik Günü"}
+    - {date: "2027-08-30", name: "Zafer Bayramı"}
+    - {date: "2027-10-28", name: "Cumhuriyet Bayramı Arifesi", half_day: true}
+    - {date: "2027-10-29", name: "Cumhuriyet Bayramı"}

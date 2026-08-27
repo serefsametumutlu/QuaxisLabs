@@ -1,0 +1,16 @@
+data:
+  # yfinance auto_adjust politikası. True: open/high/low/close temettü/split
+  # ayarlamalı (ham kapanış ayrıca close_raw kolonunda saklanır).
+  adjusted: true
+  csv_data_dir: "data/external"
+
+resample:
+  # NASDAQ 4H dilim şeması. "session_aligned": seans açılışına hizalı, ikinci
+  # dilim 4 saatten kısa. "equal_split": 6.5 saatlik seansı ikiye eşit böler.
+  # BIST için bu ayar geçerli değildir (TradingView hizalamasıyla sabit).
+  nasdaq_4h_split: "session_aligned"
+
+providers:
+  yfinance:
+    # yfinance'in 60m (1H) çözünürlükte geriye gidebildiği yaklaşık gün sayısı.
+    h1_max_lookback_days: 729

@@ -83,3 +83,65 @@ make lint           # ruff + statik lookahead denetimi
 make typecheck       # mypy
 make repaint-all     # lint + repaint testleri
 ```
+
+## Gün Sonu (EOD) Zamanlaması
+
+`tlab eod --market bist` her gün BIST kapanışından (18:00 Europe/Istanbul) sonra,
+tercihen **18:15**'te (kapanış sonrası veri sağlayıcı gecikmesi için tampon)
+koşulmalıdır. `run_eod()` kendi takvim kontrolünü yapar (hafta sonu/resmi tatil
+günlerinde otomatik atlanır) — zamanlayıcı yalnızca "her gün 18:15'te dene" kadar
+basit olabilir.
+
+### Linux/macOS — cron
+
+```cron
+# crontab -e
+15 18 * * 1-5 cd /path/to/teknik-analiz && TZ=Europe/Istanbul .venv/bin/tlab eod --market bist >> outputs/logs/cron.log 2>&1
+```
+
+### Linux — systemd timer
+
+```ini
+# /etc/systemd/system/tlab-eod.service
+[Unit]
+Description=tlab EOD tarama
+
+[Service]
+Type=oneshot
+WorkingDirectory=/path/to/teknik-analiz
+Environment=TZ=Europe/Istanbul
+ExecStart=/path/to/teknik-analiz/.venv/bin/tlab eod --market bist
+```
+
+```ini
+# /etc/systemd/system/tlab-eod.timer
+[Unit]
+Description=tlab EOD günlük tetikleyici
+
+[Timer]
+OnCalendar=Mon..Fri 18:15 Europe/Istanbul
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+```bash
+sudo systemctl enable --now tlab-eod.timer
+```
+
+### Windows — Görev Zamanlayıcı (Task Scheduler)
+
+```powershell
+$action = New-ScheduledTaskAction -Execute "C:\path\to\teknik-analiz\.venv\Scripts\tlab.exe" `
+    -Argument "eod --market bist" -WorkingDirectory "C:\path\to\teknik-analiz"
+$trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday,Tuesday,Wednesday,Thursday,Friday -At 18:15
+Register-ScheduledTask -TaskName "tlab-eod-bist" -Action $action -Trigger $trigger `
+    -Description "tlab gun sonu (EOD) taramasi"
+```
+
+(GUI eşdeğeri: Görev Zamanlayıcı → Temel Görev Oluştur → Haftalık, Pzt-Cum 18:15 →
+Program Başlat → yukarıdaki `tlab.exe` yolu + `eod --market bist` argümanı.)
+
+Aynı gün ikinci bir tetikleme (ör. zamanlayıcı çakışması) `run_eod()` tarafından
+otomatik atlanır (`status: "skipped_existing"`) — `--force` verilmedikçe.

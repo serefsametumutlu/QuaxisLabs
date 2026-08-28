@@ -6,6 +6,7 @@ from __future__ import annotations
 import pytest
 
 from tests.test_structure.fixtures import build_abcd_ohlcv, build_registry_smoke_ohlcv
+from tlab.core.errors import RegistryError
 from tlab.core.indicator import registry
 from tlab.indicators.structure.swing_fib_abcd import SwingFibABCD, SwingFibABCDParams
 from tlab.testing.repaint import repaint_test
@@ -80,5 +81,9 @@ def test_registers_in_registry() -> None:
     gerektiği için, build_abcd_ohlcv yerine kafa+uzun-monoton-kuyruk
     fixture'ı kullanılır (bkz. fixtures.py docstring'i)."""
     df = build_registry_smoke_ohlcv()
-    registry.register(SwingFibABCD, df)
+    try:
+        registry.register(SwingFibABCD(), df)
+    except RegistryError as exc:
+        if "zaten kayıtlı" not in str(exc):
+            raise  # baska test dosyasi (tlab.indicators.bootstrap) zaten kaydetmis olabilir
     assert registry.get("structure.swing_fib_abcd") is SwingFibABCD

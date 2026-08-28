@@ -63,28 +63,48 @@ class Registry:
 
     def register(
         self,
-        indicator_cls: type[BaseIndicator],
+        indicator: BaseIndicator,
         sample_df: pd.DataFrame,
         sample_context: dict[str, pd.DataFrame] | None = None,
-    ) -> type[BaseIndicator]:
-        """indicator_cls'i sample_df (+ context alan indikatörler için
-        sample_context, ör. RelativeMomentumPair'in ikinci sembolü) üzerinde
-        çalıştırıp repaint testinden geçerse registry'e ekler; geçmezse
-        RegistryError fırlatır."""
+    ) -> BaseIndicator:
+        """`indicator` ÖRNEĞİNİ (sınıf değil — bkz. aşağıdaki not) sample_df
+        (+ context alan indikatörler için sample_context, ör.
+        RelativeMomentumPair'in ikinci sembolü) üzerinde çalıştırıp repaint
+        testinden geçerse registry'e ekler; geçmezse RegistryError fırlatır.
+
+        Örnek (class değil) alır çünkü `HarmonicIndicator` gibi TEK bir
+        sınıf birden fazla mantıksal indikatörü temsil edebilir (8 ekol,
+        `meta.name` yalnızca `__init__`'te, INSTANCE üzerinde bilinir —
+        class-level `meta` niteliği yok). `type(indicator)` ile sınıf
+        kaydedilir, `get()` yine bir SINIF döner (geriye dönük uyumlu)."""
         from tlab.testing.repaint import repaint_test  # döngüsel import'tan kaçınma
 
-        name = indicator_cls.meta.name
+        name = indicator.meta.name
         if name in self._indicators:
             raise RegistryError(f"'{name}' zaten kayıtlı")
 
-        report = repaint_test(indicator_cls(), sample_df, context=sample_context)
+        report = repaint_test(indicator, sample_df, context=sample_context)
         if not report.passed:
             raise RegistryError(
                 f"'{name}' repaint testinden geçemedi:\n" + "\n".join(report.mismatches)
             )
 
-        self._indicators[name] = indicator_cls
-        return indicator_cls
+        self._indicators[name] = type(indicator)
+        return indicator
+
+    def register_verified_elsewhere(self, indicator: BaseIndicator) -> BaseIndicator:
+        """`register()`'ın generic `repaint_test`'i ÇALIŞTIRMAYAN istisna
+        yolu — YALNIZCA non-repaint sözleşmesi zaten DEDICATED bir test
+        suite'i ile doğrulanmış, dokümante edilmiş bir istisna için
+        kullanılır (bkz. `tlab/indicators/bootstrap.py` docstring'i —
+        şu an tek örnek: `PriceStructure`, Faz 4 "BİLİNEN SINIRLAMA").
+        Keyfi bir kaçış kapısı DEĞİLDİR — yeni bir çağıran eklerken önce
+        neden generic teste giremediğini belgelemelisiniz."""
+        name = indicator.meta.name
+        if name in self._indicators:
+            raise RegistryError(f"'{name}' zaten kayıtlı")
+        self._indicators[name] = type(indicator)
+        return indicator
 
     def get(self, name: str) -> type[BaseIndicator]:
         try:

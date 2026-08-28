@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import importlib
-from datetime import UTC, datetime
+import json
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import pandas as pd
 import typer
+import yaml
 
 from tlab.core.types import Market, Timeframe
 from tlab.data.providers.yfinance_provider import YFinanceProvider
@@ -15,7 +17,11 @@ from tlab.data.settings import load_settings
 from tlab.data.store import Store
 from tlab.data.universe import load_universe
 from tlab.data.validate import check_data_quality
+from tlab.indicators.bootstrap import CATALOG
 from tlab.indicators.pairs.relative_momentum import RelativeMomentumPair, RelativeMomentumParams
+from tlab.scanner import engine
+from tlab.scanner.eod import run_eod
+from tlab.scanner.results import ResultsStore
 from tlab.testing.lint_lookahead import has_errors, lint_paths
 from tlab.testing.repaint import repaint_test
 
@@ -205,6 +211,141 @@ def pair_cmd(
     out_path = out_dir / f"pair_{y}_{x}_{tf}.json"
     out_path.write_text(result.to_json(), encoding="utf-8")
     typer.echo(f"\nJSON: {out_path}")
+
+
+def _load_pairs_yaml(path: str = "config/pairs.yaml") -> list[tuple[str, str]]:
+    p = Path(path)
+    if not p.exists():
+        return []
+    raw = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+    return [(entry["y"], entry["x"]) for entry in raw.get("pairs", [])]
+
+
+@app.command("list-indicators")
+def list_indicators_cmd() -> None:
+    """Katalogdaki tüm indikatörleri (isim, kategori, context gerekir mi) listeler."""
+    for name, spec in sorted(CATALOG.items()):
+        ctx = " (context gerekir)" if spec.needs_context else ""
+        typer.echo(f"{name:<28} [{spec.category}]{ctx}")
+
+
+@app.command("scan")
+def scan_cmd(
+    market: str = typer.Option(..., "--market", help="bist | nasdaq"),
+    tf: str = typer.Option("4h,1d", "--tf", help="Virgülle ayrılmış: 4h,1d"),
+    indicators: str = typer.Option("all", "--indicators", help="'all' veya virgülle liste"),
+    symbols: str = typer.Option(None, "--symbols", help="Virgülle ayrılmış (boşsa tam evren)"),
+    workers: int = typer.Option(None, "--workers"),
+) -> None:
+    """Tek seferlik tarama — Registry.register() koşulmaz, sonuç konsola +
+    outputs/scan_{market}.json'a yazılır (kalıcı DB için `tlab eod` kullanın)."""
+    mkt = Market(market.lower())
+    tf_map = {"1h": Timeframe.H1, "4h": Timeframe.H4, "1d": Timeframe.D1}
+    tf_list = [tf_map[t.strip().lower()] for t in tf.split(",") if t.strip()]
+    indicator_names = list(CATALOG.keys()) if indicators == "all" else [
+        s.strip() for s in indicators.split(",") if s.strip()
+    ]
+    universe = (
+        [s.strip() for s in symbols.split(",") if s.strip()] if symbols else load_universe(mkt)
+    )
+    pairs = _load_pairs_yaml()
+
+    scan = engine.run(
+        run_id=f"scan_{datetime.now(UTC).isoformat()}", universe=universe, timeframes=tf_list,
+        indicator_names=indicator_names, market=mkt, workers=workers, pairs=pairs,
+        progress=lambda done, total: typer.echo(f"  {done}/{total}"),
+    )
+    typer.echo(f"Tamamlandı: {len(scan.results)} sonuç, {scan.error_count} hata")
+    for r in scan.results:
+        if r.error is not None:
+            typer.echo(f"  HATA {r.symbol} {r.timeframe} {r.indicator}: {r.error}", err=True)
+
+    out_path = Path("outputs") / f"scan_{mkt.value}.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = [
+        {
+            "symbol": r.symbol, "timeframe": r.timeframe, "indicator": r.indicator,
+            "error": r.error, "n_signals": len(r.result.signals) if r.result else 0,
+        }
+        for r in scan.results
+    ]
+    out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    typer.echo(f"Özet: {out_path}")
+
+
+@app.command("eod")
+def eod_cmd(
+    market: str = typer.Option(..., "--market", help="bist | nasdaq"),
+    eod_date: str = typer.Option(None, "--date", help="ISO tarih (varsayılan: son kapanmış seans)"),
+    force: bool = typer.Option(False, "--force", help="Aynı gün için var olan run'ı yeniden koş"),
+) -> None:
+    """Gün sonu akışını çalıştırır: veri güncelleme → tarama → kayıt → diff → rapor."""
+    date_ = date.fromisoformat(eod_date) if eod_date else None
+    pairs = _load_pairs_yaml()
+    report = run_eod(market=market, date_=date_, force=force, pairs=pairs)
+    typer.echo(json.dumps(report, ensure_ascii=False, indent=2))
+
+
+@app.command("signals")
+def signals_cmd(
+    run: str = typer.Option("latest", "--run", help="run_id veya 'latest'"),
+    market: str = typer.Option("bist", "--market", help="'latest' ile birlikte kullanılır"),
+    state: str = typer.Option(None, "--state"),
+    indicator: str = typer.Option(None, "--indicator", help="Tam ad veya 'harmonic.*' öneki"),
+    tf: str = typer.Option(None, "--tf"),
+) -> None:
+    """Kayıtlı sinyalleri tablo halinde listeler."""
+    store = ResultsStore()
+    run_id = store.latest_run(market) if run == "latest" else run
+    if run_id is None:
+        typer.echo(f"{market} için tamamlanmış bir run yok.", err=True)
+        raise typer.Exit(code=1)
+
+    rows = store.query(run_id=run_id, state=state, timeframe=tf)
+    if indicator:
+        prefix = indicator.rstrip("*")
+        rows = [r for r in rows if r["indicator"].startswith(prefix)]
+
+    typer.echo(f"run_id={run_id} ({len(rows)} sinyal)")
+    typer.echo(
+        f"{'symbol':<12} {'tf':<4} {'indicator':<26} {'state':<12} {'bar_time':<26} {'dir':<6}"
+    )
+    for r in rows:
+        typer.echo(
+            f"{r['symbol']:<12} {r['timeframe']:<4} {r['indicator']:<26} "
+            f"{r['state']:<12} {r['bar_time']:<26} {r['direction']:<6}"
+        )
+    store.close()
+
+
+@app.command("diff")
+def diff_cmd(
+    a: str = typer.Option(..., "--a", help="Önceki run_id"),
+    b: str = typer.Option(..., "--b", help="Sonraki run_id"),
+) -> None:
+    """İki run arasındaki farkı (yeni sinyal / durum geçişi / kaybolan sinyal) yazdırır."""
+    store = ResultsStore()
+    d = store.diff(a, b)
+    typer.echo(f"Yeni sinyaller: {len(d.new_signals)}")
+    for r in d.new_signals:
+        typer.echo(
+            f"  + {r['symbol']} {r['timeframe']} {r['indicator']} {r['state']} {r['bar_time']}"
+        )
+    typer.echo(f"Durum geçişleri: {len(d.transitions)}")
+    for r in d.transitions:
+        typer.echo(
+            f"  ~ {r['symbol']} {r['timeframe']} {r['indicator']} "
+            f"{r['from_states']} -> {r['state']} ({r['bar_time']})"
+        )
+    if d.has_repaint_alarm:
+        typer.echo(f"\n⚠ REPAINT ALARMI: {len(d.missing_signals)} sinyal kayboldu:", err=True)
+        for r in d.missing_signals:
+            typer.echo(
+                f"  - {r['symbol']} {r['timeframe']} {r['indicator']} "
+                f"{r['state']} {r['bar_time']}",
+                err=True,
+            )
+    store.close()
 
 
 if __name__ == "__main__":

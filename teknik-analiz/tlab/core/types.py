@@ -128,6 +128,25 @@ class IndicatorMeta:
     supported_timeframes: tuple[Timeframe, ...]
 
 
+def _series_from_json(values: dict[str, float | None]) -> pd.Series:
+    """`to_json()`'ın ürettiği {str(key): value} sözlüğünü geri bir Series'e
+    çevirir. Series'ler İKİ türde index taşıyabilir: ÇOĞU zaman-indeksli
+    (`str(pd.Timestamp)`), ama bazı indikatörler (ör. `PriceStructure`'ın
+    `vp_bins`/`vp_volumes`/`vp_gauss`'ı — bkz. o modülün docstring'i)
+    BİLEREK FİYAT-indekslidir. Anahtarları önce Timestamp olarak ayrıştırmayı
+    dener; başarısız olursa (fiyat gibi salt sayısal bir anahtarsa) float
+    index'e düşer. Bir Series'in TÜMÜ aynı index türünü paylaşır, bu yüzden
+    karar tek bir anahtara bakarak verilir."""
+    if not values:
+        return pd.Series(dtype=float)
+    first_key = next(iter(values))
+    try:
+        pd.Timestamp(first_key)
+    except (ValueError, TypeError):
+        return pd.Series({float(k): v for k, v in values.items()})
+    return pd.Series({pd.Timestamp(k): v for k, v in values.items()})
+
+
 @dataclass
 class IndicatorResult:
     """Bir indikatörün tek bir (symbol, timeframe) koşusunun tam çıktısı."""
@@ -230,10 +249,7 @@ class IndicatorResult:
             Marker(t=_dt(x["t"]), price=x["price"], text=x["text"], kind=x["kind"])
             for x in raw["markers"]
         ]
-        series = {
-            name: pd.Series({pd.Timestamp(ts): val for ts, val in values.items()})
-            for name, values in raw["series"].items()
-        }
+        series = {name: _series_from_json(values) for name, values in raw["series"].items()}
 
         return cls(
             indicator=raw["indicator"],

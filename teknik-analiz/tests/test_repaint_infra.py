@@ -50,13 +50,13 @@ def test_registry_rejects_cheating_indicator() -> None:
     df = make_zigzag(_PEAK_PIVOTS, noise=0.0, seed=1)
     reg = Registry()
     with pytest.raises(RegistryError):
-        reg.register(CheatingIndicator, df)
+        reg.register(CheatingIndicator(), df)
 
 
 def test_registry_accepts_honest_indicator() -> None:
     df = make_trend(n=120, slope=0.05, noise=0.3, seed=3)
     reg = Registry()
-    reg.register(HonestIndicator, df)
+    reg.register(HonestIndicator(), df)
     assert "test.honest_sma_cross" in reg.list()
     assert reg.list(category="testing") == ["test.honest_sma_cross"]
 
@@ -64,9 +64,9 @@ def test_registry_accepts_honest_indicator() -> None:
 def test_registry_rejects_duplicate_name() -> None:
     df = make_trend(n=120, slope=0.05, noise=0.3, seed=3)
     reg = Registry()
-    reg.register(HonestIndicator, df)
+    reg.register(HonestIndicator(), df)
     with pytest.raises(RegistryError):
-        reg.register(HonestIndicator, df)
+        reg.register(HonestIndicator(), df)
 
 
 def test_lint_flags_centered_rolling() -> None:

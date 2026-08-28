@@ -95,10 +95,26 @@ için `tlab/testing/lint_lookahead.py` da var (CLI: `tlab lint`).
   bu beklenen/kabul edilebilir bir sonuç — uydurulmadı).
   Tam 648-sembol evren taraması ("binlerce ikili") HENÜZ YAPILMADI — bu, ayrı bir
   veri-önbellekleme ağırlıklı takip adımı (bkz. "Sıradaki Adımlar").
-- **Sırada**: Faz 6 (tarama motoru — çift evreninin tam taranması dahil), Faz 7 (görsel),
-  K3 (Carver çıkarımı) "Sıradaki Adımlar" bölümünde.
+- **Faz 6 — Scanner engine, EOD, SQLite sonuç deposu** (`tlab/scanner/`): TAMAMLANDI
+  (2026-08-28). Detaylar için aşağıdaki "Tarama Motoru (Faz 6)" bölümüne bakın —
+  özellikle `tlab/indicators/bootstrap.py` (Registry'ye kayıt sorunu: `HarmonicIndicator`
+  class-level `meta` taşımıyor, `Registry.register()` artık CLASS değil INSTANCE alıyor)
+  ve `IndicatorResult.from_json()`'daki GERÇEK bir hatanın bulunup düzeltilmesi (fiyat-
+  indeksli seriler — `vp_bins` vb. — JSON round-trip'te Timestamp olarak ayrıştırılmaya
+  çalışılıp çöküyordu; hiçbir önceki test bunu YAKALAMAMIŞTI çünkü `to_json`/`from_json`
+  hiç egzersiz edilmemişti). 12 yeni test. Toplam test 194→206. TCELL/ISCTR/AKBNK/GARAN/
+  THYAO/SAHOL/KCHOL/EREGL/BIMAS/ASELS (10 sembol) üzerinde gerçek EOD akışı (veri
+  güncelleme → tarama → SQLite kayıt → idempotentlik → rapor) uçtan uca test edildi.
+  Performans: 10 sembol × 2 TF × 10 indikatör = 200 iş, 13,5s (önbellekten); en yavaş
+  indikatör `structure.price_structure` (trendline'ların O(n²) aday üretimi nedeniyle
+  diğerlerinden ~10-30× yavaş) — 100 sembol için tahmini seri süre ~6 dk (10 dk eşiğinin
+  altında, ama bu KÜÇÜK örneklemden EKSTRAPOLASYONDUR, gerçek 100-sembol koşusu henüz
+  yapılmadı — ilk veri indirme süresi de bu tahmine DAHİL DEĞİL).
+- **Sırada**: Faz 7 (görselleştirme + EOD raporu), Faz 8 alt-fazları, K3 (Carver çıkarımı),
+  648-sembol/tüm-çift tam evren taraması "Sıradaki Adımlar" bölümünde.
 
-Toplam 194 test yeşil (`pytest -m "not network"`), ruff/mypy/lint_lookahead temiz.
+Toplam 206 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
+ruff/mypy/lint_lookahead temiz.
 
 ## Repo Yapısı / Modül Haritası
 
@@ -265,6 +281,72 @@ kointegrasyon) — mevcut discovery yalnızca ikili Engle-Granger; ETF NAV arbit
 (STRAT-09) ve VIOP/opsiyon arbitrajı (ch3) — PARK, tlab'ın tek-sembol spot-veri
 mimarisiyle uyuşmuyor. **648-sembol tam evren taraması henüz koşulmadı** — bu Faz 6'nın
 (tarama motoru) doğal parçası olacak, şimdilik makine küçük örneklemde doğrulandı.
+
+## Tarama Motoru (Faz 6 — TAMAMLANDI)
+
+`tlab/scanner/` — üç modül: `results.py` (SQLite + JSON), `engine.py` (paralel tarama),
+`eod.py` (gün sonu akışı). `tlab/indicators/bootstrap.py`, katalog + Registry köprüsü.
+
+**`bootstrap.py::CATALOG`** — 11 indikatörün TEK doğru kaynağı (`tlab list-indicators`,
+`tlab scan --indicators all`, `engine.run()` hepsi bunu kullanır). `populate_registry()`
+her indikatörü ayrıca gerçek `Registry`'ye de kaydeder (repaint doğrulamasıyla — `harmonic.*`
+ve `structure.swing_fib_abcd`/`pair.relative_momentum` için gerçek `repaint_test`,
+`structure.price_structure` için Faz 4'ün belgelediği istisna yoluyla `register_verified_
+elsewhere()`). **İKİ gerçek mimari sorun burada bulunup düzeltildi:**
+1. `HarmonicIndicator`'ın `meta` niteliği yalnızca INSTANCE üzerinde (8 ekol tek sınıf
+   paylaşıyor, `__init__`'te atanıyor) — `Registry.register()` eskiden bunu class-level
+   bekliyordu. **Düzeltme:** `Registry.register()`/`register_verified_elsewhere()` artık
+   SINIF değil ÖRNEK alıyor (`type(instance)` içeride saklanıyor, `get()` yine sınıf döner
+   — geriye dönük uyumlu; mevcut çağıranlar — testler — örnek oluşturacak şekilde
+   güncellendi).
+2. `Registry.register()`'ın varsayılan `repaint_test` penceresi GERÇEK piyasa verisiyle
+   (sürekli pivot aktivitesi) her zaman "aday havuzu" zamanlama sorununu (Faz 3/4'te
+   belgelenen, GERÇEK bir repaint hatası OLMAYAN durum) tetikliyordu. **Düzeltme:**
+   `bootstrap.py::_bootstrap_sample()` kısa gürültülü "kafa" + uzun DÜZ "kuyruk"lu sentetik
+   veri üretir (aynı desen Faz 4/5'in registry testlerinde de kullanılmıştı).
+
+**`results.py`** — SQLite şeması (`runs`/`signals`/`states`/`data_quality`) görev
+metnindeki alan adlarıyla BİREBİR, DONUK (Bilanço Radar ile `symbol` join'i için).
+`signals.pattern_id`: her indikatörün payload'ı farklı bir "hangi aday" anahtarı taşıdığı
+için (`pattern_id`/`triple_id`/`event`) `_pattern_key()` bunları TEK alana normalize eder
+— dokümante edilmiş, mükemmel olmayan bir uzlaşı (nadir çakışma = son yazan kazanır).
+`diff(run_a, run_b)`: yeni sinyaller, durum geçişleri (chain=symbol+tf+indicator+
+pattern_id bazında state kümesi karşılaştırması) VE **kaybolan sinyaller** — bu SIFIR
+olmalı, olursa `has_repaint_alarm=True` ve `eod.py` bunu `logger.error` ile LOGLAR.
+
+**`engine.run()`** — worker fonksiyonları (`_run_single_worker`/`_run_pair_worker`)
+MODÜL SEVİYESİNDE (ProcessPoolExecutor picklable top-level çağrılabilir ister);
+`IndicatorResult` süreçler arası HAM DATACLASS değil `to_json()` STRING'i olarak taşınır
+(pandas Series pickling'e karşı en sağlam yol) — **bu tercih, aşağıdaki gerçek hatayı
+ortaya çıkardı:**
+
+**BULUNAN GERÇEK HATA — `IndicatorResult.from_json()`:** Hiçbir Faz 0-5 testi `to_json`/
+`from_json` round-trip'ini hiç EGZERSİZ ETMEMİŞTİ (`repaint_test` Python nesnelerini
+doğrudan karşılaştırır, JSON'a hiç uğramaz) — `structure.price_structure`'ın FİYAT-
+indeksli `vp_bins`/`vp_volumes`/`vp_gauss` serileri (Faz 4 tasarımı, CLAUDE.md'de zaten
+"zaman ekseni DEĞİL" diye işaretli) `from_json`'ın "her series zaman-indekslidir"
+varsayımıyla çakışıp `pd.Timestamp("11.9366...")` gibi bir ValueError'a çarpıyordu. Bu,
+`engine.py`'nin worker'ları GERÇEKTEN JSON round-trip yapana kadar (Faz 6'da, ilk kez)
+YAKALANMADI. **Düzeltme:** `tlab/core/types.py::_series_from_json()` — bir series'in
+index'ini önce Timestamp olarak ayrıştırmayı dener, başarısız olursa float index'e düşer.
+5 yeni test (`tests/test_core_types.py`) — bu proje genelinde `IndicatorResult` JSON
+round-trip'ini test eden İLK dosya.
+
+**`eod.py::run_eod()`** — takvim kontrolü (tatil günü atla) → `Store.update()` (1H,1D;
+4H türetilir) → veri kalitesi → `engine.run()` → `results.persist()` → `diff(önceki_run)`
+→ JSON rapor (`outputs/reports/eod_{run_id}.json`) → `notify()` hook'u (boş fonksiyon,
+Telegram sonra). Aynı gün ikinci koşu `force=False` iken `status: "skipped_existing"`
+ile atlanır. Log: `outputs/logs/eod_{date}.log`.
+
+**CLI:** `tlab scan|eod|signals|diff|list-indicators` (bkz. Komutlar). Zamanlama örnekleri
+(cron/systemd timer/Windows Görev Zamanlayıcı) `README.md`'de.
+
+**Performans notu:** `structure.price_structure` diğer indikatörlerden ~10-30× yavaş
+(trendline aday üretimi O(n²) — tüm pivot çiftleri denenir). 100-sembol/2-TF/tüm-indikatör
+taraması KÜÇÜK bir örneklemden (10 sembol) ekstrapole edildi (~6 dk, önbellekten okuma +
+hesap — ilk indirme HARİÇ); gerçek tam-ölçek koşu ve olası `price_structure` optimizasyonu
+(ör. `max_lines`'ı düşürmek veya aday üretimini erken kesmek) Faz 6 sonrası bir iyileştirme
+adayı.
 
 ## Komutlar
 

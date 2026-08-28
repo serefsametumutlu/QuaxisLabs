@@ -6,6 +6,7 @@ from __future__ import annotations
 import pytest
 
 from tests.test_pairs.fixtures import build_cointegrated_pair
+from tlab.core.errors import RegistryError
 from tlab.core.indicator import registry
 from tlab.indicators.pairs.relative_momentum import RelativeMomentumPair, RelativeMomentumParams
 from tlab.testing.repaint import repaint_test
@@ -128,5 +129,9 @@ def test_uncut_context_gives_identical_result_here_by_construction() -> None:
 
 def test_registers_in_registry() -> None:
     df_y, df_x = build_cointegrated_pair()
-    registry.register(RelativeMomentumPair, df_y, sample_context={"x": df_x})
+    try:
+        registry.register(RelativeMomentumPair(), df_y, sample_context={"x": df_x})
+    except RegistryError as exc:
+        if "zaten kayıtlı" not in str(exc):
+            raise  # baska test dosyasi (tlab.indicators.bootstrap) zaten kaydetmis olabilir
     assert registry.get("pair.relative_momentum") is RelativeMomentumPair

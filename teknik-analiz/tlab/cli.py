@@ -391,16 +391,25 @@ def plot_cmd(
     ),
     market: str = typer.Option("bist", "--market", help="bist | nasdaq"),
     theme: str = typer.Option("auto", "--theme", help="auto | dark | light"),
-    last_n: int = typer.Option(None, "--last-n", help="Yalnızca son N barı göster"),
+    last_n: int = typer.Option(250, "--last-n", help="Yalnızca son N barı göster (0 = tüm geçmiş)"),
+    show_all: bool = typer.Option(
+        False, "--show-all",
+        help="Eski/çözülmüş aday ve seviyeleri de tam etiketle (varsayılan: yalnızca en güncel)",
+    ),
     out: str = typer.Option(
         None, "--out", help="Çıktı yolu (.html veya .png); varsayılan outputs/samples/"
     ),
     open_: bool = typer.Option(False, "--open", help="Üretilen HTML'i tarayıcıda aç"),
 ) -> None:
     """Tek bir (sembol, tf, indikatör) grafiğini üretir (outputs/samples/'a
-    HTML olarak kaydeder; --out ile .png verilirse kaleido kullanılır)."""
+    HTML olarak kaydeder; --out ile .png verilirse kaleido kullanılır).
+    Varsayılan olarak yalnızca en güncel aday/seviye tam etiketlenir (eskiler
+    şekil olarak kalır) — `--show-all` ile eski davranışa dönülebilir."""
     try:
-        fig = render_live(indicator, symbol, tf, market, theme=theme, last_n=last_n)
+        fig = render_live(
+            indicator, symbol, tf, market, theme=theme,
+            last_n=(last_n or None), declutter=not show_all,
+        )
     except (ValueError, FileNotFoundError) as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1) from exc

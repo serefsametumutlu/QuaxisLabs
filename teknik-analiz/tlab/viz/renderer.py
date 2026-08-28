@@ -43,9 +43,22 @@ def render(
     *,
     theme: Theme | str | None = "auto",
     last_n: int | None = None,
+    declutter: bool = True,
 ) -> go.Figure:
     """`result`ı çizer. `df`: fiyat serisi (pair modu HARİÇ zorunlu — mum
-    grafiği ve harmonik/yapı primitiflerinin x eksenini belirler)."""
+    grafiği ve harmonik/yapı primitiflerinin x eksenini belirler).
+
+    `declutter` (varsayılan AÇIK): gerçek çok-yıllık/gürültülü veride aynı
+    stildeki DÜZİNELERCE Level/Box/Line/Marker (ör. her ABC üçlüsünün 8
+    fib seviyesi, her harmonik adayın PRZ etiketleri, her trendline
+    adayının "(Temas:N)" yazısı) üst üste binip grafiği okunmaz hâle
+    getiriyordu (Faz 7 sonrası kullanıcı geri bildirimiyle bulundu — bkz.
+    `_declutter_levels`/`_latest_label_keys`). Bu AÇIKKEN yalnızca her
+    "stil grubu"nun EN GÜNCEL örneği tam etiketlenir; daha eskiler şekil
+    olarak (çizgi/kutu/üçgen) hâlâ çizilir, yalnızca metin/etiket
+    yığılması bastırılır — hiçbir veri gizlenmez, yalnızca metin
+    gösterimi seçicileştirilir. `declutter=False` ile eski (tam) davranışa
+    dönülebilir (`tlab plot --show-all`)."""
     if result.indicator.startswith("pair."):
         resolved = resolve_theme(theme, default=DARK_TERMINAL)
         return _render_pair(result, resolved, last_n)
@@ -53,7 +66,7 @@ def render(
     if df is None:
         raise ValueError(f"'{result.indicator}' için render() df gerektirir")
     resolved = resolve_theme(theme, default=LIGHT_ANALYSIS)
-    return _render_price_based(result, df, resolved, last_n)
+    return _render_price_based(result, df, resolved, last_n, declutter)
 
 
 # ------------------------------------------------------------------ ortak --
@@ -104,7 +117,8 @@ def _x(t: object) -> str:
 
 
 def _render_price_based(
-    result: IndicatorResult, df: pd.DataFrame, theme: Theme, last_n: int | None
+    result: IndicatorResult, df: pd.DataFrame, theme: Theme, last_n: int | None,
+    declutter: bool = True,
 ) -> go.Figure:
     layout = result.series_layout or {}
     sub_names = list(layout.keys())
@@ -145,13 +159,22 @@ def _render_price_based(
         row=1, col=1,
     )
 
-    _draw_boxes(fig, result.boxes, theme, row=1, col=1)
-    _draw_polygons(fig, result.polygons, theme, row=1, col=1)
-    _draw_lines(fig, result.lines, df, theme, row=1, col=1)
-    _draw_levels(fig, result.levels, df, theme, row=1, col=1)
-    _draw_markers(
-        fig, [m for m in result.markers if m.kind != "macd_cross"], theme, row=1, col=1
+    levels = _declutter_levels(result.levels) if declutter else result.levels
+    boxes, lines = result.boxes, result.lines
+    markers = [m for m in result.markers if m.kind != "macd_cross"]
+    latest_box_t0 = (
+        _latest_per_group(boxes, lambda b: b.style, lambda b: b.t0) if declutter else None
     )
+    latest_line_end = (
+        _latest_per_group(lines, lambda ln: ln.style, lambda ln: ln.points[-1][0])
+        if declutter else None
+    )
+
+    _draw_boxes(fig, boxes, theme, row=1, col=1, latest_t0=latest_box_t0)
+    _draw_polygons(fig, result.polygons, theme, row=1, col=1)
+    _draw_lines(fig, lines, df, theme, row=1, col=1, latest_end=latest_line_end)
+    _draw_levels(fig, levels, df, theme, row=1, col=1)
+    _draw_markers(fig, markers, theme, row=1, col=1, declutter=declutter)
 
     for i, name in enumerate(sub_names, start=2):
         _draw_series_panel(fig, result, name, layout[name], theme, row=i, col=1, df=df)
@@ -187,7 +210,24 @@ def _build_generic_title(result: IndicatorResult) -> str:
     return f"{symbol} — {result.indicator}"
 
 
-def _draw_boxes(fig: go.Figure, boxes: list[Box], theme: Theme, row: int, col: int) -> None:
+def _latest_per_group(items: list, group_key, time_key) -> dict:
+    """`items`ı `group_key(item)`e göre gruplar, her grubun EN BÜYÜK
+    `time_key(item)` değerini döner (`{grup: en_yeni_zaman}`). Declutter
+    modunda yalnızca bu "en yeni" zamana sahip öğe tam etiketlenir —
+    diğerleri (aynı stilin eski/çözülmüş kopyaları) şekil olarak
+    kalır, metinleri bastırılır."""
+    best: dict = {}
+    for it in items:
+        g, t = group_key(it), time_key(it)
+        if g not in best or t > best[g]:
+            best[g] = t
+    return best
+
+
+def _draw_boxes(
+    fig: go.Figure, boxes: list[Box], theme: Theme, row: int, col: int,
+    latest_t0: dict | None = None,
+) -> None:
     for b in boxes:
         dash = "dot" if b.style == "range_box" else "solid"
         fig.add_shape(
@@ -196,6 +236,8 @@ def _draw_boxes(fig: go.Figure, boxes: list[Box], theme: Theme, row: int, col: i
             line=dict(color=line_color(theme, b.style), width=1, dash=dash),
             row=row, col=col,
         )
+        if latest_t0 is not None and b.t0 != latest_t0.get(b.style):
+            continue  # declutter: yalnızca bu stilin EN GÜNCEL kutusu etiketlenir
         fig.add_annotation(
             x=_x(b.t0), y=b.high, text=tr.tr_style(b.style), showarrow=False,
             font=dict(size=9, color=line_color(theme, b.style)),
@@ -224,7 +266,8 @@ _DASH_FOR_STYLE = {"dashed": "dash", "dotted": "dot"}
 
 
 def _draw_lines(
-    fig: go.Figure, lines: list[Line], df: pd.DataFrame, theme: Theme, row: int, col: int
+    fig: go.Figure, lines: list[Line], df: pd.DataFrame, theme: Theme, row: int, col: int,
+    latest_end: dict | None = None,
 ) -> None:
     last_x = df.index[-1]
     for ln in lines:
@@ -261,17 +304,41 @@ def _draw_lines(
                 ),
                 row=row, col=col,
             )
-            fig.add_annotation(
-                x=_x(ext_time), y=proj, text=ln.label, showarrow=False,
-                font=dict(size=9, color=color), xanchor="right", yanchor="bottom",
-                row=row, col=col,
-            )
+            if latest_end is None or t1 == latest_end.get(ln.style):
+                fig.add_annotation(
+                    x=_x(ext_time), y=proj, text=ln.label, showarrow=False,
+                    font=dict(size=9, color=color), xanchor="right", yanchor="bottom",
+                    row=row, col=col,
+                )
 
 
 _LEVEL_DASH = {
     "poc": "solid", "dotted": "dot", "fib_extension": "dot",
     "bullish": "dot", "bearish": "dot",
 }
+
+
+def _declutter_levels(levels: list[Level], keep_recent: int = 1) -> list[Level]:
+    """Aynı `style`'daki Level'lar (ör. her ABC üçlüsünün 8'li fib merdiveni,
+    her harmonik adayın PRZ üst/alt seviyesi) `start` bazında gruplanır;
+    yalnızca EN GÜNCEL `keep_recent` grup(lar) TUTULUR, gerisi TAMAMEN
+    ÇIKARILIR. Level'lar Box/Line/Polygon'un aksine tek başına anlamlı
+    DEĞİL — "D (hedef): 106.75" yazısı hangi üçlüye ait olduğu bağlamı
+    olmadan salt gürültüdür, bu yüzden Box/Line'daki gibi "yalnızca
+    etiketi bastır" değil, TAMAMEN gizlemek tercih edildi (Faz 7 sonrası
+    kullanıcı geri bildirimiyle: gerçek çok-yıllık veride onlarca çözülmüş
+    eski hedef/PRZ üst üste binip grafiği okunmaz kılıyordu). `start=None`
+    olan Level'lar (ör. tekil POC/VAH/VAL) HER ZAMAN kalır."""
+    by_style: dict[str, list[Level]] = {}
+    for lv in levels:
+        by_style.setdefault(lv.style, []).append(lv)
+
+    kept: list[Level] = []
+    for group in by_style.values():
+        starts = sorted({lv.start for lv in group if lv.start is not None}, reverse=True)
+        keep = set(starts[:keep_recent])
+        kept.extend(lv for lv in group if lv.start is None or lv.start in keep)
+    return kept
 
 
 def _level_color(theme: Theme, lv: Level) -> str:
@@ -307,7 +374,21 @@ def _draw_levels(
 _STRUCTURE_COLOR = {"HH": "green", "HL": "green", "LH": "red", "LL": "red"}
 
 
-def _draw_markers(fig: go.Figure, markers: list[Marker], theme: Theme, row: int, col: int) -> None:
+_MAX_HARMONIC_MARKERS = 3
+
+
+def _draw_markers(
+    fig: go.Figure, markers: list[Marker], theme: Theme, row: int, col: int,
+    declutter: bool = True,
+) -> None:
+    harmonic_markers = sorted(
+        (m for m in markers if m.kind.startswith("harmonic_")), key=lambda m: m.t, reverse=True,
+    )
+    # declutter: her okulda onlarca aday birikebilir (özellikle uzun/gürültülü
+    # gerçek veride) — yalnızca EN GÜNCEL birkaç "D: fiyat [DURUM]" kutusu
+    # gösterilir, gerisi (üçgen/PRZ hâlâ çizili) etiketsiz kalır.
+    visible_harmonic = set(harmonic_markers[:_MAX_HARMONIC_MARKERS]) if declutter else None
+
     for m in markers:
         if m.kind == "structure_label":
             color = getattr(theme, _STRUCTURE_COLOR.get(m.text, "gray"))
@@ -318,6 +399,8 @@ def _draw_markers(fig: go.Figure, markers: list[Marker], theme: Theme, row: int,
                 yshift=12 if above else -12, row=row, col=col,
             )
         elif m.kind.startswith("harmonic_"):
+            if visible_harmonic is not None and m not in visible_harmonic:
+                continue
             state = m.kind.removeprefix("harmonic_")
             color = line_color(theme, "bearish" if state == "invalidated" else "bullish")
             fig.add_annotation(

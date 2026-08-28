@@ -149,10 +149,20 @@ otomatik atlanır (`status: "skipped_existing"`) — `--force` verilmedikçe.
 ## Görselleştirme (Faz 7)
 
 `tlab plot --symbol TCELL --tf 1d --indicator structure.price_structure [--theme
-auto|dark|light] [--last-n 300] [--out dosya.html|.png] [--open]` — tek bir
-(sembol, tf, indikatör) grafiğini üretir (`tlab/viz/renderer.py`, hesap yapmaz,
-yalnızca `IndicatorResult` primitiflerini çizer). Pair indikatörler için
+auto|dark|light] [--last-n 250] [--show-all] [--out dosya.html|.png] [--open]` —
+tek bir (sembol, tf, indikatör) grafiğini üretir (`tlab/viz/renderer.py`, hesap
+yapmaz, yalnızca `IndicatorResult` primitiflerini çizer). Pair indikatörler için
 `--symbol Y/X` (ör. `TCELL/ISCTR`). `.png` çıktısı `kaleido` gerektirir.
+
+**Declutter (varsayılan AÇIK, kullanıcı geri bildirimiyle eklendi 2026-08-28):**
+gerçek çok-yıllık/gürültülü veride aynı stildeki düzinelerce Level/Box/Line/
+Marker (her ABC üçlüsünün 8 fib seviyesi, her harmonik adayın PRZ etiketi, her
+trendline adayının "(Temas:N)" yazısı, her eski formasyonun "D: fiyat [DURUM]"
+kutusu) üst üste binip grafiği okunmaz kılıyordu. Artık yalnızca her "stil
+grubu"nun EN GÜNCEL örneği (Level'larda: TEK örneği, diğerleri tamamen
+elenir; Box/Line'da: yalnızca etiketi, şekil kalır; harmonik Marker'da: en
+fazla son 3) tam gösterilir — `--show-all` ile eski (tam) davranışa dönülebilir.
+`--last-n` varsayılanı da 250 bara düşürüldü (`0` = tüm geçmiş).
 
 `tlab report --run latest --market bist [--generate-charts]` — EOD run'ı için
 özet HTML raporu (`tlab/viz/report.py`): durum sayaçları, önceki run'a göre

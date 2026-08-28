@@ -59,7 +59,7 @@ def compute_live(
 
 def render_live(
     indicator_name: str, symbol: str, timeframe: str, market: str,
-    *, theme: Theme | str | None = "auto", last_n: int | None = None,
+    *, theme: Theme | str | None = "auto", last_n: int | None = None, declutter: bool = True,
 ) -> go.Figure:
     result, df = compute_live(indicator_name, symbol, timeframe, market)
-    return render(result, df, theme=theme, last_n=last_n)
+    return render(result, df, theme=theme, last_n=last_n, declutter=declutter)

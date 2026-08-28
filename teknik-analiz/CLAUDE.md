@@ -131,8 +131,23 @@ için `tlab/testing/lint_lookahead.py` da var (CLI: `tlab lint`).
   price-indexed-series hatasıyla AYNI kategori: hiçbir önceki test bu round-trip'i
   gerçek veriyle egzersiz etmemişti). `config/scans.yaml` + `tlab scan --preset` eklendi.
   8 yeni test (211→219).
-- **Sırada**: Faz 8B/8C/8D/8E, K3 (Carver çıkarımı), 648-sembol/tüm-çift tam evren
-  taraması "Sıradaki Adımlar" bölümünde.
+- **Görselleştirme declutter düzeltmesi** (2026-08-28, Faz 8A'dan HEMEN SONRA, kullanıcı
+  geri bildirimiyle): TAMAMLANDI. Detaylar "Görselleştirme (Faz 7)" bölümünün sonunda.
+  Özet: gerçek çok-yıllık veride grafikler "curcuna" hâline geliyordu (onlarca eski
+  fib/PRZ/trendline etiketi üst üste biniyordu) — `renderer.py`'ye `declutter=True`
+  varsayılanı eklendi (yalnızca her stilin EN GÜNCEL örneği tam etiketlenir), `tlab
+  plot`'un `--last-n` varsayılanı 250'ye düşürüldü, `--show-all` ile eski davranışa
+  dönülebilir. 3 yeni test (219→222).
+- **OTURUM DURDU BURADA (2026-08-28) — kullanıcı isteğiyle.** Kullanıcı declutter
+  düzeltmesinden sonra "kalanlara daha sonra devam ederiz" dedi — Faz 8B/8C/8D/8E ve
+  K3'e HENÜZ BAŞLANMADI, kod/tasarım kararı yok. Yeni oturumda kaldığımız yer:
+  **Sırada**: Faz 8B (formasyonlar — çift tepe/dip, broadening, TWYS ekleri; Faz 2-EK'in
+  `patterns_geom.py`/`hs_pattern.py`'sine ihtiyaç duyar, henüz yazılmadı), Faz 8C
+  (bölgeler — golden zone/S-D/kanal; `zones_sd.py`ye ihtiyaç duyar), Faz 8D
+  (cross-sectional — KAMA/EWMAC, Carver'ın ilk kuralı; `xsec.py`ye ihtiyaç duyar), Faz 8E
+  (vol harvest — GARCH), K3 (Carver kitap çıkarımı, Faz 10 spec'i için ön koşul).
+  Hangisiyle devam edileceğine kullanıcı karar verecek — 648-sembol/tüm-çift tam evren
+  taraması da hâlâ "Sıradaki Adımlar" bölümünde bekliyor.
 
 Toplam 206 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
 ruff/mypy/lint_lookahead temiz.
@@ -426,6 +441,24 @@ swing_fib_abcd`, ALARK `harmonic.pesavento`, TCELL/ISCTR `pair.
 relative_momentum` gerçek veriyle render edildi, `outputs/samples/`'a PNG
 olarak kaydedildi (kaleido). Referans-görsel öğe kontrol listesi (bazı
 öğeler kasıtlı GAP) `README.md`'de.
+
+**Declutter düzeltmesi (2026-08-28, kullanıcı geri bildirimiyle):** Kullanıcı
+`outputs/samples/`'daki grafiklerin GERÇEK veriyle "curcuna" hâline geldiğini
+bildirdi — onlarca eski/çözülmüş ABC üçlüsünün fib merdiveni, onlarca harmonik
+adayın PRZ etiketi, onlarca trendline adayının "(Temas:N)" yazısı üst üste
+binip neyin/nerede/nasıl bir sinyal olduğu ANLAŞILMAZ hâle geliyordu. Düzeltme
+`renderer.py`'ye eklendi (`declutter: bool = True`, varsayılan AÇIK):
+- `_declutter_levels()` — aynı `style`'daki Level'lar `start` bazında
+  gruplanır, yalnızca EN GÜNCEL grup TUTULUR (fib merdiveni, harmonik PRZ,
+  swing_fib_abcd D-hedefleri) — Level tek başına anlamsız olduğu için
+  (hangi üçlüye ait olduğu bağlamı yoksa saf gürültü) TAMAMEN elenir.
+- `_latest_per_group()` — Box (zone/range) ve Line (trendline/xb) için: ŞEKİL
+  hep çizilir, yalnızca metin ETİKETİ o stilin EN GÜNCEL örneğine kısıtlanır.
+- Harmonik Marker'lar (`D: fiyat [DURUM]` kutuları) en fazla son 3 ile
+  sınırlandı.
+`tlab plot`'un `--last-n` varsayılanı da 250'ye düşürüldü (`0`=tüm geçmiş);
+`--show-all` ile eski (tam/gürültülü) davranışa dönülebilir. 3 yeni test
+(219→222). Örnek PNG'ler yeniden üretildi ve kullanıcıya gönderildi.
 
 ## Çoklu Kırılım Tarayıcısı (Faz 8A — TAMAMLANDI)
 

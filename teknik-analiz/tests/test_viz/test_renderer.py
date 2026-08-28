@@ -8,12 +8,16 @@ from __future__ import annotations
 
 import re
 
+import pandas as pd
+
 from tests.test_pairs.fixtures import build_cointegrated_pair
-from tlab.core.types import IndicatorResult, Line, Timeframe
+from tests.test_structure.fixtures import build_abcd_ohlcv
+from tlab.core.types import Box, IndicatorResult, Line, Timeframe
 from tlab.indicators.pairs.relative_momentum import RelativeMomentumPair, RelativeMomentumParams
 from tlab.indicators.structure.price_structure import PriceStructure, PriceStructureParams
+from tlab.indicators.structure.swing_fib_abcd import SwingFibABCD, SwingFibABCDParams
 from tlab.testing.fixtures import make_trend
-from tlab.viz.renderer import render
+from tlab.viz.renderer import _declutter_levels, _latest_per_group, render
 from tlab.viz.themes import DARK_TERMINAL, fill_color, line_color
 
 _PAIR_PARAMS = RelativeMomentumParams(
@@ -75,6 +79,40 @@ def test_line_extension_is_capped_not_unbounded() -> None:
     # Sınırsız (ham eğim * kalan ~193 gün) projeksiyon >2900 verirdi;
     # sınırlı (en fazla 3x bacak süresi = 6 gün) projeksiyon ~190 civarı olmalı.
     assert max(ext_trace.y) < 300
+
+
+def test_latest_per_group_returns_max_time_per_group() -> None:
+    t1, t2, t3 = pd.Timestamp("2024-01-01"), pd.Timestamp("2024-01-05"), pd.Timestamp("2024-01-10")
+    boxes = [
+        Box(t0=t1, t1=t2, low=1.0, high=2.0, label="a", style="x"),
+        Box(t0=t3, t1=t2, low=1.0, high=2.0, label="b", style="x"),
+        Box(t0=t2, t1=t2, low=1.0, high=2.0, label="c", style="y"),
+    ]
+    assert _latest_per_group(boxes, lambda b: b.style, lambda b: b.t0) == {"x": t3, "y": t2}
+
+
+def test_declutter_levels_keeps_only_latest_start_per_style() -> None:
+    """Kullanıcı geri bildirimi: gerçek çok-yıllık veride her ABC üçlüsünün
+    fib merdiveni/D-hedefi üst üste binip grafiği okunmaz kılıyordu.
+    `_declutter_levels`, aynı stildeki eski üçlüleri TAMAMEN eler."""
+    df = build_abcd_ohlcv()
+    result = SwingFibABCD(SwingFibABCDParams(left=2, right=2))(df)
+    d_levels_full = [lv for lv in result.levels if lv.style == "bullish"]
+    assert len({lv.start for lv in d_levels_full}) >= 2  # fixture 2 üçlü üretir
+
+    reduced = _declutter_levels(result.levels, keep_recent=1)
+    d_levels_reduced = [lv for lv in reduced if lv.style == "bullish"]
+    assert len({lv.start for lv in d_levels_reduced}) == 1
+    assert len(d_levels_reduced) < len(d_levels_full)
+
+
+def test_render_declutter_reduces_annotation_count() -> None:
+    df = build_abcd_ohlcv()
+    result = SwingFibABCD(SwingFibABCDParams(left=2, right=2))(df)
+    result.symbol = "TEST"
+    fig_full = render(result, df, theme="light", declutter=False)
+    fig_declutter = render(result, df, theme="light", declutter=True)
+    assert len(fig_declutter.layout.annotations) < len(fig_full.layout.annotations)
 
 
 def test_fill_and_line_colors_agree_on_direction() -> None:

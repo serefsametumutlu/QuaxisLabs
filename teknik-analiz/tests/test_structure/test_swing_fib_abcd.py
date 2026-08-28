@@ -55,6 +55,51 @@ def test_target_levels_have_d_label_and_bullish_style() -> None:
     assert all(lv.style == "bullish" for lv in d_levels)  # A=low -> yükseliş yapısı
 
 
+def _d_level_for(levels: list, signals: list, triple_id: str, ratio: float):
+    pending = next(
+        s for s in signals
+        if s.payload.get("triple_id") == triple_id and s.payload.get("ratio") == ratio
+        and s.state == "pending"
+    )
+    target_price = pending.payload["target_price"]
+    return next(
+        lv for lv in levels
+        if lv.start == pending.bar_time and lv.price == pytest.approx(target_price)
+    )
+
+
+def test_d_target_level_end_closes_on_completion_or_invalidation() -> None:
+    """Faz 7'de gerçek veriyle render edilirken bulunan bir hata için
+    regresyon: `Level.end` hiç set edilmiyordu (hep None) — bu yüzden
+    TAMAMLANMIŞ/GEÇERSİZLEŞMİŞ eski hedefler bile grafiğin sonuna kadar
+    uzuyordu. `end`, extend-only ilkesiyle (bkz. ranges.py/zones.py'deki
+    Box.t1) çözüm barına SABİTLENMELİ; hâlâ açık bir hedef None kalmalı."""
+    signals, levels = _run()
+
+    completed = next(
+        s for s in signals
+        if s.payload.get("triple_id") == "abcd_2_11_15" and s.payload.get("ratio") == 1.0
+        and s.state == "completed"
+    )
+    lv_completed = _d_level_for(levels, signals, "abcd_2_11_15", 1.0)
+    assert lv_completed.end == completed.bar_time
+
+    for ratio_key in (1.272, 1.618):
+        invalidated = next(
+            s for s in signals
+            if s.payload.get("triple_id") == "abcd_2_11_15" and s.payload.get("ratio") == ratio_key
+            and s.state == "invalidated"
+        )
+        lv_invalidated = _d_level_for(levels, signals, "abcd_2_11_15", ratio_key)
+        assert lv_invalidated.end == invalidated.bar_time
+
+    # ikinci (son) üçlü fixture bitene kadar hiç çözülmüyor (bkz.
+    # test_second_triple_starts_pending_after_first_invalidated) -> açık kalmalı.
+    for ratio_key in (1.0, 1.272, 1.618):
+        lv_open = _d_level_for(levels, signals, "abcd_15_25_30", ratio_key)
+        assert lv_open.end is None
+
+
 def test_fib_touch_signals_present_and_completed_state() -> None:
     signals, _ = _run()
     touches = [s for s in signals if s.payload.get("event") == "fib_touch"]

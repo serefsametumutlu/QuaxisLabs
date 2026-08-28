@@ -110,8 +110,16 @@ için `tlab/testing/lint_lookahead.py` da var (CLI: `tlab lint`).
   diğerlerinden ~10-30× yavaş) — 100 sembol için tahmini seri süre ~6 dk (10 dk eşiğinin
   altında, ama bu KÜÇÜK örneklemden EKSTRAPOLASYONDUR, gerçek 100-sembol koşusu henüz
   yapılmadı — ilk veri indirme süresi de bu tahmine DAHİL DEĞİL).
-- **Sırada**: Faz 7 (görselleştirme + EOD raporu), Faz 8 alt-fazları, K3 (Carver çıkarımı),
-  648-sembol/tüm-çift tam evren taraması "Sıradaki Adımlar" bölümünde.
+- **Faz 7 — Görselleştirme + EOD HTML raporu** (`tlab/viz/`): TAMAMLANDI (2026-08-28).
+  Detaylar için aşağıdaki "Görselleştirme (Faz 7)" bölümüne bakın — özellikle
+  `IndicatorResult.series_layout` (yeni, opsiyonel alan) eklenmesi ve gerçek veriyle
+  render ederken bulunan/düzeltilen 3 GERÇEK hata (fill-renk ters eşlemesi, pair
+  modunda `add_vrect` sessiz no-op'u, harmonik `xb` çizgisinin sınırsız eğim
+  projeksiyonu). README'de 6 referans görselin öğe-öğe kontrol listesi var
+  (bazı öğeler kasıtlı GAP olarak işaretli — renderer hesap yapmama ilkesi
+  gereği eklenemeyenler).
+- **Sırada**: Faz 8 alt-fazları, K3 (Carver çıkarımı), 648-sembol/tüm-çift tam evren
+  taraması "Sıradaki Adımlar" bölümünde.
 
 Toplam 206 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
 ruff/mypy/lint_lookahead temiz.
@@ -347,6 +355,64 @@ taraması KÜÇÜK bir örneklemden (10 sembol) ekstrapole edildi (~6 dk, önbel
 hesap — ilk indirme HARİÇ); gerçek tam-ölçek koşu ve olası `price_structure` optimizasyonu
 (ör. `max_lines`'ı düşürmek veya aday üretimini erken kesmek) Faz 6 sonrası bir iyileştirme
 adayı.
+
+## Görselleştirme (Faz 7 — TAMAMLANDI)
+
+`tlab/viz/` — `renderer.py` (HESAP YAPMAZ, yalnızca `IndicatorResult`
+primitiflerini çizer), `themes.py` (`dark_terminal`/`light_analysis`, tüm
+renkler tek yerden), `labels_tr.py` (Türkçe etiket sözlükleri), `table.py`
+(Görsel 4 metrik tablosu), `report.py` (EOD HTML özet raporu + `ensure_chart()`
+lazy grafik üretimi), `live.py` (CATALOG+Store+render ortak "sembolden canlı
+grafiğe" kısayolu, `tlab plot` ve `report.py::ensure_chart` bunu paylaşır).
+
+**`IndicatorResult.series_layout`** (yeni, opsiyonel alan, `core/types.py`):
+`{panel_adı: [seri_adı, ...]}` — renderer'ın alt panelleri hangi serilerden
+oluşturacağını belirtir (`structure.price_structure` şimdi `{"hacim":
+["volume","volume_ma"], "macd": [...]}` döndürüyor). `vp_*` serileri bu
+mekanizmaya DAHİL DEĞİL — fiyat-indeksli oldukları için ayrı, özel bir sağ
+yan panele (hacim profili) gider.
+
+**Faz 7'de gerçek veriyle render edilirken bulunup düzeltilen 3 GERÇEK hata**
+(hiçbiri önceki fazlarda yakalanamazdı çünkü bu, projedeki İLK görsel/render
+egzersiziydi):
+1. **`themes.py::_FILL_STYLE_COLOR` ters eşleme** — `"bullish"` yeşil yerine
+   kırmızıya, `"bearish"` kırmızı yerine yeşile haritalanıyordu (satır çizgisi
+   rengiyle dolgu rengi ÇELİŞİYORDU — ör. yeşil çizgili bir boğa üçgeni kırmızı
+   dolgulu görünüyordu). Düzeltildi.
+2. **`add_vrect(row=...)` sessiz no-op'u** — Plotly (7.x), bir subplot'a İLK
+   trace eklenmeden önce o satıra `add_shape`/`add_vrect` çağrılırsa şekli
+   SESSİZCE hiç eklemiyor (hata fırlatmıyor). Pair modundaki tutulan-dönem
+   gölgeleri (`_draw_holding_boxes`) bu yüzden hiç görünmüyordu — çağrı sırası,
+   her satırın İLK trace'inden SONRAYA alınarak düzeltildi.
+3. **Harmonik `xb` çizgisinin sınırsız eğim projeksiyonu** — `Line.extend_right`,
+   kısa/dik bir bacağın (ör. birkaç barlık bir X→B) eğimini ham hâliyle
+   grafiğin EN SON barına kadar projekte ediyordu; yıllarca eski/kısa bir
+   harmonik aday için bu, fiyat eksenini gerçek dışı büyütüyordu (ör. 100
+   TL'lik bir hisse için 700+ TL'lik bir projeksiyon). Düzeltme: uzatma artık
+   bacağın KENDİ süresinin en fazla 3 katıyla sınırlı (`structure.price_
+   structure`'ın uzun/yatık trendlerinde bu sınır zaten aşılmadığı için
+   davranış değişmedi).
+
+Ayrıca `structure.swing_fib_abcd`'de bir tasarım eksikliği bulunup düzeltildi:
+D-hedef `Level`'leri hiçbir zaman `end` almıyordu (hep `None`) — bu yüzden
+TAMAMLANMIŞ veya GEÇERSİZLEŞMİŞ eski hedefler bile grafiğin sonuna kadar
+uzanıyor, gerçek çok-yıllık veride onlarca çakışan çizgi üst üste biniyordu.
+Düzeltme: `end`, tamamlanma/geçersizleşme barına SABİTLENİYOR (ranges.py/
+zones.py'deki `Box.t1` ile AYNI extend-only deseni — bkz. Faz 2/4 notları);
+hâlâ açık (henüz sonraki üçlü doğmamış) bir hedef `end=None` kalır.
+
+`fig.write_image()` (kaleido, `pyproject.toml`'a eklendi) ile PNG dışa aktarımı
+`pd.Timestamp`/tz-aware `DatetimeIndex` içeren shape/annotation/trace x
+değerlerinde çöküyordu (`fig.write_html`'in KENDİ JSON encoder'ı bunu
+sorunsuz işlerken, kaleido'nun orjson tabanlı encoder'ı işlemiyor) —
+`renderer.py::_x()`/`_xs()` ile TÜM x değerleri ISO8601 string'e çevrilerek
+düzeltildi.
+
+Kabul testi: TCELL `structure.price_structure`, TCELL `structure.
+swing_fib_abcd`, ALARK `harmonic.pesavento`, TCELL/ISCTR `pair.
+relative_momentum` gerçek veriyle render edildi, `outputs/samples/`'a PNG
+olarak kaydedildi (kaleido). Referans-görsel öğe kontrol listesi (bazı
+öğeler kasıtlı GAP) `README.md`'de.
 
 ## Komutlar
 

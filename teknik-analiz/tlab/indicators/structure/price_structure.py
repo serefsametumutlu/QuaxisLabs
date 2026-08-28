@@ -139,6 +139,10 @@ class PriceStructure(BaseIndicator):
             boxes=boxes_ranges + boxes_zones,
             markers=osc_markers,
             series={**series, **profile_series},
+            series_layout={
+                "hacim": ["volume", "volume_ma"],
+                "macd": ["macd", "macd_signal", "macd_hist"],
+            },
             last_state=last_state,
         )
 

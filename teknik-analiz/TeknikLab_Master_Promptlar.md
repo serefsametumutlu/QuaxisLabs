@@ -1,7 +1,7 @@
 # TEKNİK LAB — Birleşik Prompt Sırası (Master)
 ## Faz 0'dan Faz 10'a: kod fazları + kaynak/agent görevleri, tek sırada
 
-Tarih: 28.08.2026 | Durum: Faz 0–6 TAMAMLANDI, K0/K1/K1-D/EK-A/K2 TAMAMLANDI, sırada Faz 7/8 veya K3 (CLAUDE.md'ye işlendi)
+Tarih: 28.08.2026 | Durum: Faz 0–7 TAMAMLANDI, K0/K1/K1-D/EK-A/K2 TAMAMLANDI, sırada Faz 8 veya K3 (CLAUDE.md'ye işlendi)
 
 ## Kullanım
 1. Her prompttan önce aşağıdaki **PROJE BAĞLAMI** bloğunu aynen yapıştır (K0–K3 bilgi
@@ -25,7 +25,7 @@ Tarih: 28.08.2026 | Durum: Faz 0–6 TAMAMLANDI, K0/K1/K1-D/EK-A/K2 TAMAMLANDI, 
 | 10 | FAZ 4 — yapı indikatörleri | kod | ✅ |
 | 11 | FAZ 5 — pair relatif momentum | kod | ✅ (648-sembol tam tarama Faz 6'ya bırakıldı) |
 | 12 | FAZ 6 — tarama motoru + EOD | kod | ✅ (100-sembol tam koşu Faz 6 sonrası doğrulanacak) |
-| 13 | FAZ 7 — görselleştirme + rapor | kod | |
+| 13 | FAZ 7 — görselleştirme + rapor | kod | ✅ (README'de referans-görsel kontrol listesi, bazı öğeler kısmi/gap olarak işaretli) |
 | 14 | FAZ 2-EK — yeni feature'lar + W1 | kod | Faz 8 ön koşulu |
 | 15 | FAZ 8A — kırılım tarayıcısı (+Donchian/BB) | kod | ch1 ekleri içinde |
 | 16 | FAZ 8C — bölgeler (golden/S-D/kanal) | kod | |
@@ -713,6 +713,7 @@ git commit: "faz6: tarama motoru ve EOD".
 ---
 
 ## 13 · FAZ 7
+> **Durum:** ✅ TAMAMLANDI (2026-08-28) — referans
 
 ```
 FAZ 7 GÖREVİ — Plotly renderer (tam görsel kanıt), temalar, EOD HTML raporu

@@ -145,3 +145,53 @@ Program Başlat → yukarıdaki `tlab.exe` yolu + `eod --market bist` argümanı
 
 Aynı gün ikinci bir tetikleme (ör. zamanlayıcı çakışması) `run_eod()` tarafından
 otomatik atlanır (`status: "skipped_existing"`) — `--force` verilmedikçe.
+
+## Görselleştirme (Faz 7)
+
+`tlab plot --symbol TCELL --tf 1d --indicator structure.price_structure [--theme
+auto|dark|light] [--last-n 300] [--out dosya.html|.png] [--open]` — tek bir
+(sembol, tf, indikatör) grafiğini üretir (`tlab/viz/renderer.py`, hesap yapmaz,
+yalnızca `IndicatorResult` primitiflerini çizer). Pair indikatörler için
+`--symbol Y/X` (ör. `TCELL/ISCTR`). `.png` çıktısı `kaleido` gerektirir.
+
+`tlab report --run latest --market bist [--generate-charts]` — EOD run'ı için
+özet HTML raporu (`tlab/viz/report.py`): durum sayaçları, önceki run'a göre
+yeni sinyal/durum geçişi/repaint alarmı, indikatör/tf sekmeleri, her sinyal
+satırından tekil grafiğe link. Grafikler **lazy** üretilir (`ensure_chart()`,
+yalnızca ilk tıklanışta/`--generate-charts` ile önceden); her biri
+`include_plotlyjs="cdn"` kullanır (dosya başına ~3MB'lık plotly.js'i tekrar
+gömmemek için).
+
+### Referans görsel kontrol listesi
+
+Faz 7 kabul kriteri, `images/`'teki 6 referans ekran görüntüsünün renderer ile
+yeniden üretilebilir olmasıydı. Gerçek veriyle (`outputs/samples/`, TCELL/
+ALARK/TCELL-ISCTR) üretilen sonuç, öğe öğe:
+
+| Görsel | Öğe | Durum |
+|---|---|---|
+| 1 (pair, dark) | Normalize fiyat (Y mavi/X gri) | ✅ |
+| 1 | Tutulan dönem gölgeleri (yeşil=Y, mavi=X) | ✅ (Faz 7'de bulunan gerçek bir hata düzeltildi — `add_vrect(row=...)`, o satıra ilk trace eklenmeden çağrılırsa Plotly sessizce hiçbir şey çizmiyordu) |
+| 1 | Portföy vs Buy&Hold + başlangıç çizgisi | ✅ |
+| 1 | Z-skoru + eşikler + AL kutulu etiketler | ✅ |
+| 1 | Başlık formatı ("SİNYAL \| SEMBOL AL \| Z: a -> b \| tarih") | ✅ (yakın; kesme metni — "Y Ucuz -> Dönüş Onaylandı" — payload'da var ama başlığa join edilmedi, GAP) |
+| 2 (price_structure, light) | Trendline (solid + "(Temas:N)" etiketli dashed uzatma) | ✅ |
+| 2 | Direnç/Destek bölgeleri (sarı/mavi dolgu) + Konsolidasyon kutuları | ✅ |
+| 2 | Hacim profili + Value Area (yeşil/mavi) + Gaussian eğri | ✅ |
+| 2 | Hacim + MA paneli, MACD paneli + kesişim işaretleri | ✅ |
+| 3 (swing_fib_abcd, light) | Swing çizgisi + HH/HL/LH/LL etiketleri (renkli) | ✅ |
+| 3 | AB=CD hedef (D) seviyeleri, yön renkli (yeşil/kırmızı) | ⚠ KISMİ — referans C'den D'ye ÇAPRAZ bir izdüşüm çizgisi gösteriyor; renderer hesap yapmadığı için (Level yalnızca tek bir yatay fiyat taşır, C'nin fiyatını taşımaz) bunun yerine YATAY, C barından başlayıp tamamlanma/geçersizleşme barında biten bir seviye çiziliyor — aynı bilgi (hedef fiyat + yön), farklı geometri |
+| 3 | "[TAMAM]" durum eki | ❌ GAP — Level etiketi yalnızca fiyatı taşıyor (`D (hedef): 106.75`); durum (`completed`/`invalidated`) ayrı bir Signal'de var ama etikete join edilmedi |
+| 3 | Fibonacci retracement/extension seviyeleri (oran-renkli) | ✅ |
+| 4 (metrik tablosu, dark) | Başlık/alt başlık + METRİK/DEĞER/DURUM tablosu, pozitif/negatif satır rengi | ✅ (`tlab/viz/table.py`, `outputs/samples/tcell_isctr_metrics_table.png`) |
+| 5 (harmonik, light) | XAB/BCD üçgenleri (Polygon, yön renkli dolgu) | ✅ |
+| 5 | X→B kesikli çizgi + sınırlı uzatma | ✅ (Faz 7'de bulunan gerçek bir hata düzeltildi — ham eğim son bara kadar projekte edilince kısa/dik bacaklarda fiyat ekseni gerçek dışı büyüyordu; uzatma artık bacağın kendi uzunluğunun en fazla 3 katıyla sınırlı) |
+| 5 | PRZ üst/alt seviyeleri (dotted) | ✅ |
+| 5 | "D: fiyat [DURUM]" kutulu etiket | ✅ (`scanner_indicator.py` zaten Türkçe durum etiketini metne gömüyor) |
+| 5 | Ara Fibonacci merdiveni (0.382/0.618/0.786/1.272/1.618 çizgileri) | ❌ GAP — `HarmonicIndicator` bunları şu an Level olarak üretmiyor (yalnızca PRZ üst/alt); renderer hesap yapmadığı için eklenemedi, ileride indikatöre eklenebilir |
+| 6 (EOD tarama listesi, dark metin) | Yeni sinyal / kategori bazlı liste (YENİ AL / DEVAM EDEN FIRSAT / BÖLGEYE YAKLAŞIYOR) | ⚠ KISMİ — `tlab report`, indikatör/tf sekmeleri + durum renkli tablo olarak üretiyor (bkz. yukarıdaki HTML rapor); pair'e özel 3 kademeli yakınlık kategorisi (`relative_momentum.py::_zone_state`, Faz 6'da zaten hesaplanıyor) rapora AYRI bir sekme/gruplama olarak YANSITILMADI — GAP, küçük bir takip işi |
+
+Gerçek çok-yıllık veri, referans mockup'lardan daha YOĞUN görünebilir (ör.
+TCELL/ALARK'ın onlarca ABC üçlüsü/harmonik adayı üretmesi) — bu bir render
+hatası değil, `--last-n` ile daha dar bir pencereye (ör. 150-300 bar) veya
+daha az volatil bir sembole odaklanarak azaltılabilir.

@@ -24,6 +24,8 @@ from tlab.scanner.eod import run_eod
 from tlab.scanner.results import ResultsStore
 from tlab.testing.lint_lookahead import has_errors, lint_paths
 from tlab.testing.repaint import repaint_test
+from tlab.viz.live import render_live
+from tlab.viz.report import build_report_html
 
 app = typer.Typer(add_completion=False, help="Teknik Lab (tlab) komut satırı arayüzü")
 
@@ -345,6 +347,72 @@ def diff_cmd(
                 f"{r['state']} {r['bar_time']}",
                 err=True,
             )
+    store.close()
+
+
+@app.command("plot")
+def plot_cmd(
+    symbol: str = typer.Option(
+        ..., "--symbol", help="Sembol; pair indikatörler için 'Y/X' (ör. TCELL/ISCTR)"
+    ),
+    tf: str = typer.Option("1d", "--tf", help="1h | 4h | 1d"),
+    indicator: str = typer.Option(
+        ..., "--indicator", help="Katalogdaki ad, ör. structure.price_structure"
+    ),
+    market: str = typer.Option("bist", "--market", help="bist | nasdaq"),
+    theme: str = typer.Option("auto", "--theme", help="auto | dark | light"),
+    last_n: int = typer.Option(None, "--last-n", help="Yalnızca son N barı göster"),
+    out: str = typer.Option(
+        None, "--out", help="Çıktı yolu (.html veya .png); varsayılan outputs/samples/"
+    ),
+    open_: bool = typer.Option(False, "--open", help="Üretilen HTML'i tarayıcıda aç"),
+) -> None:
+    """Tek bir (sembol, tf, indikatör) grafiğini üretir (outputs/samples/'a
+    HTML olarak kaydeder; --out ile .png verilirse kaleido kullanılır)."""
+    try:
+        fig = render_live(indicator, symbol, tf, market, theme=theme, last_n=last_n)
+    except (ValueError, FileNotFoundError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+    safe_symbol = symbol.replace("/", "-")
+    out_path = (
+        Path(out) if out else Path("outputs") / "samples" / f"{safe_symbol}_{tf}_{indicator}.html"
+    )
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    if out_path.suffix == ".png":
+        fig.write_image(str(out_path))
+    else:
+        fig.write_html(str(out_path), include_plotlyjs="cdn")
+    typer.echo(f"Grafik: {out_path}")
+    if open_:
+        import webbrowser
+
+        webbrowser.open(out_path.resolve().as_uri())
+
+
+@app.command("report")
+def report_cmd(
+    run: str = typer.Option("latest", "--run", help="run_id veya 'latest'"),
+    market: str = typer.Option("bist", "--market", help="'latest' ile birlikte kullanılır"),
+    generate_charts: bool = typer.Option(
+        False, "--generate-charts",
+        help="Her sinyal için tekil grafiği ÖNCEDEN üret (yavaş olabilir)",
+    ),
+    out: str = typer.Option(None, "--out"),
+) -> None:
+    """EOD run'ı için HTML özet raporu üretir."""
+    store = ResultsStore()
+    run_id = store.latest_run(market) if run == "latest" else run
+    if run_id is None:
+        typer.echo(f"{market} için tamamlanmış bir run yok.", err=True)
+        raise typer.Exit(code=1)
+
+    content = build_report_html(store, run_id, generate_charts=generate_charts)
+    out_path = Path(out) if out else Path("outputs") / "reports" / f"eod_report_{run_id}.html"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(content, encoding="utf-8")
+    typer.echo(f"Rapor: {out_path}")
     store.close()
 
 

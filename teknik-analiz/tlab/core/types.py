@@ -149,7 +149,15 @@ def _series_from_json(values: dict[str, float | None]) -> pd.Series:
 
 @dataclass
 class IndicatorResult:
-    """Bir indikatörün tek bir (symbol, timeframe) koşusunun tam çıktısı."""
+    """Bir indikatörün tek bir (symbol, timeframe) koşusunun tam çıktısı.
+
+    `series_layout` (Faz 7, viz): `series` sözlüğündeki hangi serilerin aynı
+    alt panelde gruplanacağını belirtir — {panel_adı: [seri_adı, ...]}.
+    Boş bırakılırsa (varsayılan) renderer alt panel çizmez (yalnızca ana
+    mum grafiği + primitifler). "vp_" önekli seriler bu mekanizmaya DAHİL
+    DEĞİLDİR — onlar fiyat-indeksli oldukları için renderer'da ayrı, özel
+    bir yatay hacim profili paneline gider (bkz. `structure/price_structure.py`
+    docstring'i)."""
 
     indicator: str
     version: str
@@ -163,6 +171,7 @@ class IndicatorResult:
     polygons: list[Polygon] = field(default_factory=list)
     markers: list[Marker] = field(default_factory=list)
     series: dict[str, pd.Series] = field(default_factory=dict)
+    series_layout: dict[str, list[str]] = field(default_factory=dict)
     last_state: dict[str, Any] = field(default_factory=dict)
 
     def to_json(self) -> str:
@@ -196,6 +205,7 @@ class IndicatorResult:
             "polygons": [asdict(x) for x in self.polygons],
             "markers": [asdict(x) for x in self.markers],
             "series": self.series,
+            "series_layout": self.series_layout,
             "last_state": self.last_state,
         }
         return json.dumps(payload, default=_default, ensure_ascii=False)
@@ -264,6 +274,7 @@ class IndicatorResult:
             polygons=polygons,
             markers=markers,
             series=series,
+            series_layout=raw.get("series_layout", {}),
             last_state=raw["last_state"],
         )
 

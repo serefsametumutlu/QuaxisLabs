@@ -13,6 +13,7 @@ dependencies = [
     "scipy",
     "pyarrow",
     "plotly",
+    "kaleido",
     "typer",
     "pyyaml",
     "statsmodels",

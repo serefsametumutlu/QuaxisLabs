@@ -210,12 +210,6 @@ def _abcd_targets(
         for ratio_key in p.abcd_ratios[: p.max_active_targets]:
             d_price = targets[ratio_key]
             initial_distance = abs(d_price - c.price)
-            levels.append(
-                Level(
-                    price=d_price, label=f"D (hedef): {d_price:.2f}",
-                    style=style, start=c.bar_time,
-                )
-            )
             base_payload = {
                 "triple_id": triple_id, "ratio": ratio_key, "target_price": d_price,
                 "harmonic_unit": harmonic_unit,
@@ -228,6 +222,7 @@ def _abcd_targets(
             )
 
             state: Literal["pending", "active", "completed"] = "pending"
+            close_idx: int | None = None
             for t in range(born_idx, end_idx):
                 extreme = high[t] if direction == "long" else low[t]
                 distance = abs(extreme - d_price)
@@ -243,6 +238,7 @@ def _abcd_targets(
                         )
                     )
                     state = "completed"
+                    close_idx = t
                     break
                 if state == "pending" and distance <= p.near_pct * initial_distance:
                     signals.append(
@@ -262,6 +258,22 @@ def _abcd_targets(
                         payload={**base_payload, "reason": "superseded_by_new_triple"},
                     )
                 )
+                close_idx = end_idx
+
+            # Level.end: TAMAMLANDI/GEÇERSİZ olduğu bardan itibaren SABİTLENİR
+            # (extend-only — ranges.py/zones.py'deki Box.t1 ile aynı desen,
+            # bkz. modül docstring'i). Hâlâ açık (pending/active, henüz
+            # sonraki üçlü doğmamış) bir hedef None kalır — renderer bunu
+            # son bara kadar uzatır. Bu, Faz 7'de gerçek veri render'ında
+            # bulundu: end HİÇ set edilmediğinde TÜM geçmiş hedefler grafiğin
+            # sonuna kadar üst üste uzuyor, okunamaz hâle geliyordu.
+            levels.append(
+                Level(
+                    price=d_price, label=f"D (hedef): {d_price:.2f}",
+                    style=style, start=c.bar_time,
+                    end=df.index[close_idx] if close_idx is not None else None,
+                )
+            )
 
     fib_touch_signals = _fib_touch_signals(df, zigzag, p)
     return signals, levels, fib_touch_signals

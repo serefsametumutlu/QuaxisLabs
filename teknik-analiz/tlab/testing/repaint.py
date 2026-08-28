@@ -142,19 +142,27 @@ def repaint_test(
     cut_points: list[int] | None = None,
     tail: int = 60,
     stride: int = 1,
+    context: dict[str, pd.DataFrame] | None = None,
 ) -> RepaintReport:
     """indicator'ü tam seri ve seçilen kesim noktalarında çalıştırıp karşılaştırır.
 
     cut_points verilmezse, son `tail` barın her biri (stride ile seyreltilerek)
     kesim noktası olarak kullanılır. indicator compute'u pahalıysa stride
     büyütülerek kontrol edilen kesim sayısı azaltılabilir.
-    """
+
+    `context` verilirse (Faz 5: `RelativeMomentumPair` gibi ikinci bir seri
+    alan indikatörler için), içindeki HER DataFrame de `df` ile AYNI kesim
+    ANINA (cut_time — TARİHE göre, pozisyona göre DEĞİL, çünkü iki serinin
+    bar sayısı farklı olabilir) kesilerek indikatöre verilir. Aksi halde
+    context tam bırakılıp yalnızca `df` kesilirse, indikatör context'teki
+    GELECEK barları görebilir — sessiz bir lookahead. `df` ile `context`
+    aynı cut'ta kesilmezse walk-forward eşitliği anlamsızlaşır."""
     n = len(df)
     if cut_points is None:
         start = max(1, n - tail)
         cut_points = list(range(start, n, max(1, stride)))
 
-    full = indicator(df)
+    full = indicator(df, context)
     mismatches: list[str] = []
     checked_cuts = 0
 
@@ -163,7 +171,12 @@ def repaint_test(
             continue
         partial_df = df.iloc[:cut]
         cut_time = partial_df.index[-1]
-        partial = indicator(partial_df)
+        partial_context = (
+            {key: value.loc[value.index <= cut_time] for key, value in context.items()}
+            if context is not None
+            else None
+        )
+        partial = indicator(partial_df, partial_context)
         checked_cuts += 1
 
         full_signals_upto = [s for s in full.signals if s.detected_at <= cut_time]

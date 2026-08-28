@@ -1,0 +1,21 @@
+# Elle seçilmiş başlangıç çift evreni — tlab CLI ve testler bunu kullanır.
+#
+# Buradaki çiftler HENÜZ discover_pairs() ile doğrulanmadı (corr/adf/halflife
+# eşiklerinden geçtikleri teyit edilmedi) — yalnızca makul, aynı sektörden
+# (bkz. config/sectors_bist.yaml) başlangıç adaylarıdır. Gerçek/canlı veriyle
+# `tlab pair-discover` (veya discover_pairs() doğrudan) çalıştırılıp bu liste
+# GÜNCELLENMELİ; TSKB/ISCTR gibi referans örnek görselde geçen çiftler de
+# ancak o zaman "doğrulanmış" sayılabilir.
+pairs:
+  - y: TCELL
+    x: ISCTR
+    note: "Referans örnek (K1/Faz5 görselleri) — sektörler farklı (telekom/banka), yalnızca gösterim amaçlı."
+  - y: AKBNK
+    x: GARAN
+    note: "Aynı sektör (Bankacılık), manuel aday — discovery ile doğrulanmadı."
+  - y: AKBNK
+    x: ISCTR
+    note: "Aynı sektör (Bankacılık), manuel aday — discovery ile doğrulanmadı."
+  - y: FROTO
+    x: TOASO
+    note: "Aynı sektör (Otomotiv), manuel aday — discovery ile doğrulanmadı."

@@ -15,6 +15,7 @@ from tlab.data.settings import load_settings
 from tlab.data.store import Store
 from tlab.data.universe import load_universe
 from tlab.data.validate import check_data_quality
+from tlab.indicators.pairs.relative_momentum import RelativeMomentumPair, RelativeMomentumParams
 from tlab.testing.lint_lookahead import has_errors, lint_paths
 from tlab.testing.repaint import repaint_test
 
@@ -150,6 +151,60 @@ def data_quality_cmd(
     if any_errors:
         raise typer.Exit(code=1)
     typer.echo("data-quality: hata yok.")
+
+
+@app.command("pair")
+def pair_cmd(
+    y: str = typer.Option(..., "--y", help="Y hissesi (ör. TCELL)"),
+    x: str = typer.Option(..., "--x", help="X hissesi (ör. ISCTR)"),
+    market: str = typer.Option("bist", "--market", help="bist | nasdaq"),
+    tf: str = typer.Option("1d", "--tf", help="1h | 4h | 1d"),
+    window: int = typer.Option(90, "--window"),
+    k: float = typer.Option(2.0, "--k"),
+) -> None:
+    """RelativeMomentumPair'i Y<->X üzerinde çalıştırır; last_state ve metrik
+    tablosunu konsola yazar, IndicatorResult JSON'unu outputs/'a kaydeder."""
+    mkt = Market(market.lower())
+    tf_map = {"1h": Timeframe.H1, "4h": Timeframe.H4, "1d": Timeframe.D1}
+    timeframe = tf_map.get(tf.lower())
+    if timeframe is None:
+        typer.echo(f"Geçersiz --tf: {tf} (1h|4h|1d bekleniyor)", err=True)
+        raise typer.Exit(code=2)
+
+    store = Store(YFinanceProvider())
+    try:
+        df_y = store.get(y, timeframe, mkt)
+        df_x = store.get(x, timeframe, mkt)
+    except FileNotFoundError as exc:
+        typer.echo(f"Veri bulunamadı: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    params = RelativeMomentumParams(window=window, k=k, y_symbol=y, x_symbol=x)
+    result = RelativeMomentumPair(params)(df_y, context={"x": df_x})
+    ls = result.last_state
+
+    typer.echo(f"LONG-ONLY ROLATIF GECIS | {y} <-> {x} | {tf.upper()}")
+    typer.echo(f"Sinyal: {ls['signal_today'] or '---'} | Tutulan: {ls['holding'] or 'yok'}")
+    typer.echo("-" * 58)
+    typer.echo(f"{'METRIK':<28} {'DEGER':>20}")
+    typer.echo(f"{'Baslangic Sermayesi (TL)':<28} {params.start_capital:>20,.2f}")
+    typer.echo(f"{'Guncel Portfoy (TL)':<28} {ls['portfolio_value']:>20,.2f}")
+    typer.echo(f"{'Net Kar/Zarar (TL)':<28} {ls['net_pnl']:>20,.2f}")
+    typer.echo(f"{'Getiri Orani (%)':<28} {ls['return_pct']:>20.2f}")
+    typer.echo(f"{'Gecis (Trade) Sayisi':<28} {ls['n_trades']:>20}")
+    if ls["z_today"] is not None:
+        typer.echo(f"{'Son Gun Z-Skoru':<28} {ls['z_today']:>20.3f}")
+    z_yesterday = ls["z_yesterday"]
+    if z_yesterday is not None:
+        typer.echo(f"{'Onceki Gun Z-Skoru':<28} {z_yesterday:>20.3f}")
+    typer.echo(f"{'Max Drawdown (%)':<28} {ls['max_drawdown_pct']:>20.2f}")
+    typer.echo(f"{'Kazanan Gecis Orani (%)':<28} {ls['win_rate_pct']:>20.2f}")
+
+    out_dir = Path("outputs")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / f"pair_{y}_{x}_{tf}.json"
+    out_path.write_text(result.to_json(), encoding="utf-8")
+    typer.echo(f"\nJSON: {out_path}")
 
 
 if __name__ == "__main__":

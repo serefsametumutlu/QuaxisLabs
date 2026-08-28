@@ -1,0 +1,43 @@
+# BIST sektör eşlemesi — discovery.py::load_sector_map() tarafından okunur.
+#
+# ÖNEMLİ: Bu KASITLI OLARAK KÜÇÜK ve KISMİ bir liste. Yalnızca sektör
+# sınıflandırmasından EMİN olduğum, iyi bilinen BIST büyük-sermaye şirketleri
+# eklendi (~648 sembollük tam universe'ün küçük bir alt kümesi). Emin
+# olmadığım hiçbir sembol/sektör eşlemesi UYDURULMADI — bir sembol burada
+# yoksa discover_pairs() onu "bilinmeyen sektör" sayıp same_sector_only=True
+# iken taramadan otomatik olarak DIŞLAR (bkz. discovery.py docstring'i).
+#
+# Genişletme: Bu liste resmi bir kaynaktan (KAP, BIST'in kendi sektör
+# endeksleri) doğrulanarak büyütülmeli — burada elle, tek seferde eklendi.
+sectors:
+  Bankacılık:
+    - AKBNK
+    - GARAN
+    - ISCTR
+    - YKBNK
+    - VAKBN
+    - HALKB
+    - TSKB
+  Telekomünikasyon:
+    - TCELL
+    - TTKOM
+  Holding:
+    - SAHOL
+    - KCHOL
+    - DOHOL
+  Havacılık:
+    - THYAO
+    - PGSUS
+  Otomotiv:
+    - FROTO
+    - TOASO
+    - OTKAR
+  DemirÇelik:
+    - EREGL
+    - KRDMD
+  Perakende:
+    - BIMAS
+    - MGROS
+    - SOKM
+  Savunma:
+    - ASELS

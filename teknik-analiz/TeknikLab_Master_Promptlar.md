@@ -1,7 +1,7 @@
 # TEKNİK LAB — Birleşik Prompt Sırası (Master)
 ## Faz 0'dan Faz 10'a: kod fazları + kaynak/agent görevleri, tek sırada
 
-Tarih: 28.08.2026 | Durum: Faz 0–4 TAMAMLANDI, K0/K1/K1-D/EK-A/K2 TAMAMLANDI, sırada Faz 5/6 veya K3 (CLAUDE.md'ye işlendi)
+Tarih: 28.08.2026 | Durum: Faz 0–5 TAMAMLANDI, K0/K1/K1-D/EK-A/K2 TAMAMLANDI, sırada Faz 6 veya K3 (CLAUDE.md'ye işlendi)
 
 ## Kullanım
 1. Her prompttan önce aşağıdaki **PROJE BAĞLAMI** bloğunu aynen yapıştır (K0–K3 bilgi
@@ -23,7 +23,7 @@ Tarih: 28.08.2026 | Durum: Faz 0–4 TAMAMLANDI, K0/K1/K1-D/EK-A/K2 TAMAMLANDI, 
 | 8 | EK-A — Three Drives paterni | kod | ✅ (three_drives.py hizalandı, pesavento.py'ye yinelenmedi) |
 | 9 | K2 — 11 bölümlük külliyat incelemesi | bilgi | ✅ (bilanco-radar 5bc4896) |
 | 10 | FAZ 4 — yapı indikatörleri | kod | ✅ |
-| 11 | FAZ 5 — pair relatif momentum | kod | |
+| 11 | FAZ 5 — pair relatif momentum | kod | ✅ (648-sembol tam tarama Faz 6'ya bırakıldı) |
 | 12 | FAZ 6 — tarama motoru + EOD | kod | |
 | 13 | FAZ 7 — görselleştirme + rapor | kod | |
 | 14 | FAZ 2-EK — yeni feature'lar + W1 | kod | Faz 8 ön koşulu |

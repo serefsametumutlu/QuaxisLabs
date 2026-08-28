@@ -61,16 +61,23 @@ class Registry:
     def __init__(self) -> None:
         self._indicators: dict[str, type[BaseIndicator]] = {}
 
-    def register(self, indicator_cls: type[BaseIndicator], sample_df: pd.DataFrame) -> type[BaseIndicator]:
-        """indicator_cls'i sample_df üzerinde çalıştırıp repaint testinden
-        geçerse registry'e ekler; geçmezse RegistryError fırlatır."""
+    def register(
+        self,
+        indicator_cls: type[BaseIndicator],
+        sample_df: pd.DataFrame,
+        sample_context: dict[str, pd.DataFrame] | None = None,
+    ) -> type[BaseIndicator]:
+        """indicator_cls'i sample_df (+ context alan indikatörler için
+        sample_context, ör. RelativeMomentumPair'in ikinci sembolü) üzerinde
+        çalıştırıp repaint testinden geçerse registry'e ekler; geçmezse
+        RegistryError fırlatır."""
         from tlab.testing.repaint import repaint_test  # döngüsel import'tan kaçınma
 
         name = indicator_cls.meta.name
         if name in self._indicators:
             raise RegistryError(f"'{name}' zaten kayıtlı")
 
-        report = repaint_test(indicator_cls(), sample_df)
+        report = repaint_test(indicator_cls(), sample_df, context=sample_context)
         if not report.passed:
             raise RegistryError(
                 f"'{name}' repaint testinden geçemedi:\n" + "\n".join(report.mismatches)

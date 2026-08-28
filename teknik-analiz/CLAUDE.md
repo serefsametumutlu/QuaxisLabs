@@ -84,10 +84,21 @@ için `tlab/testing/lint_lookahead.py` da var (CLI: `tlab lint`).
   "aday havuzu" + hacim profili pencere sorunu nedeniyle, bilinçli mimari karar).
   17 yeni test. Toplam test 157→174. TCELL 1D gerçek veri smoke testi başarılı
   (`outputs/debug/swing_fib_abcd_TCELL.json`, `price_structure_TCELL.json` — git dışı).
-- **Sırada**: Faz 5 (pair relatif momentum), Faz 6 (tarama motoru), K3 (Carver çıkarımı)
-  "Sıradaki Adımlar" bölümünde.
+- **Faz 5 — Pair relatif momentum** (`tlab/indicators/pairs/`, `tlab/backtest/pairs_engine.py`):
+  TAMAMLANDI (2026-08-28). Detaylar için aşağıdaki "Pair Trading (Faz 5)" bölümüne bakın —
+  özellikle `BaseIndicator.compute`'un `context` parametresini kullanan İLK indikatör olması
+  ve `repaint_test`/`Registry.register`'a context-farkındalıklı kesim eklenmesi (Faz 0'dan
+  beri var olan ama Faz 3/4'te kullanılmamış bir mekanizma, geriye uyumlu genişletildi).
+  20 yeni test. Toplam test 174→194. TCELL/ISCTR gerçek veri CLI smoke testi başarılı
+  (`tlab pair --y TCELL --x ISCTR --tf 1d`); AKBNK/GARAN üzerinde gerçek-veri discovery
+  denemesi dürüstçe SIFIR aday döndürdü (gerçek piyasa verisi her zaman eşikleri geçmez,
+  bu beklenen/kabul edilebilir bir sonuç — uydurulmadı).
+  Tam 648-sembol evren taraması ("binlerce ikili") HENÜZ YAPILMADI — bu, ayrı bir
+  veri-önbellekleme ağırlıklı takip adımı (bkz. "Sıradaki Adımlar").
+- **Sırada**: Faz 6 (tarama motoru — çift evreninin tam taranması dahil), Faz 7 (görsel),
+  K3 (Carver çıkarımı) "Sıradaki Adımlar" bölümünde.
 
-Toplam 174 test yeşil (`pytest -m "not network"`), ruff/mypy/lint_lookahead temiz.
+Toplam 194 test yeşil (`pytest -m "not network"`), ruff/mypy/lint_lookahead temiz.
 
 ## Repo Yapısı / Modül Haritası
 
@@ -208,6 +219,52 @@ serileri. **BİLİNEN SINIRLAMA (kod DOĞRU, ama iki parça generic `repaint_tes
 
 `vp_bins`/`vp_volumes`/`vp_gauss` series'leri FİYAT bin'leriyle indexlenir (zaman
 DEĞİL) — renderer (Faz 7) bunları sağ panelde ayrı bir yatay histogram çizmeli.
+
+## Pair Trading (Faz 5 — TAMAMLANDI)
+
+`tlab/indicators/pairs/relative_momentum.py::RelativeMomentumPair` — long-only rölatif
+momentum geçişi. **`context={"x": df_x}` alan İLK indikatör**: `df`=Y hissesi,
+`context["x"]`=X hissesi. `spread = log(Y) − β·log(X)` (β: `rolling_ols` veya `one` —
+tek seferlik, ilk `beta_window` bardan sabitlenmiş), `z = zscore(spread, window)` (hepsi
+Faz 2'nin `tlab/features/stats.py`'sinden — bu modül tam bu amaçla, henüz kullanılmadan
+yazılmıştı). Sinyal **dönüş onaylıdır**: eşiği ilk aşan bar değil, eşiğin İÇİNE geri
+dönen bar (`z[t-1]<-k, z[t]>=-k` → "Y AL"). Durum: `holding` serisi (1.0=Y, 0.0=X, NaN=
+henüz sinyal yok); geçiş barında `pairs_engine.py::run_pair_backtest` tüm sermayeyi
+komisyonla diğer tarafa taşır.
+
+**Mimari genişletme — `context` artık gerçekten kullanılıyor:**
+- `tlab/testing/repaint.py::repaint_test` yeni `context` parametresi aldı: verilirse
+  içindeki her DataFrame, `df` ile AYNI `cut_time`'da (TARİHE göre, pozisyona göre DEĞİL —
+  iki serinin bar sayısı farklı olabilir) kesilir. Aksi halde context tam bırakılıp
+  yalnızca `df` kesilseydi, indikatör context'teki GELECEK barları görebilirdi.
+- `Registry.register()` yeni opsiyonel `sample_context` parametresi aldı (aynı sebeple).
+- **Ama `RelativeMomentumPair`'in KENDİSİ bu genişlemeye muhtaç değil** — X verisini HER
+  ZAMAN önce `df.index` (Y) ile inner-join edip (`common_idx`) SONRA kullanıyor, bu yüzden
+  context'i kesmemek bu indikatörde fiilen fark yaratmıyor (test edilip doğrulandı, bkz.
+  `test_uncut_context_gives_identical_result_here_by_construction`). Genişletme yine de
+  GENEL bir güvenlik ağıdır — bu deseni takip etmeyecek gelecekteki context'li
+  indikatörler için.
+
+**Discovery (`discovery.py::discover_pairs`) — indikatör DEĞİL, statik bir tarama:**
+corr + ADF eşbütünleşme + halflife eşiklerinden geçen çiftleri raporlar. Sektör filtresi
+`config/sectors_bist.yaml`'dan (KASITLI OLARAK küçük/kısmi — yalnızca emin olunan ~25
+sembol, "bilmediğin sektörü uydurma" ilkesi) `load_sector_map()` ile okunur; bir sembol
+haritada yoksa `same_sector_only=True` iken otomatik dışlanır. **Bulgu:** Engle-Granger
+regresyonu YÖN-BAĞIMLIDIR (Y~X ile X~Y sonlu örneklemde farklı ADF p-değeri verebilir) —
+`discover_pairs` bu yüzden HER kombinasyon için iki yönü de dener, geçeni (ikisi de
+geçerse daha düşük adf_p'liyi) raporlar.
+
+**DISIPLIN-06/08 (bilgi-bankasi/teknik/kod/ch02_pairs_arbitraj.md, K2/STRAT-08):**
+(1) discovery'nin çıktısı KALICI BİR ONAY DEĞİL, anlık bir tarama — çift seçimi ile
+backtest AYNI pencereden yapılırsa seçim-lookahead oluşur, periyodik yeniden koşulmalı.
+(2) β geçmişten, sinyal bugünden, işlem `execution` parametresine göre bugünün
+kapanışından ya da yarının açılışından — üç zaman dilimi hiç karışmaz.
+
+**Bilinmeyen/kapsam dışı bırakılanlar:** Tam Johansen/VECM (STRAT-10, çoklu-sembollü
+kointegrasyon) — mevcut discovery yalnızca ikili Engle-Granger; ETF NAV arbitrajı
+(STRAT-09) ve VIOP/opsiyon arbitrajı (ch3) — PARK, tlab'ın tek-sembol spot-veri
+mimarisiyle uyuşmuyor. **648-sembol tam evren taraması henüz koşulmadı** — bu Faz 6'nın
+(tarama motoru) doğal parçası olacak, şimdilik makine küçük örneklemde doğrulandı.
 
 ## Komutlar
 

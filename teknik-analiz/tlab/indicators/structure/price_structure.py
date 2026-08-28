@@ -173,7 +173,13 @@ def _trendlines(
                 )
             )
             if tl.broken_at is not None:
-                direction: Direction = "short" if kind == "resistance" else "long"
+                # build_trendlines'ın "beyond" tanımı: resistance (high
+                # pivotlarından çizilir) kırılımı close > line_val (YUKARI,
+                # boğa); support (low pivotlarından) kırılımı close < line_val
+                # (AŞAĞI, ayı). Önceki sürüm bunu ters atıyordu (Faz 8A'da
+                # breakouts.py yazılırken bulunan gerçek bir hata — hiçbir
+                # test direction alanını doğrulamıyordu).
+                direction: Direction = "long" if kind == "resistance" else "short"
                 signals.append(
                     Signal(
                         bar_time=df.index[tl.broken_at], detected_at=df.index[tl.broken_at],

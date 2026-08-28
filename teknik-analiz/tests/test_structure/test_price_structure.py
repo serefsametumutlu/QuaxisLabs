@@ -42,6 +42,20 @@ def test_trendlines_and_breakout_signals() -> None:
     assert "zone_break" in events
 
 
+def test_trendline_breakout_direction_matches_kind() -> None:
+    """Regresyon: `direction`, resistance/support ile TERS eşlenmişti
+    (Faz 8A'da breakouts.py yazılırken bulunan gerçek bir hata — hiçbir
+    test bu alanı doğrulamıyordu). `build_trendlines`'ın kendi `beyond`
+    tanımı: resistance kırılımı close > line (boğa/long), support kırılımı
+    close < line (ayı/short)."""
+    _, result = _run()
+    breakouts = [s for s in result.signals if s.payload.get("event") == "trendline_breakout"]
+    assert breakouts
+    for s in breakouts:
+        expected = "long" if s.payload["kind"] == "resistance" else "short"
+        assert s.direction == expected
+
+
 def test_boxes_include_ranges_and_both_zone_kinds() -> None:
     _, result = _run()
     assert any(b.style == "range_box" for b in result.boxes)

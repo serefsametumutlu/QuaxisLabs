@@ -11,7 +11,11 @@ testlerle (generic repaint_test'ten BAĞIMSIZ) zaten doğrulanmıştır. Bu
 yüzden `Registry`'ye ikinci, repaint_test ÇALIŞTIRMAYAN bir kayıt yolu
 (`register_verified_elsewhere`) eklendi — yalnızca dedicated test suite'i
 zaten geçen, DOKÜMANTE EDİLMİŞ istisnalar için kullanılır, keyfi bir
-kaçış kapısı DEĞİLDİR.
+kaçış kapısı DEĞİLDİR. `MultiBreakout` (Faz 8A, `trend.breakouts`) da AYNI
+yolu kullanır — kendisi de trendline/zone/range "aday havuzu" ile hh/ll
+kırılımlarının "sonraki pivotla süperseded" zamanlamasını miras alır (bkz.
+`tlab/indicators/trend/breakouts.py`), non-repaint sözleşmesi
+`tests/test_trend/test_breakouts.py`'de hedefli testlerle doğrulanır.
 
 `CATALOG`: {indikatör_adı: IndicatorSpec} — scanner motoru (Faz 6) bunu
 kullanır (`Registry`'nin kendisi değil), çünkü motor context'li (pair)
@@ -31,6 +35,7 @@ from tlab.indicators.harmonics.scanner_indicator import HarmonicIndicator, Harmo
 from tlab.indicators.pairs.relative_momentum import RelativeMomentumPair, RelativeMomentumParams
 from tlab.indicators.structure.price_structure import PriceStructure, PriceStructureParams
 from tlab.indicators.structure.swing_fib_abcd import SwingFibABCD, SwingFibABCDParams
+from tlab.indicators.trend.breakouts import BreakoutParams, MultiBreakout
 
 _HARMONIC_SCHOOLS = (
     "carney", "pesavento", "gilmore", "cypher", "nenstar",
@@ -70,6 +75,10 @@ def build_catalog() -> dict[str, IndicatorSpec]:
     catalog["pair.relative_momentum"] = IndicatorSpec(
         name="pair.relative_momentum", category="pair",
         factory=lambda: RelativeMomentumPair(RelativeMomentumParams()), needs_context=True,
+    )
+    catalog["trend.breakouts"] = IndicatorSpec(
+        name="trend.breakouts", category="trend",
+        factory=lambda: MultiBreakout(BreakoutParams()),
     )
     return catalog
 
@@ -128,7 +137,7 @@ def populate_registry() -> None:
     for spec in CATALOG.values():
         instance = spec.factory()
         try:
-            if spec.name == "structure.price_structure":
+            if spec.name in ("structure.price_structure", "trend.breakouts"):
                 registry.register_verified_elsewhere(instance)
             elif spec.needs_context:
                 registry.register(instance, sample_df, sample_context=sample_pair_context)

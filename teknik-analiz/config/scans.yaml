@@ -1,0 +1,13 @@
+# tlab scan --preset <ad> tarafından okunur. Bir preset, indikatör listesini
+# ve (opsiyonel) sonuç filtresini bir arada tanımlar — CLI'da tekrar tekrar
+# --indicators/--filter yazmamak için (bkz. tlab/cli.py::scan_cmd).
+#
+# filter.break_types: yalnızca `trend.breakouts` sinyallerinin
+# payload["break_type"] alanına uygulanır (diğer indikatörlerin sinyalleri
+# filtrelenmeden geçer) — boş bırakılırsa filtre uygulanmaz.
+presets:
+  dusen_kiran:
+    description: "Düşüş trendini kıran hisseler (downtrend_break)"
+    indicators: ["trend.breakouts"]
+    filter:
+      break_types: ["downtrend_break"]

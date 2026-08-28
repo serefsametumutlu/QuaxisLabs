@@ -184,6 +184,8 @@ class IndicatorResult:
                 return obj.isoformat()
             if isinstance(obj, Timeframe):
                 return obj.value
+            if isinstance(obj, np.bool_):
+                return bool(obj)
             if isinstance(obj, np.integer):
                 return int(obj)
             if isinstance(obj, np.floating):

@@ -10,6 +10,7 @@ süreçler arası JSON string olarak taşıyor, ilk gerçek round-trip BUYDU).""
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -37,7 +38,7 @@ def _sample_result() -> IndicatorResult:
         symbol="TCELL", timeframe=Timeframe.D1,
         signals=[
             Signal(bar_time=t1, detected_at=t2, direction="long", state="confirmed",
-                   score=0.75, payload={"a": 1, "b": "x", "c": None}),
+                   score=0.75, payload={"a": 1, "b": "x", "c": None, "vol_ok": np.bool_(True)}),
         ],
         levels=[Level(price=100.5, label="POC", style="poc", start=t1, end=None)],
         lines=[
@@ -68,6 +69,17 @@ def test_roundtrip_preserves_signals_and_levels() -> None:
     assert restored.signals[0].payload == result.signals[0].payload
     assert restored.levels[0].price == pytest.approx(result.levels[0].price)
     assert restored.levels[0].start == result.levels[0].start
+
+
+def test_roundtrip_numpy_bool_payload_does_not_crash() -> None:
+    """Faz 8A bulgusu: `payload`'da `numpy.bool_` (ör. `vol_ratio >= k`
+    karşılaştırmasından) varsa `to_json()` eskiden `TypeError: JSON'a
+    çevrilemeyen tip: <class 'numpy.bool'>` fırlatırdı — `trend.breakouts`
+    scanner üzerinden (süreçler arası JSON) çalıştırılana kadar hiçbir test
+    bunu yakalamamıştı."""
+    result = _sample_result()
+    restored = IndicatorResult.from_json(result.to_json())
+    assert restored.signals[0].payload["vol_ok"] is True
 
 
 def test_roundtrip_preserves_lines_boxes_polygons_markers() -> None:

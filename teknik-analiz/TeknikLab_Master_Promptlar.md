@@ -1,7 +1,7 @@
 # TEKNİK LAB — Birleşik Prompt Sırası (Master)
 ## Faz 0'dan Faz 10'a: kod fazları + kaynak/agent görevleri, tek sırada
 
-Tarih: 28.08.2026 | Durum: Faz 0–7 TAMAMLANDI, K0/K1/K1-D/EK-A/K2 TAMAMLANDI, sırada Faz 8 veya K3 (CLAUDE.md'ye işlendi)
+Tarih: 28.08.2026 | Durum: Faz 0–7 + Faz 8A TAMAMLANDI, K0/K1/K1-D/EK-A/K2 TAMAMLANDI, sırada Faz 8B/8C/8D/8E veya K3 (CLAUDE.md'ye işlendi)
 
 ## Kullanım
 1. Her prompttan önce aşağıdaki **PROJE BAĞLAMI** bloğunu aynen yapıştır (K0–K3 bilgi
@@ -26,8 +26,8 @@ Tarih: 28.08.2026 | Durum: Faz 0–7 TAMAMLANDI, K0/K1/K1-D/EK-A/K2 TAMAMLANDI, 
 | 11 | FAZ 5 — pair relatif momentum | kod | ✅ (648-sembol tam tarama Faz 6'ya bırakıldı) |
 | 12 | FAZ 6 — tarama motoru + EOD | kod | ✅ (100-sembol tam koşu Faz 6 sonrası doğrulanacak) |
 | 13 | FAZ 7 — görselleştirme + rapor | kod | ✅ (README'de referans-görsel kontrol listesi, bazı öğeler kısmi/gap olarak işaretli) |
-| 14 | FAZ 2-EK — yeni feature'lar + W1 | kod | Faz 8 ön koşulu |
-| 15 | FAZ 8A — kırılım tarayıcısı (+Donchian/BB) | kod | ch1 ekleri içinde |
+| 14 | FAZ 2-EK — yeni feature'lar + W1 | kod | Faz 8B/8C/8D ön koşulu — YALNIZCA Faz 8A'nın kullandığı iki parça (bollinger, regression_channel) yazıldı, gerisi hâlâ eksik |
+| 15 | FAZ 8A — kırılım tarayıcısı (+Donchian/BB) | kod | ✅ (2026-08-28, 8 yeni test, 2 gerçek hata bulundu — bkz. CLAUDE.md) |
 | 16 | FAZ 8C — bölgeler (golden/S-D/kanal) | kod | |
 | 17 | FAZ 8B — formasyonlar (+çift tepe/dip, broadening) | kod | TWYS ekleri içinde |
 | 18 | FAZ 8D — cross-sectional (+KAMA, EWMAC) | kod | Carver'ın ilk kuralı burada |
@@ -799,6 +799,7 @@ git commit: "faz2-ek: kanal, formasyon geometrisi, OBO/TOBO, S/D bölgeleri, vol
 
 ## 15 · FAZ 8A
 > ch1 ekleri (Donchian/BB) dahil
+> **Durum:** ✅ TAMAMLANDI (2026-08-28) — referans
 
 ```
 FAZ 8A GÖREVİ — tlab/indicators/trend/breakouts.py: çoklu kırılım tarayıcısı

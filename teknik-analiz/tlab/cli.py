@@ -231,22 +231,48 @@ def list_indicators_cmd() -> None:
         typer.echo(f"{name:<28} [{spec.category}]{ctx}")
 
 
+def _load_scan_preset(name: str, path: str = "config/scans.yaml") -> tuple[list[str], dict]:
+    raw = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
+    preset = (raw.get("presets") or {}).get(name)
+    if preset is None:
+        raise ValueError(f"'{name}' preset'i {path} içinde bulunamadı")
+    return list(preset.get("indicators", [])), dict(preset.get("filter", {}))
+
+
+def _signal_passes_filter(signal, filt: dict) -> bool:
+    break_types = filt.get("break_types")
+    if break_types and signal.payload.get("break_type") not in break_types:
+        return False
+    return True
+
+
 @app.command("scan")
 def scan_cmd(
     market: str = typer.Option(..., "--market", help="bist | nasdaq"),
     tf: str = typer.Option("4h,1d", "--tf", help="Virgülle ayrılmış: 4h,1d"),
     indicators: str = typer.Option("all", "--indicators", help="'all' veya virgülle liste"),
+    preset: str = typer.Option(
+        None, "--preset",
+        help="config/scans.yaml'daki bir preset adı (--indicators'ı geçersiz kılar)",
+    ),
     symbols: str = typer.Option(None, "--symbols", help="Virgülle ayrılmış (boşsa tam evren)"),
     workers: int = typer.Option(None, "--workers"),
 ) -> None:
     """Tek seferlik tarama — Registry.register() koşulmaz, sonuç konsola +
-    outputs/scan_{market}.json'a yazılır (kalıcı DB için `tlab eod` kullanın)."""
+    outputs/scan_{market}.json'a yazılır (kalıcı DB için `tlab eod` kullanın).
+    `--preset` verilirse indikatör listesi VE sonuç filtresi (ör. yalnızca
+    belirli break_type'lar) config/scans.yaml'dan okunur."""
     mkt = Market(market.lower())
     tf_map = {"1h": Timeframe.H1, "4h": Timeframe.H4, "1d": Timeframe.D1}
     tf_list = [tf_map[t.strip().lower()] for t in tf.split(",") if t.strip()]
-    indicator_names = list(CATALOG.keys()) if indicators == "all" else [
-        s.strip() for s in indicators.split(",") if s.strip()
-    ]
+
+    signal_filter: dict = {}
+    if preset:
+        indicator_names, signal_filter = _load_scan_preset(preset)
+    else:
+        indicator_names = list(CATALOG.keys()) if indicators == "all" else [
+            s.strip() for s in indicators.split(",") if s.strip()
+        ]
     universe = (
         [s.strip() for s in symbols.split(",") if s.strip()] if symbols else load_universe(mkt)
     )
@@ -264,13 +290,17 @@ def scan_cmd(
 
     out_path = Path("outputs") / f"scan_{mkt.value}.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    payload = [
-        {
-            "symbol": r.symbol, "timeframe": r.timeframe, "indicator": r.indicator,
-            "error": r.error, "n_signals": len(r.result.signals) if r.result else 0,
-        }
-        for r in scan.results
-    ]
+    payload = []
+    for r in scan.results:
+        n_signals = 0
+        if r.result is not None:
+            n_signals = sum(1 for s in r.result.signals if _signal_passes_filter(s, signal_filter))
+        payload.append(
+            {
+                "symbol": r.symbol, "timeframe": r.timeframe, "indicator": r.indicator,
+                "error": r.error, "n_signals": n_signals,
+            }
+        )
     out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     typer.echo(f"Özet: {out_path}")
 

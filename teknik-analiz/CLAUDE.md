@@ -118,7 +118,20 @@ için `tlab/testing/lint_lookahead.py` da var (CLI: `tlab lint`).
   projeksiyonu). README'de 6 referans görselin öğe-öğe kontrol listesi var
   (bazı öğeler kasıtlı GAP olarak işaretli — renderer hesap yapmama ilkesi
   gereği eklenemeyenler).
-- **Sırada**: Faz 8 alt-fazları, K3 (Carver çıkarımı), 648-sembol/tüm-çift tam evren
+- **Faz 8A — Çoklu kırılım tarayıcısı** (`tlab/indicators/trend/breakouts.py::MultiBreakout`):
+  TAMAMLANDI (2026-08-28). Detaylar için aşağıdaki "Çoklu Kırılım Tarayıcısı (Faz 8A)"
+  bölümüne bakın. **Faz 2-EK'in TAMAMI değil, yalnızca Faz 8A'nın ihtiyaç duyduğu iki
+  parçası** yazıldı: `volatility.py::bollinger()` ve YENİ `channels.py::regression_channel()`
+  — `pivot_channel`/`frozen_channel_at`/`channel_position`, `patterns_geom.py`,
+  `hs_pattern.py`, `zones_sd.py`, `xsec.py`, W1 zaman dilimi HÂLÂ YAPILMADI (bilinçli
+  kapsam daraltması, kullanıcı özellikle "Faz 8A'yı yap" dedi). İki gerçek hata bulunup
+  düzeltildi: `price_structure.py`'de trendline kırılım yönü (resistance/support)
+  TERS eşlenmişti; `IndicatorResult.to_json()` `numpy.bool_` tipini serialize edemiyordu
+  (ilk kez scanner'ın süreçler-arası JSON aktarımıyla ortaya çıktı — Faz 6'daki
+  price-indexed-series hatasıyla AYNI kategori: hiçbir önceki test bu round-trip'i
+  gerçek veriyle egzersiz etmemişti). `config/scans.yaml` + `tlab scan --preset` eklendi.
+  8 yeni test (211→219).
+- **Sırada**: Faz 8B/8C/8D/8E, K3 (Carver çıkarımı), 648-sembol/tüm-çift tam evren
   taraması "Sıradaki Adımlar" bölümünde.
 
 Toplam 206 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
@@ -413,6 +426,64 @@ swing_fib_abcd`, ALARK `harmonic.pesavento`, TCELL/ISCTR `pair.
 relative_momentum` gerçek veriyle render edildi, `outputs/samples/`'a PNG
 olarak kaydedildi (kaleido). Referans-görsel öğe kontrol listesi (bazı
 öğeler kasıtlı GAP) `README.md`'de.
+
+## Çoklu Kırılım Tarayıcısı (Faz 8A — TAMAMLANDI)
+
+`tlab/indicators/trend/breakouts.py::MultiBreakout` — TEK indikatör, ~20 kırılım
+türü: `downtrend_break`/`uptrend_break` (trendline), `range_breakout_up/down`,
+`zone_break_up/down`, `hh_break`/`ll_break` (swing pivot), `n_week_high_{26,52}`,
+`ma_break_ema{50,200}_{up,down}`, `donchian_break_{up,down}_{20,55}`,
+`bb_break_{up,down}`, `channel_break_{up,down}` — hepsi `confirm_bars` parametreli
+(1=aynı bar, N=N ardışık bar) ve her biri için `retest_hold`/`false_break` takip
+taraması (aynı `pattern_id` ile zincirlenir, ORİJİNAL kırılım kaydı asla değişmez).
+
+**Mimari — iki ayrı kırılım tespit yolu:**
+1. Trendline/range/zone kaynaklı: `tlab/features/`'ın KENDİ touches/broken_at
+   mekanizması (aynı `PriceStructure`'daki gibi, RAW — alterne edilmemiş — pivotlarla).
+2. Pivot(HH/LL)/MA/Donchian/Bollinger/kanal kaynaklı: TEK bir jenerik "seviye dizisi +
+   confirm_bars" tarayıcısı (`_generic_break_events`) — `hh_break`/`ll_break` için
+   her swing pivotu, KENDİSİNDEN SONRAKİ aynı-türden pivot doğana kadar "aktif" bir
+   seviyedir (swing_fib_abcd'deki ABC üçlü zincir deseniyle AYNI mimari).
+
+**Kalite skoru** (`quality_score`, görev metninin sabit ağırlıkları: hacim 0.30,
+seviye yaşı 0.20, temas 0.20, gövde 0.15, mesafe 0.15) — normalizasyon sabitleri
+görev metninde belirtilmediği için `BreakoutParams`'ta makul varsayılanlarla
+(kod içinde gerekçelendirilmiş).
+
+**Faz 2-EK'in TAMAMI YAZILMADI** — yalnızca Faz 8A'nın ihtiyaç duyduğu iki parça:
+`volatility.py::bollinger()` (Bollinger + bandwidth) ve YENİ `tlab/features/
+channels.py::regression_channel()` (rolling log-fiyat OLS kanalı). Faz 2-EK'in geri
+kalanı (`pivot_channel`, `frozen_channel_at`, `channel_position`, `patterns_geom.py`,
+`hs_pattern.py`, `zones_sd.py`, `xsec.py`, W1 zaman dilimi) HÂLÂ YAPILMADI — Faz
+8B/8C/8D bunlara ihtiyaç duyacak, ayrı bir takip işi.
+
+**İki gerçek hata bulunup düzeltildi (Faz 8A yazılırken):**
+1. `price_structure.py::_trendlines`'da kırılım yönü TERS eşlenmişti (resistance
+   kırılımı — close çizginin ÜSTÜNE kapanır — "short" olarak, support kırılımı
+   "long" olarak damgalanıyordu; `build_trendlines`'ın kendi `beyond` tanımına göre
+   doğrusu tam tersi). Hiçbir test `direction` alanını doğrulamıyordu — Faz 8A aynı
+   `build_trendlines` primitifini kullanırken fark edildi. 1 regresyon testi eklendi.
+2. `IndicatorResult.to_json()`, payload'da `numpy.bool_` (ör. `vol_ratio >= k`
+   karşılaştırmasından) olduğunda `TypeError` fırlatıyordu — `tlab/core/types.py`'ye
+   `np.bool_ -> bool` dönüşümü eklendi. Bu, Faz 6'daki price-indexed-series JSON
+   hatasıyla AYNI KATEGORİ: hiçbir test bu round-trip'i gerçek veriyle (scanner'ın
+   süreçler-arası JSON aktarımı) egzersiz etmemişti, `tlab scan --preset dusen_kiran`
+   gerçek BIST verisiyle çalıştırılana kadar yakalanmadı.
+
+**Registry:** `PriceStructure` ile AYNI istisna yolu (`register_verified_elsewhere`)
+— trendline/zone "aday havuzu" + hh/ll'nin süperseded zamanlaması generic
+`repaint_test`'in varsayımıyla uyuşmuyor; non-repaint sözleşmesi
+`tests/test_trend/test_breakouts.py`'de hedefli testlerle (donchian/n_week_high
+`.shift(1)` lookahead tuzağı regresyonu, `confirm_bars` semantiği, false_break'in
+orijinal kaydı bozmadığını doğrulayan zincir bütünlüğü testi dahil) doğrulanır.
+
+**CLI:** `config/scans.yaml` + `tlab scan --preset dusen_kiran` (yalnızca
+`downtrend_break` sinyallerini filtreler — preset mekanizması genel, gelecekte
+başka indikatör/filtre kombinasyonları için de kullanılabilir).
+
+Gerçek veri smoke: TCELL 1D üzerinde 282 kırılım, görev metnindeki türlerin
+neredeyse tamamı (downtrend_break/uptrend_break hariç — bu pencerede hiç
+oluşmadı, parametre/veri bağımlı, hata değil) tetiklendi, hatasız çalıştı.
 
 ## Komutlar
 

@@ -187,3 +187,18 @@ def test_three_drives_rejects_plain_retracement() -> None:
     cand = make_candidate(*_GARTLEY_LIKE)
     assert cand.b_beyond_x is False
     assert ThreeDrivesSchool().match(cand) == []
+
+
+def test_three_drives_matches_382_retracement_per_book() -> None:
+    """EK-A (bilgi-bankasi/teknik/10/ORAN-08): kitap, A/C geri çekilmesi için
+    .382'yi de GEÇERLİ sayıyor ("güçlü trend işareti"); eski kod yalnızca
+    (.618,.786) bandını kabul ediyordu ve bc_ab=0.4 gibi bir değeri
+    reddederdi. Bu aday bc_ab≈0.4 ile ESKİ kod tarafından REDDEDİLİR, YENİ
+    kod (abc=(.382-tol,.786+tol)) KABUL eder."""
+    x, a = 100.0, 120.0
+    b = a - 1.272 * (a - x)
+    c = b + 0.4 * (a - b)
+    cand = make_candidate(x, a, b, c)
+    assert cand.bc_ab == pytest.approx(0.4)
+    matches = ThreeDrivesSchool().match(cand)
+    assert {m.spec.name for m in matches} == {"three_drives_1272"}

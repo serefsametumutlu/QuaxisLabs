@@ -60,10 +60,19 @@ için `tlab/testing/lint_lookahead.py` da var (CLI: `tlab lint`).
   KURAL-01..35, PSK-01..07 + Faz 3 karşılaştırma tablosu (pesavento.py vs kitap).
 - **K1-D — pesavento.py TWYS ile hizalama**: TAMAMLANDI (2026-08-28). Detaylar yukarıda
   "Harmonik Formasyon Tarayıcı" bölümünde.
-- **Sırada**: EK-A (Three Drives paterni, K1-D'den hemen sonra), K2 (11 bölümlük külliyat
-  incelemesi, paralel) ve Faz 4 adayları "Sıradaki Adımlar" bölümünde.
+- **EK-A — Three Drives paterni TWYS ile hizalama**: TAMAMLANDI (2026-08-28). Görev metni
+  "Three Drives'ı pesavento.py'ye ekle" diyordu, ama patern zaten Faz 3'te AYRI bir ekol
+  (`schools/three_drives.py`, "harmonic.three_drives") olarak eklenmişti — pesavento.py'nin
+  kendi `patterns` sözlüğüne YİNELENMEDİ (iki ayrı "three_drives" implementasyonu aynı
+  ekol içinde çelişki yaratırdı). Bunun yerine mevcut `three_drives.py`, K1'in
+  FORMASYON-04 çıkarımıyla karşılaştırıldı: tek fark `abc` (ORAN-08) — A/C geri çekilmesi
+  kitapta .382/.618/.786 kabul ediliyordu, kod yalnızca (.618,.786) kabul ediyordu; bant
+  (.382-tol,.786+tol)'e genişletildi. `xab`(ORAN-07)/`d_components`/`invalidation`
+  (geçersizlik madde 4) zaten uyumluydu, değişmedi. 1 yeni test. Toplam test 156→157.
+- **Sırada**: K2 (11 bölümlük külliyat incelemesi, paralel) ve Faz 4 adayları "Sıradaki
+  Adımlar" bölümünde.
 
-Toplam 156 test yeşil (`pytest -m "not network"`), ruff/mypy/lint_lookahead temiz.
+Toplam 157 test yeşil (`pytest -m "not network"`), ruff/mypy/lint_lookahead temiz.
 
 ## Repo Yapısı / Modül Haritası
 

@@ -69,10 +69,25 @@ için `tlab/testing/lint_lookahead.py` da var (CLI: `tlab lint`).
   kitapta .382/.618/.786 kabul ediliyordu, kod yalnızca (.618,.786) kabul ediyordu; bant
   (.382-tol,.786+tol)'e genişletildi. `xab`(ORAN-07)/`d_components`/`invalidation`
   (geçersizlik madde 4) zaten uyumluydu, değişmedi. 1 yeni test. Toplam test 156→157.
-- **Sırada**: K2 (11 bölümlük külliyat incelemesi, paralel) ve Faz 4 adayları "Sıradaki
-  Adımlar" bölümünde.
+- **K2 — 11 bölümlük strateji külliyatı incelemesi**: TAMAMLANDI (2026-08-28,
+  `bilanco-radar` repo commit `5bc4896`). 11/11 bölüm, 38 STRAT-xx, 28 DISIPLIN-xx.
+  Karar dağılımı: AL 18, PARK 6, ŞARTLI PARK 3, KAPSAM DIŞI 11. En kritik bulgu: ch9'da
+  `fx_data[pair].iloc[0]`'a göre normalize eden gerçek bir lookahead (kaynağın kendi
+  "güvenli" iddiasını çürütüyor) — ayrıca `repaint_test`'in "sol-kesme" (farklı miktarda
+  geçmiş) duyarlılığını yakalamayabileceğine dair bir metodolojik not düşüldü, ileride
+  ayrıca değerlendirilmeli. Çıktı: `bilgi-bankasi/teknik/kod/ch01..ch11_*.md` +
+  `00_uygulanabilirlik_matrisi.md`.
+- **Faz 4 — Yapı indikatörleri** (`tlab/indicators/structure/`): TAMAMLANDI (2026-08-28).
+  `swing_fib_abcd.py::SwingFibABCD` ve `price_structure.py::PriceStructure`. Detaylar ve
+  ÖNEMLİ SAPMALAR/tasarım kararları için aşağıdaki "Yapı İndikatörleri" bölümüne bakın —
+  özellikle PriceStructure'ın generic `Registry.register()`'a KAYDOLMADIĞI (trendline
+  "aday havuzu" + hacim profili pencere sorunu nedeniyle, bilinçli mimari karar).
+  17 yeni test. Toplam test 157→174. TCELL 1D gerçek veri smoke testi başarılı
+  (`outputs/debug/swing_fib_abcd_TCELL.json`, `price_structure_TCELL.json` — git dışı).
+- **Sırada**: Faz 5 (pair relatif momentum), Faz 6 (tarama motoru), K3 (Carver çıkarımı)
+  "Sıradaki Adımlar" bölümünde.
 
-Toplam 157 test yeşil (`pytest -m "not network"`), ruff/mypy/lint_lookahead temiz.
+Toplam 174 test yeşil (`pytest -m "not network"`), ruff/mypy/lint_lookahead temiz.
 
 ## Repo Yapısı / Modül Haritası
 
@@ -154,6 +169,45 @@ etmez" mimari kararı bilinçli.
 zones.py'de de aynı desen var. Çözüm: testlerde `cut_points` yalnızca adayın doğduğu bardan
 itibaren seçilir (bkz. `tests/test_harmonics/test_harmonics_repaint.py`). Signal nesneleri bu
 sorundan etkilenmez (`detected_at` zaten doğru bar'ı taşır, tüm cut aralığında test edildi).
+
+## Yapı İndikatörleri (Faz 4 — TAMAMLANDI)
+
+`tlab/indicators/structure/` — iki bağımsız indikatör, `tlab/features/`'ı sarmalar,
+kendi hesabı neredeyse yok.
+
+**`swing_fib_abcd.py::SwingFibABCD`** — swing yapısı (HH/HL/LH/LL) + AB=CD hedef
+projeksiyonu + Fibonacci retracement/extension. AB=CD burada **X'siz, 3 noktalı**
+(A,B,C→D) — bu, harmonik motorun XABC'sinden farklı, kitaptaki (bilgi-bankasi/teknik/
+10/FORMASYON-01) yapıyla birebir örtüşür. Durum makinesi: PENDING (C finalize) → ACTIVE
+("yaklaşıyor", `near_pct`) → COMPLETED (hedefe `target_tol_atr*ATR` içinde) veya
+INVALIDATED (yeni bir ABC üçlüsü doğunca — fiyat aşımı burada AYRI bir geçersizlik
+nedeni DEĞİL, harmonik motordaki overshoot mantığı kapsam dışı). Her üçlü için
+`abcd_ratios`'taki HER oran (max_active_targets'a kadar) ayrı bir hedef/sinyal zinciri
+üretir; `harmonic_unit=|A-B|` payload'a yazılır.
+
+**`price_structure.py::PriceStructure`** — trendlines + ranges + zones (destek/direnç,
+kind'e göre iki ayrı çağrı: sarı direnç/mavi destek) + hacim profili + hacim/MACD
+serileri. **BİLİNEN SINIRLAMA (kod DOĞRU, ama iki parça generic `repaint_test`/
+`Registry.register()` kapsamı dışında — modülün kendi docstring'inde detaylı):**
+1. Trendline Line/Signal'leri — `build_trendlines`'ın KENDİ docstring'inde zaten
+   belgelenen "aday havuzu" deseni (df büyüdükçe hangi (p1,p2) çiftinin öne çıkacağı
+   değişebilir); `Line.label`'daki "(Temas:N)" ve breakout sinyalinin `touches`
+   payload'ı bu yüzden generic tüm-IndicatorResult repaint_test'i YANLIŞ ALARM olarak
+   tetikler.
+2. POC/VAH/VAL Level'leri — hacim profili `df.iloc[-window_bars:]` (dizinin SONUNA göre
+   kayan pencere) kullanır; bu yüzden CANLI/GÜNCEL bir gösterge, kalıcı tarihsel kayıt
+   DEĞİL. `poc_reclaim` bu yüzden Signal DEĞİL, `last_state["poc_reclaimed_last_bar"]`
+   (yalnızca "şu an" bilgisi).
+   
+   Sonuç: `PriceStructure`, `Registry.register()`'a KAYDOLMAZ (arayüz uyumluluğu ayrıca
+   doğrulanır); gerçekten non-repaint olan parçalar (range/zone kutuları+sinyalleri,
+   macd/volume serileri) `tests/test_structure/test_price_structure.py`'de HEDEFLİ
+   testlerle (extend-only + doğum barı + prefix-tutarlılık) doğrulanır.
+   `SwingFibABCD` bu sorunu YAŞAMAZ (AB=CD hedefleri/fib seviyeleri finalize olduktan
+   sonra bir daha büyüyen bir sayaç taşımaz) ve `Registry.register()`'a temiz kaydolur.
+
+`vp_bins`/`vp_volumes`/`vp_gauss` series'leri FİYAT bin'leriyle indexlenir (zaman
+DEĞİL) — renderer (Faz 7) bunları sağ panelde ayrı bir yatay histogram çizmeli.
 
 ## Komutlar
 

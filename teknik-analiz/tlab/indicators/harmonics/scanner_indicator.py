@@ -153,6 +153,7 @@ class HarmonicIndicator(BaseIndicator):
                         else None
                     ),
                     score=pmatch.score,
+                    suggested_levels=self._school.suggested_levels(candidate, spec, prz),
                 )
                 pattern_signals = track_pattern(df, candidate, prz, cfg, raw_pivots)
                 signals.extend(pattern_signals)

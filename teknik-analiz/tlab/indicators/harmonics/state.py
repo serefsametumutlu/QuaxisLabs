@@ -36,6 +36,7 @@ class TrackingConfig:
     xb_line: tuple[float, float] | None  # (slope, intercept), index-tabanlı
     extra_confirmation_fn: Callable[[pd.DataFrame, Candidate, int], bool] | None
     score: float
+    suggested_levels: dict[str, float | str] | None = None
 
 
 def _overlaps(direction: Direction, prz: PRZ, bar_high: float, bar_low: float) -> bool:
@@ -78,6 +79,7 @@ def track_pattern(
             "prz_low": prz.low,
             "prz_high": prz.high,
             "prz_center": prz.center,
+            **(cfg.suggested_levels or {}),
         },
     )
     signals.append(pending_signal)

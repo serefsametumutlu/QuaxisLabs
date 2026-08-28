@@ -5,6 +5,8 @@ notları; bu dosyadaki sabitler sonuç, türetme süreci değil."""
 
 from __future__ import annotations
 
+import pytest
+
 from tests.test_harmonics.fixtures import make_candidate
 from tlab.indicators.harmonics.schools.beck_navarro200 import Navarro200School
 from tlab.indicators.harmonics.schools.carney import CarneySchool
@@ -51,9 +53,66 @@ def test_pesavento_gartley_matches_with_ab_cd_symmetry() -> None:
 
 def test_pesavento_rejects_when_ab_cd_symmetry_broken() -> None:
     # xa_ret oranı gartley'e uyuyor ama C öyle seçildi ki CD/AB hiçbir
-    # standart orana (1.0/1.27/1.618) yakın değil.
+    # standart orana (1.0/1.27/1.618/2.0) yakın değil.
     cand = make_candidate(100.0, 120.0, 107.64, 105.0)
     assert PesaventoSchool().match(cand) == []
+
+
+def test_pesavento_butterfly_matches_wider_d_target_per_book() -> None:
+    """K1-D (bilgi-bankasi/teknik/10/ORAN-06): kitap, Butterfly D hedefini
+    1.272/1.618/2.00/2.618 XA uzantılarının TÜMÜNDE geçerli sayıyor; eskiden
+    kod yalnızca (1.27,1.618) bandını kabul ediyordu. Bu aday, D'ye ~2.0 XA
+    uzantısı civarında bir AB=CD simetrisiyle ulaşır — ESKİ kod (d_components
+    (1.27,1.618), invalidation 1.618, _AB_CD_RATIOS'ta 2.0 yok) bunu REDDEDER,
+    YENİ kod KABUL eder (değerler brute-force taramayla doğrulandı)."""
+    cand = make_candidate(100.0, 120.0, 104.28, 112.14)
+    matches = PesaventoSchool().match(cand)
+    assert {m.spec.name for m in matches} == {"butterfly"}
+
+
+def test_pesavento_butterfly_invalidation_moved_to_2_618_not_1_618() -> None:
+    """K1-D: FORMASYON-03 geçersizlik 2 — geçersizlik eşiği kitaba göre
+    2.618'de (eskiden kodda 1.618'di; kitapta 1.618 yalnızca "azami risk"
+    seviyesi, geçersizlik SINIRI değil). invalidation_price artık scanner_
+    indicator.py'de project_ratio(candidate, 'xa_ext', 2.618) ile hesaplanan
+    fiyata eşit olmalı — 1.618'deki fiyattan FARKLI olduğu için bu, eşiğin
+    gerçekten taşındığının (sadece PatternSpec alanı değil, fiilen kullanılan
+    fiyatın) kanıtıdır."""
+    from tlab.indicators.harmonics.prz import project_ratio
+
+    cand = make_candidate(100.0, 120.0, 104.28, 112.14)
+    spec = PesaventoSchool().patterns["butterfly"]
+    assert spec.invalidation == ("xa_ext", 2.618)
+
+    invalidation_price = project_ratio(cand, *spec.invalidation)
+    old_1_618_price = project_ratio(cand, "xa_ext", 1.618)
+    assert invalidation_price != pytest.approx(old_1_618_price)
+
+
+def test_pesavento_suggested_levels_gartley_and_butterfly() -> None:
+    """K1-D "Ek": TWYS giriş/stop önerileri Signal.payload'a suggested_entry/
+    suggested_stop olarak taşınır (bkz. HarmonicSchool.suggested_levels).
+    Gartley'de stop = X fiyatı (FORMASYON-02); diğer ekoller (varsayılan
+    None) etkilenmemeli."""
+    sch = PesaventoSchool()
+    gartley_cand = make_candidate(*_GARTLEY_LIKE)
+    gartley_match = next(m for m in sch.match(gartley_cand) if m.spec.name == "gartley")
+    levels = sch.suggested_levels(gartley_cand, gartley_match.spec, gartley_match.prz)
+    assert levels is not None
+    assert levels["suggested_stop"] == pytest.approx(gartley_cand.x.price)
+    assert levels["suggested_entry"] == pytest.approx(gartley_match.prz.center)
+
+    butterfly_cand = make_candidate(100.0, 120.0, 104.28, 112.14)
+    butterfly_match = next(m for m in sch.match(butterfly_cand) if m.spec.name == "butterfly")
+    b_levels = sch.suggested_levels(butterfly_cand, butterfly_match.spec, butterfly_match.prz)
+    assert b_levels is not None
+    assert "suggested_stop" in b_levels and "suggested_entry" in b_levels
+
+    # Varsayılan (ör. Carney) hiçbir öneri döndürmez — geriye uyumluluk.
+    carney_levels = CarneySchool().suggested_levels(
+        gartley_cand, gartley_match.spec, gartley_match.prz
+    )
+    assert carney_levels is None
 
 
 def test_gilmore_reuses_pesavento_price_ratios() -> None:

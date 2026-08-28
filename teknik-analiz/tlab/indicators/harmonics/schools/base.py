@@ -121,6 +121,16 @@ class HarmonicSchool(ABC):
         (ilk ACTIVE barında hemen onaylanır) — alt sınıflar override edebilir."""
         return True
 
+    def suggested_levels(
+        self, candidate: Candidate, spec: PatternSpec, prz: PRZ
+    ) -> dict[str, float | str] | None:
+        """Ekol/kaynak kitaptan gelen giriş-stop önerisi (varsa). Değerler
+        yalnızca X,A,B,C ve PRZ'den DETERMİNİSTİK hesaplanabilir olmalı —
+        lookahead yok, D henüz gerçekleşmemiş olsa bile candidate doğar
+        doğmaz hesaplanabilir. Varsayılan: None (öneri yok); alt sınıflar
+        override edebilir (bkz. PesaventoSchool — TWYS kaynaklı)."""
+        return None
+
     def time_window(self, candidate: Candidate, spec: PatternSpec) -> tuple[int, int] | None:
         """Yalnızca Gilmore override eder; diğerleri None (zaman kısıtı yok)."""
         return None

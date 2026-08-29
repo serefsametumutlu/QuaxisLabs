@@ -456,14 +456,98 @@ için `tlab/testing/lint_lookahead.py` da var (CLI: `tlab lint`).
   `ruff check tlab/ tests/` 18 hata (BASELINE İLE AYNI, ilgisiz önceden var olan satırlar
   — yeni dosyalarda SIFIR), `mypy tlab/` yeni dosyalarda temiz, `lint_lookahead` 2 uyarı
   (BASELINE İLE AYNI, ilgisiz — `kerkez_nenstar.py`/`relative_momentum.py`, bu görev
-  onlara dokunmadı). Henüz GİT'E PUSH EDİLMEDİ (bkz. Git/Push Prosedürü) — kullanıcı
-  onayı bekleniyor.
-  **Sırada**: kullanıcının verdiği sıraya göre Faz 8C (golden_zone.py/supply_demand.py/
-  weekly_channel.py — artık `zones_sd.py`/`channels.py` hazır) → Faz 8B (wedge/
-  head_shoulders/flag_pennant/double_top_bottom/broadening — artık `patterns_geom.py`/
-  `hs_pattern.py` hazır) → Faz 8D (artık `xsec.py` hazır) → K3 → Faz 8E → Faz 10 → Faz 9.
+  onlara dokunmadı). GİT'E PUSH EDİLDİ (local `0f3cbb3` / gerçek repo `d5d272d`).
+- **Faz 8C — golden zone, arz/talep, haftalık kanal** (2026-08-29): TAMAMLANDI.
+  1. **`structure/golden_zone.py::GoldenZoneIndicator`** — en güncel onaylı swing'in
+     (`swings.alternate_pivots`, `SwingFibABCD` ile AYNI "yalnızca finalized pivot"
+     mimarisi — bu yüzden generic `Registry.register()`'a TEMİZ kaydolur, istisnaya
+     GEREK YOK) 0.618-0.786 altın bölge bandı; bant A'nın (en güncel pivot)
+     `finalized_idx`'inde doğar. **TASARIM KARARI**: spec'in "A onay barında"
+     ifadesi `confirmed_idx` değil `finalized_idx` olarak yorumlandı (aksi halde
+     A daha ekstrem bir pivotla iptal edilebileceği için bant sınırları
+     SONRADAN değişirdi — gerçek bir repaint). Sinyaller: `golden_zone_touch`
+     (bant içine giriş), `golden_zone_reaction` (bant üstüne dönüş mumu +
+     `reaction_body_ratio` gövde şartı), `golden_zone_fail` (bant altına kapanış),
+     `golden_zone_success` (swing high aşımı) — fail/success `done=True` ile o
+     swing'in izlemesini kapatır. "Yeni swing onayı → eski bant end alır" kuralı
+     Box/Level `end`'in bir SONRAKİ zigzag pivotunun (qualifying olsun olmasın)
+     `finalized_idx`'ine sabitlenmesiyle uygulanır. 11 yeni test.
+  2. **`structure/supply_demand.py::SupplyDemandIndicator`** — `zones_sd.py`'nin
+     (find_bases/find_impulses/make_sd_zones/update_zones) ince sarmalayıcısı.
+     Kalite = patlama gücü (impulse_strength/5.0'a kapatılır) × baz darlığı
+     (yükseklik/(base_atr×ATR) oranının tersi) × tazelik (1.0/0.5) — üçü de
+     0..1 olduğu için çarpım da 0..1 (normalizasyon sabitleri spec'te YOK,
+     BreakoutParams'ın quality_score'undaki gibi makul varsayılanlarla
+     belgeleniyor). Kırılan bölge (`flip=True`) TEK SEVİYELİ flip ile karşıt
+     türe döner (bir flip bölgesi kendisi bir daha flip OLMAZ — spec'in
+     zincirleme değil tek seferlik bir dönüşüm olarak yorumlandı). Yeni `sd_new`
+     sinyali eklendi (spec'te YOKTU — bölgenin DOĞUŞ barını, `fresh=True` ile,
+     ayrı bir olay olarak işaretler; `demand_taze` scan preset'inin "taze"
+     filtresi için gerekli, çünkü `sd_test`/`sd_reaction`/`sd_broken` bir bölge
+     zaten test EDİLDİKTEN sonra ateşlenir, tanım gereği artık fresh=False'tur).
+     **BİLİNEN SINIRLAMA**: `make_sd_zones`'un `max_zones` kesmesi bir "aday
+     havuzu" (`PriceStructure`/`MultiBreakout` ile AYNI istisna,
+     `register_verified_elsewhere`) — bölgelerin KENDİ sınırları değişmez,
+     yalnızca "top-12'de mi" sorusu zamanla değişebilir. 12 yeni test.
+  3. **`trend/weekly_channel.py::ChannelIndicator`** — `method='regression'`
+     (varsayılan, `channels.regression_channel`) veya `'pivot'`
+     (`channels.pivot_channel`); `Timeframe.W1` VE `1D` destekler. Dokunuş/
+     kırılım sayaçları (`bottom_touches`/`top_touches`) sırayla biriktirilir,
+     `min_prev_touches` kadar dokunuş birikmeden sinyal ateşlenmez; `rsi_max`
+     yalnızca dip dokunuşuna uygulanır (spec'in "kanal dibi" odağı — tepe
+     dokunuşu RSI'dan bağımsız). **GERÇEK HATA bulundu ve düzeltildi**: ilk
+     taslakta `channel_break_up`→"short"/`channel_break_down`→"long" (TERS)
+     yazılmıştı — `trend.breakouts`'un KENDİ `channel_break_up/down` yön
+     sözleşmesiyle (up→long, down→short) karşılaştırılıp düzeltildi.
+     **BİLİNEN SINIRLAMA**: spec'in açıkça istediği "güncel kanal ayrı Line
+     olarak" öğesi (`style="channel_current"`) KASITLI OLARAK her `compute()`
+     çağrısında en son bara göre KAYAN bir overlay'dir — generic `repaint_test`
+     bunu "aynı label, farklı points" mismatch sanır (gerçek bir repaint hatası
+     DEĞİL). Bu yüzden `register_verified_elsewhere` kullanılır;
+     `channel_frozen_*` çizgilerinin (geçmiş bir sinyal barında dondurulmuş,
+     BİR DAHA DEĞİŞMEYEN) gerçek non-repaint'liği hedefli testlerle doğrulanır.
+     12 yeni test.
+  4. **CLI/scan altyapısı**: `tlab/cli.py::scan_cmd`'nin `tf_map`'ine `"w1"`
+     eklendi (`tlab scan --preset kanal_dibi_hafta --tf w1` artık çalışıyor);
+     `tlab/viz/live.py`'nin `_TF_MAP`'ine de aynı şekilde (`tlab plot --tf w1`).
+     `_signal_passes_filter` GENELLEŞTİRİLDİ — eskiden yalnızca `break_types`
+     vardı, şimdi `events`/`zone_kind`/`fresh` de destekleniyor (herhangi bir
+     indikatörün payload'ıyla çalışır). `config/scans.yaml`'a 3 yeni preset:
+     `golden_zone`, `demand_taze`, `kanal_dibi_hafta`. 8 yeni test
+     (`tests/test_cli_scan_filter.py`, ilk kez bu dosyalar test edildi).
+  5. **`tlab/indicators/bootstrap.py`**: 3 yeni katalog girdisi eklendi
+     (`structure.golden_zone` generic register, `structure.supply_demand`/
+     `trend.weekly_channel` `register_verified_elsewhere`).
+  6. **`tlab/viz/themes.py`/`labels_tr.py`**: yeni stiller için renk/etiket
+     eşlemeleri (`golden_zone`→accent altın, `golden_zone_alt`→yellow,
+     `demand`→green, `supply`→red, `*_broken`→gray, `channel`→blue,
+     `channel_current`→accent, `channel_frozen`→muted) — `renderer.py`'ye
+     HİÇBİR kod değişikliği GEREKMEDİ (mevcut Box/Line/series_layout
+     primitifleri zaten yeterliydi, bu tasarım kararının doğruluğunu
+     GERÇEK veriyle render ederek doğruladı, bkz. aşağıdaki kabul testi).
+  Kabul testi (gerçek TCELL verisiyle, yfinance): D1 2023-01-02→2026-08-27
+  (914 bar) ve ondan türetilen W1 (191 bar) üzerinde üç indikatör de
+  hatasız çalıştırıldı; TCELL `structure.golden_zone`, `structure.
+  supply_demand`, `trend.weekly_channel` (W1) grafikleri `outputs/samples/`e
+  render edildi (kaleido, PNG) ve gözle incelendi — altın bant/swing çizgisi/
+  BAŞARILI-BAŞARISIZ-REAKSİYON etiketleri, yeşil/kırmızı/gri arz-talep
+  kutuları, güncel-kanal(altın)/dondurulmuş-kanal(soluk gri) ayrımı VE alt
+  panel osilatörü hepsi doğru görünüyor. **DÜRÜST NOT**: `tlab update-data`/
+  `Store.update()` H1 fetch'i bu oturumda `yfinance`'ın "start date cannot be
+  after end date" hatasına takıldı (provider/store katmanına, bu göreve
+  AİT DEĞİL bir ortam/API tuhaflığı) — kabul testi bu yüzden Store'u
+  bypass edip `YFinanceProvider.fetch()` + `resample_to_w1`'i DOĞRUDAN
+  çağırarak yapıldı; `tlab scan --preset kanal_dibi_hafta --tf w1` komutunun
+  uçtan uca (Store/engine üzerinden) gerçek bir evren taraması HENÜZ
+  YAPILMADI — bu H1 fetch sorunu çözülünce (ayrı, ilgisiz bir takip işi)
+  denenmeli. `pytest -q -m "not network"` 360/360 yeşil, `ruff check tlab/
+  tests/` 18 hata (BASELINE İLE AYNI), `mypy tlab/` yeni dosyalarda temiz,
+  `lint_lookahead` 2 uyarı (BASELINE İLE AYNI). Henüz GİT'E PUSH EDİLMEDİ.
+  **Sırada**: Faz 8B (wedge/head_shoulders/flag_pennant/double_top_bottom/
+  broadening — artık `patterns_geom.py`/`hs_pattern.py` hazır) → Faz 8D
+  (artık `xsec.py` hazır) → K3 → Faz 8E → Faz 10 → Faz 9.
 
-Toplam 317 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
+Toplam 360 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
 ruff/mypy/lint_lookahead temiz (yeni kod kapsamında — repo genelindeki 18 ruff/2
 lint_lookahead uyarısı önceden var olan, ilgisiz satırlardır).
 

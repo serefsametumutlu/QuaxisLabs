@@ -3,11 +3,30 @@
 # --indicators/--filter yazmamak için (bkz. tlab/cli.py::scan_cmd).
 #
 # filter.break_types: yalnızca `trend.breakouts` sinyallerinin
-# payload["break_type"] alanına uygulanır (diğer indikatörlerin sinyalleri
-# filtrelenmeden geçer) — boş bırakılırsa filtre uygulanmaz.
+# payload["break_type"] alanına uygulanır. filter.events/zone_kind/fresh
+# GENEL bir mekanizmadır (bkz. tlab/cli.py::_signal_passes_filter) —
+# payload["event"]/payload["zone_kind"]/payload["fresh"] alanlarına bakar,
+# herhangi bir indikatörle çalışır. Hiçbiri verilmezse filtre uygulanmaz.
 presets:
   dusen_kiran:
     description: "Düşüş trendini kıran hisseler (downtrend_break)"
     indicators: ["trend.breakouts"]
     filter:
       break_types: ["downtrend_break"]
+  golden_zone:
+    description: "Altın bölgede reaksiyon veren hisseler (structure.golden_zone)"
+    indicators: ["structure.golden_zone"]
+    filter:
+      events: ["golden_zone_reaction"]
+  demand_taze:
+    description: "Yeni doğmuş, henüz test edilmemiş talep bölgeleri (structure.supply_demand)"
+    indicators: ["structure.supply_demand"]
+    filter:
+      events: ["sd_new"]
+      zone_kind: ["demand"]
+      fresh: true
+  kanal_dibi_hafta:
+    description: "Haftalık regresyon kanalının dibine yakın hisseler (trend.weekly_channel, --tf w1 ile)"
+    indicators: ["trend.weekly_channel"]
+    filter:
+      events: ["channel_bottom_touch"]

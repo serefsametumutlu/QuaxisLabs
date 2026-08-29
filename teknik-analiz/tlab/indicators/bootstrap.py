@@ -16,6 +16,12 @@ yolu kullanır — kendisi de trendline/zone/range "aday havuzu" ile hh/ll
 kırılımlarının "sonraki pivotla süperseded" zamanlamasını miras alır (bkz.
 `tlab/indicators/trend/breakouts.py`), non-repaint sözleşmesi
 `tests/test_trend/test_breakouts.py`'de hedefli testlerle doğrulanır.
+Faz 8C'nin `SupplyDemandIndicator` (`make_sd_zones`'un `max_zones` aday
+havuzu) ve `ChannelIndicator` (bilerek her barda değişen "güncel kanal"
+overlay'i + method='pivot' aday havuzu) de AYNI istisna yolunu kullanır —
+bkz. o modüllerin docstring'leri. `GoldenZoneIndicator` ise `SwingFibABCD`
+ile aynı mimariyi (yalnızca kesinleşmiş zigzag pivotları) paylaştığı için
+generic `Registry.register()`'a TEMİZ kaydolur.
 
 `CATALOG`: {indikatör_adı: IndicatorSpec} — scanner motoru (Faz 6) bunu
 kullanır (`Registry`'nin kendisi değil), çünkü motor context'li (pair)
@@ -33,9 +39,12 @@ import pandas as pd
 from tlab.core.indicator import BaseIndicator, RegistryError, registry
 from tlab.indicators.harmonics.scanner_indicator import HarmonicIndicator, HarmonicParams
 from tlab.indicators.pairs.relative_momentum import RelativeMomentumPair, RelativeMomentumParams
+from tlab.indicators.structure.golden_zone import GoldenZoneIndicator, GoldenZoneParams
 from tlab.indicators.structure.price_structure import PriceStructure, PriceStructureParams
+from tlab.indicators.structure.supply_demand import SupplyDemandIndicator, SupplyDemandParams
 from tlab.indicators.structure.swing_fib_abcd import SwingFibABCD, SwingFibABCDParams
 from tlab.indicators.trend.breakouts import BreakoutParams, MultiBreakout
+from tlab.indicators.trend.weekly_channel import ChannelIndicator, ChannelParams
 
 _HARMONIC_SCHOOLS = (
     "carney", "pesavento", "gilmore", "cypher", "nenstar",
@@ -79,6 +88,18 @@ def build_catalog() -> dict[str, IndicatorSpec]:
     catalog["trend.breakouts"] = IndicatorSpec(
         name="trend.breakouts", category="trend",
         factory=lambda: MultiBreakout(BreakoutParams()),
+    )
+    catalog["structure.golden_zone"] = IndicatorSpec(
+        name="structure.golden_zone", category="structure",
+        factory=lambda: GoldenZoneIndicator(GoldenZoneParams()),
+    )
+    catalog["structure.supply_demand"] = IndicatorSpec(
+        name="structure.supply_demand", category="structure",
+        factory=lambda: SupplyDemandIndicator(SupplyDemandParams()),
+    )
+    catalog["trend.weekly_channel"] = IndicatorSpec(
+        name="trend.weekly_channel", category="trend",
+        factory=lambda: ChannelIndicator(ChannelParams()),
     )
     return catalog
 
@@ -137,7 +158,10 @@ def populate_registry() -> None:
     for spec in CATALOG.values():
         instance = spec.factory()
         try:
-            if spec.name in ("structure.price_structure", "trend.breakouts"):
+            if spec.name in (
+                "structure.price_structure", "trend.breakouts",
+                "structure.supply_demand", "trend.weekly_channel",
+            ):
                 registry.register_verified_elsewhere(instance)
             elif spec.needs_context:
                 registry.register(instance, sample_df, sample_context=sample_pair_context)

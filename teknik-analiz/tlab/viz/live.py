@@ -18,7 +18,7 @@ from tlab.indicators.pairs.relative_momentum import RelativeMomentumPair, Relati
 from tlab.viz.renderer import render
 from tlab.viz.themes import Theme
 
-_TF_MAP = {"1H": Timeframe.H1, "4H": Timeframe.H4, "1D": Timeframe.D1}
+_TF_MAP = {"1H": Timeframe.H1, "4H": Timeframe.H4, "1D": Timeframe.D1, "W1": Timeframe.W1}
 
 
 def compute_live(

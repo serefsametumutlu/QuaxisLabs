@@ -240,8 +240,24 @@ def _load_scan_preset(name: str, path: str = "config/scans.yaml") -> tuple[list[
 
 
 def _signal_passes_filter(signal, filt: dict) -> bool:
+    """`config/scans.yaml`'daki bir preset'in `filter` bloğunu uygular.
+
+    `break_types` (yalnızca `trend.breakouts` için `payload["break_type"]`)
+    tarihsel/özel bir alandır; `events`/`zone_kind` GENEL bir mekanizmadır —
+    `payload["event"]`/`payload["zone_kind"]` değeri verilen listede mi diye
+    bakar, herhangi bir indikatörle çalışır. `fresh` verilirse
+    `payload["fresh"]` tam eşleşmeli (bkz. `structure.supply_demand`'ın
+    `sd_new` sinyali — yeni doğan bir bölge her zaman fresh=True taşır)."""
     break_types = filt.get("break_types")
     if break_types and signal.payload.get("break_type") not in break_types:
+        return False
+    events = filt.get("events")
+    if events and signal.payload.get("event") not in events:
+        return False
+    zone_kind = filt.get("zone_kind")
+    if zone_kind and signal.payload.get("zone_kind") not in zone_kind:
+        return False
+    if "fresh" in filt and signal.payload.get("fresh") != filt["fresh"]:
         return False
     return True
 
@@ -263,7 +279,7 @@ def scan_cmd(
     `--preset` verilirse indikatör listesi VE sonuç filtresi (ör. yalnızca
     belirli break_type'lar) config/scans.yaml'dan okunur."""
     mkt = Market(market.lower())
-    tf_map = {"1h": Timeframe.H1, "4h": Timeframe.H4, "1d": Timeframe.D1}
+    tf_map = {"1h": Timeframe.H1, "4h": Timeframe.H4, "1d": Timeframe.D1, "w1": Timeframe.W1}
     tf_list = [tf_map[t.strip().lower()] for t in tf.split(",") if t.strip()]
 
     signal_filter: dict = {}
@@ -385,7 +401,7 @@ def plot_cmd(
     symbol: str = typer.Option(
         ..., "--symbol", help="Sembol; pair indikatörler için 'Y/X' (ör. TCELL/ISCTR)"
     ),
-    tf: str = typer.Option("1d", "--tf", help="1h | 4h | 1d"),
+    tf: str = typer.Option("1d", "--tf", help="1h | 4h | 1d | w1"),
     indicator: str = typer.Option(
         ..., "--indicator", help="Katalogdaki ad, ör. structure.price_structure"
     ),

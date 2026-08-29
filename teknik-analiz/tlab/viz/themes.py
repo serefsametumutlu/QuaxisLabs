@@ -132,6 +132,13 @@ _LINE_STYLE_COLOR: dict[str, str] = {
     "bearish": "red",
     "poc": "accent",
     "value_area": "gray",
+    # Faz 8C: pivot kanalı (weekly_channel) — extend-only, tek çizgi ailesi.
+    "channel": "blue",
+    # Regresyon kanalının "şu an" görünümü (her barda değişir, bkz.
+    # weekly_channel.py docstring'i) -> marka rengi, belirgin.
+    "channel_current": "accent",
+    # Geçmiş bir sinyal barında DONDURULMUŞ kanal -> soluk/bağlamsal.
+    "channel_frozen": "muted",
 }
 
 _FILL_STYLE_COLOR: dict[str, str] = {
@@ -152,6 +159,15 @@ _FILL_STYLE_COLOR: dict[str, str] = {
     "bearish": "red",
     "y_holding": "green",
     "x_holding": "blue",
+    # Faz 8C golden_zone.py — "altın gölgeli bant" spec'i: TEK marka rengi.
+    "golden_zone": "accent",
+    "golden_zone_alt": "yellow",
+    # Faz 8C supply_demand.py — klasik yeşil (talep) / kırmızı (arz);
+    # kırılan bölgeler soluk (gray) kalır (spec: "broken bölgeler soluk").
+    "demand": "green",
+    "supply": "red",
+    "demand_broken": "gray",
+    "supply_broken": "gray",
 }
 
 

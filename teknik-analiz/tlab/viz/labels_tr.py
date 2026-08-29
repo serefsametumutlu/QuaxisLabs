@@ -26,6 +26,15 @@ STYLE_TR: dict[str, str] = {
     "bearish": "Ayı",
     "y_holding": "Tutulan Dönem",
     "x_holding": "Tutulan Dönem",
+    "golden_zone": "Altın Bölge",
+    "golden_zone_alt": "Alt Bölge",
+    "demand": "Talep",
+    "supply": "Arz",
+    "demand_broken": "Talep (Kırık)",
+    "supply_broken": "Arz (Kırık)",
+    "channel": "Kanal",
+    "channel_current": "Güncel Kanal",
+    "channel_frozen": "Dondurulmuş Kanal",
 }
 
 DIRECTION_TR: dict[str, str] = {"long": "AL", "short": "SAT", "neutral": "NÖTR"}
@@ -34,6 +43,7 @@ INDICATOR_CATEGORY_TR: dict[str, str] = {
     "harmonics": "Harmonik Formasyon",
     "structure": "Fiyat Yapısı",
     "pair": "Pair (Rölatif Momentum)",
+    "trend": "Trend",
 }
 
 

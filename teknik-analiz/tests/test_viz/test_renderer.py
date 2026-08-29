@@ -14,13 +14,20 @@ import pandas as pd
 from tests.test_harmonics.fixtures import build_gartley_ohlcv
 from tests.test_pairs.fixtures import build_cointegrated_pair
 from tests.test_structure.fixtures import build_abcd_ohlcv
-from tlab.core.types import Box, IndicatorResult, Line, Timeframe
+from tlab.core.types import Box, IndicatorResult, Level, Line, Timeframe
 from tlab.indicators.harmonics.scanner_indicator import HarmonicIndicator, HarmonicParams
 from tlab.indicators.pairs.relative_momentum import RelativeMomentumPair, RelativeMomentumParams
 from tlab.indicators.structure.price_structure import PriceStructure, PriceStructureParams
 from tlab.indicators.structure.swing_fib_abcd import SwingFibABCD, SwingFibABCDParams
 from tlab.testing.fixtures import make_trend
-from tlab.viz.renderer import _cap_frozen_channels, _declutter_levels, _latest_per_group, render
+from tlab.viz.renderer import (
+    _STAGGER_TRIGGER_PX,
+    _cap_frozen_channels,
+    _declutter_levels,
+    _latest_per_group,
+    _stagger_yshifts,
+    render,
+)
 from tlab.viz.themes import DARK_TERMINAL, fill_color, line_color
 
 _PAIR_PARAMS = RelativeMomentumParams(
@@ -107,6 +114,34 @@ def test_declutter_levels_keeps_only_latest_start_per_style() -> None:
     d_levels_reduced = [lv for lv in reduced if lv.style == "bullish"]
     assert len({lv.start for lv in d_levels_reduced}) == 1
     assert len(d_levels_reduced) < len(d_levels_full)
+
+
+def test_stagger_yshifts_separates_mixed_direction_items_by_all_pairs() -> None:
+    """Kullanıcı geri bildirimi: ASELS gerçek verisinde "Destek Bölgesi"
+    (box, +base, yukarı büyür) / "VAL" (level, +base) / "Destek (Temas:N)"
+    (line-uzatma, -base, aşağı büyür) üç etiketi aynı dar fiyat bandında
+    (341.88-347.63) toplandığında hâlâ üst üste biniyordu — kök neden:
+    `_stagger_yshifts` SALT `price`e göre sıralıyordu, ama `price` sırası
+    yalnızca TÜM öğeler AYNI işaretli `base` taşıdığında ekran-konumu
+    sırasıyla ÖRTÜŞÜR. Negatif base'li bir öğe (line), raw price'ı daha
+    büyük olsa bile n=0 ekran konumu daha KÜÇÜK olabilir — bu durumda eski
+    sıralama, bitişik-öncekiyle-kıyasla kontrolünü YANLIŞ komşu çiftine
+    uyguluyor, gerçek çakışan çift hiç karşılaştırılmıyordu. Bu test SALT
+    ilk/son değil TÜM ikili mesafeleri kontrol eder (bitişik kontrol
+    yetersiz kalabileceği için)."""
+    px_per_unit = 1.554  # ASELS örneğindeki GERÇEK render'ın kaba tahminiyle aynı mertebe
+    val = Level(price=341.88, label="VAL", style="value_area")
+    line = Line(points=((pd.Timestamp("2026-07-17"), 344.5),) * 2, label="x", style="support")
+    box = Box(t0=pd.Timestamp("2026-07-22"), t1=pd.Timestamp("2026-07-22"),
+              low=339.37, high=347.63, label="y", style="support_zone")
+    items = [(val, 341.88, 10.0), (line, 344.5, -24.0), (box, 347.63, 10.0)]
+    yshifts = _stagger_yshifts(items, px_per_unit=px_per_unit, step=14.0)
+
+    effective = {it: price + yshifts[it] / px_per_unit for it, price, _b in items}
+    values = list(effective.values())
+    for i in range(len(values)):
+        for j in range(i + 1, len(values)):
+            assert abs(values[i] - values[j]) >= _STAGGER_TRIGGER_PX / px_per_unit - 1e-9
 
 
 def test_cap_frozen_channels_keeps_only_most_recent_pairs() -> None:

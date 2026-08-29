@@ -284,11 +284,19 @@ _HARMONIC_ZOOM_PAD_BARS = 20
 
 # Annotation kaynakları (box/line-uzatma/level) aynı fiyat civarında (ör. bir
 # direnç bölgesinin tepesi = POC'a yakın = trendline izdüşümüyle aynı seviye
-# — "confluence" bölgesi) sık sık çakışıyordu. Her kaynağa AYRI, birbirinden
-# UZAK bir taban dikey ofset vermek (genel bir yerleşim çözücü kurmadan)
-# çakışma olasılığını büyük ölçüde azaltıyor; `_draw_levels`/`_draw_boxes`
-# içindeki `_stagger_yshifts` bu tabanlardan başlayarak KENDİ kategorisi
-# içindeki çakışmaları ayrıca fanlıyor.
+# — "confluence" bölgesi) sık sık çakışıyordu. Her kaynağa AYRI bir taban
+# dikey ofset vermek YETERLİ DEĞİL — kullanıcı geri bildirimiyle (TCELL/
+# THYAO/ASELS gerçek verisi, 2026-08-30) bulundu: üç kaynak da (box/level
+# TEK bir merdivende, line-uzatma AYRI bir merdivende) kendi listesi
+# İÇİNDE çakışmayı önlese de, iki merdiven birbirinden HABERSİZ hesaplandığı
+# için bir direnç ÇİZGİSİ projeksiyonu bir direnç BÖLGESİ etiketinin TAM
+# ÜSTÜNE denk gelebiliyordu (aynı gerçek destek/direnç seviyesini temsil
+# ettikleri için fiyatça yakın olmaları BEKLENEN bir durum, nadir değil).
+# Düzeltme: `_stagger_yshifts` artık HER öğenin KENDİ taban ofsetini taşıdığı
+# TEK bir birleşik liste alır (bkz. `render()`'daki çağrı) — üç kaynak da
+# aynı "cetvel"de, price'a göre sıralı işlenir; taban işareti farklı olsa
+# bile (box/level yukarı `+`, line-uzatma aşağı `-`) çakışma kontrolü artık
+# TÜM öğeler arasında geçerli, yalnızca aynı kategori içinde değil.
 _BOX_YSHIFT_BASE = 10.0
 _LINE_EXT_YSHIFT = -24.0
 _LEVEL_YSHIFT_BASE = 38.0
@@ -454,9 +462,22 @@ def _render_price_based(
     labeled_boxes = [
         b for b in boxes if latest_box_t0 is None or b.t0 == latest_box_t0.get(b.style)
     ]
+    # Line-uzatma izdüşümleri de AYNI birleşik merdivene katılır (2026-08-30
+    # düzeltmesi, bkz. `_stagger_yshifts` docstring'i) — bir direnç ÇİZGİSİ
+    # projeksiyonu bir direnç/destek BÖLGESİ ya da POC/VAH/VAL etiketiyle
+    # aynı fiyat civarına düşebiliyordu (üçü de aynı gerçek seviyeyi temsil
+    # ettiği için beklenen bir durum), önceden bu üçüncü kaynak AYRI/
+    # habersiz bir merdivende hesaplanıyordu.
+    line_extensions = _line_extensions(lines, df)
+    labeled_line_ext = [
+        (ln, proj) for ln, (_et, proj) in line_extensions.items()
+        if latest_line_end is None or ln.points[-1][0] == latest_line_end.get(ln.style)
+    ]
     box_level_yshifts = _stagger_yshifts(
-        [(b, b.high) for b in labeled_boxes] + [(lv, lv.price) for lv in levels],
-        px_per_unit=px_per_unit, base=_BOX_YSHIFT_BASE, step=14.0,
+        [(b, b.high, _BOX_YSHIFT_BASE) for b in labeled_boxes]
+        + [(lv, lv.price, _BOX_YSHIFT_BASE) for lv in levels]
+        + [(ln, proj, _LINE_EXT_YSHIFT) for ln, proj in labeled_line_ext],
+        px_per_unit=px_per_unit, step=14.0,
     )
     # `has_vp` sağdaki hacim-profili panelini de içeren grafiklerde, sağ
     # kenara YAKIN box/level etiketleri (ör. POC/VAH/VAL — `Level.end`
@@ -478,7 +499,7 @@ def _render_price_based(
     _draw_harmonic_vertices(fig, result, theme, row=1, col=1, declutter=declutter)
     _draw_lines(
         fig, lines, df, theme, row=1, col=1, latest_end=latest_line_end,
-        px_per_unit=px_per_unit,
+        px_per_unit=px_per_unit, yshifts=box_level_yshifts,
     )
     _draw_levels(
         fig, levels, df, theme, row=1, col=1, px_per_unit=px_per_unit,
@@ -583,7 +604,7 @@ _STAGGER_TRIGGER_PX = 18.0  # ~ tek satır 11px yazı için "görsel olarak değ
 
 
 def _stagger_yshifts(
-    items: list[tuple[object, float]], px_per_unit: float, base: float = 14.0, step: float = 10.0,
+    items: list[tuple[object, float, float]], px_per_unit: float, step: float = 10.0,
 ) -> dict[object, float]:
     """Fiyatça birbirine YAKIN öğelerin etiketleri aynı pikselde üst üste
     biner (ör. bir direnç bölgesinin tepesi + bir trendline izdüşümü + bir
@@ -591,13 +612,24 @@ def _stagger_yshifts(
     konsolidasyon bölgelerinde `_draw_boxes`'ın farklı stildeki kutuları da
     aynı sorunu yaşıyordu). Genel bir yerleşim çözücü DEĞİL, tek geçişli
     açgözlü bir "cetvel" sezgisi (görev metninin istediği basitlik düzeyi):
-    `price`e göre sıralanır, her öğeye `base + n*step` (n=0,1,2,…, HEP
-    `base` ile aynı işarette — bir "şerit" içinde kalır, ör. kutu etiketleri
-    hep yukarı, uzatma etiketleri hep aşağı büyür) biçiminde artan bir
-    ofset atanır; `n`, bu öğenin EKRAN konumunu (`price + offset/
-    px_per_unit`) bir ÖNCEKİ öğenin (zaten atanmış) ekran konumundan en az
-    `_STAGGER_TRIGGER_PX` piksel uzaklaştıracak KADAR büyütülür. `item`
-    (ilk öğe) HASHLENEBİLİR olmalı (`Level`/`Box`/`Line` frozen dataclass'ları).
+    her `(item, price, base)` üçlüsü KENDİ taban ofsetini taşır (ör. kutu/
+    seviye etiketleri hep yukarı `+`, çizgi-uzatma etiketleri hep aşağı `-`
+    büyür — `base`in işareti yönü belirler); `price`e göre sıralanır, her
+    öğeye `base + yön*n*step` (n=0,1,2,…) biçiminde artan bir ofset atanır;
+    `n`, bu öğenin EKRAN konumunu (`price + offset/px_per_unit`) bir ÖNCEKİ
+    öğenin (zaten atanmış) ekran konumundan en az `_STAGGER_TRIGGER_PX`
+    piksel uzaklaştıracak KADAR büyütülür. `item` (ilk öğe) HASHLENEBİLİR
+    olmalı (`Level`/`Box`/`Line` frozen dataclass'ları).
+
+    **2026-08-30 genelleme** (kullanıcı geri bildirimi, TCELL/THYAO/ASELS
+    gerçek verisi): eskiden TEK bir `base` tüm listeye uygulanıyordu — bu,
+    box+level'ı BİRLEŞTİREN çağrının kendi içinde çakışmayı önlerken, ayrı
+    çağrılan line-uzatma merdiveniyle HİÇ haberleşmiyordu; bir direnç
+    ÇİZGİSİ projeksiyonu bir direnç BÖLGESİ etiketinin ÜSTÜNE biniyordu
+    (aynı seviyeyi temsil ettikleri için fiyatça yakın olmaları beklenen
+    bir durum). Artık HER üç kaynak da (`render()`'da) TEK bir birleşik
+    listede, kendi taban ofsetleriyle bu fonksiyona verilir — çakışma
+    kontrolü artık kategoriler ARASI da geçerli.
 
     ÖNEMLİ — `n` hiçbir zaman KÜÇÜLTÜLMEZ (öğeler arası "cetvel" ilerledikçe
     yalnızca büyür, sıfırlanmaz): aksi halde (her öğe kendi `n=0`'ından
@@ -608,13 +640,26 @@ def _stagger_yshifts(
     ekran konumları `price` sırasıyla TUTARLI biçimde artar/azalır, bu da
     "yalnızca bir öncekiyle kıyasla" kontrolünü TÜM çiftler için geçerli
     kılar, yalnızca komşular için değil)."""
-    direction = 1.0 if base >= 0 else -1.0
     min_gap = _STAGGER_TRIGGER_PX / px_per_unit if px_per_unit > 0 else 0.0
-    order = sorted(items, key=lambda kv: kv[1])
+    # `n=0` (henüz hiç fanlanmamış) EKRAN konumuna göre sıralanır — SALT
+    # `price`e göre sıralamak (eski davranış) yalnızca TÜM öğeler AYNI
+    # işaretli `base` taşıdığında güvenliydi (o zaman `price` sırası =
+    # ekran konumu sırası). Artık kutu/seviye (+base, yukarı büyür) VE
+    # line-uzatma (-base, aşağı büyür) TEK listede karışabildiği için
+    # (2026-08-30 genelleme) `price` sırası ekran konumu sırasını GARANTİ
+    # ETMEZ — ör. `price=344.5, base=-24` öğesinin n=0 ekran konumu,
+    # `price=341.88, base=+10` öğesininkinden DAHA DÜŞÜK olabilir (raw
+    # price daha büyük olsa bile). Yalnızca `price`e göre sıralayıp bunu
+    # gözden kaçırmak, ASLA bitişik-öncekiyle karşılaştırılmayan (çünkü
+    # sırada yanlış yerde duran) gizli çakışmalara yol açıyordu — gerçek
+    # ASELS verisiyle bulunan bir davranış (VAL/Destek Bölgesi/Destek
+    # Temas-N üçlüsü hâlâ üst üste biniyordu).
+    order = sorted(items, key=lambda kv: kv[1] + (kv[2] / px_per_unit if px_per_unit > 0 else 0.0))
     yshifts: dict[object, float] = {}
     n = 0
     prev_effective: float | None = None
-    for item, price in order:
+    for item, price, base in order:
+        direction = 1.0 if base >= 0 else -1.0
         while True:
             offset = base + direction * n * step
             effective = price + (offset / px_per_unit if px_per_unit > 0 else 0.0)
@@ -642,8 +687,7 @@ def _draw_boxes(
     # çağrı yeri).
     if yshifts is None:
         yshifts = _stagger_yshifts(
-            [(b, b.high) for b in labeled], px_per_unit=px_per_unit, base=_BOX_YSHIFT_BASE,
-            step=10.0,
+            [(b, b.high, _BOX_YSHIFT_BASE) for b in labeled], px_per_unit=px_per_unit, step=10.0,
         )
     for b in boxes:
         dash = "dot" if b.style == "range_box" else "solid"
@@ -809,17 +853,55 @@ def _display_text(label: str, style: str) -> str:
     return label
 
 
+def _line_extensions(lines: list[Line], df: pd.DataFrame) -> dict[Line, tuple[object, float]]:
+    """`extend_right=True` VE `t1 < last_x` olan her `Line` için (ext_time,
+    proj) izdüşüm noktasını hesaplar — `_draw_lines`'ın soluk uzatma
+    çizgisini çizmesi VE `render()`'ın bu izdüşümleri box/level'larla AYNI
+    birleşik "confluence" merdivenine (`_stagger_yshifts`) katması için
+    PAYLAŞILAN TEK kaynak (aynı eğim/uzatma geometrisi iki kez hesaplanmasın,
+    ve iki yer FARKLI sonuç üretmesin diye)."""
+    last_x = df.index[-1]
+    out: dict[Line, tuple[object, float]] = {}
+    for ln in lines:
+        (t0, p0), (t1, p1) = ln.points[0], ln.points[-1]
+        if not (ln.extend_right and t1 < last_x):
+            continue
+        dt1, dt0 = pd.Timestamp(t1), pd.Timestamp(t0)
+        span = (dt1 - dt0).total_seconds()
+        slope = (p1 - p0) / span if span > 0 else 0.0
+        remaining = (pd.Timestamp(last_x) - dt1).total_seconds()
+        # Uzatma, çizginin KENDİ bacağının en fazla 3 katı kadar ileri gider
+        # (son bara kadar DEĞİL) — aksi halde kısa/dik bir bacağın (ör.
+        # harmonik X→B) eğimi yıllarca ileri projekte edilince fiyat ekseni
+        # gerçek dışı büyür (Faz 7'de gerçek veriyle bulunan bir görsel
+        # bozulma; price_structure'ın uzun/yatık trendlerinde bu sınır
+        # zaten remaining'den büyük olduğu için etkisiz kalır).
+        extension_seconds = min(remaining, span * 3) if span > 0 else remaining
+        ext_time = dt1 + pd.Timedelta(seconds=extension_seconds)
+        proj = p1 + slope * extension_seconds
+        out[ln] = (ext_time, proj)
+    return out
+
+
 def _draw_lines(
     fig: go.Figure, lines: list[Line], df: pd.DataFrame, theme: Theme, row: int, col: int,
     latest_end: dict | None = None, px_per_unit: float = 1.0,
+    yshifts: dict[object, float] | None = None,
 ) -> None:
-    last_x = df.index[-1]
-    # Etiketlenecek uzatmaları (yalnızca latest_end'e uyanlar) topluyoruz —
-    # birden fazla FARKLI stildeki trendline'ın (ör. bir direnç + bir destek)
-    # uzatma etiketi aynı fiyat civarında bitip üst üste binebiliyordu; ikinci
-    # geçişte `_stagger_yshifts` ile bunları fanlıyoruz (bkz. `_draw_boxes`/
-    # `_draw_levels`'daki AYNI desen).
-    labeled_extensions: list[tuple[Line, object, float]] = []
+    extensions = _line_extensions(lines, df)
+    # `yshifts` verilmezse (ör. doğrudan/testte çağrılırsa) kendi başına,
+    # yalnızca line-uzatmaları arasında hesaplar — `render()` normalde
+    # box/level'larla BİRLEŞTİRİLMİŞ tek bir sözlük geçirir (bkz. çağrı yeri
+    # ve `_stagger_yshifts` docstring'indeki 2026-08-30 genelleme notu).
+    if yshifts is None:
+        yshifts = _stagger_yshifts(
+            [
+                (ln, proj, _LINE_EXT_YSHIFT) for ln, (_et, proj) in extensions.items()
+                if latest_end is None or ln.points[-1][0] == latest_end.get(ln.style)
+            ],
+            px_per_unit=px_per_unit, step=14.0,
+        )
+
     for ln in lines:
         color = line_color(theme, ln.style)
         style_dash = _DASH_FOR_STYLE.get(ln.style, "solid")
@@ -832,41 +914,25 @@ def _draw_lines(
             ),
             row=row, col=col,
         )
-        if ln.extend_right and t1 < last_x:
-            dt1, dt0 = pd.Timestamp(t1), pd.Timestamp(t0)
-            span = (dt1 - dt0).total_seconds()
-            slope = (p1 - p0) / span if span > 0 else 0.0
-            remaining = (pd.Timestamp(last_x) - dt1).total_seconds()
-            # Uzatma, çizginin KENDİ bacağının en fazla 3 katı kadar ileri gider
-            # (son bara kadar DEĞİL) — aksi halde kısa/dik bir bacağın (ör.
-            # harmonik X→B) eğimi yıllarca ileri projekte edilince fiyat ekseni
-            # gerçek dışı büyür (Faz 7'de gerçek veriyle bulunan bir görsel
-            # bozulma; price_structure'ın uzun/yatık trendlerinde bu sınır
-            # zaten remaining'den büyük olduğu için etkisiz kalır).
-            extension_seconds = min(remaining, span * 3) if span > 0 else remaining
-            ext_time = dt1 + pd.Timedelta(seconds=extension_seconds)
-            proj = p1 + slope * extension_seconds
-            # Uzatma çizgisi bilinçli olarak SOLUK — bacağın kendisi (yukarıdaki
-            # trace) sinyal taşır, uzatma yalnızca "izdüşüm yönü" gösteren
-            # yumuşak bir kılavuzdur; parlak/kalın olursa gerçek çizgiyle
-            # yarışıp görsel gürültü üretiyordu (kullanıcı geri bildirimi).
-            ext_color = with_alpha(theme.muted, 0.6)
-            fig.add_trace(
-                go.Scatter(
-                    x=[_x(t1), _x(ext_time)], y=[p1, proj], mode="lines",
-                    line=dict(color=ext_color, width=1.0, dash="dash"),
-                    name=f"{ln.label}_uzatma", showlegend=False, hoverinfo="skip",
-                ),
-                row=row, col=col,
-            )
-            if latest_end is None or t1 == latest_end.get(ln.style):
-                labeled_extensions.append((ln, ext_time, proj))
-
-    yshifts = _stagger_yshifts(
-        [(ln, proj) for ln, _et, proj in labeled_extensions],
-        px_per_unit=px_per_unit, base=_LINE_EXT_YSHIFT, step=14.0,
-    )
-    for ln, ext_time, proj in labeled_extensions:
+        ext = extensions.get(ln)
+        if ext is None:
+            continue
+        ext_time, proj = ext
+        # Uzatma çizgisi bilinçli olarak SOLUK — bacağın kendisi (yukarıdaki
+        # trace) sinyal taşır, uzatma yalnızca "izdüşüm yönü" gösteren
+        # yumuşak bir kılavuzdur; parlak/kalın olursa gerçek çizgiyle
+        # yarışıp görsel gürültü üretiyordu (kullanıcı geri bildirimi).
+        ext_color = with_alpha(theme.muted, 0.6)
+        fig.add_trace(
+            go.Scatter(
+                x=[_x(t1), _x(ext_time)], y=[p1, proj], mode="lines",
+                line=dict(color=ext_color, width=1.0, dash="dash"),
+                name=f"{ln.label}_uzatma", showlegend=False, hoverinfo="skip",
+            ),
+            row=row, col=col,
+        )
+        if latest_end is not None and t1 != latest_end.get(ln.style):
+            continue
         fig.add_annotation(
             x=_x(ext_time), y=proj, text=_display_text(ln.label, ln.style),
             showarrow=False, font=dict(size=10, color=theme.muted),
@@ -929,8 +995,8 @@ def _draw_levels(
     # merdivende fanlanmaları gerekiyordu).
     if yshifts is None:
         yshifts = _stagger_yshifts(
-            [(lv, lv.price) for lv in levels], px_per_unit=px_per_unit,
-            base=_LEVEL_YSHIFT_BASE, step=10.0,
+            [(lv, lv.price, _LEVEL_YSHIFT_BASE) for lv in levels], px_per_unit=px_per_unit,
+            step=10.0,
         )
     for lv in levels:
         x0 = lv.start if lv.start is not None else first_x

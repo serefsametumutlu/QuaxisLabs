@@ -569,11 +569,72 @@ için `tlab/testing/lint_lookahead.py` da var (CLI: `tlab lint`).
   yeşil, `ruff check` temiz, `mypy` bu dosyada yeni hata yok (mevcut
   1344. satırdaki BASELINE hatası ilgisiz). GİT'E PUSH EDİLDİ (bkz. commit
   hash'leri için `git log`).
-  **Sırada**: Faz 8B (wedge/head_shoulders/flag_pennant/double_top_bottom/
-  broadening — artık `patterns_geom.py`/`hs_pattern.py` hazır) → Faz 8D
-  (artık `xsec.py` hazır) → K3 → Faz 8E → Faz 10 → Faz 9.
+- **Görselleştirme düzeltmesi — `structure.price_structure` etiket çakışması
+  (2026-08-30, kullanıcı Faz8B onayı sonrası TCELL/THYAO/ASELS örneklerini
+  gözden geçirirken bulundu, "aracı kurum raporu" kalitesine göre hâlâ
+  karışık/bozuk olarak nitelendirdi):** TAMAMLANDI, GERÇEK bir mimari
+  hata. Belirti: VAH/POC/Direnç Bölgesi/Destek Bölgesi/Direnç-Destek
+  (Temas:N) etiketleri aynı "confluence" bölgesinde (destek/direnç/
+  konsolidasyon/POC hep aynı gerçek seviyeyi temsil ettiği için fiyatça
+  yakın olmaları BEKLENEN bir durum) üst üste binip harfler birbirine
+  karışıyordu — TCELL'e özgü değildi, THYAO/ASELS'te de AYNI şekilde
+  üretilebildi (bkz. ilgili görev/oturum notları). Kök neden: Box/Level
+  etiketleri TEK bir birleşik "merdivende" (`_stagger_yshifts`, hep yukarı
+  büyür) fanlanırken, trendline UZATMA etiketleri (`_draw_lines`) TAMAMEN
+  AYRI, habersiz bir merdivende (hep aşağı büyür) hesaplanıyordu — iki
+  merdivenin birbirinin "şeridine düşmeyeceği" varsayımı YANLIŞTI, çünkü
+  bir direnç/destek ÇİZGİSİ projeksiyonu tanım gereği aynı direnç/destek
+  BÖLGESİ'yle aynı fiyat civarında biter. Düzeltme (1. adım): `_stagger_
+  yshifts` artık HER üç kaynağı (box/level/line-uzatma) TEK birleşik listede
+  alır, her öğe KENDİ taban ofsetini (`+10` box/level, `-24` line) taşır;
+  `_draw_lines` kendi ayrı merdivenini kurmak yerine `render()`'dan gelen
+  PAYLAŞILAN sözlüğü kullanır (yeni `_line_extensions()` yardımcı fonksiyonu
+  ile uzatma geometrisi TEK yerde hesaplanıp hem stagger listesine hem
+  gerçek çizime beslenir — önceden iki kez hesaplanıyordu). **2. GERÇEK hata
+  (1. düzeltme sırasında bulundu)**: `_stagger_yshifts` öğeleri SALT `price`e
+  göre sıralıyordu — bu yalnızca TÜM öğeler AYNI işaretli taban taşıdığında
+  ekran-konumu sırasıyla örtüşür; negatif tabanlı bir line-uzatma öğesi, raw
+  price'ı daha BÜYÜK olsa bile n=0 ekran konumu daha KÜÇÜK olabiliyordu —
+  bu da bitişik-öncekiyle-kıyasla kontrolünü YANLIŞ komşu çiftine
+  uyguluyordu (gerçek çakışan çift hiç karşılaştırılmıyordu). ASELS gerçek
+  verisiyle doğrulandı: VAL(341.88)/Destek-uzatma(344.5)/Destek-Bölgesi
+  (347.63) üçlüsü ilk düzeltmeden SONRA bile üst üste biniyordu; sıralama
+  anahtarı `price`den `price + base/px_per_unit` (n=0 ekran konumu) olarak
+  değiştirilince düzeldi. Yeni regresyon testi (`test_stagger_yshifts_
+  separates_mixed_direction_items_by_all_pairs`) hem YENİ kodun TÜM ikili
+  mesafeleri karşıladığını hem de ESKİ (salt-price) sıralamanın AYNI
+  senaryoda gerçekten başarısız olduğunu (elle doğrulanmış gerçekçi
+  `px_per_unit≈1.55` ile) kanıtlıyor — sentetik ama ASELS'in gerçek
+  sayılarından türetildi. **DÜRÜST NOT — kalan sınırlama**: algoritma hâlâ
+  "tek geçişli açgözlü sezgi" (genel bir yerleşim çözücü değil); teorik
+  olarak SIRALI işlenen bir NEGATİF-tabanlı öğe, kendisinden ÖNCE gelen
+  pozitif-tabanlı bir öğeden ayrılmak için `n` artırıldığında YANLIŞ yöne
+  (o öğeye doğru) kayabilir — bu, üç kategori de ayrı yönlerde büyürken
+  nadir/uç bir sıralama durumunda hâlâ teorik bir artık risktir, gerçek
+  veride şimdiye dek gözlenmedi, bulunursa aynı iteratif düzeltme deseniyle
+  ele alınacak. `structure.swing_fib_abcd`/harmonik grafikler AYNI çizim
+  yolunu (`_draw_boxes`/`_draw_levels`/`_draw_lines`) paylaştığı için bu
+  düzeltmeden dolaylı olarak faydalanır (ayrıca test edilmedi, kod yolu
+  ortak). `pytest -q -m "not network"` 362/362 yeşil (1 yeni test), `ruff
+  check` temiz. `outputs/samples/{tcell,thyao,asels}_price_structure.png`
+  yeniden üretildi, gözle karşılaştırıldı — üçünde de eski illegible
+  üst-üste-binen metin artık ayrı okunur satırlara ayrıldı (ASELS'teki en
+  yoğun 3'lü küme dahil); TCELL'in "Konsolidasyon" etiketi kırmızı
+  trendline'ın GEÇTİĞİ pikselle görsel olarak kesişmeye devam ediyor (bu
+  metin-metin çakışması DEĞİL, metin-çizgi kesişimi — AYRI, çözülmemiş bir
+  görsel kusur, bilerek not edildi). **Görselleştirme genel değerlendirmesi
+  hâlâ AÇIK**: kullanıcı `images/` klasöründeki referans ekran görüntülerini
+  (aracı-kurum-tarzı hacim profili HVN vurgusu, RSI paneli, harmonik
+  formasyonlarda dolgulu üçgen + swing HH/HL/LH/LL katmanı + renkli fib
+  merdiveni) mevcut `outputs/samples/` çıktılarından BELİRGİN ÖLÇÜDE daha
+  iyi buldu — bunlar TASARIM eksiklikleri (bug değil), henüz ELE ALINMADI,
+  kullanıcıdan öncelik sırası bekleniyor.
+  **Sırada**: kullanıcının görselleştirme önceliklendirmesi → sonra Faz 8B
+  (wedge/head_shoulders/flag_pennant/double_top_bottom/broadening — artık
+  `patterns_geom.py`/`hs_pattern.py` hazır) → Faz 8D (artık `xsec.py` hazır)
+  → K3 → Faz 8E → Faz 10 → Faz 9.
 
-Toplam 361 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
+Toplam 362 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
 ruff/mypy/lint_lookahead temiz (yeni kod kapsamında — repo genelindeki 18 ruff/2
 lint_lookahead uyarısı önceden var olan, ilgisiz satırlardır).
 

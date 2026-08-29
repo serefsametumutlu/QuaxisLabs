@@ -18,6 +18,7 @@ etmeksizin hizalama sorunu oluşmaz."""
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
 
 import pandas as pd
@@ -34,6 +35,7 @@ from tlab.viz.themes import (
     fill_color,
     line_color,
     resolve_theme,
+    with_alpha,
 )
 
 
@@ -47,6 +49,11 @@ def render(
 ) -> go.Figure:
     """`result`ı çizer. `df`: fiyat serisi (pair modu HARİÇ zorunlu — mum
     grafiği ve harmonik/yapı primitiflerinin x eksenini belirler).
+
+    `last_n`: `None` (varsayılan) = OTOMATİK — `harmonic.*` için en güncel
+    adayın kendi zaman aralığına yakınlaştırır (bkz. `_harmonic_auto_
+    window_start`), diğerleri için sabit `_DEFAULT_LAST_N` (250) bar.
+    `0` = tüm geçmiş. `N>0` = tam olarak son N bar.
 
     `declutter` (varsayılan AÇIK): gerçek çok-yıllık/gürültülü veride aynı
     stildeki DÜZİNELERCE Level/Box/Line/Marker (ör. her ABC üçlüsünün 8
@@ -72,20 +79,179 @@ def render(
 # ------------------------------------------------------------------ ortak --
 
 
-def _apply_layout(fig: go.Figure, theme: Theme, title: str, height: int) -> None:
+_DEFAULT_WIDTH = 1600
+
+
+@dataclass(frozen=True)
+class _Header:
+    """Masthead için önceden biçimlendirilmiş metin alanları — `_draw_header`
+    bunları `xref/yref="paper"` annotation'larla aracı-kurum-raporu tarzı bir
+    üst şerit olarak çizer (eski tek satırlık `title=` YERİNE). Burada HİÇBİR
+    teknik hesap yapılmaz — yalnızca zaten `IndicatorResult`/`df`'de mevcut
+    değerlerin (son kapanış, önceki kapanış, `last_state`) metne çevrilmesi
+    (biçimlendirme, bkz. görev kısıtı: son fiyat/yüzde değişim gibi basit
+    OHLC aritmetiği ihlal SAYILMAZ)."""
+
+    symbol: str
+    subtitle: str
+    value_str: str
+    change_str: str | None = None
+    change_positive: bool | None = None
+    highlighted: bool = False
+    date_str: str = ""
+
+
+_MARGIN_L = 56
+_MARGIN_R = 116
+_MARGIN_T = 112
+_MARGIN_B = 60
+# Masthead/dipnot, `yref="paper"` (0..1 = yalnızca ÇİZİM alanı, kenar
+# boşlukları HARİÇ) üzerinden `y>1`/`y<0` ile üst/alt kenar boşluğuna taşan
+# annotation/shape'lerle çizilir. Bu fraksiyon, TOPLAM figür yüksekliğine
+# göre değil yalnızca çizim alanının (height - t - b) yüksekliğine göre
+# ölçeklenir — bu yüzden SABİT bir `y=1.2` gibi bir değer, alt-panelli
+# (hacim/MACD) uzun bir figürde (çizim alanı büyük → aynı fraksiyon çok daha
+# fazla piksele karşılık gelir) kenar boşluğunun DIŞINA taşıp görünmez
+# oluyordu (gerçek render ile bulunan bir hata — ör. `structure.
+# price_structure`'da 2 alt panel varken masthead'in sembol/fiyat satırı
+# hiç görünmüyordu). Bunun yerine SABİT bir piksel ofseti (`_HEADER_ROW1_PX`
+# vb.) hesaplanıp `_apply_layout` içinde figüre özgü paper-fraksiyonuna
+# çevrilir — böylece masthead'in ekrandaki piksel konumu figür
+# yüksekliğinden BAĞIMSIZ, her zaman `_MARGIN_T`/`_MARGIN_B` içinde kalır.
+_HEADER_ROW1_PX = 46.0
+_HEADER_ROW2_PX = 18.0
+_HEADER_RULE_PX = 8.0
+_FOOTER_PX = 32.0
+_FOOTER_TEXT = "Yalnızca teknik analiz amaçlıdır, yatırım tavsiyesi değildir — tlab"
+
+
+def _apply_layout(
+    fig: go.Figure, theme: Theme, header: _Header, height: int, width: int = _DEFAULT_WIDTH,
+) -> None:
+    """Jenerik/harmonik (`light_analysis`) mod için ortak "aracı kurum
+    raporu" masthead/kart/dipnot çerçevesi. **Pair modu (2026-08-29'dan
+    itibaren) BUNU KULLANMAZ** — kullanıcı bu paylaşılan tasarımı pair
+    grafiği için reddetti, kendi ayrık `_apply_pair_layout`/`_draw_pair_
+    header`'ı var (bkz. `_render_pair`). Bu fonksiyon yalnızca `_render_
+    price_based`'in çağırdığı hâliyle kalmalı; pair'e ÖZGÜ hiçbir dal
+    eklenmemeli."""
+    margin_t = _MARGIN_T
     fig.update_layout(
-        title=dict(text=title, font=dict(color=theme.text, size=14, family=theme.font)),
-        paper_bgcolor=theme.bg,
+        paper_bgcolor=theme.page_bg,
         plot_bgcolor=theme.bg,
         font=dict(color=theme.text, family=theme.font, size=11),
         height=height,
-        margin=dict(l=50, r=50, t=60, b=30),
-        legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color=theme.text, size=10)),
+        width=width,
+        # r: bazı Level etiketleri (ör. "Fib Geri Çekilme") en son bara
+        # (x1=last_x, xanchor="left") sabitlenir ve `vp` paneli olmayan
+        # (tek kolonlu) grafiklerde bu, figürün SAĞ kenarına dayanıp
+        # kırpılıyordu (gerçek veriyle bulunan bir davranış — bkz.
+        # `_draw_levels`); `_MARGIN_R` bu tür etiketlere + kart kenar
+        # boşluğuna yetecek kadar pay bırakır. t/b, masthead (2 satır +
+        # ayraç) ve dipnot şeridi için (bkz. `_draw_header`/`_draw_footer`).
+        margin=dict(l=_MARGIN_L, r=_MARGIN_R, t=margin_t, b=_MARGIN_B),
+        legend=dict(
+            bgcolor=with_alpha(theme.bg, 0.92), bordercolor=theme.border, borderwidth=1,
+            font=dict(color=theme.text, size=10),
+        ),
         xaxis_rangeslider_visible=False,
         bargap=0.15,
     )
     fig.update_xaxes(gridcolor=theme.grid, zerolinecolor=theme.grid, showspikes=False)
     fig.update_yaxes(gridcolor=theme.grid, zerolinecolor=theme.grid)
+    plot_h = max(height - margin_t - _MARGIN_B, 50.0)
+    _draw_card_frame(fig, theme)
+    _draw_header(fig, theme, header, plot_h)
+    _draw_footer(fig, theme, plot_h)
+
+
+def _draw_card_frame(fig: go.Figure, theme: Theme) -> None:
+    """Çizim alanının etrafına ince bir "kart" çerçevesi — `paper_bgcolor`
+    (dış "sayfa") üzerinde oturan, kurumsal bir rapor sayfası hissi veren
+    TEK ince kenarlık (`theme.border`). Aşırıya kaçmamak için yalnızca bu —
+    gölge/döşeme YOK."""
+    fig.add_shape(
+        type="rect", xref="paper", yref="paper", x0=0.0, x1=1.0, y0=0.0, y1=1.0,
+        line=dict(color=theme.border, width=1), fillcolor="rgba(0,0,0,0)", layer="above",
+    )
+
+
+def _draw_header(fig: go.Figure, theme: Theme, h: _Header, plot_h: float) -> None:
+    """Aracı-kurum-raporu tarzı üst şerit: sol=sembol (büyük), sağ=değer +
+    (varsa) yön-renkli değişim; alt satır sol=kategori/formasyon alt
+    başlığı, sağ=üretim tarihi; ince bir marka-rengi (`accent`) ayraç
+    çizgisiyle grafikten ayrılır. `plot_h`: bkz. `_HEADER_ROW1_PX` grubu
+    docstring'i — piksel ofsetlerini BU figüre özgü paper-fraksiyonuna
+    çevirmek için gerekli. Yalnızca `_render_price_based` çağırır — pair
+    modunun kendi (çok daha küçük/2-satır) `_draw_pair_header`'ı var."""
+    row1_y = 1.0 + _HEADER_ROW1_PX / plot_h
+    row2_y = 1.0 + _HEADER_ROW2_PX / plot_h
+    rule_y = 1.0 + _HEADER_RULE_PX / plot_h
+
+    change_color = theme.text
+    arrow = ""
+    if h.change_positive is True:
+        change_color, arrow = theme.up, "▲ "
+    elif h.change_positive is False:
+        change_color, arrow = theme.down, "▼ "
+    elif h.highlighted:
+        change_color = theme.accent
+
+    value_text = h.value_str if h.change_str is None else f"{h.value_str}   {arrow}{h.change_str}"
+
+    fig.add_annotation(
+        x=0.0, y=row1_y, xref="paper", yref="paper", xanchor="left", yanchor="bottom",
+        text=f"<b>{h.symbol}</b>", showarrow=False,
+        font=dict(family=theme.font, size=21, color=theme.text),
+    )
+    fig.add_annotation(
+        x=1.0, y=row1_y, xref="paper", yref="paper", xanchor="right", yanchor="bottom",
+        text=f"<b>{value_text}</b>", showarrow=False,
+        font=dict(family=theme.font, size=16, color=change_color),
+    )
+    fig.add_annotation(
+        x=0.0, y=row2_y, xref="paper", yref="paper", xanchor="left", yanchor="bottom",
+        text=h.subtitle, showarrow=False,
+        font=dict(family=theme.font, size=11, color=theme.muted),
+    )
+    fig.add_annotation(
+        x=1.0, y=row2_y, xref="paper", yref="paper", xanchor="right", yanchor="bottom",
+        text=f"Üretim: {h.date_str}", showarrow=False,
+        font=dict(family=theme.font, size=10, color=theme.muted),
+    )
+    fig.add_shape(
+        type="line", xref="paper", yref="paper", x0=0.0, x1=1.0, y0=rule_y, y1=rule_y,
+        line=dict(color=theme.accent, width=2), layer="above",
+    )
+
+
+def _draw_footer(fig: go.Figure, theme: Theme, plot_h: float) -> None:
+    footer_y = -_FOOTER_PX / plot_h
+    fig.add_annotation(
+        x=0.5, y=footer_y, xref="paper", yref="paper", xanchor="center", yanchor="top",
+        text=_FOOTER_TEXT, showarrow=False,
+        font=dict(family=theme.font, size=9, color=theme.muted),
+    )
+
+
+def _last_close_change(df: pd.DataFrame | None) -> tuple[float, float] | None:
+    """Son kapanış ve BİR ÖNCEKİ bara göre yüzde değişimi döner — ham
+    OHLC üzerinde basit görüntüleme aritmetiği (indikatör HESABI değil,
+    bkz. görev kısıtı: "son kapanış/periyot % değişimi" formatlama olarak
+    açıkça İZİNLİ). `df` yoksa veya tek barlıksa `None`."""
+    if df is None or len(df) < 2:
+        return None
+    last = float(df["close"].iloc[-1])
+    prev = float(df["close"].iloc[-2])
+    if prev == 0:
+        return last, 0.0
+    return last, (last - prev) / prev * 100.0
+
+
+def _category_tr(indicator: str) -> str:
+    prefix = indicator.split(".", 1)[0]
+    key = "harmonics" if prefix == "harmonic" else prefix
+    return tr.INDICATOR_CATEGORY_TR.get(key, prefix.title())
 
 
 def _fmt_date(t: datetime) -> str:
@@ -113,6 +279,90 @@ def _x(t: object) -> str:
     return pd.Timestamp(t).isoformat()
 
 
+_DEFAULT_LAST_N = 250
+_HARMONIC_ZOOM_PAD_BARS = 20
+
+# Annotation kaynakları (box/line-uzatma/level) aynı fiyat civarında (ör. bir
+# direnç bölgesinin tepesi = POC'a yakın = trendline izdüşümüyle aynı seviye
+# — "confluence" bölgesi) sık sık çakışıyordu. Her kaynağa AYRI, birbirinden
+# UZAK bir taban dikey ofset vermek (genel bir yerleşim çözücü kurmadan)
+# çakışma olasılığını büyük ölçüde azaltıyor; `_draw_levels`/`_draw_boxes`
+# içindeki `_stagger_yshifts` bu tabanlardan başlayarak KENDİ kategorisi
+# içindeki çakışmaları ayrıca fanlıyor.
+_BOX_YSHIFT_BASE = 10.0
+_LINE_EXT_YSHIFT = -24.0
+_LEVEL_YSHIFT_BASE = 38.0
+
+
+def _resolve_window_start(result: IndicatorResult, df: pd.DataFrame, last_n: int | None) -> int:
+    """Görünür pencerenin BAŞLANGIÇ bar indeksini belirler.
+
+    `last_n == 0`: tüm geçmiş (`--show-all`/`--last-n 0`). `last_n > 0`:
+    tam olarak o kadar bar. `last_n is None` (varsayılan/otomatik):
+    `harmonic.*` için EN GÜNCEL adayın kendi zaman aralığına otomatik
+    yakınlaştırır (aksi halde bir formasyonun üçgeni yıllarca geçmiş
+    içinde tek pikselik bir çizgiye düşer — kullanıcı geri bildirimiyle
+    bulundu); diğerleri için sabit `_DEFAULT_LAST_N` bar."""
+    n = len(df)
+    if last_n == 0:
+        return 0
+    if last_n:
+        return max(0, n - last_n)
+    if result.indicator.startswith("harmonic."):
+        return _harmonic_auto_window_start(result, df)
+    return max(0, n - _DEFAULT_LAST_N)
+
+
+def _harmonic_auto_window_start(result: IndicatorResult, df: pd.DataFrame) -> int:
+    """En son eklenen adayın (xab+bcd — aynı adayın iki poligonu ardışık
+    eklenir, bkz. `scanner_indicator.py`) X noktasından `_HARMONIC_ZOOM_PAD_
+    BARS` kadar önce başlayan pencereyi döner. Aday yoksa varsayılan
+    pencereye düşer."""
+    if not result.polygons:
+        return max(0, len(df) - _DEFAULT_LAST_N)
+    recent = result.polygons[-2:]
+    earliest_t = min(pt[0] for poly in recent for pt in poly.points)
+    try:
+        idx = df.index.get_loc(earliest_t)
+    except KeyError:
+        idx = 0
+    if not isinstance(idx, int):
+        idx = 0
+    return max(0, idx - _HARMONIC_ZOOM_PAD_BARS)
+
+
+def _right_edge_cutoff(df: pd.DataFrame, window_start_idx: int) -> datetime:
+    """VP paneli varken sağ kenara yakın box/level etiketlerinin komşu
+    panele taşmasını önlemek için kullanılan eşik zaman damgası — bkz.
+    `_render_price_based`'deki çağrı yeri ve `_draw_boxes`/`_draw_levels`.
+    Görünür pencerenin (yalnızca `window_start_idx`'ten sonrası) son %20'lik
+    dilimindeki HERHANGİ bir nokta bu eşiğin ötesinde sayılır."""
+    visible = df.index[window_start_idx:]
+    if len(visible) == 0:
+        return df.index[-1]
+    pos = min(max(0, int(len(visible) * 0.80)), len(visible) - 1)
+    return visible[pos]
+
+
+def _sync_price_yaxis(
+    fig: go.Figure, df: pd.DataFrame, window_start_idx: int, has_vp: bool
+) -> None:
+    """Ana panel ile sağ hacim-profili panelinin y-eksenini (fiyat) AYNI
+    aralığa sabitler — aksi halde vp paneli kendi (genelde çok daha dar)
+    penceresine göre otomatik ölçeklenip iki panel görsel olarak KOPUK
+    görünüyordu (Görsel 2 referansında ikisi hizalı — kullanıcı geri
+    bildirimiyle bulundu)."""
+    visible = df.iloc[window_start_idx:]
+    if visible.empty:
+        return
+    low, high = float(visible["low"].min()), float(visible["high"].max())
+    pad = (high - low) * 0.05 or 1.0
+    y_range = [low - pad, high + pad]
+    fig.update_yaxes(range=y_range, row=1, col=1)
+    if has_vp:
+        fig.update_yaxes(range=y_range, row=1, col=2)
+
+
 # ------------------------------------------------------------ jenerik mod --
 
 
@@ -132,6 +382,7 @@ def _render_price_based(
         sub_h = (1.0 - main_h) / n_sub
         row_heights = [main_h] + [sub_h] * n_sub
     else:
+        main_h = 1.0
         row_heights = [1.0]
 
     specs: list[list[dict[str, object] | None]] = []
@@ -170,10 +421,67 @@ def _render_price_based(
         if declutter else None
     )
 
-    _draw_boxes(fig, boxes, theme, row=1, col=1, latest_t0=latest_box_t0)
+    # Etiket çakışması (yshift fan-out) eşiği, TAM geçmişin fiyat aralığı
+    # değil GÖRÜNÜR pencerenin aralığı üzerinden hesaplanır — aksi halde
+    # (ör. yıllarca eski/uçuk fiyatlı barlar dahil edilince) eşik gerçek
+    # ekran-piksel yoğunluğuna göre çok küçük kalıp fan-out'u tetiklemiyordu.
+    window_start_idx = _resolve_window_start(result, df, last_n)
+    visible = df.iloc[window_start_idx:]
+    visible_price_range = (
+        float(visible["high"].max() - visible["low"].min()) if not visible.empty else 0.0
+    ) or 1.0
+    # Etiket çakışma-tespiti PİKSEL cinsinden yapılmalı (bkz. `_stagger_
+    # yshifts` docstring'i) — bunun için ana panelin GERÇEK piksel
+    # yüksekliğini (`_apply_layout`'un kullanacağı toplam figür yüksekliğiyle
+    # AYNI formül) fiyat aralığına bölerek kaba bir "piksel/fiyat-birimi"
+    # oranı tahmin ediyoruz (kenar boşlukları/panel aralıkları için ~90px
+    # düşülüyor — kesin değil ama fan-out tetiklemesi için yeterince yakın).
+    total_height = 600 + 180 * n_sub
+    main_row_px = max((total_height - 90) * main_h, 50.0)
+    px_per_unit = main_row_px / visible_price_range if visible_price_range else 1.0
+
+    # Box-etiketleri (Direnç/Destek Bölgesi, Konsolidasyon) ve Level-etiketleri
+    # (POC/VAH/VAL) genellikle AYNI fiyat civarında yoğunlaşır ("confluence"
+    # bölgesi) — iki kategoriyi AYRI şeritlerde (sabit taban ofsetleriyle)
+    # fanlamak, bir kategori kendi kümesinde büyürken diğerinin şeridine
+    # girip yeniden çakışmasına yol açabiliyordu (gerçek veriyle bulunan bir
+    # davranış). Bunun yerine ikisi TEK bir ortak merdivende (aynı `_stagger_
+    # yshifts` çağrısı, karışık liste) fanlanır — genel bir yerleşim çözücü
+    # DEĞİL, hâlâ tek geçişli açgözlü bir sezgi, ama artık iki kategori
+    # arasında da minimum ayrımı garanti eder.
+    labeled_boxes = [
+        b for b in boxes if latest_box_t0 is None or b.t0 == latest_box_t0.get(b.style)
+    ]
+    box_level_yshifts = _stagger_yshifts(
+        [(b, b.high) for b in labeled_boxes] + [(lv, lv.price) for lv in levels],
+        px_per_unit=px_per_unit, base=_BOX_YSHIFT_BASE, step=14.0,
+    )
+    # `has_vp` sağdaki hacim-profili panelini de içeren grafiklerde, sağ
+    # kenara YAKIN box/level etiketleri (ör. POC/VAH/VAL — `Level.end`
+    # HER ZAMAN `None`, yani her zaman `last_x`'e sabit, bkz. `_draw_
+    # levels`) `xanchor="left"` ile sağa doğru büyüyünce komşu vp paneline
+    # ve onun y-ekseni tik yazısına BİNİYORDU (gerçek veriyle bulunan bir
+    # çakışma — bkz. CLAUDE.md). `edge_cutoff`, görünür pencerenin son
+    # %20'lik dilimini işaretler; bu dilimdeki etiketler `_draw_boxes`/
+    # `_draw_levels` içinde otomatik `xanchor="right"`e çevrilir (metin
+    # SOLA büyür, panelin İÇİNDE kalır).
+    edge_cutoff = _right_edge_cutoff(df, window_start_idx)
+
+    _draw_boxes(
+        fig, boxes, theme, row=1, col=1, latest_t0=latest_box_t0,
+        px_per_unit=px_per_unit, yshifts=box_level_yshifts,
+        has_vp=has_vp, edge_cutoff=edge_cutoff,
+    )
     _draw_polygons(fig, result.polygons, theme, row=1, col=1)
-    _draw_lines(fig, lines, df, theme, row=1, col=1, latest_end=latest_line_end)
-    _draw_levels(fig, levels, df, theme, row=1, col=1)
+    _draw_harmonic_vertices(fig, result, theme, row=1, col=1, declutter=declutter)
+    _draw_lines(
+        fig, lines, df, theme, row=1, col=1, latest_end=latest_line_end,
+        px_per_unit=px_per_unit,
+    )
+    _draw_levels(
+        fig, levels, df, theme, row=1, col=1, px_per_unit=px_per_unit,
+        yshifts=box_level_yshifts, has_vp=has_vp, edge_cutoff=edge_cutoff,
+    )
     _draw_markers(fig, markers, theme, row=1, col=1, declutter=declutter)
 
     for i, name in enumerate(sub_names, start=2):
@@ -185,29 +493,52 @@ def _render_price_based(
     for r in range(1, n_rows + 1):
         fig.update_xaxes(showticklabels=(r == n_rows), row=r, col=1)
 
-    if last_n and last_n < len(df):
-        fig.update_xaxes(range=[_x(df.index[-last_n]), _x(df.index[-1])])
+    if window_start_idx > 0:
+        fig.update_xaxes(range=[_x(df.index[window_start_idx]), _x(df.index[-1])])
+    _sync_price_yaxis(fig, df, window_start_idx, has_vp)
 
-    title = _build_generic_title(result)
-    _apply_layout(fig, theme, title, height=520 + 160 * n_sub)
+    header = _price_header(result, df)
+    _apply_layout(fig, theme, header, height=600 + 180 * n_sub)
     return fig
 
 
-def _build_generic_title(result: IndicatorResult) -> str:
-    symbol = result.symbol or "?"
+def _build_subtitle(result: IndicatorResult) -> str:
+    """Masthead'in ikinci (alt başlık) satırı — formasyon/ekol veya
+    indikatör adının okunur biçimi. Sembol BURADA tekrarlanmaz (`_Header.
+    symbol` ayrı, birinci satırda büyük puntoyla zaten var)."""
     if result.indicator.startswith("harmonic."):
         school = result.indicator.split(".", 1)[1]
         if not result.last_state:
-            return f"{symbol} — {school} ekolü — eşleşen formasyon yok"
+            return f"{school.title()} ekolü — eşleşen formasyon yok"
         _pid, info = next(reversed(result.last_state.items()))
         pattern = str(info["pattern"]).replace("_", " ").title()
         direction_tr = tr.tr_direction(info["direction"])
         state_tr = tr.tr_state(info["state"])
         return (
-            f"{symbol} - {pattern} Formasyonu ({direction_tr}) [{state_tr}] "
-            f"— SİSTEM: {school.title()} — {len(result.last_state)} eşleşme"
+            f"{pattern} Formasyonu ({direction_tr}) [{state_tr}] "
+            f"— Sistem: {school.title()} — {len(result.last_state)} eşleşme"
         )
-    return f"{symbol} — {result.indicator}"
+    return result.indicator.split(".", 1)[-1].replace("_", " ").title()
+
+
+def _price_header(result: IndicatorResult, df: pd.DataFrame) -> _Header:
+    """Fiyat-tabanlı (jenerik/harmonik) mod için masthead içeriği — son
+    kapanış + bir-önceki-bara-göre % değişim (biçimlendirme, bkz.
+    `_last_close_change` docstring'i), kategori (`labels_tr.
+    INDICATOR_CATEGORY_TR`) + formasyon/indikatör alt başlığı, üretim
+    tarihi (bugün — grafiğin ÜRETİLDİĞİ an, verinin son bar tarihi
+    DEĞİL)."""
+    subtitle = f"{_category_tr(result.indicator)} — {_build_subtitle(result)}"
+    change = _last_close_change(df)
+    if change is None:
+        value_str, change_str, positive = "—", None, None
+    else:
+        last, pct = change
+        value_str, change_str, positive = f"{last:.2f}", f"{pct:+.2f}%", pct >= 0
+    return _Header(
+        symbol=result.symbol or "?", subtitle=subtitle, value_str=value_str,
+        change_str=change_str, change_positive=positive, date_str=_fmt_date(datetime.now()),
+    )
 
 
 def _latest_per_group(items: list, group_key, time_key) -> dict:
@@ -224,10 +555,72 @@ def _latest_per_group(items: list, group_key, time_key) -> dict:
     return best
 
 
+_STAGGER_TRIGGER_PX = 18.0  # ~ tek satır 11px yazı için "görsel olarak değecek" eşik
+
+
+def _stagger_yshifts(
+    items: list[tuple[object, float]], px_per_unit: float, base: float = 14.0, step: float = 10.0,
+) -> dict[object, float]:
+    """Fiyatça birbirine YAKIN öğelerin etiketleri aynı pikselde üst üste
+    biner (ör. bir direnç bölgesinin tepesi + bir trendline izdüşümü + bir
+    fib/PRZ seviyesi hep aynı fiyatın civarında — gerçek çok-yıllık veride
+    konsolidasyon bölgelerinde `_draw_boxes`'ın farklı stildeki kutuları da
+    aynı sorunu yaşıyordu). Genel bir yerleşim çözücü DEĞİL, tek geçişli
+    açgözlü bir "cetvel" sezgisi (görev metninin istediği basitlik düzeyi):
+    `price`e göre sıralanır, her öğeye `base + n*step` (n=0,1,2,…, HEP
+    `base` ile aynı işarette — bir "şerit" içinde kalır, ör. kutu etiketleri
+    hep yukarı, uzatma etiketleri hep aşağı büyür) biçiminde artan bir
+    ofset atanır; `n`, bu öğenin EKRAN konumunu (`price + offset/
+    px_per_unit`) bir ÖNCEKİ öğenin (zaten atanmış) ekran konumundan en az
+    `_STAGGER_TRIGGER_PX` piksel uzaklaştıracak KADAR büyütülür. `item`
+    (ilk öğe) HASHLENEBİLİR olmalı (`Level`/`Box`/`Line` frozen dataclass'ları).
+
+    ÖNEMLİ — `n` hiçbir zaman KÜÇÜLTÜLMEZ (öğeler arası "cetvel" ilerledikçe
+    yalnızca büyür, sıfırlanmaz): aksi halde (her öğe kendi `n=0`'ından
+    yeniden arasaydı) bir SONRAKİ öğe bir ÖNCEKİNİN aldığı büyük ofsetten
+    "kurtulup" küçük bir ofsetle yetinebiliyor, bu da onu ÖNCEKİNİN
+    öncesindeki (bitişik olmayan) başka bir öğeyle çakıştırabiliyordu
+    (gerçek veriyle bulunan bir davranış — `n` hiç küçülmediği için
+    ekran konumları `price` sırasıyla TUTARLI biçimde artar/azalır, bu da
+    "yalnızca bir öncekiyle kıyasla" kontrolünü TÜM çiftler için geçerli
+    kılar, yalnızca komşular için değil)."""
+    direction = 1.0 if base >= 0 else -1.0
+    min_gap = _STAGGER_TRIGGER_PX / px_per_unit if px_per_unit > 0 else 0.0
+    order = sorted(items, key=lambda kv: kv[1])
+    yshifts: dict[object, float] = {}
+    n = 0
+    prev_effective: float | None = None
+    for item, price in order:
+        while True:
+            offset = base + direction * n * step
+            effective = price + (offset / px_per_unit if px_per_unit > 0 else 0.0)
+            if prev_effective is None or abs(effective - prev_effective) >= min_gap:
+                break
+            n += 1
+        yshifts[item] = float(offset)
+        prev_effective = effective
+    return yshifts
+
+
 def _draw_boxes(
     fig: go.Figure, boxes: list[Box], theme: Theme, row: int, col: int,
-    latest_t0: dict | None = None,
+    latest_t0: dict | None = None, px_per_unit: float = 1.0,
+    yshifts: dict[object, float] | None = None,
+    has_vp: bool = False, edge_cutoff: datetime | None = None,
 ) -> None:
+    labeled = [b for b in boxes if latest_t0 is None or b.t0 == latest_t0.get(b.style)]
+    # Kutu etiketleri HER ZAMAN yukarı (+) yönde fanlanır — `_BOX_YSHIFT_
+    # BASE` pozitif olduğu için `_stagger_yshifts` tek yönde büyür, ASLA
+    # `_LINE_EXT_YSHIFT`in negatif "şeridi"ne (uzatma etiketlerinin yaşadığı
+    # bölge) düşmez. `yshifts` verilmezse (ör. doğrudan/testte çağrılırsa)
+    # kendi başına, yalnızca kutular arasında hesaplar — `_render_price_
+    # based` normalde Level'larla BİRLEŞTİRİLMİŞ bir sözlük geçirir (bkz.
+    # çağrı yeri).
+    if yshifts is None:
+        yshifts = _stagger_yshifts(
+            [(b, b.high) for b in labeled], px_per_unit=px_per_unit, base=_BOX_YSHIFT_BASE,
+            step=10.0,
+        )
     for b in boxes:
         dash = "dot" if b.style == "range_box" else "solid"
         fig.add_shape(
@@ -238,10 +631,16 @@ def _draw_boxes(
         )
         if latest_t0 is not None and b.t0 != latest_t0.get(b.style):
             continue  # declutter: yalnızca bu stilin EN GÜNCEL kutusu etiketlenir
+        # Sağ kenara yakın kutular (ör. yeni oluşmuş bir Direnç/Destek
+        # Bölgesi) VP paneli varken sağa doğru büyüyünce panele taşıyordu —
+        # bkz. `_right_edge_cutoff` çağrı yeri. Yalnızca ANCHOR yönü
+        # değişir, konum (b.t0) AYNI kalır.
+        near_edge = has_vp and edge_cutoff is not None and b.t0 >= edge_cutoff
         fig.add_annotation(
             x=_x(b.t0), y=b.high, text=tr.tr_style(b.style), showarrow=False,
-            font=dict(size=9, color=line_color(theme, b.style)),
-            xanchor="left", yanchor="bottom", row=row, col=col,
+            font=dict(size=11, color=line_color(theme, b.style)),
+            xanchor="right" if near_edge else "left", yanchor="bottom",
+            yshift=yshifts.get(b, _BOX_YSHIFT_BASE), row=row, col=col,
         )
 
 
@@ -262,14 +661,141 @@ def _draw_polygons(
         )
 
 
+def _draw_harmonic_vertices(
+    fig: go.Figure, result: IndicatorResult, theme: Theme, row: int, col: int,
+    declutter: bool = True,
+) -> None:
+    """XAB/BCD üçgenlerinin gerçek fiyat pivotlarına (X, A, B, C) küçük bir
+    nokta + kısa harf etiketi ekler — önceden yalnızca son D etiketi vardı,
+    referans görselde ise (Görsel 5/6) A/C açıkça, X/B örtük olarak
+    işaretli. D noktası burada TEKRAR etiketlenmez (`_draw_markers` zaten
+    "D: fiyat [DURUM]" kutusunu çiziyor; `bcd` poligonunun 3. noktası zaten
+    gerçek bir pivot değil, `prz.center`).
+
+    `pid` (ör. `f"{school}_{pattern}_{pattern_id}"`) polygon etiketinin
+    (`{pid}_xab` / `{pid}_bcd`, bkz. `scanner_indicator.py`) son ekini
+    kırparak çıkarılır; hangi pid'lerin "en güncel" sayıldığı `_draw_
+    markers`'daki `visible_harmonic` seçimiyle AYNI mantıkla belirlenir
+    (harmonik Marker'lar `pid` taşımaz, ama `HarmonicIndicator.compute()`
+    her aday için TAM OLARAK bir Marker'ı `last_state[pid]` ile aynı
+    sırada ekler — bu yüzden `last_state` anahtarları ile ham (sıralanmamış)
+    harmonik Marker listesi indeks bazında eşleşir)."""
+    if not result.polygons:
+        return
+
+    harmonic_markers = [m for m in result.markers if m.kind.startswith("harmonic_")]
+    pids = list(result.last_state.keys())
+    recent_pids: set[str] | None = None
+    if declutter and pids and len(pids) == len(harmonic_markers):
+        paired = sorted(
+            zip(pids, harmonic_markers, strict=True), key=lambda pm: pm[1].t, reverse=True
+        )
+        recent_pids = {pid for pid, _m in paired[:_MAX_HARMONIC_MARKERS]}
+
+    by_pid: dict[str, dict[str, Polygon]] = {}
+    for p in result.polygons:
+        if p.label.endswith("_xab"):
+            by_pid.setdefault(p.label[: -len("_xab")], {})["xab"] = p
+        elif p.label.endswith("_bcd"):
+            by_pid.setdefault(p.label[: -len("_bcd")], {})["bcd"] = p
+
+    for pid, parts in by_pid.items():
+        if recent_pids is not None and pid not in recent_pids:
+            continue
+        xab, bcd = parts.get("xab"), parts.get("bcd")
+        vertices: list[tuple[object, float, str]] = []
+        if xab is not None and len(xab.points) >= 3:
+            (tx, px), (ta, pa), (tb, pb) = xab.points[0], xab.points[1], xab.points[2]
+            vertices += [(tx, px, "X"), (ta, pa, "A"), (tb, pb, "B")]
+        if bcd is not None and len(bcd.points) >= 2:
+            tc, pc = bcd.points[1]
+            vertices.append((tc, pc, "C"))
+        if not vertices:
+            continue
+        style = xab.style if xab is not None else bcd.style if bcd is not None else "bullish"
+        color = line_color(theme, style)
+        fig.add_trace(
+            go.Scatter(
+                x=[_x(t) for t, _p, _lbl in vertices], y=[p for _t, p, _lbl in vertices],
+                mode="markers",
+                marker=dict(size=6, color=color, line=dict(width=1, color=theme.bg)),
+                showlegend=False, hoverinfo="skip",
+            ),
+            row=row, col=col,
+        )
+        for t, price, label in vertices:
+            fig.add_annotation(
+                # Etiket rengi KASITLI OLARAK nokta/üçgen rengiyle (yön-renkli
+                # yeşil/kırmızı) AYNI DEĞİL — `theme.text` (nötr, yüksek
+                # kontrast) kullanılır: X/B noktaları çoğunlukla yoğun bir
+                # mum kümesinin TAM ORTASINA denk geliyor, yön-renkli metin
+                # (ör. yeşil "B", yeşil mumların üstünde) neredeyse görünmez
+                # oluyordu (gerçek veriyle bulunan bir davranış). `bgcolor`
+                # ile hafif bir "halo" da mumların üstünde okunabilirliği
+                # artırıyor.
+                x=_x(t), y=price, text=label, showarrow=False,
+                font=dict(size=12, color=theme.text, family=theme.font),
+                bgcolor=with_alpha(theme.bg, 0.75),
+                yshift=14, row=row, col=col,
+            )
+
+
 _DASH_FOR_STYLE = {"dashed": "dash", "dotted": "dot"}
+
+_LABEL_SUFFIX_TR: dict[str, str] = {
+    "_xb": "X-B",
+    "_xd_envelope": "Hedef Zarfı",
+    "_prz_low": "PRZ Alt",
+    "_prz_high": "PRZ Üst",
+}
+
+
+def _looks_like_raw_id(label: str) -> bool:
+    """`label`, insan için yazılmış kısa/okunur bir etiket DEĞİL de ham bir
+    dahili kompozit kimlik gibi mi görünüyor? (ör. harmonik `pid`:
+    `f"{school}_{pattern}_{x_idx}_{a_idx}_{b_idx}_{c_idx}"` — boşluksuz,
+    çok sayıda alt çizgi taşıyan, indeks yığını). `price_structure.py`/
+    `swing_fib_abcd.py`'nin ürettiği ZATEN kısa/anlamlı etiketler
+    ("VAH", "POC", "fib_0.618", "Direnç (Temas:6)", "Kırılım 2026-05-08
+    (Temas:3)") bu testten YANLIŞLIKLA geçmesin diye eşik bilinçli olarak
+    "boşluksuz VE ≥2 alt çizgi" — tek alt çizgili ("fib_0.618", "swing_2")
+    ya da boşluklu/parantezli (yukarıdaki Türkçe cümleler) etiketler
+    ham kimlik SAYILMAZ."""
+    return " " not in label and label.count("_") >= 2
+
+
+def _display_text(label: str, style: str) -> str:
+    """`Line.label`/`Level.label` bazı indikatörlerde (özellikle harmonik
+    tarayıcı) eşleştirme/declutter amacıyla taşınan UZUN kompozit bir kimlik
+    olabilir (ör. `f"{school}_{pattern}_{pattern_id}_prz_low"`) — bu ASLA
+    ekranda görünmemeli. Ama AYNI alan başka indikatörlerde ZATEN kısa/
+    Türkçe/anlamlı bir etiket taşıyor (`"VAH"`, `"POC"`, `"fib_0.618"`,
+    `"Direnç (Temas:6)"`) — bunları körü körüne `style`e indirgemek bilgi
+    kaybı olurdu (ör. VAH/VAL ikisi de `style="value_area"`, yalnızca
+    `label` ayırt eder). Bu yüzden yalnızca (a) bilinen bir ham-kimlik son
+    eki (`_LABEL_SUFFIX_TR`) VEYA (b) `_looks_like_raw_id()` ham kimlik
+    deseni eşleşirse `style`'dan kısa bir Türkçe metin türetilir; aksi
+    halde `label` OLDUĞU GİBİ gösterilir. `.label`'ın kendisi HİÇBİR yerde
+    değiştirilmez — yalnızca canvas'a yazılan `text=` bundan türetilir."""
+    for suffix, short in _LABEL_SUFFIX_TR.items():
+        if label.endswith(suffix):
+            return short
+    if _looks_like_raw_id(label):
+        return tr.tr_style(style)
+    return label
 
 
 def _draw_lines(
     fig: go.Figure, lines: list[Line], df: pd.DataFrame, theme: Theme, row: int, col: int,
-    latest_end: dict | None = None,
+    latest_end: dict | None = None, px_per_unit: float = 1.0,
 ) -> None:
     last_x = df.index[-1]
+    # Etiketlenecek uzatmaları (yalnızca latest_end'e uyanlar) topluyoruz —
+    # birden fazla FARKLI stildeki trendline'ın (ör. bir direnç + bir destek)
+    # uzatma etiketi aynı fiyat civarında bitip üst üste binebiliyordu; ikinci
+    # geçişte `_stagger_yshifts` ile bunları fanlıyoruz (bkz. `_draw_boxes`/
+    # `_draw_levels`'daki AYNI desen).
+    labeled_extensions: list[tuple[Line, object, float]] = []
     for ln in lines:
         color = line_color(theme, ln.style)
         style_dash = _DASH_FOR_STYLE.get(ln.style, "solid")
@@ -296,20 +822,33 @@ def _draw_lines(
             extension_seconds = min(remaining, span * 3) if span > 0 else remaining
             ext_time = dt1 + pd.Timedelta(seconds=extension_seconds)
             proj = p1 + slope * extension_seconds
+            # Uzatma çizgisi bilinçli olarak SOLUK — bacağın kendisi (yukarıdaki
+            # trace) sinyal taşır, uzatma yalnızca "izdüşüm yönü" gösteren
+            # yumuşak bir kılavuzdur; parlak/kalın olursa gerçek çizgiyle
+            # yarışıp görsel gürültü üretiyordu (kullanıcı geri bildirimi).
+            ext_color = with_alpha(theme.muted, 0.6)
             fig.add_trace(
                 go.Scatter(
                     x=[_x(t1), _x(ext_time)], y=[p1, proj], mode="lines",
-                    line=dict(color=color, width=1.2, dash="dash"),
+                    line=dict(color=ext_color, width=1.0, dash="dash"),
                     name=f"{ln.label}_uzatma", showlegend=False, hoverinfo="skip",
                 ),
                 row=row, col=col,
             )
             if latest_end is None or t1 == latest_end.get(ln.style):
-                fig.add_annotation(
-                    x=_x(ext_time), y=proj, text=ln.label, showarrow=False,
-                    font=dict(size=9, color=color), xanchor="right", yanchor="bottom",
-                    row=row, col=col,
-                )
+                labeled_extensions.append((ln, ext_time, proj))
+
+    yshifts = _stagger_yshifts(
+        [(ln, proj) for ln, _et, proj in labeled_extensions],
+        px_per_unit=px_per_unit, base=_LINE_EXT_YSHIFT, step=14.0,
+    )
+    for ln, ext_time, proj in labeled_extensions:
+        fig.add_annotation(
+            x=_x(ext_time), y=proj, text=_display_text(ln.label, ln.style),
+            showarrow=False, font=dict(size=10, color=theme.muted),
+            xanchor="right", yanchor="bottom",
+            yshift=yshifts.get(ln, _LINE_EXT_YSHIFT), row=row, col=col,
+        )
 
 
 _LEVEL_DASH = {
@@ -352,9 +891,23 @@ def _level_color(theme: Theme, lv: Level) -> str:
 
 
 def _draw_levels(
-    fig: go.Figure, levels: list[Level], df: pd.DataFrame, theme: Theme, row: int, col: int
+    fig: go.Figure, levels: list[Level], df: pd.DataFrame, theme: Theme, row: int, col: int,
+    px_per_unit: float = 1.0, yshifts: dict[object, float] | None = None,
+    has_vp: bool = False, edge_cutoff: datetime | None = None,
 ) -> None:
     first_x, last_x = df.index[0], df.index[-1]
+    # Level'lar HER ZAMAN yukarı (+) yönde fanlanır (aynı gerekçe: bkz.
+    # `_draw_boxes`), `_LINE_EXT_YSHIFT`in negatif şeridine ASLA düşmez.
+    # `yshifts` verilmezse (ör. doğrudan/testte çağrılırsa) kendi başına,
+    # yalnızca Level'lar arasında hesaplar — `_render_price_based` normalde
+    # Box'larla BİRLEŞTİRİLMİŞ bir sözlük geçirir (bkz. çağrı yeri, iki
+    # kategori de AYNI "confluence" bölgesinde toplanabildiği için tek ortak
+    # merdivende fanlanmaları gerekiyordu).
+    if yshifts is None:
+        yshifts = _stagger_yshifts(
+            [(lv, lv.price) for lv in levels], px_per_unit=px_per_unit,
+            base=_LEVEL_YSHIFT_BASE, step=10.0,
+        )
     for lv in levels:
         x0 = lv.start if lv.start is not None else first_x
         x1 = lv.end if lv.end is not None else last_x
@@ -364,10 +917,17 @@ def _draw_levels(
             type="line", x0=_x(x0), x1=_x(x1), y0=lv.price, y1=lv.price,
             line=dict(color=color, width=1, dash=dash), row=row, col=col,
         )
+        # POC/VAH/VAL gibi `end=None` Level'lar HER ZAMAN x1=last_x'e
+        # sabitlenir — VP paneli varken bu, etiketin sağa doğru büyüyüp
+        # komşu panele/y-ekseni tik yazısına binmesine yol açıyordu (gerçek
+        # veriyle bulunan bir çakışma — bkz. CLAUDE.md 2026-08-29 kaydı).
+        # Konum (x1) AYNI kalır, yalnızca ANCHOR yönü değişir (metin SOLA
+        # büyür, panelin İÇİNDE kalır).
+        near_edge = has_vp and edge_cutoff is not None and x1 >= edge_cutoff
         fig.add_annotation(
-            x=_x(x1), y=lv.price, text=lv.label, showarrow=False,
-            font=dict(size=9, color=color), xanchor="left", yanchor="bottom",
-            row=row, col=col,
+            x=_x(x1), y=lv.price, text=_display_text(lv.label, lv.style), showarrow=False,
+            font=dict(size=11, color=color), xanchor="right" if near_edge else "left",
+            yanchor="bottom", yshift=yshifts.get(lv, _LEVEL_YSHIFT_BASE), row=row, col=col,
         )
 
 
@@ -395,7 +955,7 @@ def _draw_markers(
             above = m.text in ("HH", "LH")
             fig.add_annotation(
                 x=_x(m.t), y=m.price, text=m.text, showarrow=False,
-                font=dict(size=10, color=color, family=theme.font),
+                font=dict(size=11, color=color, family=theme.font),
                 yshift=12 if above else -12, row=row, col=col,
             )
         elif m.kind.startswith("harmonic_"):
@@ -405,7 +965,7 @@ def _draw_markers(
             color = line_color(theme, "bearish" if state == "invalidated" else "bullish")
             fig.add_annotation(
                 x=_x(m.t), y=m.price, text=m.text, showarrow=True, arrowhead=2, arrowcolor=color,
-                font=dict(size=10, color=theme.text), bgcolor=theme.bg, bordercolor=color,
+                font=dict(size=11, color=theme.text), bgcolor=theme.bg, bordercolor=color,
                 ax=30, ay=-30, row=row, col=col,
             )
         elif m.kind == "pair_signal":
@@ -413,7 +973,7 @@ def _draw_markers(
         else:
             fig.add_annotation(
                 x=_x(m.t), y=m.price, text=m.text, showarrow=False,
-                font=dict(size=9, color=theme.muted), yshift=10, row=row, col=col,
+                font=dict(size=10, color=theme.muted), yshift=10, row=row, col=col,
             )
 
 
@@ -517,18 +1077,52 @@ def _draw_volume_profile(
         fig.add_trace(
             go.Scatter(
                 x=gauss.to_numpy(), y=gauss.index.to_numpy(), mode="lines",
-                line=dict(color=theme.yellow, width=2), name="Gaussian Fit", showlegend=True,
+                # `theme.accent` (marka rengi) — bkz. themes.py docstring'i:
+                # bu eğri hacim profilinin KARARA-DEĞER özeti (yoğunlaşma
+                # şekli), eskiden keyfi bir sarıydı.
+                line=dict(color=theme.accent, width=2), name="Gaussian Fit", showlegend=True,
             ),
             row=row, col=col,
         )
 
 
 # ---------------------------------------------------------------- pair mod --
+#
+# 2026-08-29: kullanıcı, `_render_pair`e (o zaman) az önce uygulanan
+# paylaşılan "aracı kurum raporu" tasarım geçişini (`_apply_layout`/
+# `_draw_header`'ın büyük 2 satırlık masthead'i + tek sağ-taraf legend'ı +
+# `light_analysis` kart/dipnot çerçevesi) BU grafik için reddetti — referans
+# ekran görüntüsüne (`images/Ekran görüntüsü 2026-08-26 203751.png`) yakın,
+# KENDİNE ÖZGÜ küçük/derli-toplu bir üst şerit + panel-başına legend + saf
+# siyah zemin istedi. `_render_price_based`/`light_analysis` (yapı/harmonik
+# panelleri) tarafı kullanıcının ZATEN memnun olduğu, DOKUNULMAYAN kısım —
+# bu yüzden pair modu artık `_apply_layout`/`_draw_header`/`_draw_card_frame`ı
+# HİÇ ÇAĞIRMIYOR, kendi `_apply_pair_layout`/`_draw_pair_header`'ına sahip
+# (yalnızca ortak, nötr `_draw_footer`'ı — dipnot metni — paylaşıyor).
+
+
+_PAIR_SUBPLOT_TITLES = (
+    "1- Fiyat Yakınlığı (Normalize)",
+    "2- Portföy Performansı",
+    "3- Z-Skoru ve Momentum Dönüş Onaylı İşlemler",
+)
+
+_PAIR_MARGIN_T = 58.0
+_PAIR_MARGIN_B = 40.0
+_PAIR_HEADER_ROW1_PX = 36.0
+_PAIR_HEADER_ROW2_PX = 14.0
+
+_ZONE_STATE_TR: dict[str, str] = {
+    "asiri_bolgede": "AŞIRI BÖLGEDE",
+    "bolgeye_yaklasiyor": "BÖLGEYE YAKLAŞIYOR",
+    "notr": "NÖTR",
+    "veri_yok": "VERİ YOK",
+}
+_STRATEGY_NAME_TR = "LONG-ONLY ROLATIF MOMENTUM (Dönüş Onaylı)"
 
 
 def _render_pair(result: IndicatorResult, theme: Theme, last_n: int | None) -> go.Figure:
     s = result.series
-    ls = result.last_state
     idx_full = s["y_norm"].index
     idx_dt = idx_full[-last_n:] if last_n and last_n < len(idx_full) else idx_full
     idx = _xs(idx_dt)  # trace x= için string; .loc[] seçimi idx_dt ile yapılır
@@ -538,14 +1132,11 @@ def _render_pair(result: IndicatorResult, theme: Theme, last_n: int | None) -> g
         return s[key].loc[idx_dt]
 
     fig = make_subplots(
-        rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.06,
+        rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.08,
         row_heights=[0.34, 0.33, 0.33],
-        subplot_titles=(
-            "1- Fiyat Yakınlığı (Normalize)",
-            "2- Portföy Performansı",
-            "3- Z-Skoru ve Momentum Dönüş Onaylı İşlemler",
-        ),
+        subplot_titles=_PAIR_SUBPLOT_TITLES,
     )
+    _style_pair_subplot_titles(fig, theme)
 
     # NOT: `add_vrect(row=...)` bir subplot'a ilk trace eklenmeden önce
     # çağrılırsa Plotly (7.x) shape'i SESSİZCE hiç eklemez (Faz 7'de gerçek
@@ -566,12 +1157,14 @@ def _render_pair(result: IndicatorResult, theme: Theme, last_n: int | None) -> g
         ),
         row=1, col=1,
     )
+    _add_holding_legend_swatches(fig, theme, y_symbol, x_symbol, row=1)
 
     baseline = float(s["portfolio"].iloc[0])
     fig.add_trace(
         go.Scatter(
             x=idx, y=sel("buyhold_5050"), mode="lines",
             line=dict(color=theme.gray, width=1.2, dash="dash"), name="Buy & Hold (50/50)",
+            legend="legend2",
         ),
         row=2, col=1,
     )
@@ -579,24 +1172,41 @@ def _render_pair(result: IndicatorResult, theme: Theme, last_n: int | None) -> g
         go.Scatter(
             x=idx, y=sel("portfolio"), mode="lines",
             line=dict(color=theme.green, width=1.8), name="Rölatif Momentum Portföyü",
+            legend="legend2",
         ),
         row=2, col=1,
     )
-    fig.add_hline(y=baseline, line=dict(color=theme.muted, width=1, dash="dot"), row=2, col=1)
+    # `add_hline` (shape) yerine gerçek bir trace: hem çizgiyi çizer hem de
+    # "Başlangıç" panel-2 legend'ında bir öğe olarak görünmesini sağlar
+    # (shape'ler Plotly legend'ına hiç girmez).
+    fig.add_trace(
+        go.Scatter(
+            x=[idx[0], idx[-1]], y=[baseline, baseline], mode="lines",
+            line=dict(color=theme.muted, width=1, dash="dot"), name="Başlangıç",
+            legend="legend2", hoverinfo="skip",
+        ),
+        row=2, col=1,
+    )
 
     fig.add_trace(
         go.Scatter(
             x=idx, y=sel("z"), mode="lines",
-            line=dict(color=theme.orange, width=1.6), name="Z-Skoru",
+            line=dict(color=theme.orange, width=1.6), name="Z-Skoru", legend="legend3",
         ),
         row=3, col=1,
     )
     _draw_holding_boxes(fig, result.boxes, theme, row=3)
+    # Eşik değeri (`k`) etikete eklenir — referans ekran görüntüsü
+    # "(+2.0)"/"(-2.0)" gösteriyor; bu YENİ bir hesap değil, `upper`/`lower`
+    # serileri zaten SABİT `±k` değerini taşıyor (bkz. relative_momentum.py),
+    # burada yalnızca aynı sabitin biçimlendirilmesi.
+    upper_k = float(sel("upper").iloc[0])
+    lower_k = float(sel("lower").iloc[0])
     fig.add_trace(
         go.Scatter(
             x=idx, y=sel("upper"), mode="lines",
             line=dict(color=theme.red, width=1, dash="dash"),
-            name=f"Aşırı Ucuz {x_symbol} Sınırı",
+            name=f"Aşırı Ucuz {x_symbol} Sınırı ({upper_k:+.1f})", legend="legend3",
         ),
         row=3, col=1,
     )
@@ -604,7 +1214,7 @@ def _render_pair(result: IndicatorResult, theme: Theme, last_n: int | None) -> g
         go.Scatter(
             x=idx, y=sel("lower"), mode="lines",
             line=dict(color=theme.green, width=1, dash="dash"),
-            name=f"Aşırı Ucuz {y_symbol} Sınırı",
+            name=f"Aşırı Ucuz {y_symbol} Sınırı ({lower_k:+.1f})", legend="legend3",
         ),
         row=3, col=1,
     )
@@ -615,20 +1225,179 @@ def _render_pair(result: IndicatorResult, theme: Theme, last_n: int | None) -> g
         color = theme.blue if m.text.startswith(y_symbol) else theme.gray
         fig.add_annotation(
             x=_x(m.t), y=m.price, text=m.text, showarrow=False,
-            font=dict(size=9, color=theme.text), bgcolor=theme.bg, bordercolor=color, borderwidth=1,
+            font=dict(size=10, color=theme.text), bgcolor=theme.bg,
+            bordercolor=color, borderwidth=1,
             yshift=14 if m.price >= 0 else -14, row=3, col=1,
         )
 
+    line1_text, line1_color, line2_text = _pair_header_lines(
+        result, theme, y_symbol, x_symbol, idx_dt[-1],
+    )
+    _apply_pair_layout(fig, theme, line1_text, line1_color, line2_text, height=860, width=1500)
+    return fig
+
+
+def _style_pair_subplot_titles(fig: go.Figure, theme: Theme) -> None:
+    """`make_subplots(subplot_titles=...)`'ın varsayılan gri başlık rengi
+    yerine referans ekran görüntüsündeki yeşil vurguyu uygular. Metne göre
+    hedefler (yalnızca bilinen 3 pair alt-panel başlığı) — HESAP yapılmaz,
+    salt stil; bu fonksiyon `make_subplots()`'tan HEMEN sonra, başka hiçbir
+    annotation eklenmeden önce çağrılmalı (metin eşleşmesinin belirsizliğe
+    düşmemesi için, gerçi metinler zaten proje-içi sabit/benzersiz)."""
+    color = theme.green
+    fig.for_each_annotation(
+        lambda a: a.update(font=dict(color=color, size=13, family=theme.font))
+        if a.text in _PAIR_SUBPLOT_TITLES else None
+    )
+
+
+def _add_holding_legend_swatches(
+    fig: go.Figure, theme: Theme, y_symbol: str, x_symbol: str, row: int,
+) -> None:
+    """Tutulan-dönem gölgeleri `add_vrect` (shape) ile çizildiği için Plotly
+    legend'ına kendiliğinden GİRMEZ — referans ekran görüntüsü panel 1
+    legend'ında "TCELL Tutulan Dönemler"/"ISCTR Tutulan Dönemler" renk
+    kareleri gösteriyor, bu yüzden verisiz (yalnızca legend-amaçlı) iki
+    `Scatter` eklenir (bkz. `_FILL_STYLE_COLOR`'daki y_holding/x_holding
+    renkleri — themes.py)."""
+    # `x=[None]` (tek, ama boş bir nokta) kasıtlı — `x=[]` (tam boş dizi)
+    # kaleido'nun statik PNG dışa aktarımında legend girdisini SESSİZCE
+    # düşürüyordu (gerçek render ile bulunan bir davranış; HTML/interaktif
+    # görünümde sorun yoktu, yalnızca `fig.write_image` yolunda).
+    fig.add_trace(
+        go.Scatter(
+            x=[None], y=[None], mode="markers",
+            marker=dict(symbol="square", size=10, color=fill_color(theme, "y_holding", 0.9)),
+            name=f"{y_symbol} Tutulan Dönemler", showlegend=True, hoverinfo="skip",
+        ),
+        row=row, col=1,
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[None], y=[None], mode="markers",
+            marker=dict(symbol="square", size=10, color=fill_color(theme, "x_holding", 0.9)),
+            name=f"{x_symbol} Tutulan Dönemler", showlegend=True, hoverinfo="skip",
+        ),
+        row=row, col=1,
+    )
+
+
+def _pair_header_lines(
+    result: IndicatorResult, theme: Theme, y_symbol: str, x_symbol: str, last_dt: object,
+) -> tuple[str, str, str]:
+    """Referans ekran görüntüsündeki 2 satırlık kompakt başlığın metnini
+    üretir — TAMAMI zaten `last_state`'te hesaplanmış özet istatistiklerin
+    (`net_pnl`/`return_pct`/`n_trades`/`z_today`/`zone_state`/`holding`)
+    BİÇİMLENDİRİLMESİ, yeni bir indikatör hesabı DEĞİL (görev kısıtıyla
+    aynı — eski tek satırlık başlık da bunu yapıyordu). Satır 1: sinyal
+    durumu (bugün yeni sinyal varsa `signal_today` metni + yeşil; yoksa
+    `zone_state`'in Türkçe karşılığı + nötr/beyaz) | pozisyon | Z geçişi |
+    tarih. Satır 2: strateji adı (sabit metin) | çift | net K/Z | geçiş
+    sayısı."""
+    ls = result.last_state
     z_today, z_yday = ls.get("z_today"), ls.get("z_yesterday")
     z_str = (
-        f"{z_yday:.3f} -> {z_today:.3f}" if z_today is not None and z_yday is not None else "---"
+        f"Z: {z_yday:.3f} → {z_today:.3f}"
+        if z_today is not None and z_yday is not None else "Z: —"
     )
-    signal_today = ls.get("signal_today") or "DURUM"
-    holding_sym = ls.get("holding") or "---"
-    date_str = _fmt_date(idx[-1])
-    title = f"{signal_today} | {holding_sym} AL | Z: {z_str} | {date_str}"
-    _apply_layout(fig, theme, title, height=780)
-    return fig
+    holding_sym = ls.get("holding")
+    signal_today = ls.get("signal_today")
+
+    if signal_today:
+        durum, color = str(signal_today), theme.green
+    else:
+        durum, color = _ZONE_STATE_TR.get(str(ls.get("zone_state")), "NÖTR"), theme.text
+
+    if holding_sym is None:
+        pos_str = "Pozisyon Yok"
+    else:
+        side_desc = (
+            "Y Ucuz -> Dönüş Onaylandı" if holding_sym == y_symbol
+            else "X Ucuz -> Dönüş Onaylandı"
+        )
+        pos_str = f"{holding_sym} AL ({side_desc})"
+
+    line1 = f"{durum} | {pos_str} | {z_str} | {_fmt_date(last_dt)}"
+
+    net_pnl = ls.get("net_pnl") or 0.0
+    return_pct = ls.get("return_pct") or 0.0
+    n_trades = ls.get("n_trades") or 0
+    line2 = (
+        f"{_STRATEGY_NAME_TR} | {y_symbol} <-> {x_symbol} | "
+        f"K/Z: {net_pnl:+,.0f} TL (%{return_pct:+.1f}) | Geçiş: {n_trades} kez"
+    )
+    return line1, color, line2
+
+
+def _apply_pair_layout(
+    fig: go.Figure, theme: Theme, line1_text: str, line1_color: str, line2_text: str,
+    height: int, width: int,
+) -> None:
+    """`_apply_layout`'un pair-moduna özgü KÜÇÜK karşılığı — büyük masthead/
+    kart çerçevesi/tek sağ-legend YERİNE: saf siyah zemin, 2 satırlık
+    kompakt sol-hizalı başlık, panel-başına legend (`legend`/`legend2`/
+    `legend3`). Dipnot (`_draw_footer`) hâlâ paylaşılıyor — o nötr, pair'e
+    özgü hiçbir varsayım taşımıyor."""
+    fig.update_layout(
+        paper_bgcolor=theme.page_bg,
+        plot_bgcolor=theme.bg,
+        font=dict(color=theme.text, family=theme.font, size=11),
+        height=height,
+        width=width,
+        margin=dict(l=56, r=40, t=_PAIR_MARGIN_T, b=_PAIR_MARGIN_B),
+        xaxis_rangeslider_visible=False,
+    )
+    fig.update_xaxes(gridcolor=theme.grid, zerolinecolor=theme.grid, showspikes=False)
+    fig.update_yaxes(gridcolor=theme.grid, zerolinecolor=theme.grid)
+    plot_h = max(height - _PAIR_MARGIN_T - _PAIR_MARGIN_B, 50.0)
+    _draw_pair_header(fig, theme, line1_text, line1_color, line2_text, plot_h)
+    _draw_footer(fig, theme, plot_h)
+    _apply_pair_legends(fig, theme)
+
+
+def _draw_pair_header(
+    fig: go.Figure, theme: Theme, line1_text: str, line1_color: str, line2_text: str,
+    plot_h: float,
+) -> None:
+    """Referans ekran görüntüsündeki gibi küçük/sol-hizalı 2 satır — jenerik
+    modun büyük sol-sembol/sağ-değer masthead'inin AKSİNE tek bir sol
+    sütunda, ayraç çizgisi yok (referansta da yok)."""
+    row1_y = 1.0 + _PAIR_HEADER_ROW1_PX / plot_h
+    row2_y = 1.0 + _PAIR_HEADER_ROW2_PX / plot_h
+    fig.add_annotation(
+        x=0.0, y=row1_y, xref="paper", yref="paper", xanchor="left", yanchor="bottom",
+        text=f"<b>{line1_text}</b>", showarrow=False,
+        font=dict(family=theme.font, size=13, color=line1_color),
+    )
+    fig.add_annotation(
+        x=0.0, y=row2_y, xref="paper", yref="paper", xanchor="left", yanchor="bottom",
+        text=line2_text, showarrow=False,
+        font=dict(family=theme.font, size=10.5, color=theme.muted),
+    )
+
+
+def _apply_pair_legends(fig: go.Figure, theme: Theme) -> None:
+    """Görev kısıtı: tek sağ-taraf legend YERİNE panel-başına (sol-üst
+    köşe) 3 ayrı legend — Plotly 5.15+'da desteklenen `legend`/`legend2`/
+    `legend3` mekanizması (yüklü sürüm burada kontrol EDİLMEZ, çağıran
+    modül seviyesinde `plotly.__version__` kontrolü yapılmış olmalı; proje
+    ortamında 7.0.0 doğrulandı). Her legend'ın y konumu, o satırın GERÇEK
+    (make_subplots'ın row_heights/vertical_spacing'den hesapladığı) yaxis
+    domain'inin tepesinden okunur — sabit bir kesir VARSAYILMAZ, çünkü
+    row_heights değişirse (ör. ileride) domain de değişir."""
+    y1 = fig.layout.yaxis.domain
+    y2 = fig.layout.yaxis2.domain
+    y3 = fig.layout.yaxis3.domain
+    common = dict(
+        bgcolor=with_alpha(theme.bg, 0.75), bordercolor=theme.border, borderwidth=1,
+        font=dict(color=theme.text, size=9),
+    )
+    fig.update_layout(
+        showlegend=True,
+        legend=dict(x=0.008, y=y1[1] - 0.012, xanchor="left", yanchor="top", **common),
+        legend2=dict(x=0.008, y=y2[1] - 0.012, xanchor="left", yanchor="top", **common),
+        legend3=dict(x=0.008, y=y3[1] - 0.012, xanchor="left", yanchor="top", **common),
+    )
 
 
 def _draw_holding_boxes(fig: go.Figure, boxes: list[Box], theme: Theme, row: int) -> None:
@@ -636,6 +1405,9 @@ def _draw_holding_boxes(fig: go.Figure, boxes: list[Box], theme: Theme, row: int
         if b.style not in ("y_holding", "x_holding"):
             continue
         fig.add_vrect(
-            x0=_x(b.t0), x1=_x(b.t1), fillcolor=fill_color(theme, b.style, 0.20), line_width=0,
+            # 0.20 -> 0.28: referans ekran görüntüsündeki "fairly saturated"
+            # (görev metninin kendi ifadesi) gölge, saf siyah zemine karşı
+            # eski opaklıkla fazla soluk kalıyordu.
+            x0=_x(b.t0), x1=_x(b.t1), fillcolor=fill_color(theme, b.style, 0.28), line_width=0,
             layer="below", row=row, col=1,
         )

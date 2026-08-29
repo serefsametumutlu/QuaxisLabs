@@ -391,7 +391,11 @@ def plot_cmd(
     ),
     market: str = typer.Option("bist", "--market", help="bist | nasdaq"),
     theme: str = typer.Option("auto", "--theme", help="auto | dark | light"),
-    last_n: int = typer.Option(250, "--last-n", help="Yalnızca son N barı göster (0 = tüm geçmiş)"),
+    last_n: int = typer.Option(
+        None, "--last-n",
+        help="Yalnızca son N barı göster (0=tüm geçmiş; boş=otomatik: "
+             "harmonikte en güncel adaya yakınlaştırır, diğerlerinde son 250 bar)",
+    ),
     show_all: bool = typer.Option(
         False, "--show-all",
         help="Eski/çözülmüş aday ve seviyeleri de tam etiketle (varsayılan: yalnızca en güncel)",
@@ -408,7 +412,7 @@ def plot_cmd(
     try:
         fig = render_live(
             indicator, symbol, tf, market, theme=theme,
-            last_n=(last_n or None), declutter=not show_all,
+            last_n=last_n, declutter=not show_all,
         )
     except (ValueError, FileNotFoundError) as exc:
         typer.echo(str(exc), err=True)
@@ -420,7 +424,7 @@ def plot_cmd(
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)
     if out_path.suffix == ".png":
-        fig.write_image(str(out_path))
+        fig.write_image(str(out_path), scale=2)
     else:
         fig.write_html(str(out_path), include_plotlyjs="cdn")
     typer.echo(f"Grafik: {out_path}")

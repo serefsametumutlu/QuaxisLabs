@@ -1,8 +1,9 @@
 """`tlab/viz/renderer.py` için hedefli testler — Faz 7'de GERÇEK veriyle
-render edilirken bulunan 3 hatanın regresyonları + iki temel duman testi.
-Bu modül HESAP yapmadığı (yalnızca IndicatorResult primitiflerini çizdiği)
-için repaint_test kapsamı dışıdır; burada doğrulanan yalnızca "veri doğruysa
-çıktı figürü de doğru mu" sorusu."""
+render edilirken bulunan 3 hatanın regresyonları + iki temel duman testi +
+2026-08-29 görsel-kalite düzeltmesinin (bkz. CLAUDE.md) 2 regresyonu (raw
+pid sızıntısı, harmonik köşe etiketleri). Bu modül HESAP yapmadığı (yalnızca
+IndicatorResult primitiflerini çizdiği) için repaint_test kapsamı dışıdır;
+burada doğrulanan yalnızca "veri doğruysa çıktı figürü de doğru mu" sorusu."""
 
 from __future__ import annotations
 
@@ -10,9 +11,11 @@ import re
 
 import pandas as pd
 
+from tests.test_harmonics.fixtures import build_gartley_ohlcv
 from tests.test_pairs.fixtures import build_cointegrated_pair
 from tests.test_structure.fixtures import build_abcd_ohlcv
 from tlab.core.types import Box, IndicatorResult, Line, Timeframe
+from tlab.indicators.harmonics.scanner_indicator import HarmonicIndicator, HarmonicParams
 from tlab.indicators.pairs.relative_momentum import RelativeMomentumPair, RelativeMomentumParams
 from tlab.indicators.structure.price_structure import PriceStructure, PriceStructureParams
 from tlab.indicators.structure.swing_fib_abcd import SwingFibABCD, SwingFibABCDParams
@@ -124,3 +127,57 @@ def test_fill_and_line_colors_agree_on_direction() -> None:
         fill_rgb = _rgb(fill_color(DARK_TERMINAL, style, 0.5))
         expected_rgb = tuple(int(expected_hex.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4))
         assert fill_rgb == expected_rgb
+
+
+def _render_gartley() -> tuple[IndicatorResult, pd.DataFrame]:
+    df = build_gartley_ohlcv()
+    params = HarmonicParams(left=2, right=2, confirmation_policy="close_reversal", reversal_bars=1)
+    result = HarmonicIndicator("carney", params)(df)
+    result.symbol = "TEST"
+    return result, df
+
+
+def test_no_raw_internal_id_in_rendered_annotation_text() -> None:
+    """Regresyon (2026-08-29 görsel-kalite düzeltmesi, bkz. CLAUDE.md):
+    `_draw_lines`/`_draw_levels` eskiden `Line.label`/`Level.label`'ı
+    OLDUĞU GİBİ `text=` olarak basıyordu — harmonik tarayıcıda bu, uzun bir
+    dahili kompozit kimlik (`f"{school}_{pattern}_{x_idx}_{a_idx}_{b_idx}_
+    {c_idx}_prz_low"` gibi) demekti ve canlı grafikte çıplak "pesavento_g..."
+    metni olarak görünüyordu. `_display_text()` artık ya bilinen bir son ek
+    üzerinden (`_prz_low`→"PRZ Alt" vb.) ya da `style`'dan kısa bir Türkçe
+    metin türetiyor; hiçbir grafik-üzerindeki (Level/Line/Marker kaynaklı)
+    annotation metni ekol/pattern/pattern_id parçalarını (`carney`,
+    `gartley`, `pattern_id`'nin alt çizgili indeks yığını gibi) HAM olarak
+    içermemeli. `xref="paper"` olan masthead annotation'ları (2026-08-29
+    tasarım geçişi, bkz. CLAUDE.md — `_draw_header`'ın alt başlığı MEŞRU
+    olarak "Sistem: Carney" gibi okunur bir cümle içerir) bu denetimin
+    KAPSAMI DIŞINDA — onlar ham bir dahili kimlik değil, kasıtlı Türkçe
+    rapor metni."""
+    result, df = _render_gartley()
+    fig = render(result, df, theme="light")
+    raw_id_fragments = ("carney", "pesavento", "gartley", "pattern_id")
+    for ann in fig.layout.annotations:
+        if ann.xref == "paper" and ann.yref == "paper":
+            continue  # masthead/dipnot — bkz. docstring
+        text_lower = str(ann.text).lower()
+        for fragment in raw_id_fragments:
+            assert fragment not in text_lower, f"ham kimlik sızıntısı: {ann.text!r}"
+        # Ham kimlikler alt çizgi ağırlıklı, boşluksuz uzun dizeler biçiminde
+        # olur (ör. "carney_gartley_5_10_15_20_prz_low") — kısa/okunur
+        # etiketler ("PRZ Alt", "X-B", "Direnç (Temas:6)") bu deseni taşımaz.
+        assert not (" " not in str(ann.text) and str(ann.text).count("_") >= 2), ann.text
+
+
+def test_harmonic_vertices_labeled_for_recent_candidate() -> None:
+    """Regresyon (2026-08-29): eskiden yalnızca son "D: fiyat [DURUM]"
+    etiketi vardı — XAB/BCD üçgenlerinin gerçek pivotları (X, A, B, C) hiç
+    işaretlenmiyordu. `_draw_harmonic_vertices` artık en güncel adayların
+    her köşesine küçük bir nokta + harf etiketi ekliyor (D hariç — o zaten
+    `_draw_markers`'ın "D: ..." kutusunda var, burada TEKRAR edilmiyor)."""
+    result, df = _render_gartley()
+    fig = render(result, df, theme="light")
+    vertex_texts = [ann.text for ann in fig.layout.annotations if ann.text in ("X", "A", "B", "C")]
+    assert {"X", "A", "B", "C"} <= set(vertex_texts)
+    # D noktası burada tekrar EKLENMEMELİ (yalnızca "D: fiyat [...]" formunda,
+    # tek başına "D" harfi olarak DEĞİL).
+    assert "D" not in vertex_texts

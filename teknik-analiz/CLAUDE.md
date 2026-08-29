@@ -138,6 +138,249 @@ için `tlab/testing/lint_lookahead.py` da var (CLI: `tlab lint`).
   varsayılanı eklendi (yalnızca her stilin EN GÜNCEL örneği tam etiketlenir), `tlab
   plot`'un `--last-n` varsayılanı 250'ye düşürüldü, `--show-all` ile eski davranışa
   dönülebilir. 3 yeni test (219→222).
+- **Görselleştirme kalite düzeltmesi** (2026-08-29, kullanıcı verdiği 2 referans ekran
+  görüntüsüyle `outputs/samples/tcell_price_structure.png` ve `alark_harmonic_pesavento.png`
+  karşılaştırılarak bulundu): TAMAMLANDI. Kullanıcı geri bildirimi: dışa aktarılan PNG'ler
+  referanslara göre küçük/bulanık, harmonik köşe (X/A/B/C) hiç işaretlenmiyordu ve grafik
+  metinleri (özellikle direnç/destek/POC/VAH/VAL kümelendiği "confluence" bölgelerinde)
+  okunaksız üst üste biniyordu. Altı somut düzeltme:
+  1. `_apply_layout`'a açık `width` (varsayılan 1600, pair modunda 1500) ve yükseklik
+     tabanı büyütme (`600+180*n_sub`, eskiden `520+160*n_sub`) eklendi; `tlab plot`'un
+     `.png` çıktısında `fig.write_image(..., scale=2)` — eskiden kaleido `width=`
+     verilmeden ~700px'e düşüyordu, bu yüzden tüm örnek PNG'ler referanslara göre
+     küçük/sıkışık görünüyordu.
+  2. **Gerçek hata** — `_draw_lines`/`_draw_levels`, `Line.label`/`Level.label`'ı (ör.
+     harmonik tarayıcının `f"{school}_{pattern}_{x_idx}_{a_idx}_{b_idx}_{c_idx}_prz_low"`
+     gibi dahili eşleştirme kimliklerini) OLDUĞU GİBİ `text=` yapıyordu — grafikte çıplak
+     "pesavento_g..." metni görünüyordu. Yeni `_display_text()`: bilinen bir son ek
+     varsa (`_xb`→"X-B", `_xd_envelope`→"Hedef Zarfı", `_prz_low`→"PRZ Alt",
+     `_prz_high`→"PRZ Üst") kısa Türkçe karşılığını, `_looks_like_raw_id()` (boşluksuz +
+     ≥2 alt çizgi) ham-kimlik deseni eşleşirse `tr_style(style)`'ı kullanır; AKSİ HALDE
+     `label` OLDUĞU GİBİ bırakılır — `price_structure.py`/`swing_fib_abcd.py`'nin ZATEN
+     kısa/anlamlı etiketleri ("VAH"/"VAL" — ikisi de `style="value_area"`, yalnızca
+     `label` ayırt eder —, "fib_0.618", "Direnç (Temas:6)") bu ayrım OLMASAYDI `style`e
+     indirgenip bilgi kaybederdi (ilk taslakta tam bu regresyon yaşandı, düzeltildi).
+  3. Etiket çakışması: `_draw_boxes`/`_draw_levels`/`_draw_lines` artık `_stagger_
+     yshifts()` adlı ortak bir "cetvel" sezgisi kullanıyor — `price`e göre sıralı işlenir,
+     her öğeye `base + n*step` (n=0,1,2,…, HEP aynı işarette tek yönde büyür) biçiminde bir
+     `yshift` atanır; `n`, bu öğenin EKRAN konumunu (`price + offset/px_per_unit`,
+     `px_per_unit` ana panelin tahmini piksel-yüksekliğinden hesaplanır) bir ÖNCEKİ
+     öğeninkinden `_STAGGER_TRIGGER_PX` (18px) uzaklaştıracak kadar büyütülür — `n` HİÇBİR
+     ZAMAN küçültülmez (aksi halde ekran konumları `price` sırasıyla tutarlı artmaz/azalmaz,
+     bu da "yalnızca bir öncekiyle kıyasla" kontrolünü GEÇERSİZ kılardı — ilk taslaklarda
+     tam bu yüzden ara sıra kaçırılan çakışmalar gözlendi, iteratif olarak düzeltildi).
+     Kutu (Direnç/Destek Bölgesi, Konsolidasyon) ve Level (POC/VAH/VAL) etiketleri AYNI
+     "confluence" bölgesinde toplandığı için TEK ortak merdivende (birleştirilmiş liste)
+     fanlanıyor; çizgi-uzatma etiketleri (ör. "Direnç (Temas:6)") kendi AYRI, hep aşağı
+     büyüyen şeridinde kalıyor (böylece iki kategori asla birbirinin şeridine düşmüyor).
+  4. Harmonik X/A/B/C köşe noktalarına (`_draw_harmonic_vertices`, yeni) nokta + harf
+     etiketi eklendi — eskiden yalnızca son "D: fiyat [DURUM]" kutusu vardı. D noktası
+     BURADA tekrar etiketlenmiyor (zaten `_draw_markers`'ta var, `bcd` poligonunun 3.
+     noktası da gerçek bir pivot değil, `prz.center`). Hangi adayların "en güncel"
+     sayıldığı `_draw_markers`'daki `_MAX_HARMONIC_MARKERS` seçimiyle AYNI mantıkla
+     (harmonik Marker'lar `pid` taşımadığı için `last_state` anahtarlarıyla ham marker
+     listesinin indeks bazında eşleştiği gözlemine dayanarak) belirleniyor. **Gerçek hata**
+     (ikinci bir tur): köşe etiketleri ilk taslakta üçgenin yön-renkli (yeşil/kırmızı)
+     rengini kullanıyordu — X/B noktaları çoğu zaman yoğun bir mum kümesinin TAM ORTASINA
+     denk geldiği için aynı renkteki metin neredeyse görünmezdi; `theme.text` (nötr) +
+     hafif bir `bgcolor` "halo"suyla düzeltildi.
+  5. Trendline uzatma çizgisi artık `theme.muted` + `with_alpha(...,0.6)` (soluk) ve
+     `width=1.0` — eskiden çizginin kendi parlak rengini taşıyıp gerçek sinyal çizgisiyle
+     görsel olarak yarışıyordu.
+  6. Annotation font boyutları 9-10px'ten 10-12px'e çıkarıldı (daha büyük 1600px
+     kanvasta eskisi sönük kalıyordu).
+  Ayrıca `Level`'in x1=last_x'e sabitlenen etiketleri (ör. "Fib Geri Çekilme") tek-kolonlu
+  (vp paneli olmayan) grafiklerde figürün sağ kenarına dayanıp KIRPILIYORDU — `_apply_
+  layout`'un sağ marjini 50'den 110'a çıkarıldı. 4 örnek PNG (`outputs/samples/`)
+  yeniden üretilip referanslarla karşılaştırıldı; `tests/test_viz/test_renderer.py`'ye
+  2 yeni regresyon testi eklendi (`test_no_raw_internal_id_in_rendered_annotation_text`,
+  `test_harmonic_vertices_labeled_for_recent_candidate`, gerçek bir Gartley adayı
+  üreten `build_gartley_ohlcv` fixture'ıyla). 2 yeni test (222→224). `tlab/features/`
+  ve `tlab/indicators/` (hesap katmanı) DOKUNULMADI — bu tamamen `tlab/viz/renderer.py` +
+  `tlab/cli.py`'nin `write_image` çağrısı kapsamında bir render/stil düzeltmesiydi.
+- **Görselleştirme "aracı kurum raporu" tasarım geçişi** (2026-08-29, bir önceki
+  kalite-düzeltmesi maddesinin HEMEN ardından, ayrı bir görev olarak): TAMAMLANDI. Önceki
+  madde grafikleri "işlevsel açıdan doğru ve okunur" hâle getirmişti; bu tur onları
+  "tasarlanmış/markalı" görünüme taşıdı — `renderer.py`'de hiçbir teknik hesap eklenmedi
+  (yalnızca stil/yerleşim), tüm renk kararları `themes.py`'de kaldı (tek doğru kaynak).
+  1. **Palet revizyonu** (`themes.py`) — `_FIB_NEAREST`/`_LINE_STYLE_COLOR`/
+     `_FILL_STYLE_COLOR` eskiden gri/kırmızı/sarı/yeşil/mavi/mor'u keyfi dağıtıyordu
+     ("varsayılan grafik kütüphanesi gökkuşağı"). Yeni `Theme.accent` (TEK marka rengi —
+     altın/hardal tonu, dark `#d4af37` / light `#9c6b0b`, kontrast için AYRI ayarlandı)
+     yalnızca "en karara-değer" öğelere ayrıldı: fib altın bölgesi (%61.8/%78.6), POC,
+     hacim-profili Gaussian eğrisi, masthead ayraç çizgisi, pair modunda BUGÜN ateşlenen
+     canlı sinyal. Fib %100 → yüksek-kontrast nötr (`text`); geri kalan tüm fib
+     basamakları/dashed/dotted/swing/value_area → `gray`/`muted`. `up`/`down` (mum
+     renkleri) DEĞİŞMEDİ (yük taşıyan sözleşme). **Gerçek tutarsızlık bulundu**:
+     `resistance` ÇİZGİSİ kırmızıyken `resistance_zone` KUTUSU sarıydı (ikisi aynı
+     kavramı temsil etmesine rağmen eşleşmiyordu) — ikisi de artık `red`/`blue` ailesinde
+     hizalı. Aynı kategori: pair modunda `y_holding` kutusu YEŞİL, Y çizgisinin kendisi
+     MAVİYDİ (`x_holding` da benzer şekilde ters); artık `y_holding`→`blue`,
+     `x_holding`→`gray`, `_render_pair`'deki gerçek çizgi renkleriyle EŞLEŞİYOR. Yeni
+     `Theme` alanları: `page_bg` (dış "sayfa" zemini), `border` (kart/legend kenarlığı).
+  2. **Masthead (üst şerit)** — eski tek satırlık `title=` kaldırıldı, yerine
+     `_Header` dataclass + `_draw_header()` (paper-referanslı `add_annotation`'larla):
+     satır 1 sol=sembol (büyük, kalın), sağ=son kapanış + bir-önceki-bara-göre %
+     değişim (yön-renkli, ▲/▼) — bu SADECE biçimlendirme (ham OHLC üzerinde basit
+     aritmetik, görev kısıtının açıkça izin verdiği tür), İNDİKATÖR hesabı DEĞİL; satır
+     2 sol=kategori (`labels_tr.INDICATOR_CATEGORY_TR`) + formasyon/indikatör alt
+     başlığı (`_build_subtitle`, eski `_build_generic_title`'ın sembolsüz hâli), sağ=
+     üretim tarihi (bugün). İnce bir `accent` ayraç çizgisi masthead'i grafikten ayırır.
+     Pair modu (`_pair_header`) AYNI 2-satırlık düzene katlandı (görev kısıtı: AYRI/
+     yinelenen ikinci bir başlık EKLENMEMELİ) — sağ üstte Z-skoru geçişi, yalnızca
+     BUGÜN yeni bir sinyal ateşlendiyse `accent` ile vurgulanıyor ("canlı sinyal").
+  3. **Dipnot şeridi** — `_draw_footer()`: "Yalnızca teknik analiz amaçlıdır, yatırım
+     tavsiyesi değildir — tlab", küçük/soluk, sayfa altında.
+  4. **Kart/sayfa çerçevesi** — `paper_bgcolor=theme.page_bg` (dış sayfa) ile
+     `plot_bgcolor=theme.bg` (iç "kart") ayrıştırıldı, `_draw_card_frame()` ince bir
+     `theme.border` dikdörtgeniyle çizim alanını çerçeveliyor. Legend artık
+     `bordercolor=theme.border` ile sınırlı bir kutu (eskiden tamamen saydam/kenarsız).
+  5. **Gerçek hata (masthead konumlandırma)** — İlk taslak, masthead ofsetlerini SABİT
+     paper-fraksiyonu olarak (`y=1.20` gibi) verdi; paper fraksiyonu TOPLAM figür
+     yüksekliğine değil yalnızca ÇİZİM ALANI yüksekliğine (height-t-b) göre ölçeklendiği
+     için, alt-panelli (hacim+MACD, 2 ekstra panel) uzun bir figürde aynı fraksiyon çok
+     daha fazla piksele karşılık geliyor ve masthead'in sembol/fiyat satırı üst kenar
+     boşluğunun TAMAMEN DIŞINA taşıp görünmez oluyordu (`tcell_price_structure.png`
+     ilk taslakta yalnızca alt başlık satırı görünüyordu, üst satır yoktu). Düzeltme:
+     `_HEADER_ROW1_PX` vb. artık SABİT PİKSEL ofseti olarak tanımlı,
+     `_apply_layout` içinde `1 + px/plot_h` ile figüre özgü fraksiyona çevriliyor —
+     masthead'in ekrandaki piksel konumu figür yüksekliğinden BAĞIMSIZ. İkinci bir
+     benzer çakışma: pair modunun kendi `make_subplots(..., subplot_titles=(...))`
+     başlığı ("1- Fiyat Yakınlığı...") masthead'in ayraç çizgisiyle ÇAKIŞIYORDU (Plotly
+     alt-panel başlığını satırın domain tepesine, tam masthead'in indiği bölgeye
+     yerleştiriyor) — `extra_top_px` parametresiyle (yalnızca pair modu, 44px) masthead
+     bu başlığın üstüne itildi.
+  6. **Görev metninde adı geçen 2 somut çakışma düzeltildi** — sağdaki hacim-profili
+     paneli olan grafiklerde (`structure.price_structure`) "VAH" etiketi "Direnç
+     Bölgesi" kutu etiketiyle ve "POC" etiketi "110" y-ekseni tik yazısıyla üst üste
+     biniyordu. Kök neden: POC/VAH/VAL gibi `Level.end=None` olan seviyeler HER ZAMAN
+     `x1=last_x`'e sabitlenir (`_draw_levels`) ve `xanchor="left"` ile SAĞA doğru
+     büyüdükleri için komşu vp paneline ve onun y-ekseni tik yazısına taşıyordu; aynı
+     şekilde sağ kenara yakın doğmuş bir Direnç/Destek Bölgesi kutusu da (`_draw_boxes`,
+     `xanchor="left"`, `b.t0` sağ kenara yakınsa) aynı şekilde taşıyordu. Düzeltme: yeni
+     `_right_edge_cutoff()` görünür pencerenin son %20'lik dilimini işaretler; bu
+     dilimdeki box/level etiketleri `has_vp=True` iken otomatik `xanchor="right"`e
+     çevrilir (KONUM aynı kalır, yalnızca metin SOLA büyür) — bu TEK değişiklik hem VAH/
+     Direnç-Bölgesi çakışmasını hem POC/tik-yazısı çakışmasını çözdü (ikisi de aynı kök
+     nedenin — panel dışına taşma — belirtisiydi).
+  Doğrulama: 4 örnek PNG yeniden üretildi (`outputs/samples/tcell_price_structure.png`,
+  `tcell_swing_fib_abcd.png`, `alark_harmonic_pesavento.png`, `tcell_isctr_pair.png`) ve
+  gözle incelendi — VAH/POC çakışması gitti, masthead/dipnot/kart çerçevesi 4 grafikte
+  tutarlı, pair modunda alt-panel başlığı ayraçla çakışmıyor. `test_no_raw_internal_id_
+  in_rendered_annotation_text` testi, masthead'in `xref="paper"` alt başlığının MEŞRU
+  olarak ekol adı içermesi ("Sistem: Carney") nedeniyle güncellendi — denetim artık
+  yalnızca grafik-üzerindeki (Level/Line/Marker kaynaklı, `xref!="paper"`) annotation'ları
+  kapsıyor (masthead metni ham dahili kimlik DEĞİL, kasıtlı Türkçe rapor metni). Yeni test
+  eklenmedi (mevcut 224 test + 1 güncelleme), `pytest -q -m "not network"` yine 224 yeşil,
+  `ruff check tlab/ tests/` `tlab/viz/`+`tests/test_viz/` içinde temiz (kalan 18 hata
+  önceden var olan, ilgisiz `repaint.py`/`cli.py` satırları).
+- **Pair grafiği (dark_terminal) — paylaşılan tasarımdan AYRI düzeltme** (2026-08-29,
+  bir önceki "aracı kurum raporu tasarım geçişi" maddesinin HEMEN ardından): TAMAMLANDI.
+  Kullanıcı, o geçişin `_render_pair`'e (Görsel 1, `pair.relative_momentum`) uyguladığı
+  ortak masthead/tek-legend tasarımını `outputs/samples/tcell_isctr_pair.png`'i inceleyip
+  AÇIKÇA REDDETTİ — yalnızca BU grafik için, verdiği bir referans ekran görüntüsüne
+  (`images/Ekran görüntüsü 2026-08-26 203751.png`) yakın bir görünüm istedi. `light_analysis`
+  tarafı (`_render_price_based` — yapı/harmonik panelleri) BİLİNÇLİ OLARAK dokunulmadı,
+  kullanıcı ondan zaten memnundu. Değişiklik kapsamı: `renderer.py`'de yalnızca pair moduna
+  özgü kod + `themes.py`'de yalnızca `DARK_TERMINAL` (bu tema salt pair modunda ve Görsel 4
+  metrik tablosunda kullanılıyor, `light_analysis`'a dokunulmadı).
+  1. **Ayrı masthead/kart çerçevesi** — pair modu artık `_apply_layout`/`_draw_header`/
+     `_draw_card_frame`'i (jenerik/harmonik moduna ait, büyük 2-satırlı sol-sembol/sağ-değer
+     masthead + kart çerçevesi) HİÇ ÇAĞIRMIYOR; kendi `_apply_pair_layout`/`_draw_pair_
+     header`'ı var — küçük, sol-hizalı, kart çerçevesiz 2 satır (referansla birebir). Satır 1
+     (renkli): `"{DURUM} | {SEMBOL} AL ({açıklama}) | Z: {önceki} → {şimdi} | {tarih}"` —
+     `signal_today` varsa metni + yeşil, yoksa `last_state["zone_state"]`'in Türkçe karşılığı
+     (`_ZONE_STATE_TR`) + nötr beyaz; `açıklama` "Y Ucuz -> Dönüş Onaylandı"/"X Ucuz -> Dönüş
+     Onaylandı" — hangi tarafın tutulduğuna (`last_state["holding"]`) göre. Satır 2 (soluk
+     gri): sabit strateji adı + çift + `net_pnl`/`return_pct`/`n_trades`'in biçimlendirilmesi
+     (`"K/Z: +19.664 TL (%+19.7) | Geçiş: 11 kez"` biçiminde) — TÜMÜ zaten `last_state`'te
+     hesaplı, YENİ bir indikatör hesabı YOK (eski tek satırlık başlık da aynı ilkeyle
+     çalışıyordu).
+  2. **Zemin** — `DARK_TERMINAL.bg` `#0e1116`'dan `#000000`'a (referans neredeyse saf siyah,
+     eskiden `page_bg`'den belirgin ayrışan bir "kart" tonu vardı); `grid` de `#161a1f`'e
+     karartıldı. `page_bg` zaten `#000000`'dı, değişmedi.
+  3. **Panel başlıkları yeşil** — `make_subplots(subplot_titles=...)`'ın varsayılan gri
+     rengi yerine `_style_pair_subplot_titles()` ile `theme.green` uygulanıyor (metne göre
+     hedefleniyor, `make_subplots()`'tan hemen sonra, hesap YOK — salt stil).
+  4. **Panel-başına 3 ayrı legend** — tek sağ-taraf legend YERİNE Plotly 5.15+'ın `legend`/
+     `legend2`/`legend3` mekanizması (yüklü sürüm 7.0.0'da doğrulandı, gerçekten destekleniyor
+     — fallback'e GEREK KALMADI). Her legend'ın y konumu `fig.layout.yaxis{,2,3}.domain`'den
+     (make_subplots'ın row_heights/vertical_spacing'den hesapladığı GERÇEK domain, sabit bir
+     kesir VARSAYILMADI) okunup o satırın sol-üst köşesine yerleştiriliyor. Panel 1: ISCTR(X)/
+     TCELL(Y) çizgileri + 2 "Tutulan Dönemler" renk-karesi (shape/`add_vrect` legend'a
+     kendiliğinden GİRMEDİĞİ için `_add_holding_legend_swatches()` ile verisiz — `x=[None]`
+     — 2 ek `Scatter` eklendi). Panel 2: Buy&Hold/Portföy + "Başlangıç" (eskiden `add_hline`
+     shape'iydi, legend'a giremiyordu — gerçek bir `Scatter` trace'e çevrildi, hem çizgiyi
+     çiziyor hem legend'da görünüyor). Panel 3: Z-Skoru + 2 eşik çizgisi (etiketlerine artık
+     `±k` değeri de ekleniyor, ör. "Aşırı Ucuz ISCTR Sınırı (+2.0)" — `upper`/`lower`
+     serilerindeki ZATEN var olan sabit değerin biçimlendirilmesi, yeni hesap DEĞİL).
+     **Bilinçli sapma:** referans ekran görüntüsü panel 3 legend'ında holding-swatch'ları da
+     TEKRARLIYOR (görev metninin kendi kapsam tanımı panel 3'ü yalnızca "Z-Skoru + 2 eşik" ile
+     sınırladı) — bu tekrar bilerek EKLENMEDİ, panel 1'de zaten var.
+  5. **Tutulan-dönem gölge renkleri** — `_FILL_STYLE_COLOR`'da `y_holding`→`blue`/
+     `x_holding`→`gray` (bir önceki tasarım geçişinin "gölge = kendi çizgi rengiyle eşleşsin"
+     ilkesi) BİLİNÇLİ OLARAK `y_holding`→`green`/`x_holding`→`blue`'ya çevrildi — referans
+     TCELL(Y) için doygun yeşil, ISCTR(X) için koyu mavi/gri-mavi kullanıyor, çizgi renkleriyle
+     (Y=mavi çizgi, X=gri çizgi) KASITLI OLARAK eşleşmiyor; bu ayrım referansın kendi
+     gölgeleme sözleşmesi, hizalama HATASI değil. Opaklık da `0.20`→`0.28` (saf siyah zemine
+     karşı eskisi fazla soluktu).
+  6. `_apply_layout`/`_draw_header`'daki artık kullanılmayan `extra_top_px` parametresi
+     (yalnızca pair modunun eski `subplot_titles`/masthead çakışmasını çözmek içindi)
+     kaldırıldı — pair modu artık bu fonksiyonları hiç çağırmıyor.
+  Doğrulama: `outputs/samples/tcell_isctr_pair.png` yeniden üretildi (`tlab plot --symbol
+  TCELL/ISCTR --indicator pair.relative_momentum --tf 1d --market bist`), referansla gözle
+  karşılaştırıldı — zemin/başlık biçimi/panel-başına legend/yeşil panel başlıkları/tutulan-
+  dönem renkleri artık yakın eşleşiyor; en belirgin kalan fark panel 1 legend'ının referansta
+  2 sütunlu (bizde tek sütun, Plotly'nin otomatik legend yerleşimiyle basit bir yaklaşım —
+  kabul edilebilir görüldü) olması. Yeni test EKLENMEDİ (renderer.py hâlâ salt stil/yerleşim,
+  mevcut `tests/test_viz/test_renderer.py::test_pair_render_draws_holding_period_shading`
+  hâlâ geçiyor); `pytest -q -m "not network"` 224/224 yeşil (test sayısı DEĞİŞMEDİ), `ruff
+  check tlab/ tests/` `tlab/viz/` içinde temiz (kalan 18 hata öncekiyle AYNI, ilgisiz
+  `cli.py`/`core/types.py`/`testing/*.py` satırları — bu görev onlara dokunmadı).
+- **Pair strateji varsayılan pencere yeniden ayarlandı (2026-08-29).** Kullanıcı,
+  referans bir ekran görüntüsündeki sinyal sayısının (TCELL/ISCTR, "Geçiş: 11 kez")
+  kendi çıktımızla uyuşmadığını fark etti — önce zaman damgası kanıtıyla ("bu görsel
+  hiç var olmamış olabilir" denendi) geçiştirilmeye çalışıldı, kullanıcı haklı olarak
+  bunu reddetti ve gerçek bir hesaplama denetimi istedi. Denetim sonucu: **kod hatası
+  YOK** (rolling_beta/log_spread/zscore/sinyal üretimi/backtest muhasebesi tek tek
+  izlendi, lookahead/off-by-one yok; TCELL/ISCTR verisi 503 bar, boşluksuz). Fark,
+  tamamen `window=90` (eski varsayılan) parametresinin z-skorunu aşırı yavaşlatmasından
+  kaynaklanıyordu. Bunu doğrulamak için GERÇEK `discover_pairs`+`run_pair_backtest`
+  üretim koduyla kapsamlı bir pencere taraması yapıldı: önce 24, sonra 48 sembollük
+  (yfinance ile CANLI indirilen, `universe_bist.txt`'nin kendi Fintables kaynaklı
+  sektör etiketleriyle gruplanan) evrende `discover_pairs` (sıkı eşik: corr≥0.7,
+  adf<0.05, halflife 5-60 → 13 çift; gevşek eşik: corr≥0.5, adf<0.10, halflife 3-90
+  → 28 çift) ile keşfedilen TÜM çiftlerde window∈{20,30,40,60,90} test edildi. Sonuç
+  HER İKİ eşik rejiminde de tutarlıydı: `window=90` en az işlemi VE en düşük toplam
+  PnL/kazanan-çift oranını üretiyordu (sıkı: 18 kapalı işlem/160.633 TL; gevşek: 38
+  işlem/352.462 TL); `window=60` en yüksek profit factor'ü VE toplam PnL'i verdi (sıkı:
+  PF 4,19/574.292 TL/12-13 çift kârlı; gevşek: PF 3,68/1.000.049 TL/22-28 çift kârlı).
+  `window=40` de güçlüydü (en yüksek win rate, daha fazla işlem) ama kullanıcı `window=
+  60`'ı seçti — gerekçe: en yüksek PF (daha "temiz" sinyal), keşfedilen çiftlerin
+  tipik yarı ömrüne (~13-27 gün) göre pencere/yarı-ömür oranının kaba kurala (3-5x)
+  daha yakın olması, ve stratejinin tek çift değil TÜM keşfedilen evrende eş zamanlı
+  çalışacağı için çift-başına-seyrek-işlem endişesinin portföy seviyesinde önemsiz
+  kalması. **`RelativeMomentumParams.window`/`beta_window`/`min_periods` varsayılanı
+  90'dan 60'a değiştirildi** (`relative_momentum.py`, gerekçe kod içinde yorum olarak
+  da belgelendi). `pytest -q -m "not network"` 224/224 yeşil (davranış değişikliği
+  hiçbir testi bozmadı — testler kendi parametrelerini explicit veriyor). **DÜRÜST
+  ÇEKİNCE**: bu bir İN-SAMPLE parametre seçimi (5 pencere değeri aynı ~2 yıllık
+  veride denendi, walk-forward/out-of-sample doğrulama YAPILMADI) — backlog'daki
+  "kointegrasyon çürüme izleyicisi" (madde 4) bu riski zamanla azaltacak. Yan ürün:
+  `data/ohlcv/bist/` önbelleği 11'den 48 sembole çıkarıldı (bkz. aşağıdaki "Veri
+  önbelleği genişletildi" notu) — bu GİT'E EKLENMEDİ (parquet, `.gitignore` kapsamında
+  kalmalı, yalnızca lokal).
+- **Veri önbelleği genişletildi + gerçek bir yfinance veri kalitesi hatası bulundu
+  (2026-08-29).** Yukarıdaki pencere taraması için `data/ohlcv/bist/` 11 semboldan
+  48'e çıkarıldı (`Store.update()` doğrudan çağrılarak, `tlab update-data` CLI'sinin
+  aynı alt katmanı). Süreçte GERÇEK bir geçici veri sorunu bulundu: en güncel barın
+  (dünün kapanışı) yfinance'ta `Close`/`Adj Close` alanı bazen NaN geliyor (Open/High/
+  Low/Volume dolu) — Yahoo'nun kapanış fiyatını geç yayınlaması. `validate_ohlcv` bunu
+  doğru şekilde reddediyor (kod hatası DEĞİL, doğru davranış); çözüm `Store.update()`'e
+  `end` parametresi bir gün geriden verilerek yapıldı. Ayrıca AKSA ve ULKER için gerçek
+  OHLC tutarsızlığı (`high >= max(open,close)` / `low <= min(open,close)` ihlali, tek
+  bir barda) bulundu ve validasyon tarafından doğru şekilde reddedildi — bu iki sembol
+  önbelleğe alınamadı, zorlanmadı.
 - **OTURUM DURDU BURADA (2026-08-28) — kullanıcı isteğiyle.** Kullanıcı declutter
   düzeltmesinden sonra "kalanlara daha sonra devam ederiz" dedi — Faz 8B/8C/8D/8E ve
   K3'e HENÜZ BAŞLANMADI, kod/tasarım kararı yok. Yeni oturumda kaldığımız yer:
@@ -149,7 +392,7 @@ için `tlab/testing/lint_lookahead.py` da var (CLI: `tlab lint`).
   Hangisiyle devam edileceğine kullanıcı karar verecek — 648-sembol/tüm-çift tam evren
   taraması da hâlâ "Sıradaki Adımlar" bölümünde bekliyor.
 
-Toplam 206 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
+Toplam 224 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
 ruff/mypy/lint_lookahead temiz.
 
 ## Repo Yapısı / Modül Haritası
@@ -571,9 +814,32 @@ var). Özet:
 3. **DuPont / ucuz hisse taraması / gelir mevsimselliği** — bu projenin KAPSAMI DIŞINDA,
    bilanco-radar'a ait (temel veri gerektiriyor, `src/fetchers/` zaten İş Yatırım MaliTablo +
    KAP'tan çekiyor). İki proje birbirini import etmez, ortak sinyal dosyasıyla bağlanır.
+4. **Kointegrasyon çürüme (decay) izleyicisi** (`tlab/indicators/pairs/`) — kullanıcının
+   takip ettiği bir kantçının notundan (2026-08-29): `discover_pairs` (Faz 5) kointegrasyonu
+   yalnızca KEŞİF anında (ADF, tek seferlik) test ediyor; bir çift seçilip pozisyon
+   açıldıktan SONRA spread'in kointegre KALDIĞI hiç yeniden doğrulanmıyor. Öneri: aktif
+   tutulan bir çift için spread üzerinde ROLLING ADF p-değerini (ör. son 60-90 bar
+   penceresi) z-skorun yanında ikinci bir canlı seri olarak takip et; p-değeri eşiği geri
+   aşarsa (yapısal kırılma — M&A, mevzuat değişikliği, endeks yeniden dengeleme vb.)
+   z-skor henüz dönmemiş olsa bile pozisyonu düzleştirme sinyali üret. Mevcut
+   `RelativeMomentumPair`/`pairs_engine.py`'ye ek bir "cointegration_broken" durumu/guard'ı
+   olarak eklenebilir — `discover_pairs`'in ADF/halflife makinesini AYNEN tekrar kullanır,
+   yeni bir istatistiksel yöntem gerekmez.
+5. **Beta-nötr eş zamanlı long/short pair modu** (`tlab/indicators/pairs/`,
+   `tlab/backtest/pairs_engine.py`) — AYNI kaynaktan (2026-08-29): notun "piyasa riskinin
+   izole edilmesi" argümanı (Y long + X short EŞ ZAMANLI, β ile hedge'lenmiş, piyasa
+   yönünden bağımsız kâr) mevcut `RelativeMomentumPair`'e UYMUYOR — o motor sermayeyi Y↔X
+   arasında ROTASYONEL taşıyor (her an tek varlıkta %100 long), yani her zaman piyasa
+   beta'sına maruz kalıyor. Gerçek market-neutral istatistiksel arbitraj tlab'da HENÜZ YOK.
+   Öneri: aynı `discover_pairs`/β kestirim altyapısını kullanan, AYRI bir yürütme modu
+   (`pairs_engine.py`'de yeni bir mod, mevcut rotasyonel motoru DEĞİŞTİRMEDEN) — β oranıyla
+   ölçeklenmiş simultane long/short, dolar veya beta-nötr boyutlandırma. Kullanıcı kararı
+   bekleniyor: rotasyonel mod mu tek ürün olacak, yoksa iki mod da mı sunulacak — kod
+   yazılmadı, yalnızca backlog notu.
 
 Önerilen sıra: 1 → 2 (tlab içinde, tek fazda yapılabilir), 3 ayrı bir bilanco-radar
-konuşması. Faz 3'ü (harmonik) bloklamaz.
+konuşması, 4/5 pair motoruna dokunan ayrı bir görev (kullanıcı hangisiyle başlanacağına
+karar verecek). Faz 3'ü (harmonik) bloklamaz.
 
 ## Gelecek Entegrasyonlar (henüz tasarlanmadı, sadece hedef notu)
 

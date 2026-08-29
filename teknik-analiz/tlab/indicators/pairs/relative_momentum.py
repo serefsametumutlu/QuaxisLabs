@@ -56,11 +56,20 @@ Execution = Literal["close", "next_open"]
 
 @dataclass(frozen=True)
 class RelativeMomentumParams(BaseParams):
-    window: int = 90
+    # window/beta_window=60 (2026-08-29, kullanıcı kararı): eski varsayılan
+    # (90) hem sıkı (13 çift) hem gevşek (28 çift) eşikli discover_pairs
+    # örnekleminde en az işlemi ve en düşük toplam PnL/profit-factor'ü
+    # üretiyordu (bkz. gerçek discover_pairs+run_pair_backtest ile yapılan
+    # pencere taraması, 20/30/40/60/90 arası) — 60, keşfedilen çiftlerin
+    # tipik yarı ömrüne (~13-27 gün) göre de daha tutarlı bir oran (3-5x
+    # kaba kuralına yakın; 90 bu çiftler için aşırı yavaş kalıyordu).
+    # İN-SAMPLE bir seçim, walk-forward doğrulaması YAPILMADI — bkz.
+    # CLAUDE.md backlog'daki "kointegrasyon çürüme izleyicisi" notu.
+    window: int = 60
     k: float = 2.0
     beta_method: BetaMethod = "rolling_ols"
-    beta_window: int = 90
-    min_periods: int = 90
+    beta_window: int = 60
+    min_periods: int = 60
     execution: Execution = "close"
     commission_bps: float = 10.0
     start_capital: float = 100_000.0

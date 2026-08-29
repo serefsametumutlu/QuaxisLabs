@@ -25,7 +25,7 @@ from datetime import datetime, time, timedelta
 import pandas as pd
 
 from tlab.core.types import Market, validate_ohlcv
-from tlab.data.calendar import session_bounds
+from tlab.data.calendar import is_trading_day, session_bounds
 from tlab.data.settings import NasdaqSplit
 
 _BIST_GRID: tuple[time, ...] = (time(9, 0), time(13, 0), time(17, 0), time(21, 0))
@@ -97,6 +97,71 @@ def resample_to_4h(
     is_closed = (now_ts >= bucket_ends) | (now_ts >= session_closes)
     bars = bars.copy()
     bars["is_closed"] = is_closed.to_numpy()
+
+    if drop_open:
+        bars = bars[bars["is_closed"]].drop(columns="is_closed")
+
+    return bars
+
+
+def _week_start(ts: pd.Timestamp) -> pd.Timestamp:
+    """ts'nin haftasının Pazartesi 00:00'ı (aynı tz)."""
+    return (ts - timedelta(days=ts.weekday())).normalize()
+
+
+def _last_trading_day_of_week(week_start: pd.Timestamp, market: Market) -> pd.Timestamp:
+    """Pazartesi'den (week_start) Cuma'ya doğru geriye tarayarak haftanın SON
+    işlem gününü döner (tatilse önceki güne kayar). Hafta tamamen tatilse
+    (aşırı uç durum) Cuma'ya düşer — o hafta zaten hiç bar taşımayacağı için
+    is_closed hesabında pratik bir etkisi olmaz."""
+    for offset in (4, 3, 2, 1, 0):
+        d = (week_start + timedelta(days=offset)).date()
+        if is_trading_day(d, market):
+            return week_start + timedelta(days=offset)
+    return week_start + timedelta(days=4)
+
+
+def resample_to_w1(
+    df_1d: pd.DataFrame,
+    market: Market,
+    *,
+    now: datetime | None = None,
+    drop_open: bool = True,
+) -> pd.DataFrame:
+    """1D OHLCV'yi haftalığa (Pazartesi–Cuma) indirger.
+
+    Hafta, Pazartesi'den başlar; kapanış Cuma (tatilse haftanın son işlem
+    günü — bkz. `_last_trading_day_of_week`). Henüz o haftanın kapanış
+    seansı bitmemişse dilim is_closed=False'dır ve drop_open=True
+    (varsayılan) iken düşürülür — resample_to_4h ile aynı desen.
+    """
+    validate_ohlcv(df_1d)
+    if df_1d.empty:
+        return df_1d.copy()
+
+    tz = df_1d.index.tz
+    now_ts = pd.Timestamp(now) if now is not None else pd.Timestamp.now(tz=tz)
+    if now_ts.tzinfo is None:
+        now_ts = now_ts.tz_localize(tz)
+    else:
+        now_ts = now_ts.tz_convert(tz)
+
+    df = df_1d.sort_index()
+    bucket_start = pd.Index(df.index.map(_week_start), name="bucket_start")
+
+    bars = df.groupby(bucket_start).agg(
+        open=("open", "first"),
+        high=("high", "max"),
+        low=("low", "min"),
+        close=("close", "last"),
+        volume=("volume", "sum"),
+    )
+
+    session_closes = bars.index.to_series().apply(
+        lambda ws: session_bounds(_last_trading_day_of_week(ws, market).date(), market)[1]
+    )
+    bars = bars.copy()
+    bars["is_closed"] = (now_ts >= session_closes).to_numpy()
 
     if drop_open:
         bars = bars[bars["is_closed"]].drop(columns="is_closed")

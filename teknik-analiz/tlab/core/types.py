@@ -19,15 +19,19 @@ from tlab.core.errors import OHLCVError
 
 
 class Timeframe(str, Enum):
-    """Desteklenen zaman dilimleri (ileride W1 eklenebilir).
+    """Desteklenen zaman dilimleri.
 
-    H1 yalnızca veri katmanının (store/resample) iç kullanımı içindir;
-    indikatörler yalnızca H4/D1 kabul eder.
+    H1 yalnızca veri katmanının (store/resample) iç kullanımı içindir.
+    Çoğu indikatör yalnızca H4/D1 kabul eder; W1 (haftalık, 1D'den türetilir
+    — bkz. `tlab/data/resample.py::resample_to_w1`) yalnızca bunu açıkça
+    destekleyen indikatörler (ör. Faz 8C `weekly_channel`) tarafından kabul
+    edilir.
     """
 
     H1 = "1H"
     H4 = "4H"
     D1 = "1D"
+    W1 = "1W"
 
 
 class Market(str, Enum):

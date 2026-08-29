@@ -1,0 +1,254 @@
+"""Arz/Talep (Supply/Demand) bölgeleri: taban (base) + patlama (impulse) ->
+bölge; test/reaksiyon/kırılım izleme; altın oran (golden zone) bandı.
+
+Bir S/D bölgesi, fiyatın bir "taban" (dar konsolidasyon) içinde bekleyip
+oradan güçlü/tek yönlü bir "patlama" ile ayrıldığı fiyat aralığıdır — bölge
+sınırları TABANIN kendisidir (patlamanın değil). Bölge, PATLAMA ONAYLANDIĞI
+barda (`impulse.t1_idx`) doğar; bu bardan ÖNCE hiçbir sonuçta görünemez
+(non-repaint). `update_zones`, `ranges.py`/`zones.py` ile AYNI "extend-only
+touches, bir kez atanan broken_at" mimarisini paylaşır.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Literal
+
+import pandas as pd
+
+from tlab.features.fibonacci import retracement
+from tlab.features.volatility import atr
+
+SDKind = Literal["demand", "supply"]
+ImpulseDirection = Literal["up", "down"]
+
+
+@dataclass(frozen=True)
+class Base:
+    """[t0_idx, t1_idx] penceresi (dahil) dar bir konsolidasyon (taban) adayı."""
+
+    t0_idx: int
+    t1_idx: int
+    low: float
+    high: float
+
+
+def find_bases(
+    df: pd.DataFrame, base_max: int = 5, base_atr: float = 0.6, atr_period: int = 14
+) -> list[Base]:
+    """Her t1 barı için, [t1-L+1, t1] penceresinin (L=1..base_max) high-low
+    genişliği `base_atr * ATR[t1]`'den DAR ise bir Base adayı üretir.
+
+    Üst üste binen (aynı t1, farklı L) adaylar BAĞIMSIZ döner — hangisinin
+    "gerçek" taban olduğuna `make_sd_zones` (patlamayla eşleştirirken en
+    uzun/olgun adayı seçerek) karar verir, tıpkı `ranges.detect_ranges`'in
+    seçim kararını caller'a bırakması gibi."""
+    n = len(df)
+    atr_series = atr(df, atr_period)
+    high = df["high"].to_numpy()
+    low = df["low"].to_numpy()
+
+    bases: list[Base] = []
+    for t1 in range(n):
+        a = atr_series.iloc[t1]
+        if pd.isna(a) or a == 0:
+            continue
+        for length in range(1, base_max + 1):
+            t0 = t1 - length + 1
+            if t0 < 0:
+                break
+            window_high = float(high[t0 : t1 + 1].max())
+            window_low = float(low[t0 : t1 + 1].min())
+            if (window_high - window_low) <= base_atr * a:
+                bases.append(Base(t0_idx=t0, t1_idx=t1, low=window_low, high=window_high))
+    return bases
+
+
+@dataclass(frozen=True)
+class Impulse:
+    """t0_idx'ten t1_idx'e (dahil, k bar) tek yönlü güçlü hareket.
+
+    strength: |close[t1]-close[t0]| / ATR[t1] (ATR-normalize edilmiş güç).
+    """
+
+    t0_idx: int
+    t1_idx: int
+    direction: ImpulseDirection
+    strength: float
+
+
+def find_impulses(
+    df: pd.DataFrame, k: int = 3, impulse_atr: float = 2.0, atr_period: int = 14
+) -> list[Impulse]:
+    """[t1-k, t1] net hareketi (close[t1]-close[t1-k]) ATR[t1]'e göre
+    `impulse_atr` katından BÜYÜKSE VE en az k-1 bar aynı yönlü gövdeye
+    (close>open yukarı / close<open aşağı) sahipse patlama sayılır — yalnızca
+    [t1-k, t1] barlarını kullanır, non-repaint."""
+    n = len(df)
+    atr_series = atr(df, atr_period)
+    close = df["close"].to_numpy()
+    open_ = df["open"].to_numpy()
+
+    impulses: list[Impulse] = []
+    for t1 in range(k, n):
+        t0 = t1 - k
+        a = atr_series.iloc[t1]
+        if pd.isna(a) or a == 0:
+            continue
+        net = close[t1] - close[t0]
+        strength = abs(net) / a
+        if strength < impulse_atr:
+            continue
+        direction: ImpulseDirection = "up" if net > 0 else "down"
+        same_dir_bodies = sum(
+            1 for i in range(t0 + 1, t1 + 1) if (close[i] > open_[i]) == (direction == "up")
+        )
+        if same_dir_bodies < k - 1:
+            continue
+        impulses.append(Impulse(t0_idx=t0, t1_idx=t1, direction=direction, strength=strength))
+    return impulses
+
+
+@dataclass(frozen=True)
+class SDZone:
+    kind: SDKind
+    low: float
+    high: float
+    created_idx: int
+    base_bars: int
+    impulse_strength: float
+    fresh: bool = True
+
+
+def make_sd_zones(
+    bases: list[Base], impulses: list[Impulse], max_zones: int | None = None
+) -> list[SDZone]:
+    """Her impulse, TAM olarak kendi `t0_idx`'inde biten (`base.t1_idx ==
+    impulse.t0_idx`) bazlarla eşleştirilir; birden fazla uzunluk adayı varsa
+    EN UZUN (en olgun) taban seçilir. Bölge doğum barı `impulse.t1_idx`'tir.
+    max_zones verilirse en güçlü (impulse_strength) + en güncel öncelikli
+    kesilir (seçim kriteri caller'a bırakılmaz, çünkü S/D taraması tipik
+    olarak "en taze/en güçlü N bölge" ister)."""
+    bases_by_end: dict[int, list[Base]] = {}
+    for b in bases:
+        bases_by_end.setdefault(b.t1_idx, []).append(b)
+
+    zones: list[SDZone] = []
+    for imp in impulses:
+        candidates = bases_by_end.get(imp.t0_idx)
+        if not candidates:
+            continue
+        best = max(candidates, key=lambda b: b.t1_idx - b.t0_idx)
+        kind: SDKind = "demand" if imp.direction == "up" else "supply"
+        zones.append(
+            SDZone(
+                kind=kind,
+                low=best.low,
+                high=best.high,
+                created_idx=imp.t1_idx,
+                base_bars=best.t1_idx - best.t0_idx + 1,
+                impulse_strength=imp.strength,
+                fresh=True,
+            )
+        )
+
+    if max_zones is not None:
+        zones = sorted(zones, key=lambda z: (-z.impulse_strength, -z.created_idx))[:max_zones]
+    return zones
+
+
+@dataclass(frozen=True)
+class SDZoneState:
+    """`update_zones`'un bir bölge için ürettiği durum — test_idxs extend-only
+    (yalnızca büyür), first_reaction_idx/broken_at bir kez atanınca DEĞİŞMEZ."""
+
+    zone: SDZone
+    test_idxs: tuple[int, ...]
+    first_reaction_idx: int | None
+    broken_at: int | None
+    fresh: bool
+
+
+def update_zones(zones: list[SDZone], df: pd.DataFrame, t: int) -> list[SDZoneState]:
+    """Her bölge için created_idx'ten `t`'ye (dahil) kadar, yalnızca
+    [0, t] barlarını kullanarak test/reaksiyon/kırılım geçişlerini hesaplar.
+
+    Bar-bar sırayla: (1) KIRILIM — kapanış bölgenin YANLIŞ tarafına geçerse
+    (demand: close<low, supply: close>high) broken_at bu barda sabitlenir,
+    izleme durur; (2) TEST — bar bölgeye değiyorsa (low<=high VE high>=low)
+    test_idxs'e eklenir; (3) REAKSİYON — bir test barından SONRAKİ bir barda
+    kapanış bölgenin DOĞRU tarafına (dışına, lehte) dönerse first_reaction_idx
+    bu barda sabitlenir (yalnızca İLK reaksiyon kaydedilir).
+
+    `t`'yi büyüterek tekrar çağırmak SONUÇLARI YALNIZCA İLERİYE DOĞRU
+    büyütür (extend-only) — non-repaint, çünkü hesap her zaman created_idx'ten
+    başlayan AYNI deterministik taramadır."""
+    n_eff = min(len(df), t + 1)
+    high = df["high"].to_numpy()
+    low = df["low"].to_numpy()
+    close = df["close"].to_numpy()
+
+    states: list[SDZoneState] = []
+    for zone in zones:
+        if zone.created_idx >= n_eff:
+            states.append(
+                SDZoneState(
+                    zone=zone, test_idxs=(), first_reaction_idx=None, broken_at=None, fresh=True
+                )
+            )
+            continue
+
+        test_idxs: list[int] = []
+        first_reaction_idx: int | None = None
+        broken_at: int | None = None
+
+        for i in range(zone.created_idx, n_eff):
+            is_broken = close[i] < zone.low if zone.kind == "demand" else close[i] > zone.high
+            if is_broken:
+                broken_at = i
+                break
+
+            in_zone = low[i] <= zone.high and high[i] >= zone.low
+            if in_zone:
+                test_idxs.append(i)
+                continue
+
+            if test_idxs and first_reaction_idx is None:
+                favorable = close[i] > zone.high if zone.kind == "demand" else close[i] < zone.low
+                if favorable:
+                    first_reaction_idx = i
+
+        states.append(
+            SDZoneState(
+                zone=zone,
+                test_idxs=tuple(test_idxs),
+                first_reaction_idx=first_reaction_idx,
+                broken_at=broken_at,
+                fresh=not test_idxs,
+            )
+        )
+    return states
+
+
+def golden_zone(
+    swing_start: float, swing_end: float, lo: float = 0.618, hi: float = 0.786
+) -> tuple[float, float]:
+    """swing_start->swing_end hareketinin [lo,hi] Fibonacci geri çekilme bandı.
+
+    `fibonacci.retracement(p0=swing_start, p1=swing_end)`'in doğrudan bir
+    kullanımıdır — bu yüzden YÖN NE OLURSA OLSUN simetriktir: yükseliş
+    (swing_start=düşük, swing_end=yüksek) için bant swing_end'in ALTINDA,
+    düşüş (swing_start=yüksek, swing_end=düşük) için bant swing_end'in
+    ÜSTÜNDE çıkar — çağıranın YALNIZCA hangi ucun ÖNCE (start) geldiğini
+    doğru sırada vermesi yeterlidir.
+
+    TASARIM NOTU: master spec bu fonksiyonu 'golden_zone(swing_low,
+    swing_high, ...)' adlarıyla tanımlıyordu; burada swing_start/swing_end'e
+    yeniden adlandırıldı çünkü 'low'/'high' isimleri yalnızca yükseliş
+    senaryosunda doğru anlam taşır (düşüş senaryosunda "önce gelen" nokta
+    swing_high'tır ve yine İLK argüman olarak verilmesi gerekir) — bu saf
+    bir isimlendirme netliği, davranış fibonacci.retracement ile birebir
+    aynıdır. Dönen bant her zaman (alt, üst) sıralı döner."""
+    levels = retracement(swing_start, swing_end, levels=(lo, hi))
+    a, b = levels[lo], levels[hi]
+    return (a, b) if a <= b else (b, a)

@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 
 from tlab.core.types import Market
-from tlab.data.resample import resample_to_4h
+from tlab.data.resample import resample_to_4h, resample_to_w1
 
 TZ = ZoneInfo("Europe/Istanbul")
 
@@ -121,3 +121,85 @@ def test_nasdaq_split_modes_produce_two_buckets(split: str) -> None:
     now = datetime(2026, 8, 25, 9, 0, tzinfo=ny_tz)
     bars = resample_to_4h(df, Market.NASDAQ, now=now, nasdaq_split=split)
     assert len(bars) == 2
+
+
+# --- resample_to_w1 --------------------------------------------------------
+
+
+def _day_bar(day: str, val: float) -> dict:
+    ts = pd.Timestamp(f"{day} 00:00", tz=TZ)
+    return {
+        "datetime": ts, "open": val, "high": val + 1,
+        "low": val - 1, "close": val + 0.5, "volume": 1000.0 + val,
+    }
+
+
+def _make_daily_df(days: list[tuple[str, float]]) -> pd.DataFrame:
+    if not days:
+        index = pd.DatetimeIndex([], tz=TZ, name="datetime")
+        cols = {"open": [], "high": [], "low": [], "close": [], "volume": []}
+        return pd.DataFrame(cols, index=index)
+    rows = [_day_bar(d, v) for d, v in days]
+    return pd.DataFrame(rows).set_index("datetime")
+
+
+def test_w1_groups_monday_to_friday() -> None:
+    """Tam bir işlem haftası (Pzt-Cum) tek dilime toplanmalı; kapanış Cuma."""
+    days = [
+        ("2026-08-24", 10.0),  # Pzt
+        ("2026-08-25", 11.0),  # Salı
+        ("2026-08-26", 12.0),  # Çar
+        ("2026-08-27", 13.0),  # Perş
+        ("2026-08-28", 14.0),  # Cuma
+    ]
+    df = _make_daily_df(days)
+    now = datetime(2026, 8, 31, 9, 0, tzinfo=TZ)  # ertesi Pazartesi — hafta kesin kapandı
+    bars = resample_to_w1(df, Market.BIST, now=now)
+
+    week_start = pd.Timestamp("2026-08-24", tz=TZ)
+    assert list(bars.index) == [week_start]
+    row = bars.loc[week_start]
+    assert row["open"] == _day_bar("2026-08-24", 10.0)["open"]
+    assert row["close"] == _day_bar("2026-08-28", 14.0)["close"]
+    assert row["high"] == max(_day_bar(d, v)["high"] for d, v in days)
+    assert row["low"] == min(_day_bar(d, v)["low"] for d, v in days)
+    assert row["volume"] == sum(_day_bar(d, v)["volume"] for d, v in days)
+
+
+def test_w1_closes_on_last_trading_day_when_friday_is_holiday() -> None:
+    """2026-03-20 (Cuma) Ramazan Bayramı tatili — hafta 19'da (arife,
+    yarım gün) kapanmış sayılmalı, 20'yi beklemeden."""
+    days = [
+        ("2026-03-16", 10.0),  # Pzt
+        ("2026-03-17", 11.0),  # Salı
+        ("2026-03-18", 12.0),  # Çar
+        ("2026-03-19", 13.0),  # Perş — arife, yarım gün (kapanış 12:40)
+    ]
+    df = _make_daily_df(days)
+    week_start = pd.Timestamp("2026-03-16", tz=TZ)
+
+    still_open = resample_to_w1(df, Market.BIST, now=datetime(2026, 3, 19, 12, 0, tzinfo=TZ))
+    assert week_start not in still_open.index  # yarım gün kapanışı henüz gelmedi
+
+    closed = resample_to_w1(df, Market.BIST, now=datetime(2026, 3, 19, 12, 41, tzinfo=TZ))
+    assert week_start in closed.index
+    assert closed.loc[week_start, "close"] == _day_bar("2026-03-19", 13.0)["close"]
+
+
+def test_w1_open_week_dropped_by_default() -> None:
+    days = [("2026-08-24", 10.0), ("2026-08-25", 11.0)]  # Pzt, Salı — hafta sürüyor
+    df = _make_daily_df(days)
+    now = datetime(2026, 8, 25, 12, 0, tzinfo=TZ)
+    week_start = pd.Timestamp("2026-08-24", tz=TZ)
+
+    bars_default = resample_to_w1(df, Market.BIST, now=now)
+    assert week_start not in bars_default.index
+
+    bars_full = resample_to_w1(df, Market.BIST, now=now, drop_open=False)
+    assert bool(bars_full.loc[week_start, "is_closed"]) is False
+
+
+def test_w1_empty_input_returns_empty() -> None:
+    df = _make_daily_df([])
+    bars = resample_to_w1(df, Market.BIST)
+    assert bars.empty

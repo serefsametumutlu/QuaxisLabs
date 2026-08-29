@@ -44,7 +44,10 @@ class Trendline:
     broken_at: int | None
     created_idx: int
 
-    def value_at(self, idx: int) -> float:
+    def value_at(self, idx: float) -> float:
+        """idx bar indeksindeki (tam sayı OLMASI ŞART DEĞİL — ör.
+        patterns_geom.converging_lines'ın apex_idx'i gerçek değerlidir)
+        çizgi değeri."""
         return self.slope * idx + self.intercept
 
 

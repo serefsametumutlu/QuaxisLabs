@@ -1,7 +1,8 @@
 """Parquet tabanlı OHLCV önbelleği ve artımlı güncelleme.
 
-data/ohlcv/{market}/{symbol}/{tf}.parquet. 4H her zaman 1H'den türetilir ve
-1H güncellendiğinde yeniden üretilir — asla doğrudan sağlayıcıdan çekilmez.
+data/ohlcv/{market}/{symbol}/{tf}.parquet. 4H her zaman 1H'den, W1 her zaman
+1D'den türetilir ve kaynakları güncellendiğinde yeniden üretilir — asla
+doğrudan sağlayıcıdan çekilmez.
 """
 
 from __future__ import annotations
@@ -13,7 +14,7 @@ import pandas as pd
 
 from tlab.core.types import Market, Timeframe, validate_ohlcv
 from tlab.data.providers.base import DataProvider
-from tlab.data.resample import resample_to_4h
+from tlab.data.resample import resample_to_4h, resample_to_w1
 from tlab.data.settings import Settings, load_settings
 
 DEFAULT_DATA_ROOT = Path("data/ohlcv")
@@ -73,6 +74,13 @@ class Store:
             h4_path = _parquet_path(self._root, market, symbol, Timeframe.H4)
             h4_path.parent.mkdir(parents=True, exist_ok=True)
             h4.to_parquet(h4_path)
+
+        if Timeframe.D1 in timeframes:
+            d1 = self.get(symbol, Timeframe.D1, market)
+            w1 = resample_to_w1(d1, market)
+            w1_path = _parquet_path(self._root, market, symbol, Timeframe.W1)
+            w1_path.parent.mkdir(parents=True, exist_ok=True)
+            w1.to_parquet(w1_path)
 
     def _update_one(
         self, symbol: str, market: Market, tf: Timeframe, start: datetime, end: datetime

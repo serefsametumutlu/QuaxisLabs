@@ -94,3 +94,16 @@ def test_get_last_n(store: Store) -> None:
 def test_get_missing_raises(store: Store) -> None:
     with pytest.raises(FileNotFoundError):
         store.get("YOK", Timeframe.H1, Market.BIST)
+
+
+def test_update_derives_w1_from_d1(store: Store) -> None:
+    """W1 parquet, D1 güncellendiğinde otomatik türetilir (H4'ün H1'den
+    türetilmesiyle aynı desen) — gerçek 'now' teste göre değişebileceği için
+    (kapanmış/açık hafta) yalnızca dosyanın üretildiğini ve beklenen
+    kolonları taşıdığını doğrular, satır sayısını sabitlemez."""
+    start = datetime(2026, 8, 23, 12, 0, tzinfo=UTC)
+    end = datetime(2026, 8, 25, 23, 0, tzinfo=UTC)
+    store.update("TESTSYM", Market.BIST, start, end)
+
+    w1 = store.get("TESTSYM", Timeframe.W1, Market.BIST)
+    assert list(w1.columns) == ["open", "high", "low", "close", "volume"]

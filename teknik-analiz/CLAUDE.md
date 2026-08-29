@@ -381,19 +381,91 @@ için `tlab/testing/lint_lookahead.py` da var (CLI: `tlab lint`).
   OHLC tutarsızlığı (`high >= max(open,close)` / `low <= min(open,close)` ihlali, tek
   bir barda) bulundu ve validasyon tarafından doğru şekilde reddedildi — bu iki sembol
   önbelleğe alınamadı, zorlanmadı.
-- **OTURUM DURDU BURADA (2026-08-28) — kullanıcı isteğiyle.** Kullanıcı declutter
-  düzeltmesinden sonra "kalanlara daha sonra devam ederiz" dedi — Faz 8B/8C/8D/8E ve
-  K3'e HENÜZ BAŞLANMADI, kod/tasarım kararı yok. Yeni oturumda kaldığımız yer:
-  **Sırada**: Faz 8B (formasyonlar — çift tepe/dip, broadening, TWYS ekleri; Faz 2-EK'in
-  `patterns_geom.py`/`hs_pattern.py`'sine ihtiyaç duyar, henüz yazılmadı), Faz 8C
-  (bölgeler — golden zone/S-D/kanal; `zones_sd.py`ye ihtiyaç duyar), Faz 8D
-  (cross-sectional — KAMA/EWMAC, Carver'ın ilk kuralı; `xsec.py`ye ihtiyaç duyar), Faz 8E
-  (vol harvest — GARCH), K3 (Carver kitap çıkarımı, Faz 10 spec'i için ön koşul).
-  Hangisiyle devam edileceğine kullanıcı karar verecek — 648-sembol/tüm-çift tam evren
-  taraması da hâlâ "Sıradaki Adımlar" bölümünde bekliyor.
+- **Faz 2-EK — kalan özellikler + W1 zaman dilimi** (2026-08-29): TAMAMLANDI. Önceki
+  oturum yalnızca Faz 8A'nın ihtiyacı kadarını (`volatility.bollinger`,
+  `channels.regression_channel`) yazmıştı; bu oturumda master prompt'un 14. bölümündeki
+  KALAN tüm parçalar tamamlandı — Faz 8B/8C/8D artık bloklanmıyor.
+  1. **W1 haftalık zaman dilimi** — `Timeframe.W1` eklendi (`core/types.py`).
+     `data/resample.py::resample_to_w1(df_1d, market, now=None, drop_open=True)`:
+     hafta Pazartesi başlar, kapanış Cuma (tatilse `_last_trading_day_of_week` ile geriye
+     tarayarak haftanın SON işlem gününe kayar — ör. 2026-03-20 Cuma Ramazan Bayramı
+     tatiliyse hafta 19'da/arifede, yarım gün kapanışı 12:40'ta kapanmış sayılır); açık
+     hafta `resample_to_4h` ile AYNI `is_closed` deseniyle varsayılan olarak düşer.
+     `Store.update()` artık D1 güncellenince W1'i de otomatik türetiyor (H1→H4 türetimiyle
+     birebir aynı desen). 5 yeni test (`test_resample.py`) + 1 (`test_store.py`).
+  2. **`features/volatility.py`** — `realized_vol(close,n,annualize)` (log-getiri
+     std'sinin rolling'i, varsayılan √252 yıllıklaştırma), `keltner(df,n,atr_period,k)`
+     (EMA orta + ATR bantları), `vol_zscore(close,vol_window,zscore_window)` (realized_vol
+     'un kendi rolling z-skoru — iki pencereli). `atr`/`bollinger` zaten vardı, dokunulmadı.
+     11 yeni test.
+  3. **`features/channels.py`** — `frozen_channel_at(df,t,n,k)`: regression_channel'ın t
+     barındaki OLS fit'ini [t-n+1,t] uçlu iki noktalı bir çizgiye dondurur (Faz 8C
+     weekly_channel'ın "sinyal barında donmuş kanal çizgisi" ihtiyacı için — t1 ucu
+     regression_channel(df,n,k)'nin t'deki değeriyle BİREBİR eşleşecek şekilde
+     doğrulandı). `pivot_channel(df,pivots,tol_atr,confirm_bars,atr_period,max_channels)`:
+     iki onaylı swing low'dan alt çizgi + p1..p2 aralığındaki en yüksek high'a teğet
+     paralel üst çizgi — `trendlines.build_trendlines` ile AYNI "aday havuzu + extend-only
+     touches/broken_at" mimarisi, ofset created_idx'te SABİTLENİR. `pivot_channel_series`
+     (Channel'ı mid/upper/lower pd.Series'e çevirir) + `channel_position(df,channel)`
+     (0..1 kanal-içi konum, regression VE pivot kanalıyla AYNI arayüzle çalışır). 17 yeni
+     test (trendlines.py testleriyle aynı elle-inşa senaryo deseni: dokunuş/kırılım/
+     prefix-tutarlılık).
+  4. **`features/patterns_geom.py`** (YENİ) — `converging_lines(upper,lower)`: iki
+     Trendline'ın slope_ratio'su, apex (kesişim) noktası, yakınsama testi (gap
+     created_idx'ten itibaren daralıyor VE apex ileride mi). `classify(conv,params,
+     pole_range=None)`: 7 tür — falling_wedge/rising_wedge/sym_triangle/asc_triangle/
+     desc_triangle/flag/pennant. **TASARIM KARARI**: flag/pennant saf geometriden
+     (slope işaretleri + yakınsama) türetilemez — ikisi de "önceki keskin harekete (pole)
+     göre KÜÇÜK konsolidasyon" gerektirir; bu yüzden `classify()` opsiyonel bir
+     `pole_range` alır, yalnızca verilip desen küçükse sym_triangle→pennant,
+     neredeyse-paralel-yakınsamayan→flag döner — pole_range yoksa bu ikisi hiç dönmez.
+     18 yeni test.
+  5. **`features/hs_pattern.py`** (YENİ) — `find_hs(pivots,kind,sym_tol,neck_slope_max)`:
+     zaten alternatif bir zigzag üzerinde 5'li ardışık pencere (`l1,h1,head,h2,l3`) —
+     TOBO (dip: low,high,low,high,low, head en düşük) / OBO (tepe: tersi, head en
+     yüksek). Boyun h1↔h2 arasından geçer (~yatay şartı `neck_slope_max`, ortalama
+     fiyata göre normalize), omuz simetrisi `sym_tol` baş derinliğine göre GÖRELİ.
+     `created_idx = l3.confirmed_idx` (sağ omuz onay barı — non-repaint). `target`
+     klasik ölçülü-hareket projeksiyonu. 10 yeni test + hypothesis subset özelliği
+     (kesik pivot listesiyle bulunan paternler ⊆ tam listeyle bulunanlar).
+  6. **`features/zones_sd.py`** (YENİ) — `find_bases(df,base_max,base_atr,atr_period)`:
+     dar konsolidasyon adayları (üst üste binen uzunluklar bağımsız döner, seçim
+     `make_sd_zones`'a bırakılır). `find_impulses(df,k,impulse_atr,atr_period)`: k barlık
+     net hareket ATR'ye göre eşik üstünde VE en az k-1 bar aynı yönlü gövde. `make_sd_zones`:
+     bir impulse, TAM olarak kendi t0_idx'inde biten bazlarla eşleşir (en uzun/olgun taban
+     seçilir), bölge doğum barı `impulse.t1_idx`. `update_zones(zones,df,t)`: created_idx'ten
+     t'ye kadar test(extend-only)/reaksiyon(ilk, bir kez)/kırılım(bir kez, öncelikli) —
+     `ranges.py`/`zones.py` ile aynı mimari. `golden_zone(swing_start,swing_end,lo,hi)`:
+     `fibonacci.retracement`'ın doğrudan kullanımı (yön ne olursa olsun simetrik) —
+     **TASARIM NOTU**: master spec parametreleri `swing_low/swing_high` diye adlandırmıştı,
+     burada `swing_start/swing_end`'e yeniden adlandırıldı çünkü "low/high" isimleri
+     yalnızca yükseliş senaryosunda doğru anlam taşıyor (davranış AYNI, yalnızca isim
+     netliği). 16 yeni test + hypothesis subset özelliği (make_sd_zones).
+  7. **`features/xsec.py`** (YENİ) — `rolling_alpha_beta(returns_i,returns_m,window)`:
+     trailing OLS (channels.regression_channel ile aynı "her t kendi penceresini fit
+     eder" deseni), alpha/beta + alpha'nın t-istatistiği (klasik intercept SE formülü).
+     `information_ratio`, `momentum_horizons(prices,horizons,skip)` (klasik "12-1", en
+     güncel `skip` barı dışlar — yalnızca pozitif shift), `fip(returns,n)` (Frog-in-the-
+     Pan tutarlılık ölçüsü), `rs_line(price,index)`, `rank_pct(dict[symbol,value])`
+     (percentile rank, YÖN TERS ÇEVRİLDİ: en iyi performans = en KÜÇÜK rank_pct, Faz 8D'nin
+     `rank_pct <= top_pct` filtre sözleşmesiyle uyumlu olsun diye). 16 yeni test.
+  8. **Yan düzeltme**: `trendlines.py::Trendline.value_at`'in tip imzası `int`→`float`'a
+     genişletildi (mypy hatası — `converging_lines`'ın apex_idx'i tam sayı olmak
+     ZORUNDA değil, gerçek bir kesişim noktası).
+  Doğrulama: 93 yeni test (224→317), `pytest -q -m "not network"` 317/317 yeşil,
+  `ruff check tlab/ tests/` 18 hata (BASELINE İLE AYNI, ilgisiz önceden var olan satırlar
+  — yeni dosyalarda SIFIR), `mypy tlab/` yeni dosyalarda temiz, `lint_lookahead` 2 uyarı
+  (BASELINE İLE AYNI, ilgisiz — `kerkez_nenstar.py`/`relative_momentum.py`, bu görev
+  onlara dokunmadı). Henüz GİT'E PUSH EDİLMEDİ (bkz. Git/Push Prosedürü) — kullanıcı
+  onayı bekleniyor.
+  **Sırada**: kullanıcının verdiği sıraya göre Faz 8C (golden_zone.py/supply_demand.py/
+  weekly_channel.py — artık `zones_sd.py`/`channels.py` hazır) → Faz 8B (wedge/
+  head_shoulders/flag_pennant/double_top_bottom/broadening — artık `patterns_geom.py`/
+  `hs_pattern.py` hazır) → Faz 8D (artık `xsec.py` hazır) → K3 → Faz 8E → Faz 10 → Faz 9.
 
-Toplam 224 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
-ruff/mypy/lint_lookahead temiz.
+Toplam 317 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
+ruff/mypy/lint_lookahead temiz (yeni kod kapsamında — repo genelindeki 18 ruff/2
+lint_lookahead uyarısı önceden var olan, ilgisiz satırlardır).
 
 ## Repo Yapısı / Modül Haritası
 

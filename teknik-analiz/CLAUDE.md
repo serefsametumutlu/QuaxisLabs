@@ -542,7 +542,8 @@ için `tlab/testing/lint_lookahead.py` da var (CLI: `tlab lint`).
   YAPILMADI — bu H1 fetch sorunu çözülünce (ayrı, ilgisiz bir takip işi)
   denenmeli. `pytest -q -m "not network"` 360/360 yeşil, `ruff check tlab/
   tests/` 18 hata (BASELINE İLE AYNI), `mypy tlab/` yeni dosyalarda temiz,
-  `lint_lookahead` 2 uyarı (BASELINE İLE AYNI). Henüz GİT'E PUSH EDİLMEDİ.
+  `lint_lookahead` 2 uyarı (BASELINE İLE AYNI). GİT'E PUSH EDİLDİ (local
+  `76225dc` / gerçek repo `b32a01d`).
   **Sırada**: Faz 8B (wedge/head_shoulders/flag_pennant/double_top_bottom/
   broadening — artık `patterns_geom.py`/`hs_pattern.py` hazır) → Faz 8D
   (artık `xsec.py` hazır) → K3 → Faz 8E → Faz 10 → Faz 9.

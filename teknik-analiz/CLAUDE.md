@@ -544,11 +544,36 @@ için `tlab/testing/lint_lookahead.py` da var (CLI: `tlab lint`).
   tests/` 18 hata (BASELINE İLE AYNI), `mypy tlab/` yeni dosyalarda temiz,
   `lint_lookahead` 2 uyarı (BASELINE İLE AYNI). GİT'E PUSH EDİLDİ (local
   `76225dc` / gerçek repo `b32a01d`).
+- **Görselleştirme düzeltmesi — `trend.weekly_channel` "curcuna"sı (2026-08-30,
+  Faz 8C'nin örnek grafiklerini kullanıcıyla birlikte gözden geçirirken
+  bulundu):** TAMAMLANDI. `outputs/samples/tcell_weekly_channel.png` (1D,
+  n=52) ve W1 karşılığı incelenirken görüldü: dar `n` penceresiyle çok-yıllık
+  veride HER dip/tepe dokunuşu VE her kırılım kendi `channel_frozen` çizgi
+  çiftini (alt+üst) üretiyordu — onlarca üst üste binen gri çizgi grafiği
+  okunaksız kılıyordu. `_latest_per_group` (mevcut declutter mekanizması)
+  bu stili yalnızca ETİKET düzeyinde kısıtlıyordu (harmonik/trendline
+  stillerinde işe yarayan varsayım — "şekiller örtüşür, sadece metin
+  gürültü yapar" — burada GEÇERSİZDİ, çünkü her frozen kanal FARKLI bir
+  fiyat/eğimde). Düzeltme `tlab/viz/renderer.py`'ye yeni `_cap_frozen_
+  channels()` — harmonik marker'ların `_MAX_HARMONIC_MARKERS` ile aynı
+  kategoriden bir çözüm, ama ŞEKİL düzeyinde (yalnızca etiket değil):
+  `declutter=True` iken `channel_frozen` stilindeki çizgiler sinyal barının
+  zamanına göre sıralanıp yalnızca EN GÜNCEL `_MAX_FROZEN_CHANNELS=2` çifti
+  tutulur, gerisi TAMAMEN elenir (diğer stiller etkilenmez). İndikatörün
+  KENDİSİ (`weekly_channel.py`, sinyal/state hesabı) DOKUNULMADI — saf bir
+  render/declutter düzeltmesi. 1 yeni hedefli test (`test_cap_frozen_
+  channels_keeps_only_most_recent_pairs`, sentetik Line'larla — gerçek
+  veriye gerek yok). `outputs/samples/tcell_weekly_channel.png` yeniden
+  üretildi ve gözle karşılaştırıldı (öncesi: ~15+ örtüşen çizgi; sonrası: 2
+  dondurulmuş + 1 güncel kanal, net). `pytest -q -m "not network"` 361/361
+  yeşil, `ruff check` temiz, `mypy` bu dosyada yeni hata yok (mevcut
+  1344. satırdaki BASELINE hatası ilgisiz). GİT'E PUSH EDİLDİ (bkz. commit
+  hash'leri için `git log`).
   **Sırada**: Faz 8B (wedge/head_shoulders/flag_pennant/double_top_bottom/
   broadening — artık `patterns_geom.py`/`hs_pattern.py` hazır) → Faz 8D
   (artık `xsec.py` hazır) → K3 → Faz 8E → Faz 10 → Faz 9.
 
-Toplam 360 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
+Toplam 361 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
 ruff/mypy/lint_lookahead temiz (yeni kod kapsamında — repo genelindeki 18 ruff/2
 lint_lookahead uyarısı önceden var olan, ilgisiz satırlardır).
 

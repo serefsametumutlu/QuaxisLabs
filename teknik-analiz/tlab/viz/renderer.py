@@ -412,6 +412,8 @@ def _render_price_based(
 
     levels = _declutter_levels(result.levels) if declutter else result.levels
     boxes, lines = result.boxes, result.lines
+    if declutter:
+        lines = _cap_frozen_channels(lines)
     markers = [m for m in result.markers if m.kind != "macd_cross"]
     latest_box_t0 = (
         _latest_per_group(boxes, lambda b: b.style, lambda b: b.t0) if declutter else None
@@ -553,6 +555,28 @@ def _latest_per_group(items: list, group_key, time_key) -> dict:
         if g not in best or t > best[g]:
             best[g] = t
     return best
+
+
+_MAX_FROZEN_CHANNELS = 2
+
+
+def _cap_frozen_channels(lines: list[Line]) -> list[Line]:
+    """`trend.weekly_channel`'ın `channel_frozen` çizgileri HER dokunuş/kırılım
+    sinyalinde bir çift (alt+üst) üretir (bkz. weekly_channel.py docstring'i)
+    — dar bir `n` penceresiyle çok-yıllık veride bu, `_latest_per_group`'un
+    yalnızca ETİKETİ kısıtlayan mekanizmasından (şekiller yine de hepsi
+    çizilir) etkilenmeyen, onlarca üst üste binen çizgi anlamına geliyordu
+    (gerçek TCELL verisiyle bulunan bir "curcuna" — harmonik marker'ların
+    `_MAX_HARMONIC_MARKERS` ile çözdüğü sorunla AYNI kategori, ama çizgi
+    STİLİ tek başına ayırt edici olmadığı için şekil düzeyinde kesim
+    gerekiyor). Yalnızca EN GÜNCEL `_MAX_FROZEN_CHANNELS` dondurulmuş kanalın
+    şekli (alt+üst çizgi çifti) tutulur; diğer stiller etkilenmez."""
+    frozen = [ln for ln in lines if ln.style == "channel_frozen"]
+    if len(frozen) <= _MAX_FROZEN_CHANNELS * 2:
+        return lines
+    keep_times = sorted({ln.points[-1][0] for ln in frozen})[-_MAX_FROZEN_CHANNELS:]
+    keep_set = set(keep_times)
+    return [ln for ln in lines if ln.style != "channel_frozen" or ln.points[-1][0] in keep_set]
 
 
 _STAGGER_TRIGGER_PX = 18.0  # ~ tek satır 11px yazı için "görsel olarak değecek" eşik

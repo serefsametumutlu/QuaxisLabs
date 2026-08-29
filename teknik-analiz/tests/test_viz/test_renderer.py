@@ -20,7 +20,7 @@ from tlab.indicators.pairs.relative_momentum import RelativeMomentumPair, Relati
 from tlab.indicators.structure.price_structure import PriceStructure, PriceStructureParams
 from tlab.indicators.structure.swing_fib_abcd import SwingFibABCD, SwingFibABCDParams
 from tlab.testing.fixtures import make_trend
-from tlab.viz.renderer import _declutter_levels, _latest_per_group, render
+from tlab.viz.renderer import _cap_frozen_channels, _declutter_levels, _latest_per_group, render
 from tlab.viz.themes import DARK_TERMINAL, fill_color, line_color
 
 _PAIR_PARAMS = RelativeMomentumParams(
@@ -107,6 +107,32 @@ def test_declutter_levels_keeps_only_latest_start_per_style() -> None:
     d_levels_reduced = [lv for lv in reduced if lv.style == "bullish"]
     assert len({lv.start for lv in d_levels_reduced}) == 1
     assert len(d_levels_reduced) < len(d_levels_full)
+
+
+def test_cap_frozen_channels_keeps_only_most_recent_pairs() -> None:
+    """Kullanıcı geri bildirimi: `trend.weekly_channel`'ın dar `n` penceresiyle
+    çok-yıllık veride HER dokunuş/kırılım sinyali bir `channel_frozen` çift
+    (alt+üst) üretiyordu — onlarca üst üste binen çizgi ("curcuna", TCELL
+    örnek grafiğinde bulundu). `_latest_per_group` bu stili yalnızca ETİKET
+    düzeyinde kısıtlar (şekiller yine hepsi çizilir) — bu yüzden ayrı, şekil
+    düzeyinde bir kesim gerekti."""
+    times = [pd.Timestamp(f"2024-01-{d:02d}") for d in (5, 10, 15, 20, 25)]
+    frozen = [
+        Line(points=((t, 90.0), (t, 110.0)), label=f"channel_frozen_lower_{i}",
+             style="channel_frozen", extend_right=False)
+        for i, t in enumerate(times)
+    ] + [
+        Line(points=((t, 95.0), (t, 115.0)), label=f"channel_frozen_upper_{i}",
+             style="channel_frozen", extend_right=False)
+        for i, t in enumerate(times)
+    ]
+    other = Line(points=((times[0], 100.0), (times[-1], 100.0)), label="x", style="channel")
+    capped = _cap_frozen_channels([*frozen, other])
+
+    assert other in capped
+    kept_frozen = [ln for ln in capped if ln.style == "channel_frozen"]
+    assert len(kept_frozen) == 4  # son 2 sinyal x (alt+üst)
+    assert {ln.points[-1][0] for ln in kept_frozen} == set(times[-2:])
 
 
 def test_render_declutter_reduces_annotation_count() -> None:

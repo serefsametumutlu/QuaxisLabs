@@ -820,8 +820,89 @@ için `tlab/testing/lint_lookahead.py` da var (CLI: `tlab lint`).
   taramada HER sinyal için LLM çağrısı yapmak maliyet/gecikme açısından ayrı bir
   tasarım kararı gerektirir (ör. yalnızca YENİ sinyaller için çağrı) — bilinçli
   olarak bu oturumun kapsamı DIŞINDA bırakıldı, ayrı bir takip görevi.
+- **LLM sağlayıcısı Gemini'ye geçirildi + vp paneli genişliği + harmonik fib
+  merdiveni/durum rengi düzeltmesi (2026-08-30, aynı gün üçüncü tur):** TAMAMLANDI.
+  Kullanıcı üç şey daha söyledi: (1) Anthropic (Claude) API'sini KULLANMAK
+  İSTEMEDİ — "Claude haklarımın buraya gitmesini istemiyorum" (Claude Code/
+  Claude.ai aboneliğinden AYRI, pay-per-token bir Anthropic Console hesabı
+  gerektirse de, kullanıcı tüm kullanımını bilinçli olarak Anthropic ekosistemi
+  DIŞINDA tutmak istedi) — Gemini veya Copilot'u sordu; (2) hacim profili
+  panelinde Gaussian eğrisi "kendi alanının dışına taşıyor" gibi görünüyordu,
+  panel sağa doğru biraz daha genişletilebilir dedi; (3) yalnızca Pesavento
+  harmonik örnekleri vardı ve beğenmedi — sinyalin gelip gelmediği/hangi
+  noktada geldiği/hedefin nerede olduğu (veya henüz gelmediyse olası D noktası)
+  görünmüyordu, fibo çizgileri de yoktu.
+  1. **Sağlayıcı Gemini'ye çevrildi** — değerlendirme: GitHub Copilot'un genel
+     amaçlı, ucuz bir "kendi uygulamandan çağır" tarzı tamamlama API'si YOK
+     (esas olarak editör/ajan entegrasyonları için), bu kullanım şekline uygun
+     değil; Google Gemini'nin gerçekten ücretsiz bir kotası var ve Türkçe
+     desteği iyi. `tlab/viz/quant_report.py` yeniden yazıldı: `Provider =
+     Literal["gemini","anthropic"]`, varsayılan `"gemini"` (`google-genai`
+     paketi, `GEMINI_API_KEY`/`GOOGLE_API_KEY`) — Anthropic yolu SİLİNMEDİ,
+     yalnızca artık varsayılan DEĞİL (`provider="anthropic"` ile elle
+     seçilebilir, `ANTHROPIC_API_KEY`). CLI'a `tlab quant-report`'a `--provider`/
+     `--model` eklendi. **DÜRÜST NOT**: `DEFAULT_GEMINI_MODEL="gemini-2.5-flash"`
+     bu kod yazılırken bilinen bir model kimliği — LLM sağlayıcılarının model
+     adları zamanla değişir, gerçek kullanımdan önce Google AI Studio'nun
+     GÜNCEL model listesinden doğrulanmalı (`--model` ile override edilebilir).
+     6 test Gemini mock'una çevrildi + 2 yeni test (Anthropic'in hâlâ opsiyonel
+     çalıştığını ve bilinmeyen sağlayıcının `ValueError` fırlattığını doğrular).
+  2. **Hacim profili paneli genişletildi + sağ kenar payı eklendi** — `_VP_
+     COLUMN_WIDTH` 0.18→0.24 (hem `_render_price_based` hem `render_structure_
+     report`, TEK sabitte birleştirildi); `_draw_volume_profile` artık x-eksenini
+     `[0, max(bar,gaussian)*1.12]` olarak AÇIKÇA ayarlıyor — eskiden Plotly'nin
+     varsayılan autorange payı, bar VE Gaussian eğrisi AYNI tepe değerine
+     (`amplitude = max(volumes)`) ulaştığı için yetersiz kalıyor, ikisi de
+     panelin sağ ÇERÇEVESİNE bitişik duruyordu.
+  3. **Harmonik grafiklere XA fib merdiveni eklendi** — `scanner_indicator.py`,
+     her adayın XA bacağı için standart geri çekilme basamaklarını (0.382/0.5/
+     0.618/0.786 — `fibonacci.retracement()`'ın doğrudan sarmalanması,
+     `swing_fib_abcd.py::_fibonacci_levels` ile AYNI desen, YENİ bir hesap
+     yöntemi DEĞİL) `Level` olarak yayınlıyor; PRZ bandının NEDEN o basamakta
+     olduğunu görsel olarak gerekçelendiriyor. `style="fib_retracement"`
+     olduğu için mevcut renkli/rainbow `_FIB_NEAREST` paletini VE `_declutter_
+     levels`in "yalnızca en güncel aday" davranışını otomatik miras alıyor —
+     renderer'da hiçbir yeni kod GEREKMEDİ. 1 yeni test (`test_xa_fib_ladder_
+     present_for_known_candidate`).
+  4. **GERÇEK HATA — harmonik marker rengi "sinyal geldi mi" sorusunu
+     cevaplamıyordu**: eskiden `_draw_markers`'ın harmonik dalı yalnızca
+     `"bearish" if state=="invalidated" else "bullish"` kullanıyordu — yani
+     pending/active/confirmed'İN HEPSİ AYNI yeşili alıyordu, "sinyal fiilen
+     geldi mi (confirmed) yoksa henüz mi (pending/active)" görsel olarak HİÇ
+     ayırt edilemiyordu (kullanıcının tam olarak şikayet ettiği şey). Düzeltme:
+     yeni `_HARMONIC_STATE_COLOR` sözlüğü — `confirmed`→`accent` (kalın/dolgulu
+     kutu, projenin "en karara-değer" marka rengiyle), `active`→`orange`,
+     `pending`→`gray`, `invalidated`/`expired`→`red`/`gray`. 1 yeni test
+     (`test_harmonic_confirmed_marker_uses_accent_not_generic_bullish`).
+  5. **`outputs/samples/`'daki TÜM eski (bu oturumdan önceki fazlarda üretilmiş)
+     örnek görseller yeniden üretildi** — kullanıcı "structure report kısımları
+     düzelmiş gibi fakat diğerleri aynı gibi" diye sordu; `tcell/thyao/asels_
+     price_structure.png`, `tcell/thyao/asels_swing_fib_abcd.png`,
+     `tcell/thyao/asels_harmonic_pesavento.png`, `alark_harmonic_pesavento.png`
+     ve üç `_structure_report.png` TEKRAR render edildi — panel çerçeveleri/
+     vp yoğunluğu/fib rengi düzeltmeleri PAYLAŞILAN kod yolundan (`_apply_
+     layout`/`_draw_volume_profile`/`fib_color`) geldiği için hepsine otomatik
+     yansıdı, ekstra kod GEREKMEDİ.
+  **DÜRÜST NOT — kalan sınırlama (bilinçli olarak ERTELENDİ)**: bir harmonik
+  adayın X noktası çok eskiyse ve o zamandan beri YENİ bir aday doğmadıysa
+  (ör. `alark_harmonic_pesavento.png`), otomatik yakınlaştırma penceresi
+  (`_harmonic_auto_window_start`) hâlâ candidate'ten BUGÜNE kadar uzanıyor —
+  bu da grafiğin çoğunun boş/düz mum olduğu bir görünüm yaratabiliyor. Bu bir
+  render HATASI değil (veri/parametre gerçeği: o ekol/toleransla daha yeni bir
+  aday bulunamadı — grafik bunu DOĞRU yansıtıyor), ama görsel olarak israf —
+  pencere sonu sezgisinin (candidate + sabit dolgu vs. bugüne kadar) ayrıca
+  gözden geçirilmesi gerekebilir, kullanıcı zaman kısıtı nedeniyle bu turda
+  ERTELENDİ ("çok zaman harcadık, Faz 8B'ye devam edelim").
+  9 yeni test (378→380... bir önceki maddeyle birlikte 376→380).
+  `pytest -q -m "not network"` 380/380 yeşil, `ruff check`/`mypy`/
+  `lint_lookahead` değişen dosyalarda temiz (baseline AYNI) — harmonik repaint
+  testleri (50/50, `tests/test_harmonics/`) YENİ fib Level'ların non-repaint
+  güvenliğini de doğruladı (genel `repaint_test` zaten TÜM `IndicatorResult`
+  alanlarını kapsıyor).
+  **Görsel iş burada KAPANDI** (kullanıcının kendi ifadesiyle) — sıradaki
+  oturum doğrudan **Faz 8B** ile başlamalı.
 
-Toplam 376 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
+Toplam 380 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
 ruff/mypy/lint_lookahead temiz (yeni kod kapsamında — repo genelindeki 18 ruff/2
 lint_lookahead uyarısı önceden var olan, ilgisiz satırlardır).
 

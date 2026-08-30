@@ -35,6 +35,28 @@ def test_gartley_state_transitions_on_known_fixture() -> None:
     assert gartley_signals[-1].detected_at == df.index[30]
 
 
+def test_xa_fib_ladder_present_for_known_candidate() -> None:
+    """2026-08-30: kullanıcı geri bildirimi — harmonik grafiklerde fib
+    çizgileri hiç yoktu. `HarmonicIndicator` artık her aday için XA
+    bacağının standart geri çekilme basamaklarını (`fibonacci.retracement`'ın
+    doğrudan sarmalanması, YENİ bir hesap yöntemi DEĞİL) `Level` olarak
+    yayınlıyor — PRZ'nin NEDEN o bantta olduğunu görsel olarak gerekçelendirir."""
+    df = build_gartley_ohlcv()
+    params = HarmonicParams(left=2, right=2, confirmation_policy="close_reversal", reversal_bars=1)
+    indicator = HarmonicIndicator("carney", params)
+    result = indicator(df)
+
+    fib_levels = [
+        lv for lv in result.levels
+        if lv.style == "fib_retracement" and "N_5_10_15_20" in lv.label
+    ]
+    ratios = {float(lv.label.rsplit("_", 1)[-1]) for lv in fib_levels}
+    assert ratios == {0.382, 0.5, 0.618, 0.786}
+    # Her seviye adayın doğduğu barda (born_time) başlamalı — PRZ ile AYNI
+    # zamanlama sözleşmesi (D henüz oluşmasa bile X,A,B,C'den deterministik).
+    assert len({lv.start for lv in fib_levels}) == 1
+
+
 @pytest.mark.parametrize("school", _SCHOOLS)
 def test_harmonic_indicator_passes_repaint(school: str) -> None:
     df = build_gartley_ohlcv()

@@ -32,6 +32,7 @@ from tlab.core.types import (
     Polygon,
     Timeframe,
 )
+from tlab.features.fibonacci import retracement as fib_retracement
 from tlab.features.swings import Pivot, alternate_pivots, atr_zigzag, find_pivots
 from tlab.indicators.harmonics.geometry import generate_candidates
 from tlab.indicators.harmonics.prz import project_ratio
@@ -47,6 +48,19 @@ from tlab.indicators.harmonics.schools.three_drives import ThreeDrivesSchool
 from tlab.indicators.harmonics.state import ConfirmationPolicy, TrackingConfig, track_pattern
 
 ZigzagMethod = Literal["fixed", "atr"]
+
+# 2026-08-30: kullanıcı geri bildirimi — harmonik grafiklerde "fibo çizgileri
+# yok" ve "D noktası için olası hedef neresi" görülemiyordu. D'nin klasik
+# tanımı ZATEN XA bacağının bir geri çekilmesidir (Gartley 0.786, Bat 0.886,
+# Butterfly/Crab 0.618-1.0 vb.) — PRZ (`prz.py`) bunu ekol-özel oranlarla
+# birden fazla bacağın KESİŞİMİ olarak hesaplıyor, ama görsel olarak TEK bir
+# bant (PRZ Üst/Alt) dışında hangi standart oranın nereye denk geldiği hiç
+# gösterilmiyordu. Bu ladder (`swing_fib_abcd.py::_fibonacci_levels` ile AYNI
+# desen — zaten var olan `fibonacci.retracement()`'ın sarmalanması, YENİ bir
+# hesap yöntemi DEĞİL) XA bacağının standart basamaklarını çizer; PRZ bandı
+# tipik olarak bu basamaklardan biri/birkaçıyla çakışır, kullanıcı NEDEN o
+# bantta olduğunu görebilir.
+_XA_FIB_LEVELS: tuple[float, ...] = (0.382, 0.5, 0.618, 0.786)
 
 _SCHOOLS: dict[str, type[HarmonicSchool]] = {
     "carney": CarneySchool,
@@ -203,6 +217,13 @@ class HarmonicIndicator(BaseIndicator):
                         start=candidate.born_time,
                     )
                 )
+                for lv, price in fib_retracement(x.price, a.price, _XA_FIB_LEVELS).items():
+                    levels.append(
+                        Level(
+                            price=price, label=f"{pid}_fib_{lv}", style="fib_retracement",
+                            start=candidate.born_time,
+                        )
+                    )
 
                 last_sig = pattern_signals[-1]
                 state_label = _STATE_LABEL_TR[last_sig.state]

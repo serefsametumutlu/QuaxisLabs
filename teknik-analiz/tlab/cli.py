@@ -431,7 +431,8 @@ def plot_cmd(
         help=(
             "Yalnızca --indicator structure.report ile: grafiğin YANINA "
             "(.txt) bir 'quant' rapor metni de üretir (bkz. `tlab quant-report` "
-            "— ANTHROPIC_API_KEY gerektirir, yoksa deterministik özete düşer)"
+            "— varsayılan sağlayıcı Gemini, GEMINI_API_KEY/GOOGLE_API_KEY "
+            "gerektirir, yoksa deterministik özete düşer)"
         ),
     ),
 ) -> None:
@@ -488,6 +489,13 @@ def quant_report_cmd(
     symbol: str = typer.Option(..., "--symbol", help="Sembol, ör. ASELS"),
     tf: str = typer.Option("1d", "--tf", help="1h | 4h | 1d | w1"),
     market: str = typer.Option("bist", "--market", help="bist | nasdaq"),
+    provider: str = typer.Option(
+        "gemini", "--provider",
+        help="gemini (varsayılan, GEMINI_API_KEY/GOOGLE_API_KEY) | anthropic (ANTHROPIC_API_KEY)",
+    ),
+    model: str = typer.Option(
+        None, "--model", help="Sağlayıcının varsayılan modelini override eder"
+    ),
     out: str = typer.Option(
         None, "--out", help="Çıktı .txt yolu; varsayılan outputs/samples/"
     ),
@@ -495,10 +503,11 @@ def quant_report_cmd(
     """`structure.price_structure` + `structure.swing_fib_abcd` çıktısından
     gerçek bir LLM çağrısıyla (bkz. `tlab/viz/quant_report.py`) "quant"
     üslubunda, X'te paylaşılabilecek serbest bir rapor metni üretir —
-    `ANTHROPIC_API_KEY` ortam değişkeni gerekir, yoksa deterministik özete
-    (`report_text.build_summary_lines`) düşer ve bunu bir UYARI ile belirtir.
-    `tlab plot --indicator structure.report --with-report` ile AYNI metni,
-    grafiğin YANINDA üretir — bu komut yalnızca metni istediğinizde (grafik
+    varsayılan sağlayıcı Gemini (`GEMINI_API_KEY`/`GOOGLE_API_KEY` ortam
+    değişkeni gerekir), yoksa deterministik özete (`report_text.build_
+    summary_lines`) düşer ve bunu bir UYARI ile belirtir. `tlab plot
+    --indicator structure.report --with-report` ile AYNI metni, grafiğin
+    YANINDA üretir — bu komut yalnızca metni istediğinizde (grafik
     üretmeden) kullanışlıdır."""
     try:
         ps_result, sf_result, df = compute_structure_report(symbol, tf, market)
@@ -506,7 +515,13 @@ def quant_report_cmd(
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=1) from exc
 
-    report = generate_quant_report(ps_result, sf_result, df, symbol=symbol)
+    try:
+        report = generate_quant_report(
+            ps_result, sf_result, df, symbol=symbol, provider=provider, model=model,  # type: ignore[arg-type]
+        )
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
     out_path = (
         Path(out) if out else Path("outputs") / "samples" / f"{symbol}_{tf}_quant_report.txt"
     )

@@ -30,7 +30,7 @@ from tlab.viz.renderer import (
     render,
     render_structure_report,
 )
-from tlab.viz.themes import DARK_TERMINAL, fill_color, line_color
+from tlab.viz.themes import DARK_TERMINAL, LIGHT_ANALYSIS, fill_color, line_color
 
 _PAIR_PARAMS = RelativeMomentumParams(
     window=40, k=2.0, beta_method="one", beta_window=200, min_periods=200,
@@ -259,6 +259,22 @@ def _render_gartley() -> tuple[IndicatorResult, pd.DataFrame]:
     result = HarmonicIndicator("carney", params)(df)
     result.symbol = "TEST"
     return result, df
+
+
+def test_harmonic_confirmed_marker_uses_accent_not_generic_bullish() -> None:
+    """Regresyon (2026-08-30, kullanıcı geri bildirimi): eskiden pending/
+    active/confirmed HEPSİ aynı yeşili ("bullish") alıyordu — invalidated
+    HARİÇ — bu yüzden 'sinyal gerçekten geldi mi (confirmed)' sorusunun
+    cevabı görsel olarak AYIRT EDİLEMİYORDU. `_render_gartley` fixture'ı
+    sonda "confirmed" durumuna ulaşır (bkz. test_harmonics_repaint.py);
+    artık bu durum `accent` (marka rengi) alır, jenerik `bullish` yeşili
+    DEĞİL."""
+    result, df = _render_gartley()
+    assert any(m.kind == "harmonic_confirmed" for m in result.markers)
+    fig = render(result, df, theme="light")
+    harmonic_anns = [a for a in fig.layout.annotations if a.arrowcolor is not None]
+    assert any(a.arrowcolor == LIGHT_ANALYSIS.accent for a in harmonic_anns)
+    assert not any(a.arrowcolor == LIGHT_ANALYSIS.green for a in harmonic_anns)
 
 
 def test_no_raw_internal_id_in_rendered_annotation_text() -> None:

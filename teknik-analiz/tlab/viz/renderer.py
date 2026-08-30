@@ -305,6 +305,13 @@ def _x(t: object) -> str:
     return pd.Timestamp(t).isoformat()
 
 
+# 0.18 -> 0.24 (2026-08-30): kullanıcı geri bildirimi — hacim profili paneli
+# (HVN+Gaussian Fit) referansla kıyaslayınca dar geliyordu, çubuklar/eğri
+# panelin sağ kenarına fazla yakın duruyordu. Bkz. `_draw_volume_profile`'daki
+# eşlik eden x-ekseni dolgu payı (aynı gerekçe, panelin İÇİNDE daha ferah
+# durması için).
+_VP_COLUMN_WIDTH = 0.24
+
 _DEFAULT_LAST_N = 250
 _HARMONIC_ZOOM_PAD_BARS = 20
 
@@ -436,7 +443,7 @@ def _render_price_based(
     if n_cols == 2:
         specs.append([{}, {}])
         specs.extend([{"colspan": 2}, None] for _ in range(n_sub))
-        column_widths = [0.82, 0.18]
+        column_widths = [1.0 - _VP_COLUMN_WIDTH, _VP_COLUMN_WIDTH]
     else:
         specs.extend([{}] for _ in range(n_rows))
         column_widths = None
@@ -1135,6 +1142,19 @@ _STRUCTURE_COLOR = {"HH": "green", "HL": "green", "LH": "red", "LL": "red"}
 
 _MAX_HARMONIC_MARKERS = 3
 
+# 2026-08-30: kullanıcı geri bildirimi — eskiden TÜM durumlar (pending/
+# active/confirmed) invalidated HARİÇ aynı yeşili alıyordu ("bearish" if
+# state=="invalidated" else "bullish"), yani "sinyal gerçekten geldi mi
+# (confirmed) yoksa henüz mi (pending/active)" sorusunun cevabı görsel
+# olarak AYIRT EDİLEMİYORDU. Artık her durumun KENDİ rengi var: `confirmed`
+# (sinyal GELDİ) `accent` (projedeki "en karara-değer" marka rengi — bkz.
+# themes.py); `active` (yaklaşıyor) `orange`; `pending` (yeni doğdu, henüz
+# erken) `gray`; `invalidated`/`expired` (artık geçerli değil) `red`/`gray`.
+_HARMONIC_STATE_COLOR: dict[str, str] = {
+    "confirmed": "accent", "active": "orange", "pending": "gray",
+    "invalidated": "red", "expired": "gray",
+}
+
 
 def _draw_markers(
     fig: go.Figure, markers: list[Marker], theme: Theme, row: int, col: int,
@@ -1161,10 +1181,17 @@ def _draw_markers(
             if visible_harmonic is not None and m not in visible_harmonic:
                 continue
             state = m.kind.removeprefix("harmonic_")
-            color = line_color(theme, "bearish" if state == "invalidated" else "bullish")
+            color = getattr(theme, _HARMONIC_STATE_COLOR.get(state, "gray"))
+            # `confirmed` (sinyal fiilen GELDİ) kalın/dolgulu bir kutuyla
+            # diğerlerinden (ince kenarlıklı) ayrılır — yalnızca renk
+            # yeterince göze çarpmayabilir (ör. accent altın tonu, ince bir
+            # çizgide soluk kalabilir).
+            confirmed = state == "confirmed"
             fig.add_annotation(
-                x=_x(m.t), y=m.price, text=m.text, showarrow=True, arrowhead=2, arrowcolor=color,
-                font=dict(size=11, color=theme.text), bgcolor=theme.bg, bordercolor=color,
+                x=_x(m.t), y=m.price, text=f"<b>{m.text}</b>" if confirmed else m.text,
+                showarrow=True, arrowhead=2, arrowcolor=color, arrowwidth=2 if confirmed else 1,
+                font=dict(size=11, color=theme.text), bgcolor=with_alpha(color, 0.15),
+                bordercolor=color, borderwidth=2 if confirmed else 1,
                 ax=30, ay=-30, row=row, col=col,
             )
         elif m.kind == "pair_signal":
@@ -1335,6 +1362,19 @@ def _draw_volume_profile(
             row=row, col=col,
         )
 
+    # Sağ kenarda bilinçli bir boşluk payı — kullanıcı geri bildirimi:
+    # çubuklar/Gaussian eğrisi panelin sağ ÇERÇEVESİNE fazla yakın/bitişik
+    # duruyordu ("kendi alanının içine" konması istendi). Plotly'nin
+    # varsayılan autorange'i zaten küçük bir pay bırakır, ama bar+eğri
+    # ikisi de AYNI (max hacim) tepe noktasına ulaştığı için bu pay yetersiz
+    # kalıyordu — burada GERÇEK veriden (bar/eğri, hangisi büyükse) hesaplanan
+    # açık bir %12'lik pay veriliyor.
+    max_x = float(vols.max())
+    if gauss is not None and not gauss.empty:
+        max_x = max(max_x, float(gauss.max()))
+    if max_x > 0:
+        fig.update_xaxes(range=[0, max_x * 1.12], row=row, col=col)
+
 
 def _add_hvn_legend_swatch(
     fig: go.Figure, theme: Theme, row: int, col: int, legend_name: str | None = None,
@@ -1435,7 +1475,7 @@ def render_structure_report(
 
     has_vp = any(name.startswith("vp_") for name in ps_result.series)
     n_cols = 2 if has_vp else 1
-    column_widths = [0.82, 0.18] if has_vp else None
+    column_widths = [1.0 - _VP_COLUMN_WIDTH, _VP_COLUMN_WIDTH] if has_vp else None
 
     if n_cols == 2:
         specs: list[list[dict[str, object] | None]] = [[{}, {}]]

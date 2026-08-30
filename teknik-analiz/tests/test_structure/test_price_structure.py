@@ -70,6 +70,19 @@ def test_volume_and_macd_series_present() -> None:
         assert len(result.series[key]) == len(result.series["volume"])
 
 
+def test_rsi_series_present_and_time_indexed() -> None:
+    """2026-08-30: `structure.report` (birleşik grafik) RSI paneli için
+    eklendi — `oscillators.rsi`'nin doğrudan sarmalanması, yeni bir hesap
+    yöntemi DEĞİL."""
+    df, result = _run()
+    assert "rsi_14" in result.series
+    assert result.series["rsi_14"].index.equals(df.index)
+    assert result.series_layout["rsi"] == ["rsi_14"]
+    finite = result.series["rsi_14"].dropna()
+    assert not finite.empty
+    assert finite.between(0.0, 100.0).all()
+
+
 def test_volume_profile_series_are_price_indexed_not_time_indexed() -> None:
     """vp_bins/vp_volumes: index FİYAT bin merkezleridir, df.index (zaman)
     DEĞİLDİR — bkz. price_structure.py modül docstring'i."""
@@ -79,6 +92,17 @@ def test_volume_profile_series_are_price_indexed_not_time_indexed() -> None:
     vp_index = result.series["vp_volumes"].index
     assert not vp_index.equals(df.index)
     assert all(isinstance(x, float) for x in vp_index[:3])
+
+
+def test_vp_hvn_series_is_binary_and_price_indexed() -> None:
+    """`vp_hvn`: 1.0 (HVN) / 0.0, `vp_bins`/`vp_volumes` ile AYNI fiyat
+    indeksini taşır — `find_hvn_nodes`'un doğrudan sarmalanması (renderer
+    burada hiçbir hesap yapmaz, bkz. viz/renderer.py::_draw_volume_profile)."""
+    df, result = _run()
+    assert "vp_hvn" in result.series
+    hvn = result.series["vp_hvn"]
+    assert hvn.index.equals(result.series["vp_bins"].index)
+    assert set(hvn.unique()).issubset({0.0, 1.0})
 
 
 def test_last_state_fields() -> None:
@@ -194,7 +218,7 @@ def test_macd_and_volume_series_match_on_overlap() -> None:
     cut = 40
     partial = PriceStructure(_PARAMS)(df.iloc[:cut])
 
-    for key in ("volume_ma", "macd", "macd_signal", "macd_hist"):
+    for key in ("volume_ma", "macd", "macd_signal", "macd_hist", "rsi_14"):
         full_s = full.series[key]
         partial_s = partial.series[key]
         common = partial_s.index.intersection(full_s.index)

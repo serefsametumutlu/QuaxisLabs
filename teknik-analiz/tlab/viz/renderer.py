@@ -18,7 +18,8 @@ etmeksizin hizalama sorunu oluşmaz."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import textwrap
+from dataclasses import dataclass, replace
 from datetime import datetime
 
 import pandas as pd
@@ -27,6 +28,7 @@ from plotly.subplots import make_subplots
 
 from tlab.core.types import Box, IndicatorResult, Level, Line, Marker, Polygon
 from tlab.viz import labels_tr as tr
+from tlab.viz.report_text import build_summary_lines
 from tlab.viz.themes import (
     DARK_TERMINAL,
     LIGHT_ANALYSIS,
@@ -352,6 +354,21 @@ def _right_edge_cutoff(df: pd.DataFrame, window_start_idx: int) -> datetime:
     return visible[pos]
 
 
+def _visible_price_bounds(df: pd.DataFrame, window_start_idx: int) -> tuple[float, float] | None:
+    """Görünür pencerenin PADDED fiyat aralığı — `_sync_price_yaxis`'in
+    ekseni ayarlarken kullandığı AYNI formül, tek doğru kaynak burası
+    (`_stagger_yshifts`'in `price_bounds`'ı da BUNU kullanır — bir etiketin
+    fanlanırken taştığı "sınır", ekranda GERÇEKTEN görünen y-ekseni
+    aralığıyla AYNI olmalı, aksi halde etiket "sınır içinde" sanılıp yine de
+    görünmez bir bölgeye (margin/masthead) taşabilir)."""
+    visible = df.iloc[window_start_idx:]
+    if visible.empty:
+        return None
+    low, high = float(visible["low"].min()), float(visible["high"].max())
+    pad = (high - low) * 0.05 or 1.0
+    return (low - pad, high + pad)
+
+
 def _sync_price_yaxis(
     fig: go.Figure, df: pd.DataFrame, window_start_idx: int, has_vp: bool
 ) -> None:
@@ -360,12 +377,10 @@ def _sync_price_yaxis(
     penceresine göre otomatik ölçeklenip iki panel görsel olarak KOPUK
     görünüyordu (Görsel 2 referansında ikisi hizalı — kullanıcı geri
     bildirimiyle bulundu)."""
-    visible = df.iloc[window_start_idx:]
-    if visible.empty:
+    bounds = _visible_price_bounds(df, window_start_idx)
+    if bounds is None:
         return
-    low, high = float(visible["low"].min()), float(visible["high"].max())
-    pad = (high - low) * 0.05 or 1.0
-    y_range = [low - pad, high + pad]
+    y_range = list(bounds)
     fig.update_yaxes(range=y_range, row=1, col=1)
     if has_vp:
         fig.update_yaxes(range=y_range, row=1, col=2)
@@ -478,6 +493,7 @@ def _render_price_based(
         + [(lv, lv.price, _BOX_YSHIFT_BASE) for lv in levels]
         + [(ln, proj, _LINE_EXT_YSHIFT) for ln, proj in labeled_line_ext],
         px_per_unit=px_per_unit, step=14.0,
+        price_bounds=_visible_price_bounds(df, window_start_idx),
     )
     # `has_vp` sağdaki hacim-profili panelini de içeren grafiklerde, sağ
     # kenara YAKIN box/level etiketleri (ör. POC/VAH/VAL — `Level.end`
@@ -601,10 +617,20 @@ def _cap_frozen_channels(lines: list[Line]) -> list[Line]:
 
 
 _STAGGER_TRIGGER_PX = 18.0  # ~ tek satır 11px yazı için "görsel olarak değecek" eşik
+# Bir "confluence" bölgesinde ÇOK SAYIDA öğe (ör. birleşik rapor grafiğinde
+# aynı anda 3 AB=CD hedefi + POC/VAH/VAL + bölge/trendline etiketleri hep aynı
+# fiyat aralığında) birikirse, sınırsız büyüyen `n` offset'i grafiğin üst
+# kenar boşluğuna/masthead'e kadar taşabiliyordu (gerçek TCELL verisiyle
+# `structure.report` birleşik grafiğinde bulunan bir davranış — bkz. CLAUDE.md
+# 2026-08-30 kaydı). Bu üst sınır aşılınca fanlama DURUR (kabul edilebilir bir
+# artık örtüşme pahasına) — etiketin plot alanının DIŞINA taşmasındansa aynı
+# bölgede birkaç etiketin hafifçe üst üste binmesi tercih edilir.
+_STAGGER_MAX_OFFSET_PX = 100.0
 
 
 def _stagger_yshifts(
     items: list[tuple[object, float, float]], px_per_unit: float, step: float = 10.0,
+    price_bounds: tuple[float, float] | None = None,
 ) -> dict[object, float]:
     """Fiyatça birbirine YAKIN öğelerin etiketleri aynı pikselde üst üste
     biner (ör. bir direnç bölgesinin tepesi + bir trendline izdüşümü + bir
@@ -639,7 +665,21 @@ def _stagger_yshifts(
     (gerçek veriyle bulunan bir davranış — `n` hiç küçülmediği için
     ekran konumları `price` sırasıyla TUTARLI biçimde artar/azalır, bu da
     "yalnızca bir öncekiyle kıyasla" kontrolünü TÜM çiftler için geçerli
-    kılar, yalnızca komşular için değil)."""
+    kılar, yalnızca komşular için değil).
+
+    `price_bounds` (opsiyonel, `(alt, üst)`): verilirse fanlama, öğenin EKRAN
+    konumu bu aralığın DIŞINA taşacaksa durur (kabul edilebilir bir örtüşme
+    pahasına) — `_STAGGER_MAX_OFFSET_PX`'in SABİT piksel tavanı tek başına
+    YETERSİZDİ: gerçek THYAO verisiyle bulundu (2026-08-30) — hisse fiyatı
+    yüksek/geniş bir aralıkta (ör. 260-360) olduğunda AYNI piksel bütçesi çok
+    daha FAZLA fiyat birimine karşılık geliyor (`px_per_unit` küçük), bu da
+    üst sınıra rağmen bir etiketin (VAH) grafiğin görünür fiyat aralığının
+    tamamen DIŞINA, masthead'in bile üstüne taşmasına yol açtı. Asıl doğru
+    sınır SABİT piksel DEĞİL, o öğenin görünür ekseni AŞMAMASI — bu yüzden
+    `price_bounds` (görünür y-ekseni aralığı, `_sync_price_yaxis`'teki AYNI
+    pad'li hesap) birincil sınır, `_STAGGER_MAX_OFFSET_PX` yalnızca `price_
+    bounds` verilmediğinde (ör. testler/`yshifts=None` fallback yolu) devreye
+    giren bir yedek."""
     min_gap = _STAGGER_TRIGGER_PX / px_per_unit if px_per_unit > 0 else 0.0
     # `n=0` (henüz hiç fanlanmamış) EKRAN konumuna göre sıralanır — SALT
     # `price`e göre sıralamak (eski davranış) yalnızca TÜM öğeler AYNI
@@ -663,6 +703,24 @@ def _stagger_yshifts(
         while True:
             offset = base + direction * n * step
             effective = price + (offset / px_per_unit if px_per_unit > 0 else 0.0)
+            if price_bounds is not None:
+                lo, hi = price_bounds
+                out_of_bounds = effective > hi if direction > 0 else effective < lo
+                if out_of_bounds:
+                    # Paylaşılan `n` sayacı ÖNCEKİ öğelerden ZATEN yüksek
+                    # gelmiş olabilir (bkz. "n hiç küçülmez" ilkesi) — TEK
+                    # bir geri adım yetmeyebilir, sınırın İÇİNE dönene (ya da
+                    # n=0'a) kadar geri sarılır (gerçek THYAO verisiyle
+                    # bulunan bir hata: tek adımlık geri dönüş VAH'ı 377'den
+                    # 375'e indiriyordu, hâlâ 360'lık sınırın ÇOK dışında).
+                    while n > 0 and out_of_bounds:
+                        n -= 1
+                        offset = base + direction * n * step
+                        effective = price + (offset / px_per_unit if px_per_unit > 0 else 0.0)
+                        out_of_bounds = effective > hi if direction > 0 else effective < lo
+                    break
+            elif abs(offset) >= _STAGGER_MAX_OFFSET_PX:
+                break  # sabit yedek sınır — bkz. `price_bounds` docstring notu
             if prev_effective is None or abs(effective - prev_effective) >= min_gap:
                 break
             n += 1
@@ -980,11 +1038,36 @@ def _level_color(theme: Theme, lv: Level) -> str:
     return line_color(theme, lv.style)
 
 
+def _level_display_text(lv: Level) -> str:
+    """Fib seviyeleri için referans ekran görüntüsündeki gibi "oran - fiyat"
+    biçimi (ör. "0.618 - 39.83") — yalnızca oranı gösteren eski `fib_0.618`
+    yerine, ekstra bir okuma yapmadan (fiyat zaten `lv.price`'ta hazır)."""
+    if lv.style.startswith("fib_"):
+        try:
+            ratio = float(lv.label.rsplit("_", 1)[-1])
+            return f"{ratio:g} - {lv.price:.2f}"
+        except ValueError:
+            pass
+    return _display_text(lv.label, lv.style)
+
+
 def _draw_levels(
     fig: go.Figure, levels: list[Level], df: pd.DataFrame, theme: Theme, row: int, col: int,
     px_per_unit: float = 1.0, yshifts: dict[object, float] | None = None,
     has_vp: bool = False, edge_cutoff: datetime | None = None,
+    labeled: set[Level] | None = None,
 ) -> None:
+    """`labeled` (varsayılan `None` = HEPSİ etiketlenir, `_render_price_based`'in
+    ORİJİNAL davranışı DEĞİŞMEDİ): verilirse yalnızca bu kümedeki Level'lar
+    metin alır, diğerleri şekil (yatay çizgi) olarak çizilmeye devam eder ama
+    ETİKETSİZ kalır. Birleşik rapor grafiğinde (`render_structure_report`)
+    kullanılır — AB=CD'nin `max_active_targets` kadar hedefi (ör. 3 ayrı oran)
+    `structure.price_structure`'ın KENDİ POC/VAH/VAL/fib seviyeleriyle AYNI
+    dar fiyat bandında birikince (`_stagger_yshifts`'in "n hiç küçülmez" zincir
+    etkisiyle) etiketler grafiğin üst kenar boşluğuna kadar taşabiliyordu
+    (gerçek TCELL verisiyle bulunan bir davranış, bkz. CLAUDE.md 2026-08-30) —
+    en yakın hedef DIŞINDAKİLER hâlâ çizgi olarak görünür (bilgi kaybı yok),
+    yalnızca metin yığılması azalır."""
     first_x, last_x = df.index[0], df.index[-1]
     # Level'lar HER ZAMAN yukarı (+) yönde fanlanır (aynı gerekçe: bkz.
     # `_draw_boxes`), `_LINE_EXT_YSHIFT`in negatif şeridine ASLA düşmez.
@@ -1013,9 +1096,11 @@ def _draw_levels(
         # veriyle bulunan bir çakışma — bkz. CLAUDE.md 2026-08-29 kaydı).
         # Konum (x1) AYNI kalır, yalnızca ANCHOR yönü değişir (metin SOLA
         # büyür, panelin İÇİNDE kalır).
+        if labeled is not None and lv not in labeled:
+            continue
         near_edge = has_vp and edge_cutoff is not None and x1 >= edge_cutoff
         fig.add_annotation(
-            x=_x(x1), y=lv.price, text=_display_text(lv.label, lv.style), showarrow=False,
+            x=_x(x1), y=lv.price, text=_level_display_text(lv), showarrow=False,
             font=dict(size=11, color=color), xanchor="right" if near_edge else "left",
             yanchor="bottom", yshift=yshifts.get(lv, _LEVEL_YSHIFT_BASE), row=row, col=col,
         )
@@ -1132,6 +1217,28 @@ def _draw_series_panel(
                     font=dict(size=10, color=color), row=row, col=col,
                 )
         return
+    if name == "rsi":
+        rsi = result.series.get("rsi_14")
+        if rsi is not None:
+            fig.add_trace(
+                go.Scatter(
+                    x=_xs(rsi.index), y=rsi, mode="lines",
+                    line=dict(color=theme.purple, width=1.4), name="RSI", showlegend=False,
+                ),
+                row=row, col=col,
+            )
+        # 70/50/30 eşik çizgileri — RSI'ın KENDİSİ zaten hesaplanmış bir seri;
+        # bu üç değer sabit referans çizgisidir (yeni bir hesap DEĞİL, MACD
+        # panelindeki kesişim okları gibi salt görsel kılavuz). `add_hline`
+        # ÖNCE değil rsi trace'inden SONRA çağrılır (bkz. `_render_pair`'deki
+        # `add_vrect` sessiz no-op notu — aynı sıralama kısıtı).
+        for y, color, dash in (
+            (70, theme.red, "dot"), (50, theme.muted, "dash"), (30, theme.green, "dot"),
+        ):
+            fig.add_hline(
+                y=y, line=dict(color=color, width=1, dash=dash), row=row, col=col,
+            )
+        return
     for s_name in series_names:
         s = result.series.get(s_name)
         if s is not None:
@@ -1142,19 +1249,34 @@ def _draw_series_panel(
 
 
 def _draw_volume_profile(
-    fig: go.Figure, result: IndicatorResult, theme: Theme, row: int, col: int
+    fig: go.Figure, result: IndicatorResult, theme: Theme, row: int, col: int,
+    legend_name: str | None = None,
 ) -> None:
     bins, vols = result.series.get("vp_bins"), result.series.get("vp_volumes")
     if bins is None or vols is None:
         return
-    va_low = next((lv.price for lv in result.levels if lv.label == "VAL"), None)
-    va_high = next((lv.price for lv in result.levels if lv.label == "VAH"), None)
-    colors = []
-    for p in bins.to_numpy():
-        in_va = va_low is not None and va_high is not None and va_low <= p <= va_high
-        colors.append(
-            fill_color(theme, "bullish", 0.85) if in_va else fill_color(theme, "support_zone", 0.6)
-        )
+    # HVN (Yüksek Hacim Düğümü) — `vp_hvn` (varsa) `PriceStructure`'ın KENDİSİ
+    # tarafından önceden hesaplanır (`find_hvn_nodes`, saf histogram
+    # tepe-noktası tespiti); renderer burada HİÇBİR hesap yapmaz, yalnızca
+    # bu hazır bayrağa göre renk seçer. Seri yoksa (ör. eski/başka bir
+    # indikatörün ürettiği vp_* — geriye uyumluluk) value-area tabanlı eski
+    # renklendirmeye düşer.
+    hvn = result.series.get("vp_hvn")
+    colors: list[str] = []
+    if hvn is not None:
+        default_color = with_alpha(theme.blue, 0.35)
+        hvn_color = theme.green
+        for h in hvn.to_numpy():
+            colors.append(hvn_color if h >= 0.5 else default_color)
+    else:
+        va_low = next((lv.price for lv in result.levels if lv.label == "VAL"), None)
+        va_high = next((lv.price for lv in result.levels if lv.label == "VAH"), None)
+        for p in bins.to_numpy():
+            in_va = va_low is not None and va_high is not None and va_low <= p <= va_high
+            colors.append(
+                fill_color(theme, "bullish", 0.85) if in_va
+                else fill_color(theme, "support_zone", 0.6)
+            )
     fig.add_trace(
         go.Bar(
             x=vols.to_numpy(), y=bins.to_numpy(), orientation="h", marker_color=colors,
@@ -1162,8 +1284,11 @@ def _draw_volume_profile(
         ),
         row=row, col=col,
     )
+    if hvn is not None and hvn.to_numpy().any():
+        _add_hvn_legend_swatch(fig, theme, row, col, legend_name)
     gauss = result.series.get("vp_gauss")
     if gauss is not None:
+        legend_kwargs = {"legend": legend_name} if legend_name else {}
         fig.add_trace(
             go.Scatter(
                 x=gauss.to_numpy(), y=gauss.index.to_numpy(), mode="lines",
@@ -1171,9 +1296,288 @@ def _draw_volume_profile(
                 # bu eğri hacim profilinin KARARA-DEĞER özeti (yoğunlaşma
                 # şekli), eskiden keyfi bir sarıydı.
                 line=dict(color=theme.accent, width=2), name="Gaussian Fit", showlegend=True,
+                **legend_kwargs,
             ),
             row=row, col=col,
         )
+
+
+def _add_hvn_legend_swatch(
+    fig: go.Figure, theme: Theme, row: int, col: int, legend_name: str | None = None,
+) -> None:
+    """`_draw_volume_profile`'ın HVN bin'leri TEK bir çok-renkli `Bar` trace'i
+    içinde boyandığı için Plotly legend'ına kendiliğinden ayrı bir "HVN"
+    girdisi olarak GİRMEZ — pair modundaki `_add_holding_legend_swatches`
+    ile AYNI çözüm: verisiz (yalnızca legend-amaçlı) bir marker trace'i.
+    `legend_name`: birleşik rapor modunda (`render_structure_report`) vp
+    paneli sağda geniş bir "Özet Raporu" sütunuyla komşu olduğu için
+    varsayılan (figürün sağ ÜST köşesi) legend konumu artık vp panelinin
+    ÜSTÜNDE değil rapor sütununun üstünde kalıyordu — ayrı bir `legend2`
+    grubuna atanıp vp panelinin KENDİ konumuna göre konumlandırılır (bkz.
+    `_position_vp_legend`)."""
+    legend_kwargs = {"legend": legend_name} if legend_name else {}
+    fig.add_trace(
+        go.Scatter(
+            x=[None], y=[None], mode="markers",
+            marker=dict(symbol="square", size=10, color=theme.green),
+            name="HVN (Yüksek Hacim Düğümü)", showlegend=True, hoverinfo="skip",
+            **legend_kwargs,
+        ),
+        row=row, col=col,
+    )
+
+
+def _position_vp_legend(fig: go.Figure, theme: Theme) -> None:
+    """`legend2`'yi (bkz. `_draw_volume_profile`'ın `legend_name` parametresi)
+    vp panelinin (row=1, col=2) KENDİ x/y domain'inin hemen ÜSTÜNE
+    yerleştirir — `_apply_pair_legends`'daki "sabit kesir varsayma, gerçek
+    domain'i oku" ilkesiyle AYNI (make_subplots'ın column_widths/row_heights'
+    tan hesapladığı domain, sabit bir sayı değil)."""
+    x0 = fig.layout.xaxis2.domain[0]
+    y1 = fig.layout.yaxis2.domain[1]
+    fig.update_layout(
+        legend2=dict(
+            x=x0, y=y1 + 0.015, xanchor="left", yanchor="bottom", orientation="v",
+            bgcolor="rgba(0,0,0,0)", bordercolor=theme.border, borderwidth=0,
+            font=dict(color=theme.text, size=9.5, family=theme.font),
+        ),
+    )
+
+
+# ------------------------------------------------------- birleşik rapor modu --
+#
+# 2026-08-30: kullanıcı, `structure.price_structure` (zone/trendline/
+# POC-VAH-VAL/hacim profili/MACD) ile `structure.swing_fib_abcd`'i (swing
+# HH/HL/LH/LL yapısı + fib merdiveni + AB=CD hedefleri) referans mockup'a
+# (images/Ekran görüntüsü 2026-08-29 165109.png) göre TEK bir "aracı kurum
+# raporu" grafiğinde BİRLEŞTİRİLMESİNİ istedi, artı sağda deterministik bir
+# "Özet Raporu" metin sütunu (bkz. `report_text.py` — LLM YOK, yalnızca zaten
+# hesaplanmış değerlerin kural-tabanlı Türkçe cümlelere çevrilmesi). Bu,
+# `_render_price_based`'İN YERİNE GEÇMEZ (o TEK indikatörlük genel görünüm
+# olarak kalır) — burası viz katmanının HİÇBİR hesap yapmadan iki HAZIR
+# `IndicatorResult`'ı aynı çizim yardımcılarıyla (`_draw_boxes`/`_draw_levels`/
+# `_draw_lines`/`_draw_markers`/`_stagger_yshifts`) TEK bir figürde birleştiren
+# ayrı bir fonksiyon.
+
+
+_REPORT_COL_WIDTH = 0.24
+_REPORT_WRAP_CHARS = 34
+
+
+def render_structure_report(
+    ps_result: IndicatorResult, sf_result: IndicatorResult, df: pd.DataFrame,
+    *, theme: Theme | str | None = "auto", last_n: int | None = None, declutter: bool = True,
+) -> go.Figure:
+    """`structure.price_structure` + `structure.swing_fib_abcd` çıktısını TEK
+    grafikte birleştirir. Ana panel (zone/trendline/POC-VAH-VAL + swing yapı
+    etiketleri + fib merdiveni + AB=CD hedefleri) yalnızca `last_n`
+    penceresine yakınlaşır; hacim/MACD/RSI alt panelleri TAM GEÇMİŞİ gösterir
+    (referans mockup'ın kendi tasarımı — ana panel "şu an"a odaklanırken alt
+    osilatörler uzun vadeli bağlamı korur, bu yüzden `shared_xaxes=False` —
+    aksi halde Plotly satırların x-eksenini birbirine kilitleyip ana panelin
+    zoom'unu alt panellere de yansıtırdı). Sağdaki üçüncü kolon deterministik
+    bir "Özet Raporu" metnidir (bkz. `report_text.build_summary_lines`)."""
+    resolved = resolve_theme(theme, default=LIGHT_ANALYSIS)
+
+    sub_names = list(ps_result.series_layout.keys())
+    n_sub = len(sub_names)
+    n_rows = 1 + n_sub
+    main_h = 0.42 if n_sub else 1.0
+    sub_h = (1.0 - main_h) / n_sub if n_sub else 0.0
+    row_heights = [main_h] + [sub_h] * n_sub
+
+    has_vp = any(name.startswith("vp_") for name in ps_result.series)
+    vp_w = 0.16 if has_vp else 0.0
+    main_w = 1.0 - _REPORT_COL_WIDTH - vp_w
+    column_widths = [main_w, vp_w or 0.001, _REPORT_COL_WIDTH]
+
+    specs: list[list[dict[str, object] | None]] = [[{}, {}, {"rowspan": n_rows}]]
+    specs.extend([{"colspan": 2}, None, None] for _ in range(n_sub))
+
+    fig = make_subplots(
+        rows=n_rows, cols=3, shared_xaxes=False, vertical_spacing=0.04,
+        row_heights=row_heights, column_widths=column_widths, specs=specs,
+        horizontal_spacing=0.02,
+    )
+
+    fig.add_trace(
+        go.Candlestick(
+            x=_xs(df.index), open=df["open"], high=df["high"], low=df["low"], close=df["close"],
+            increasing_line_color=resolved.up, decreasing_line_color=resolved.down,
+            increasing_fillcolor=resolved.up, decreasing_fillcolor=resolved.down,
+            name="Fiyat", showlegend=False,
+        ),
+        row=1, col=1,
+    )
+
+    combined_levels = ps_result.levels + sf_result.levels
+    levels = _declutter_levels(combined_levels) if declutter else combined_levels
+    boxes = ps_result.boxes
+    lines = ps_result.lines + sf_result.lines
+    markers = [m for m in ps_result.markers if m.kind != "macd_cross"] + sf_result.markers
+
+    # İki indikatörün seviyeleri (POC/VAH/VAL/zone + AB=CD hedefleri + fib
+    # merdiveni) BİRLEŞİNCE, ikisi ayrı ayrı iken sorun olmayan yoğunluk aynı
+    # dar fiyat bandında (ör. "güncel fiyat" civarı) üst üste binmeye
+    # başlıyordu (gerçek TCELL verisiyle bulunan bir davranış — bkz. CLAUDE.md
+    # 2026-08-30). İki hedefli azaltma (şekil HER ZAMAN kalır, yalnızca metin
+    # kısıtlanır — bkz. `_draw_levels`'ın `labeled` parametresi):
+    # 1) Aynı ABC üçlüsünün BİRDEN FAZLA AB=CD hedefinden (ör. 3 oran) yalnızca
+    #    fiyata EN YAKINI etiketlenir.
+    # 2) Fib merdiveninde yalnızca klasik "altın bölge" (%61.8/%78.6 — zaten
+    #    `accent` rengiyle vurgulanan iki basamak) etiketlenir; diğer basamaklar
+    #    (%23.6/%38.2/%50/%100/uzatmalar) çizgi olarak kalır.
+    close = float(df["close"].iloc[-1])
+    labeled_levels: set[Level] | None = set(levels) if declutter else None
+    if declutter:
+        d_targets = [lv for lv in levels if lv.label.startswith("D (hedef)")]
+        by_direction: dict[str, list[Level]] = {}
+        for lv in d_targets:
+            by_direction.setdefault(lv.style, []).append(lv)
+        nearest_targets = {
+            min(group, key=lambda lv: abs(lv.price - close)) for group in by_direction.values()
+        }
+        assert labeled_levels is not None
+        labeled_levels -= set(d_targets) - nearest_targets
+
+        def _is_golden_fib(lv: Level) -> bool:
+            try:
+                return float(lv.label.rsplit("_", 1)[-1]) in (0.618, 0.786)
+            except ValueError:
+                return False
+
+        non_golden_fib = {
+            lv for lv in levels
+            if lv.style in ("fib_retracement", "fib_extension") and not _is_golden_fib(lv)
+        }
+        labeled_levels -= non_golden_fib
+
+    latest_box_t0 = (
+        _latest_per_group(boxes, lambda b: b.style, lambda b: b.t0) if declutter else None
+    )
+    latest_line_end = (
+        _latest_per_group(lines, lambda ln: ln.style, lambda ln: ln.points[-1][0])
+        if declutter else None
+    )
+
+    window_start_idx = _resolve_window_start(ps_result, df, last_n)
+    visible = df.iloc[window_start_idx:]
+    visible_price_range = (
+        float(visible["high"].max() - visible["low"].min()) if not visible.empty else 0.0
+    ) or 1.0
+    total_height = 700 + 200 * n_sub
+    main_row_px = max((total_height - 90) * main_h, 50.0)
+    px_per_unit = main_row_px / visible_price_range if visible_price_range else 1.0
+
+    labeled_boxes = [
+        b for b in boxes if latest_box_t0 is None or b.t0 == latest_box_t0.get(b.style)
+    ]
+    line_extensions = _line_extensions(lines, df)
+    labeled_line_ext = [
+        (ln, proj) for ln, (_et, proj) in line_extensions.items()
+        if latest_line_end is None or ln.points[-1][0] == latest_line_end.get(ln.style)
+    ]
+    levels_for_stagger = [lv for lv in levels if labeled_levels is None or lv in labeled_levels]
+    box_level_yshifts = _stagger_yshifts(
+        [(b, b.high, _BOX_YSHIFT_BASE) for b in labeled_boxes]
+        + [(lv, lv.price, _BOX_YSHIFT_BASE) for lv in levels_for_stagger]
+        + [(ln, proj, _LINE_EXT_YSHIFT) for ln, proj in labeled_line_ext],
+        px_per_unit=px_per_unit, step=14.0,
+        price_bounds=_visible_price_bounds(df, window_start_idx),
+    )
+    edge_cutoff = _right_edge_cutoff(df, window_start_idx)
+
+    _draw_boxes(
+        fig, boxes, resolved, row=1, col=1, latest_t0=latest_box_t0,
+        px_per_unit=px_per_unit, yshifts=box_level_yshifts, has_vp=has_vp, edge_cutoff=edge_cutoff,
+    )
+    _draw_lines(
+        fig, lines, df, resolved, row=1, col=1, latest_end=latest_line_end,
+        px_per_unit=px_per_unit, yshifts=box_level_yshifts,
+    )
+    _draw_levels(
+        fig, levels, df, resolved, row=1, col=1, px_per_unit=px_per_unit,
+        yshifts=box_level_yshifts, has_vp=has_vp, edge_cutoff=edge_cutoff,
+        labeled=labeled_levels,
+    )
+    _draw_markers(fig, markers, resolved, row=1, col=1, declutter=declutter)
+
+    for i, name in enumerate(sub_names, start=2):
+        _draw_series_panel(
+            fig, ps_result, name, ps_result.series_layout[name], resolved, row=i, col=1, df=df,
+        )
+        # Alt paneller TAM GEÇMİŞİ gösterir — ana panelin `last_n` zoom'undan
+        # BİLİNÇLİ OLARAK bağımsız (bkz. fonksiyon docstring'i).
+        fig.update_xaxes(range=[_x(df.index[0]), _x(df.index[-1])], row=i, col=1)
+
+    if has_vp:
+        _draw_volume_profile(fig, ps_result, resolved, row=1, col=2, legend_name="legend2")
+
+    for r in range(1, n_rows + 1):
+        fig.update_xaxes(showticklabels=(r == n_rows), row=r, col=1)
+
+    if window_start_idx > 0:
+        fig.update_xaxes(
+            range=[_x(df.index[window_start_idx]), _x(df.index[-1])], row=1, col=1,
+        )
+    _sync_price_yaxis(fig, df, window_start_idx, has_vp)
+
+    summary_lines = build_summary_lines(ps_result, sf_result, df)
+    _draw_summary_panel(fig, summary_lines, resolved, row=1, col=3)
+
+    # Alt başlık, `ps_result.indicator` ("structure.price_structure") yerine
+    # BU birleşik görünümü yansıtmalı (`_price_header` tek-indikatör varsayımı
+    # yapar) — yalnızca `subtitle` alanı override edilir, diğer alanlar
+    # (fiyat/değişim/tarih) aynı biçimlendirmeden (`_price_header`) gelir.
+    header = replace(
+        _price_header(ps_result, df),
+        subtitle=f"{_category_tr(ps_result.indicator)} — Birleşik Rapor (Yapı + Swing/Fibonacci)",
+    )
+    _apply_layout(fig, resolved, header, height=total_height, width=1750)
+    if has_vp:
+        _position_vp_legend(fig, resolved)
+    return fig
+
+
+def _draw_summary_panel(
+    fig: go.Figure, lines: list[str], theme: Theme, row: int, col: int,
+) -> None:
+    """Sağdaki "Özet Raporu" sütunu — gerçek bir veri ekseni taşımaz, yalnızca
+    sabit [0,1]x[0,1] bir "tuval" üzerinde üstten alta metin satırları
+    (`report_text.build_summary_lines` — deterministik, LLM'siz). Boş bir
+    `Scatter` trace'i eklenir (bkz. `add_vrect`/`add_shape`'in bir satırın
+    İLK trace'inden önce çağrılırsa sessizce no-op olması — modüldeki `_render_
+    pair` notuyla AYNI kısıt, burada annotation'lar için tedbiren uygulanıyor)."""
+    fig.update_xaxes(visible=False, range=[0, 1], showgrid=False, row=row, col=col)
+    fig.update_yaxes(visible=False, range=[0, 1], showgrid=False, row=row, col=col)
+    fig.add_trace(
+        go.Scatter(
+            x=[0, 1], y=[0, 1], mode="markers", marker=dict(opacity=0),
+            showlegend=False, hoverinfo="skip",
+        ),
+        row=row, col=col,
+    )
+    fig.add_annotation(
+        x=0.0, y=0.99, xanchor="left", yanchor="top", showarrow=False,
+        text="<b>ÖZET RAPORU</b>", font=dict(size=13, color=theme.accent, family=theme.font),
+        row=row, col=col,
+    )
+    fig.add_shape(
+        type="line", x0=0.0, x1=1.0, y0=0.955, y1=0.955,
+        line=dict(color=theme.border, width=1), row=row, col=col,
+    )
+    y = 0.90
+    for raw_line in lines:
+        wrapped_lines = textwrap.wrap(raw_line, _REPORT_WRAP_CHARS) or [""]
+        for j, wrapped in enumerate(wrapped_lines):
+            prefix = "•  " if j == 0 else "    "
+            fig.add_annotation(
+                x=0.0, y=y, xanchor="left", yanchor="top", showarrow=False,
+                text=prefix + wrapped, font=dict(size=11, color=theme.text, family=theme.font),
+                row=row, col=col,
+            )
+            y -= 0.034
+        y -= 0.018  # madde aralarında ekstra boşluk
 
 
 # ---------------------------------------------------------------- pair mod --

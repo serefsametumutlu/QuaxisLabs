@@ -92,6 +92,33 @@ def _value_area(
     return float(edges[lo_idx]), float(edges[hi_idx + 1])
 
 
+def find_hvn_nodes(
+    volumes: tuple[float, ...], top_n: int = 3, min_ratio: float = 0.55
+) -> tuple[int, ...]:
+    """Yüksek Hacim Düğümü (HVN) bin indekslerini döner — yerel maksimum
+    (komşularından düşük olmayan) VE hacmi en yoğun bin'in en az `min_ratio`
+    katı olan bin'ler adaydır, en yoğun `top_n` tanesi (artan indeks sırasında)
+    döner. POC/value_area'dan BAĞIMSIZ, saf histogram tepe-noktası tespiti
+    (referans ekran görüntüsündeki "HVN" vurgusu — value area sınırıyla
+    örtüşebilir ama aynı şey değildir, bir dağılımın birden fazla tepesi
+    olabilir)."""
+    if not volumes:
+        return ()
+    peak = max(volumes)
+    if peak <= 0:
+        return ()
+    threshold = peak * min_ratio
+    n = len(volumes)
+    candidates = [
+        i for i, v in enumerate(volumes)
+        if v >= threshold
+        and (i == 0 or v >= volumes[i - 1])
+        and (i == n - 1 or v >= volumes[i + 1])
+    ]
+    candidates.sort(key=lambda i: volumes[i], reverse=True)
+    return tuple(sorted(candidates[:top_n]))
+
+
 def _gaussian(x: np.ndarray, amplitude: float, mu: float, sigma: float) -> np.ndarray:
     return amplitude * np.exp(-0.5 * ((x - mu) / sigma) ** 2)
 

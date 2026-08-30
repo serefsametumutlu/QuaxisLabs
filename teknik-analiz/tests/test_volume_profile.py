@@ -18,7 +18,7 @@ import pandas as pd
 from tlab.core.indicator import BaseIndicator
 from tlab.core.params import BaseParams, params_hash
 from tlab.core.types import IndicatorMeta, IndicatorResult, Level, Timeframe
-from tlab.features.volume_profile import profile
+from tlab.features.volume_profile import find_hvn_nodes, profile
 from tlab.testing.fixtures import make_trend
 from tlab.testing.repaint import repaint_test
 
@@ -78,6 +78,32 @@ def test_profile_flat_price_window_does_not_raise() -> None:
     )
     vp = profile(df, bins=4)
     assert math.isclose(sum(vp.volumes), 60.0)
+
+
+# --- find_hvn_nodes ---------------------------------------------------------
+
+
+def test_find_hvn_nodes_single_peak() -> None:
+    # [10,50,100,30,5] -> bin2 (100) tek yerel maksimum ve peak*0.55=55 eşiğini
+    # geçen tek bin; komşuları (50,30) eşiği geçmiyor.
+    assert find_hvn_nodes((10.0, 50.0, 100.0, 30.0, 5.0)) == (2,)
+
+
+def test_find_hvn_nodes_bimodal_returns_both_peaks_sorted() -> None:
+    # İki ayrı tepe (bin1=90, bin4=100) — ikisi de eşiği (100*0.55=55) geçer
+    # ve kendi komşularına göre yerel maksimum; artan indeks sırasında döner.
+    volumes = (20.0, 90.0, 10.0, 40.0, 100.0, 15.0)
+    assert find_hvn_nodes(volumes, top_n=3) == (1, 4)
+
+
+def test_find_hvn_nodes_respects_top_n() -> None:
+    volumes = (100.0, 5.0, 95.0, 5.0, 90.0, 5.0, 85.0)
+    assert len(find_hvn_nodes(volumes, top_n=2)) == 2
+
+
+def test_find_hvn_nodes_empty_or_zero_volume_returns_empty() -> None:
+    assert find_hvn_nodes(()) == ()
+    assert find_hvn_nodes((0.0, 0.0, 0.0)) == ()
 
 
 # --- mini-indikatör repaint testi -------------------------------------------

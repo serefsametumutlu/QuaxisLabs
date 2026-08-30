@@ -403,7 +403,12 @@ def plot_cmd(
     ),
     tf: str = typer.Option("1d", "--tf", help="1h | 4h | 1d | w1"),
     indicator: str = typer.Option(
-        ..., "--indicator", help="Katalogdaki ad, ör. structure.price_structure"
+        ..., "--indicator",
+        help=(
+            "Katalogdaki ad (ör. structure.price_structure) veya 'structure.report' "
+            "— price_structure+swing_fib_abcd'i tek bir 'aracı kurum raporu' "
+            "grafiğinde birleştiren, Özet Raporu panelli özel görünüm"
+        ),
     ),
     market: str = typer.Option("bist", "--market", help="bist | nasdaq"),
     theme: str = typer.Option("auto", "--theme", help="auto | dark | light"),

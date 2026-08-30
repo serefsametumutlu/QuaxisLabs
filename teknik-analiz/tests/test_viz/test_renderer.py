@@ -27,6 +27,7 @@ from tlab.viz.renderer import (
     _latest_per_group,
     _stagger_yshifts,
     render,
+    render_structure_report,
 )
 from tlab.viz.themes import DARK_TERMINAL, fill_color, line_color
 
@@ -144,6 +145,33 @@ def test_stagger_yshifts_separates_mixed_direction_items_by_all_pairs() -> None:
             assert abs(values[i] - values[j]) >= _STAGGER_TRIGGER_PX / px_per_unit - 1e-9
 
 
+def test_stagger_yshifts_never_escapes_price_bounds() -> None:
+    """Regresyon (2026-08-30, gerçek THYAO verisiyle bulundu): `structure.
+    report` birleşik grafiğinde çok sayıda öğe (POC/VAH/VAL/D-hedefleri)
+    aynı dar banda yığılınca paylaşılan `n` sayacı zaten yüksekken sıradaki
+    öğe (VAH) fiyatça görünür eksenin ÜST sınırına yakındı — `_STAGGER_MAX_
+    OFFSET_PX`'in SABİT piksel tavanı bunu önleyemedi (aynı piksel bütçesi,
+    geniş fiyat aralıklı hisselerde çok daha fazla fiyat birimine karşılık
+    geliyor); VAH masthead'in bile üstüne taşmıştı. `price_bounds` verilince
+    hiçbir öğenin ekran konumu bu aralığın DIŞINA taşmamalı — TEK adımlık bir
+    geri-sarım da YETERSİZDİ (paylaşılan `n` çok yüksekken bir adım geri
+    gitmek hâlâ sınırın dışında kalabiliyordu), bu yüzden `n` sınırın İÇİNE
+    dönene kadar (ya da 0'a) geri sarılıyor."""
+    px_per_unit = 5.48  # THYAO örneğindeki gerçek render'ın kaba tahminiyle aynı mertebe
+    bounds = (258.0, 360.0)
+    # Önce 6 öğe AYNI fiyatta (paylaşılan `n`'i yüksek zorlar), SONRA sınıra
+    # yakın VAH — gerçek THYAO sırasıyla aynı desen.
+    pileup = [(f"item_{i}", 320.0, 10.0) for i in range(6)]
+    vah = ("VAH", 355.5, 10.0)
+    items = [*pileup, vah]
+
+    yshifts = _stagger_yshifts(items, px_per_unit=px_per_unit, step=14.0, price_bounds=bounds)
+
+    for item, price, _base in items:
+        effective = price + yshifts[item] / px_per_unit
+        assert bounds[0] - 1e-6 <= effective <= bounds[1] + 1e-6, (item, effective)
+
+
 def test_cap_frozen_channels_keeps_only_most_recent_pairs() -> None:
     """Kullanıcı geri bildirimi: `trend.weekly_channel`'ın dar `n` penceresiyle
     çok-yıllık veride HER dokunuş/kırılım sinyali bir `channel_frozen` çift
@@ -242,3 +270,29 @@ def test_harmonic_vertices_labeled_for_recent_candidate() -> None:
     # D noktası burada tekrar EKLENMEMELİ (yalnızca "D: fiyat [...]" formunda,
     # tek başına "D" harfi olarak DEĞİL).
     assert "D" not in vertex_texts
+
+
+def test_render_structure_report_combines_both_indicators() -> None:
+    """`structure.report` (2026-08-30) — `structure.price_structure` +
+    `structure.swing_fib_abcd`'i TEK figürde birleştirir: mum + 3. kolonda
+    deterministik "Özet Raporu" metni (bkz. `report_text.py` — LLM YOK)."""
+    df = make_trend(n=250, slope=0.1, noise=1.2)
+    ps_result = PriceStructure(PriceStructureParams())(df)
+    ps_result.symbol = "TEST"
+    sf_result = SwingFibABCD(SwingFibABCDParams())(df)
+    sf_result.symbol = "TEST"
+
+    fig = render_structure_report(ps_result, sf_result, df, theme="light")
+
+    trace_types = {t.type for t in fig.data}
+    assert "candlestick" in trace_types
+    # swing_fib_abcd'in HH/HL/LH/LL marker'ları birleşik figürde de görünmeli.
+    structure_labels = {
+        ann.text for ann in fig.layout.annotations if ann.text in ("HH", "HL", "LH", "LL")
+    }
+    assert structure_labels  # en az bir swing etiketi
+    report_texts = [ann.text for ann in fig.layout.annotations if "ÖZET RAPORU" in str(ann.text)]
+    assert report_texts
+    # RSI paneli (`series_layout`'a `render_structure_report`'tan ÖNCE,
+    # `PriceStructure.compute()`'a eklendi) üçüncü alt panel olarak var.
+    assert "rsi" in ps_result.series_layout

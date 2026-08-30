@@ -10,11 +10,14 @@ Zone/trendline kind ayrımı (sarı direnç / mavi destek): `cluster_zones` ve
 önceden filtrelenip her ikisi de İKİ AYRI ÇAĞRI ile (resistance/support)
 çalıştırılır.
 
-DİKKAT — vp_bins/vp_volumes/vp_gauss series'leri ZAMAN EKSENLİ DEĞİLDİR:
-diğer series'ler (volume, macd, ...) df.index (datetime) ile hizalıyken, bu
-üçü FİYAT bin merkezleriyle indexlenir (pd.Series(volumes, index=price_bins)).
-Renderer (Faz 7) bunları sağ panelde ayrı bir yatay histogram olarak
-çizmelidir — zaman eksenine karşı çizilmemelidir.
+DİKKAT — vp_bins/vp_volumes/vp_gauss/vp_hvn series'leri ZAMAN EKSENLİ DEĞİLDİR:
+diğer series'ler (volume, macd, rsi_14, ...) df.index (datetime) ile
+hizalıyken, bu dördü FİYAT bin merkezleriyle indexlenir
+(pd.Series(volumes, index=price_bins)). `vp_hvn`: her bin için 1.0 (Yüksek
+Hacim Düğümü/HVN) veya 0.0 — `features/volume_profile.py::find_hvn_nodes`'un
+saf histogram tepe-noktası tespiti, value area'dan bağımsız. Renderer (Faz 7)
+bunları sağ panelde ayrı bir yatay histogram olarak çizmelidir — zaman
+eksenine karşı çizilmemelidir.
 
 BİLİNEN SINIRLAMA — İKİ PARÇA generic `repaint_test`/`Registry.register()`
 KAPSAMI DIŞINDA tutulur (kod DOĞRU çalışıyor, ama walk-forward eşitlik testi
@@ -69,9 +72,11 @@ from tlab.core.types import (
 )
 from tlab.features.ma import crossovers, sma
 from tlab.features.oscillators import macd as compute_macd
+from tlab.features.oscillators import rsi as compute_rsi
 from tlab.features.ranges import detect_ranges
 from tlab.features.swings import Pivot, find_pivots
 from tlab.features.trendlines import Trendline, build_trendlines
+from tlab.features.volume_profile import find_hvn_nodes
 from tlab.features.volume_profile import profile as compute_profile
 from tlab.features.zones import cluster_zones
 
@@ -98,6 +103,9 @@ class PriceStructureParams(BaseParams):
     macd_fast: int = 12
     macd_slow: int = 26
     macd_signal: int = 9
+    rsi_period: int = 14
+    hvn_top_n: int = 3
+    hvn_min_ratio: float = 0.55
 
 
 class PriceStructure(BaseIndicator):
@@ -123,7 +131,7 @@ class PriceStructure(BaseIndicator):
         boxes_ranges, range_signals = _ranges(df, p)
         boxes_zones, zone_signals = _zones(df, pivots, p)
         profile_levels, profile_series, poc_reclaimed_last_bar = _volume_profile(df, p)
-        series = _volume_and_macd_series(df, p)
+        series = _volume_macd_rsi_series(df, p)
         osc_markers = _macd_cross_markers(series)
 
         last_state = _last_state(
@@ -142,6 +150,7 @@ class PriceStructure(BaseIndicator):
             series_layout={
                 "hacim": ["volume", "volume_ma"],
                 "macd": ["macd", "macd_signal", "macd_hist"],
+                "rsi": ["rsi_14"],
             },
             last_state=last_state,
         )
@@ -279,9 +288,13 @@ def _volume_profile(
     ]
 
     price_index = pd.Index(vp.price_bins, name="price")
+    hvn_idx = set(find_hvn_nodes(vp.volumes, p.hvn_top_n, p.hvn_min_ratio))
     series: dict[str, pd.Series] = {
         "vp_bins": pd.Series(vp.price_bins, index=price_index),
         "vp_volumes": pd.Series(vp.volumes, index=price_index),
+        "vp_hvn": pd.Series(
+            [1.0 if i in hvn_idx else 0.0 for i in range(len(vp.price_bins))], index=price_index
+        ),
     }
     if vp.gaussian_mu is not None and vp.gaussian_sigma is not None:
         amplitude = max(vp.volumes) if vp.volumes else 0.0
@@ -297,7 +310,7 @@ def _volume_profile(
     return levels, series, reclaimed_last_bar
 
 
-def _volume_and_macd_series(df: pd.DataFrame, p: PriceStructureParams) -> dict[str, pd.Series]:
+def _volume_macd_rsi_series(df: pd.DataFrame, p: PriceStructureParams) -> dict[str, pd.Series]:
     macd_result = compute_macd(df["close"], p.macd_fast, p.macd_slow, p.macd_signal)
     return {
         "volume": df["volume"],
@@ -305,6 +318,7 @@ def _volume_and_macd_series(df: pd.DataFrame, p: PriceStructureParams) -> dict[s
         "macd": macd_result.macd,
         "macd_signal": macd_result.signal,
         "macd_hist": macd_result.histogram,
+        "rsi_14": compute_rsi(df["close"], p.rsi_period),
     }
 
 

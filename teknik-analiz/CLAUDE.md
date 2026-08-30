@@ -629,12 +629,114 @@ için `tlab/testing/lint_lookahead.py` da var (CLI: `tlab lint`).
   merdiveni) mevcut `outputs/samples/` çıktılarından BELİRGİN ÖLÇÜDE daha
   iyi buldu — bunlar TASARIM eksiklikleri (bug değil), henüz ELE ALINMADI,
   kullanıcıdan öncelik sırası bekleniyor.
-  **Sırada**: kullanıcının görselleştirme önceliklendirmesi → sonra Faz 8B
-  (wedge/head_shoulders/flag_pennant/double_top_bottom/broadening — artık
-  `patterns_geom.py`/`hs_pattern.py` hazır) → Faz 8D (artık `xsec.py` hazır)
-  → K3 → Faz 8E → Faz 10 → Faz 9.
+- **`structure.report` — birleşik "aracı kurum raporu" grafiği + Özet Raporu paneli
+  (2026-08-30):** TAMAMLANDI. Kullanıcı, bir önceki oturumun kapattığı iki AçIK soruyu
+  yanıtladı: (1) görsel işi Faz 8B'den ÖNCE yap, (2) `structure.price_structure` +
+  `structure.swing_fib_abcd`'i AYRI grafikler olarak DEĞİL, `images/Ekran görüntüsü
+  2026-08-29 165109.png` referansındaki gibi TEK bir grafikte BİRLEŞTİR ("birleştir").
+  Ayrıca yeni bir referans (`images/quant_not.png` — Elliott dalga notu, koyu temalı
+  net bir TABLO tasarımı) ve iki yeni gereksinim getirdi: arkaplan (şimdilik) BEYAZ
+  kalsın ("sonra tekrar bakarız"), ve grafiğin SAĞINA, hissenin durumunu/hedeflerini
+  özetleyen bir "Özet Raporu" metin paneli eklensin — `AskUserQuestion` ile İKİ karar
+  netleştirildi: rapor metni **deterministik şablon** (LLM çağrısı YOK, zaten hesaplı
+  değerlerin kural-tabanlı Türkçe cümlelere çevrilmesi) olacak, gerçek AI-yazımı
+  ERTELENDİ (maliyet/non-determinizm/mimari sapma gerekçesiyle).
+  1. **Mimari karar** — iki indikatör AYRI AYRI hesaplanmaya devam eder (`structure.
+     price_structure`/`structure.swing_fib_abcd` DOKUNULMADI, tek istisna aşağıdaki RSI/
+     HVN eki); BİRLEŞTİRME yalnızca VİZ katmanında olur — `tlab/viz/renderer.py::
+     render_structure_report(ps_result, sf_result, df, ...)` iki HAZIR `IndicatorResult`'ı
+     aynı paylaşılan çizim yardımcılarıyla (`_draw_boxes`/`_draw_levels`/`_draw_lines`/
+     `_draw_markers`/`_stagger_yshifts`) TEK figürde çizer — hiçbir YENİ hesap viz'e
+     sızmadı. `structure.report` gerçek bir Registry/CATALOG girdisi DEĞİL (`tlab/viz/
+     live.py::STRUCTURE_REPORT_NAME` sabiti + `compute_structure_report`/`render_
+     structure_report_live`), `tlab plot --indicator structure.report` bunu tetikler.
+  2. **RSI paneli + HVN vurgusu** — `PriceStructure`'a EKLENDİ (doğru katman: bunlar
+     gerçek hesap, viz'de OLAMAZDI): `features/oscillators.py::rsi()` (zaten vardı)
+     `series["rsi_14"]` olarak sarmalandı, `series_layout["rsi"]` yeni alt panel;
+     YENİ `features/volume_profile.py::find_hvn_nodes(volumes, top_n, min_ratio)` —
+     saf histogram tepe-noktası tespiti (yerel maksimum + peak'in `min_ratio` katı),
+     value area'dan BAĞIMSIZ (`vp_hvn` yeni fiyat-indeksli seri, 1.0/0.0). Bu ekleme
+     `structure.price_structure`'ın STANDALONE grafiğine de otomatik yansır (RSI paneli
+     + HVN yeşili artık HERKESTE var, yalnızca birleşik grafikte değil).
+  3. **Fib merdiveni "gökkuşağı"na geri döndü** — `themes.py::_FIB_NEAREST`: 2026-08-29
+     minimalist tek-gri paleti kullanıcı gerçek örneklerle kıyaslayınca fakir buldu;
+     her basamak (0.236/0.382/0.5/1.0/1.272/1.618/2.0) artık ayrı bir Theme rengi
+     taşıyor (YENİ renk EKLENMEDİ, mevcut alanlar yeniden dağıtıldı), yalnızca altın
+     bölge (0.618/0.786→accent) korundu. `_level_display_text()` (renderer.py) fib
+     etiketlerine referans gibi satır-içi "oran - fiyat" metni ekledi (ör.
+     "0.618 - 105.80"), eskiden yalnızca "fib_0.618" görünüyordu.
+  4. **Özet Raporu paneli** — YENİ `tlab/viz/report_text.py::build_summary_lines(ps,
+     sf, df)`: POC/VAH/VAL konumu, RSI yorumu (aşırı alım/satım/nötr eşiği), son swing
+     etiketi (HH/HL/LH/LL → Türkçe trend cümlesi), en yakın AÇIK AB=CD hedefi (yön +
+     %mesafe), destek/direnç bölge konumu, son MACD kesişimi — HEPSİ zaten hesaplanmış
+     `IndicatorResult` alanlarının if/else ile cümleye çevrilmesi (`_pair_header_lines`
+     ile AYNI "biçimlendirme, yeni hesap değil" ilkesi), LLM çağrısı YOK. `renderer.py::
+     _draw_summary_panel` bunu 3. kolonda (`rowspan=n_rows`, eksenleri gizli [0,1]x[0,1]
+     bir "tuval") madde işaretli satırlar olarak çizer (`textwrap` ile satır kaydırma).
+  5. **İKİ GERÇEK HATA bulundu ve düzeltildi (gerçek TCELL/THYAO/ASELS verisiyle
+     birleşik grafiği render ederken — tek-indikatörlü grafiklerde YETERİNCE yoğun
+     olmadığı için hiç tetiklenmemişti):**
+     - **Etiketler masthead'e/kenar boşluğuna taşıyordu.** İki indikatörün Level'ları
+       (POC/VAH/VAL/zone + AB=CD'nin `max_active_targets` kadar hedefi + fib merdiveni)
+       BİRLEŞİNCE aynı dar fiyat bandında (`_stagger_yshifts`'in "n hiç küçülmez"
+       zincir etkisiyle) TCELL'de 3 AB=CD hedef etiketi grafiğin ÜST kenar boşluğuna
+       (masthead'in bile üstüne) taştı. İki aşamalı düzeltme: (a) `render_structure_
+       report` artık AYNI ABC üçlüsünün BİRDEN FAZLA hedefinden yalnızca fiyata EN
+       YAKINI ve fib merdiveninde yalnızca "altın bölge" (%61.8/%78.6) etiketlenir
+       (`_draw_levels`'a YENİ `labeled: set[Level] | None` parametresi — şekil HER
+       ZAMAN kalır, yalnızca metin kısıtlanır, bilgi kaybı YOK); (b) `_stagger_yshifts`'e
+       YENİ `price_bounds` parametresi — SABİT bir piksel tavanı (`_STAGGER_MAX_
+       OFFSET_PX`, yalnızca `price_bounds` verilmeyen testlerde YEDEK) YETERSİZDİ,
+       çünkü aynı piksel bütçesi geniş-fiyat-aralıklı hisselerde (THYAO: 260-360) çok
+       daha fazla fiyat birimine karşılık geliyordu. **İkinci bir gerçek hata (bu
+       düzeltmeyi doğrularken bulundu):** THYAO'da VAH hâlâ masthead'in üstüne
+       taşıyordu — paylaşılan `n` sayacı ÖNCEKİ öğelerden ZATEN yüksek gelmişti, TEK
+       adımlık bir geri-sarım (`n -= 1`) sınırın İÇİNE dönmeye YETMİYORDU (377 → 375,
+       hâlâ 360'lık sınırın dışında). Düzeltme: `n`, sınırın İÇİNE dönene (ya da 0'a)
+       kadar bir `while` ile geri sarılıyor. Yeni regresyon testi (`test_stagger_
+       yshifts_never_escapes_price_bounds`) hem yığılma+sınıra-yakın-öğe senaryosunu
+       hem TEK-adımlık geri-sarımın YETERSİZ kaldığını doğruluyor.
+     - **VP paneli legend'ı yanlış köşede.** Yeni HVN/Gaussian-Fit legend girdileri
+       varsayılan (figürün sağ ÜST köşesi) konumda render edildi — ama birleşik
+       grafikte sağ üst köşe artık vp panelinin DEĞİL, geniş "Özet Raporu" sütununun
+       üstüne denk geliyordu (görsel bağlam kopuyordu). Düzeltme: `legend2` adlı AYRI
+       bir Plotly legend grubu (`_add_hvn_legend_swatch`/`_draw_volume_profile`'ın
+       yeni `legend_name` parametresi), `_position_vp_legend()` ile vp panelinin
+       KENDİ `xaxis2.domain`/`yaxis2.domain`'inin hemen üstüne yerleştiriliyor
+       (`_apply_pair_legends`'daki "sabit kesir varsayma, gerçek domain'i oku"
+       ilkesiyle AYNI).
+  6. **Masthead alt başlığı override edildi** — `_price_header(ps_result, df)`
+     doğrudan kullanılınca alt başlık `ps_result.indicator`'dan ("Price Structure")
+     türetiliyordu, birleşik görünümü YANSITMIYORDU; `dataclasses.replace()` ile
+     yalnızca `subtitle` alanı "Fiyat Yapısı — Birleşik Rapor (Yapı + Swing/Fibonacci)"
+     olarak değiştirildi, diğer alanlar (fiyat/değişim/tarih) AYNI `_price_header`
+     biçimlendirmesinden geliyor.
+  7. **`quant_not.png` referansı** — doğrudan bir formasyon/kural İÇERİĞİ DEĞİL
+     (Elliott dalga notu, kapsam dışı), yalnızca "Özet Raporu"nun görsel dilini
+     (koyu tablo, net başlık satırı, kısa madde metni) esinlemek için kullanıldı —
+     rapor paneli KENDİ (beyaz/light_analysis) temasında, bu görselin renk paletini
+     BİREBİR kopyalamadı.
+  Doğrulama: `tlab plot --symbol {TCELL,THYAO,ASELS} --tf 1d --indicator
+  structure.report --market bist --out outputs/samples/{sembol}_structure_report.png`
+  gerçek veriyle render edildi, 3 sembolde de İTERATİF olarak gözden geçirildi (her
+  düzeltme turu yeniden render + gözle kontrol) — üçünde de artık hiçbir etiket
+  masthead'e/kenar boşluğuna taşmıyor, RSI/HVN/Özet Raporu panelleri doğru
+  görünüyor. **DÜRÜST NOT — kalan sınırlama**: çok dar bir fiyat bandında (ör. THYAO'da
+  350-360 aralığı, "Direnç Bölgesi"/VAH/POC üçlüsü) hâlâ HAFİF bir metin yakınlığı
+  var — bu bir "yetersiz dikey alan" durumu (gerçek fiziksel sınır, algoritma
+  hatası değil), flying-off-chart hatasının aksine grafiğin İÇİNDE kalıyor, kabul
+  edilebilir görüldü. 8 yeni test (362→370): `find_hvn_nodes` (4), `PriceStructure`
+  RSI/HVN/walk-forward-eşitlik genişletmesi (2 yeni + 1 güncelleme), `_stagger_
+  yshifts` price_bounds regresyonu (1), `render_structure_report` duman testi (1).
+  `pytest -q -m "not network"` 370/370 yeşil, `ruff check`/`mypy`/`lint_lookahead`
+  değişen dosyalarda temiz (mevcut baseline uyarıları AYNI, ilgisiz). **Sırada**: Faz
+  8B (wedge/head_shoulders/flag_pennant/double_top_bottom/broadening) — kullanıcı
+  onayı zaten vardı, görsel iş bitti, şimdi başlanabilir → Faz 8D → K3 → Faz 8E →
+  Faz 10 → Faz 9. Harmonik grafiklerin (Pesavento/Carney vb.) AYNI zenginleştirme
+  turundan (renkli fib ladder zaten vardı, RSI/HVN o grafiklerde YOK) geçip
+  geçmeyeceği HENÜZ karara bağlanmadı — ayrı bir kullanıcı kararı gerektirir.
 
-Toplam 362 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
+Toplam 370 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
 ruff/mypy/lint_lookahead temiz (yeni kod kapsamında — repo genelindeki 18 ruff/2
 lint_lookahead uyarısı önceden var olan, ilgisiz satırlardır).
 

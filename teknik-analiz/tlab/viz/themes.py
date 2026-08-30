@@ -12,7 +12,15 @@ vurgusu), yön anlamı taşıyan `green`/`red` (`up`/`down` mumlarla AYNI — bu
 LOAD-BEARING, değişmedi), yapısal-nötr `blue` (destek/MA gibi "önemli ama
 marka rengi değil" öğeler) ve gerisi (`gray`/`muted`) — eski sarı/mor/turuncu
 serpiştirmesi kalktı. `page_bg`/`border`/`accent` YENİ alanlar (kart/sayfa
-çerçevesi ve başlık/dipnot şeridi için, bkz. `renderer.py::_apply_layout`)."""
+çerçevesi ve başlık/dipnot şeridi için, bkz. `renderer.py::_apply_layout`).
+
+**2026-08-30 kısmi geri dönüş (`_FIB_NEAREST` YALNIZCA):** kullanıcı gerçek
+referans ekran görüntüleriyle (images/) kıyaslayınca fib merdiveninin tek-gri
+minimalizmini "aracı kurum raporu"na göre fakir buldu — her basamak artık
+yine ayrı bir Theme rengi taşıyor (bkz. `_FIB_NEAREST` docstring'i). Bu
+DEĞİŞİKLİK yalnızca fib seviyelerini kapsar; yukarıdaki hiyerarşinin geri
+kalanı (accent kıtlığı, resistance/support kırmızı/mavi eşleşmesi, vb.)
+AYNEN korunuyor."""
 
 from __future__ import annotations
 
@@ -100,21 +108,24 @@ LIGHT_ANALYSIS = Theme(
 _THEMES: dict[str, Theme] = {"dark_terminal": DARK_TERMINAL, "light_analysis": LIGHT_ANALYSIS}
 
 _FIB_NEAREST: dict[float, str] = {
-    # Yalnızca klasik "altın bölge" (%61.8/%78.6 — Pesavento/Gartley PRZ'sinin
-    # merkezi) marka rengini (`accent`) alır; %100 (tam geri çekilme, ayrı bir
-    # karar noktası) yüksek-kontrast nötr (`text`); geri kalanı (%23.6/%38.2/
-    # %50 ve tüm uzatmalar — bağlamsal, "eski merdiven basamağı") tek bir
-    # kısık gri ailesine (`gray`) çekilir. Eskiden 6 farklı renk (gri/kırmızı/
-    # sarı/yeşil/mavi/mor) rastgele dağıtılıyordu.
-    0.236: "gray",
-    0.382: "gray",
-    0.5: "gray",
+    # 2026-08-30 geri dönüş: kullanıcı, referans ekran görüntülerindeki
+    # ("aracı kurum raporu" mockup'ları — images/) her basamağı AYRI renkte
+    # gösteren "gökkuşağı" fib merdivenini, 2026-08-29'un tek-marka-rengi
+    # minimalist paletine TERCİH ETTİ (o palet BİLİNÇLİ bir tasarım kararıydı,
+    # ama kullanıcı gerçek örneklerle kıyaslayınca daha zengin/ayırt edici
+    # görünümü istedi — bkz. CLAUDE.md 2026-08-30 kaydı). Klasik "altın bölge"
+    # (%61.8/%78.6) hâlâ marka rengini (`accent`) taşır — bu ikisi hâlâ "en
+    # karara-değer" seviye; geri kalanı artık Theme'in mevcut alanlarından
+    # (yeni renk EKLENMEDİ) birbirinden ayırt edilebilir bir sıra oluşturur.
+    0.236: "purple",
+    0.382: "blue",
+    0.5: "yellow",
     0.618: "accent",
     0.786: "accent",
     1.0: "text",
-    1.272: "gray",
-    1.618: "gray",
-    2.0: "gray",
+    1.272: "orange",
+    1.618: "red",
+    2.0: "purple",
 }
 
 _LINE_STYLE_COLOR: dict[str, str] = {

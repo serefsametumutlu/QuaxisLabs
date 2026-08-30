@@ -15,7 +15,7 @@ import pytest
 from tests.test_harmonics.fixtures import build_gartley_ohlcv
 from tests.test_pairs.fixtures import build_cointegrated_pair
 from tests.test_structure.fixtures import build_abcd_ohlcv
-from tlab.core.types import Box, IndicatorResult, Level, Line, Timeframe
+from tlab.core.types import Box, IndicatorResult, Level, Line, Marker, Timeframe
 from tlab.indicators.harmonics.scanner_indicator import HarmonicIndicator, HarmonicParams
 from tlab.indicators.pairs.relative_momentum import RelativeMomentumPair, RelativeMomentumParams
 from tlab.indicators.structure.price_structure import PriceStructure, PriceStructureParams
@@ -125,6 +125,62 @@ def test_line_extension_is_capped_not_unbounded() -> None:
     # Sınırsız (ham eğim * kalan ~193 gün) projeksiyon >2900 verirdi;
     # sınırlı (en fazla 3x bacak süresi = 6 gün) projeksiyon ~190 civarı olmalı.
     assert max(ext_trace.y) < 300
+
+
+def test_generic_breakout_markers_declutter_per_category_not_globally() -> None:
+    """Regresyon (2026-08-30, kullanıcı için galeri görselleri üretilirken
+    bulundu): `trend.breakouts` (MultiBreakout) TÜM olaylarını AYNI
+    kind="breakout" altında yayınlar; gerçek TCELL verisiyle 282 böyle
+    marker TEK panelde üst üste binip grafiği tamamen okunmaz kılmıştı.
+    Declutter artık `Marker.text`e gömülü kategoriye (break_type) göre HER
+    kategoriden yalnızca en güncel örneği gösterir."""
+    df = make_trend(n=100, slope=0.0, noise=0.5, start_price=100.0)
+    times = df.index
+    markers = [
+        Marker(
+            t=times[i], price=100.0,
+            text=f"Kırılım: YUKARI | channel_break_up | Temas:{i} | Hacim ×1.0 | Q:50",
+            kind="breakout",
+        )
+        for i in range(0, 40, 4)
+    ] + [
+        Marker(
+            t=times[i], price=100.0,
+            text=f"Kırılım: AŞAĞI | donchian_break_down | Temas:{i} | Hacim ×1.0 | Q:50",
+            kind="breakout",
+        )
+        for i in range(1, 40, 4)
+    ]
+    result = IndicatorResult(
+        indicator="trend.fake_test", version="0.1.0", params_hash="h",
+        symbol="TEST", timeframe=Timeframe.D1, markers=markers,
+    )
+    fig = render(result, df, theme="light")
+    breakout_anns = [a for a in fig.layout.annotations if "Kırılım" in str(a.text)]
+    # 10 "channel_break_up" + 10 "donchian_break_down" -> declutter yalnızca
+    # 2 (kategori başına birer en güncel) bırakmalı.
+    assert len(breakout_anns) == 2
+
+
+def test_generic_non_breakout_markers_are_not_declutered() -> None:
+    """`structure.golden_zone`/`structure.supply_demand` gibi indikatörlerin
+    "REAKSİYON"/"BAŞARILI" marker'ları HER biri farklı bir swing/bölgeye ait
+    bilgi taşır — breakout'un aksine TÜMÜ gösterilmeye devam etmeli
+    (declutter yalnızca `trend.breakouts`'un `kind="breakout"` marker'larına
+    özgüdür, `_DECLUTTER_GENERIC_KINDS`)."""
+    df = make_trend(n=100, slope=0.0, noise=0.5, start_price=100.0)
+    times = df.index
+    markers = [
+        Marker(t=times[i], price=100.0, text="BAŞARILI", kind="golden_zone_success")
+        for i in range(0, 40, 4)
+    ]
+    result = IndicatorResult(
+        indicator="structure.fake_test", version="0.1.0", params_hash="h",
+        symbol="TEST", timeframe=Timeframe.D1, markers=markers,
+    )
+    fig = render(result, df, theme="light")
+    success_anns = [a for a in fig.layout.annotations if a.text == "BAŞARILI"]
+    assert len(success_anns) == 10
 
 
 def test_latest_per_group_returns_max_time_per_group() -> None:

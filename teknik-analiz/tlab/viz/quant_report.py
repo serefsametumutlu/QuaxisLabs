@@ -20,12 +20,17 @@ desteği iyi). Anthropic YİNE DE bir seçenek olarak (`provider="anthropic"`)
 BIRAKILDI -- kod SİLİNMEDİ, yalnızca artık varsayılan DEĞİL; kullanıcı
 isterse elle geçebilir.
 
-**DÜRÜST NOT -- model adları:** `DEFAULT_GEMINI_MODEL`/`DEFAULT_ANTHROPIC_
-MODEL` bu kod yazılırken (2026-08-30) bilinen model kimlikleridir. LLM
-sağlayıcılarının model adları zamanla değişir/kullanımdan kalkar -- gerçek
-kullanımdan önce Google AI Studio'nun (Gemini) veya Anthropic Console'un
-GÜNCEL model listesinden doğrulanmalı, gerekirse `--model` ile override
-edilebilir.
+**Model seçimi:** `DEFAULT_GEMINI_MODEL = "gemini-flash-lite-latest"` --
+sabit bir sürüm DEĞİL, Google'ın "-latest" takma adı (model güncellendikçe
+otomatik takip eder, elle güncelleme gerekmez). `gemini-flash-latest`
+(lite OLMAYAN) YERİNE bilinçli olarak seçildi: kullanıcının kendi
+`bilanco-radar` projesinde (AYNI API anahtarıyla, farklı bir uygulama)
+CANLI doğrulandı -- `flash-latest`'in günlük kotası çok hızlı tükeniyor,
+`flash-lite-latest` AYRI ve daha yüksek bir kotaya sahip (bkz. `bilanco-
+radar/config.py` yorumu). Anthropic yolu için `DEFAULT_ANTHROPIC_MODEL`
+bu kod yazılırken (2026-08-30) bilinen bir model kimliğidir -- LLM
+sağlayıcılarının model adları zamanla değişir, gerekirse `--model` ile
+override edilebilir.
 
 Mimari: `report_text.build_summary_lines()` (deterministik, LLM'siz) zaten
 hesaplanmış OLGULARI kısa Türkçe madde cümlelerine çeviriyor -- bu modül o
@@ -52,7 +57,7 @@ from tlab.viz.report_text import build_summary_lines
 Provider = Literal["gemini", "anthropic"]
 
 DEFAULT_PROVIDER: Provider = "gemini"
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+DEFAULT_GEMINI_MODEL = "gemini-flash-lite-latest"
 DEFAULT_ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
 _MAX_OUTPUT_TOKENS = 900
 
@@ -73,9 +78,13 @@ açıkla -- konuya hakim olmayan biri de okuyunca anlamalı.
 4. Kesinlikle "AL/SAT" tavsiyesi verme; yalnızca teknik görünümü anlat. \
 Metnin SONUNA "Yalnızca teknik analizdir, yatırım tavsiyesi değildir." \
 notunu ekle.
-5. Uzunluk: yaklaşık 150-280 kelime. Kısa alt başlıklar kullanabilirsin \
-ama zorunlu değil -- doğal bir anlatı da olabilir.
-6. Türkçe yaz."""
+5. Uzunluk: yaklaşık 150-280 kelime. Doğal, akan paragraflar hâlinde yaz.
+6. DÜZ METİN yaz -- markdown biçimlendirmesi KULLANMA (**kalın**, *madde \
+işareti*, # başlık gibi işaretler YASAK). Bu metin X/Twitter'da OLDUĞU GİBİ \
+paylaşılacak; markdown işaretleri orada düz yıldız/diyez karakteri olarak \
+görünür, biçimlendirme OLARAK görünmez. Vurgu için kelime seçimini kullan, \
+işaretleme değil.
+7. Türkçe yaz."""
 
 
 @dataclass(frozen=True)
@@ -101,6 +110,19 @@ def _build_user_message(symbol: str, date_str: str, facts: list[str]) -> str:
     return f"Sembol: {symbol}\nTarih: {date_str}\n\nOlgular:\n{facts_block}"
 
 
+def _strip_markdown_fence(text: str) -> str:
+    """Model, `_SYSTEM_PROMPT`'un düz metin talimatına RAĞMEN yanıtı bir
+    ```markdown kod bloğuna sarabiliyor (kullanıcının `bilanco-radar`
+    projesinde AYNI API'yle canlı gözlemlenen bir davranış, bkz. `commentary.
+    py::_clean_json_text`) -- burada aynı savunma tekrarlanır."""
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        stripped = stripped.split("\n", 1)[-1]
+        if stripped.rstrip().endswith("```"):
+            stripped = stripped.rstrip()[: -3]
+    return stripped.strip()
+
+
 def _call_gemini(user_message: str, api_key: str, model: str) -> str:
     from google import genai
     from google.genai import types
@@ -113,7 +135,7 @@ def _call_gemini(user_message: str, api_key: str, model: str) -> str:
             system_instruction=_SYSTEM_PROMPT, max_output_tokens=_MAX_OUTPUT_TOKENS,
         ),
     )
-    return (response.text or "").strip()
+    return _strip_markdown_fence(response.text or "")
 
 
 def _call_anthropic(user_message: str, api_key: str, model: str) -> str:
@@ -126,10 +148,11 @@ def _call_anthropic(user_message: str, api_key: str, model: str) -> str:
         system=_SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_message}],
     )
-    return "".join(
+    text = "".join(
         block.text for block in message.content
         if isinstance(block, anthropic.types.TextBlock)
-    ).strip()
+    )
+    return _strip_markdown_fence(text)
 
 
 _PROVIDERS: dict[Provider, tuple[tuple[str, ...], str, object]] = {

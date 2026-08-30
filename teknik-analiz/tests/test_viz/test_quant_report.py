@@ -16,7 +16,7 @@ import pytest
 from tlab.indicators.structure.price_structure import PriceStructure, PriceStructureParams
 from tlab.indicators.structure.swing_fib_abcd import SwingFibABCD, SwingFibABCDParams
 from tlab.testing.fixtures import make_trend
-from tlab.viz.quant_report import generate_quant_report
+from tlab.viz.quant_report import _strip_markdown_fence, generate_quant_report
 
 
 @pytest.fixture(autouse=True)
@@ -102,6 +102,20 @@ def test_anthropic_still_works_as_explicit_opt_in() -> None:
     assert report.used_ai is True
     assert report.provider == "anthropic"
     assert report.text == fake_text
+
+
+def test_strip_markdown_fence_removes_wrapping_code_block() -> None:
+    """Regresyon: kullanıcının `bilanco-radar` projesinde AYNI API'yle canlı
+    gözlemlendi — model bazen düz metin talimatına RAĞMEN yanıtı ```markdown
+    kod bloğuna sarıyor."""
+    fenced = "```markdown\nTEST hissesi için bir yorum.\n```"
+    assert _strip_markdown_fence(fenced) == "TEST hissesi için bir yorum."
+    assert _strip_markdown_fence("```\nsadece metin\n```") == "sadece metin"
+
+
+def test_strip_markdown_fence_leaves_plain_text_untouched() -> None:
+    plain = "TEST hissesi için samimi bir yorum."
+    assert _strip_markdown_fence(plain) == plain
 
 
 def test_unknown_provider_raises() -> None:

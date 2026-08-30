@@ -1156,6 +1156,32 @@ _HARMONIC_STATE_COLOR: dict[str, str] = {
 }
 
 
+_MAX_GENERIC_MARKERS_PER_GROUP = 1
+# Yalnızca BU kind için sıkı declutter uygulanır (bkz. `_generic_marker_
+# group_key` docstring'i) — `structure.golden_zone`/`structure.supply_
+# demand`'ın "REAKSİYON"/"BAŞARILI"/"KIRILDI" gibi generic marker'ları
+# ZATEN az sayıda ve HER biri farklı bir swing/bölgeye ait, bilgi taşıyan
+# bir geçmiş (kutu declutter'ı gibi "yalnızca en güncel" uygulamak burada
+# BİLGİ KAYBI olurdu — sorun yalnızca `trend.breakouts`'ta gözlemlendi).
+_DECLUTTER_GENERIC_KINDS = frozenset({"breakout"})
+
+
+def _generic_marker_group_key(m: Marker) -> str:
+    """`trend.breakouts` (`MultiBreakout`) TÜM markerlerini AYNI `kind`
+    ("breakout") altında toplar — gerçek kategori (`channel_break_up`/
+    `donchian_break_down`/`zone_touch` vb., ~20 tür) yalnızca `Marker.text`in
+    içine gömülü (`"Kırılım: YUKARI | {break_type} | ..."`, bkz. `breakouts.
+    py::_emit_break`). Bu ayrıştırma OLMADAN declutter tek bir paylaşılan
+    "en güncel N" bütçesi uygulardı — sık tekrar eden bir tür (ör.
+    `zone_touch`) nadir ama önemli bir türü (ör. `channel_break_up`) bütçeden
+    dışlayabilirdi (gerçek TCELL verisiyle bulunan bir davranış: 2 yıllık
+    veride 282 kırılım olayı TEK panelde üst üste binip grafiği tamamen
+    okunmaz kılıyordu). `"|"` içermeyen (bu deseni izlemeyen) genel
+    marker'lar için `kind`e düşer."""
+    parts = m.text.split("|")
+    return f"{m.kind}:{parts[1].strip()}" if len(parts) >= 2 else m.kind
+
+
 def _draw_markers(
     fig: go.Figure, markers: list[Marker], theme: Theme, row: int, col: int,
     declutter: bool = True,
@@ -1167,6 +1193,23 @@ def _draw_markers(
     # gerçek veride) — yalnızca EN GÜNCEL birkaç "D: fiyat [DURUM]" kutusu
     # gösterilir, gerisi (üçgen/PRZ hâlâ çizili) etiketsiz kalır.
     visible_harmonic = set(harmonic_markers[:_MAX_HARMONIC_MARKERS]) if declutter else None
+
+    # Jenerik (structure_label/harmonic_*/pair_signal DIŞINDAKİ, ör.
+    # `trend.breakouts`'un "breakout" kind'li) marker'lar — HER kategoriden
+    # (bkz. `_generic_marker_group_key`) yalnızca EN GÜNCEL örnek etiketlenir.
+    # Level'lardaki gibi (`_declutter_levels`) TAMAMEN gizlenir (şekil değil,
+    # salt metin olduğu için "eski + bağlamsız" gösterimin bir anlamı yok).
+    visible_generic: set[Marker] | None = None
+    if declutter:
+        by_group: dict[str, list[Marker]] = {}
+        for m in markers:
+            if m.kind not in _DECLUTTER_GENERIC_KINDS:
+                continue
+            by_group.setdefault(_generic_marker_group_key(m), []).append(m)
+        visible_generic = set()
+        for group in by_group.values():
+            group.sort(key=lambda m: m.t, reverse=True)
+            visible_generic.update(group[:_MAX_GENERIC_MARKERS_PER_GROUP])
 
     for m in markers:
         if m.kind == "structure_label":
@@ -1197,6 +1240,12 @@ def _draw_markers(
         elif m.kind == "pair_signal":
             continue  # yalnızca pair modunda, _render_pair kendi çizer
         else:
+            if (
+                visible_generic is not None
+                and m.kind in _DECLUTTER_GENERIC_KINDS
+                and m not in visible_generic
+            ):
+                continue
             fig.add_annotation(
                 x=_x(m.t), y=m.price, text=m.text, showarrow=False,
                 font=dict(size=10, color=theme.muted), yshift=10, row=row, col=col,

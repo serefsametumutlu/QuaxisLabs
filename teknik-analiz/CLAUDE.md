@@ -899,10 +899,95 @@ için `tlab/testing/lint_lookahead.py` da var (CLI: `tlab lint`).
   testleri (50/50, `tests/test_harmonics/`) YENİ fib Level'ların non-repaint
   güvenliğini de doğruladı (genel `repaint_test` zaten TÜM `IndicatorResult`
   alanlarını kapsıyor).
-  **Görsel iş burada KAPANDI** (kullanıcının kendi ifadesiyle) — sıradaki
-  oturum doğrudan **Faz 8B** ile başlamalı.
+  ~~**Görsel iş burada KAPANDI**~~ — kullanıcı bir kontrol turu daha istedi
+  (aşağıya bkz.), gerçek kapanış BİR SONRAKİ maddede.
 
-Toplam 380 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
+- **Tam galeri üretimi + gerçek Gemini doğrulaması + `trend.breakouts`
+  marker patlaması (GERÇEK hata) (2026-08-30, aynı gün dördüncü/son tur):**
+  TAMAMLANDI. Kullanıcı, kapsamlı bir son kontrol turu istedi: `outputs/
+  samples/` TAMAMEN silinip `outputs/galeri/` adında yeni bir klasöre HER
+  indikatör/ekol için birer örnek görsel + gerçek (mock değil) Gemini API'siyle
+  üretilmiş `.txt` rapor metinleri üretilsin — "yarım kalmasın, sonra tekrar
+  uğraşmayalım" diyerek tek seferde eksiksiz bir inceleme turu istedi.
+  1. **Gemini API anahtarı** — kullanıcı kendi `GEMINI_API_KEY`'ini TEKRAR
+     İSTEMEK YERİNE `C:\Users\Samet\Desktop\Temel Analiz\bilanco-radar\.env`
+     dosyasına bakılmasını söyledi (kendi AYRI projesinde zaten yapılandırmış).
+     Oradan alınıp YALNIZCA render/quant-report komutlarına ortam değişkeni
+     olarak geçirildi — hiçbir dosyaya/commit'e YAZILMADI. **Model adı da
+     bilanco-radar'ın kendi `config.py` yorumundan öğrenilerek düzeltildi**:
+     `DEFAULT_GEMINI_MODEL` `"gemini-2.5-flash"`den (ilk tahmin, sabit sürüm)
+     `"gemini-flash-lite-latest"`e (Google'ın "-latest" takma adı, otomatik
+     günceli takip eder) değiştirildi — bilanco-radar'ın AYNI anahtarla CANLI
+     doğruladığı bilgiye göre `gemini-flash-latest`in günlük kotası çok hızlı
+     tükeniyor, `flash-lite-latest` AYRI ve daha yüksek bir kotaya sahip.
+  2. **Gerçek API çağrısıyla prompt kalitesi doğrulandı ve İKİ gerçek sorun
+     bulunup düzeltildi** (`_call_gemini`'nin ürettiği metin ilk denemede
+     incelendi): (a) SDK'nın "otomatik fonksiyon çağrısı" uyarısı zararsız
+     (bilgilendirme amaçlı, hata değil); (b) model bazen düz-metin talimatına
+     RAĞMEN yanıtı ```markdown kod bloğuna sarıyordu (kullanıcının bilanco-
+     radar projesinde AYNI API'yle daha önce CANLI gözlemlenen bir davranış,
+     `commentary.py::_clean_json_text`de zaten belgelenmiş) — YENİ `_strip_
+     markdown_fence()` bunu hem Gemini hem Anthropic yollarında temizliyor;
+     (c) **gerçek bir prompt hatası**: ilk üretilen metinler `**kalın**` gibi
+     markdown biçimlendirmesi kullanıyordu, ama bu metin X/Twitter'da DÜZ
+     METİN olarak paylaşılacak — orada yıldız işaretleri OLDUĞU GİBİ görünür,
+     biçimlendirme OLARAK görünmez. `_SYSTEM_PROMPT`'a "DÜZ METİN yaz, markdown
+     KULLANMA" kuralı eklendi, ikinci denemede doğrulandı (artık akıcı
+     paragraflar, işaretleme yok). 2 yeni test (`test_strip_markdown_fence_*`).
+     Üretilen ÖRNEK metinlerin (TCELL/THYAO/ASELS) kalitesi gözle incelendi —
+     doğal/sıcak bir "quant sesi", olgu-dışı hiçbir sayı uydurulmamış, terimler
+     (POC/RSI/MACD/AB=CD) açıklanarak kullanılmış, sona doğru zorunlu uyarı
+     notu eklenmiş.
+  3. **GERÇEK HATA — `trend.breakouts` (MultiBreakout) grafiği TAMAMEN
+     OKUNMAZDI**: galeri için ilk kez ciddi bir gözle incelenince (Faz 8A'nın
+     kendi kabul testi yalnızca "282 kırılım tespit edildi, hatasız çalıştı"
+     diyordu, GÖRSEL olarak hiç kontrol edilmemişti) TCELL grafiğinde
+     onlarca kırılım etiketi tamamen üst üste binip harfler okunmaz hâle
+     gelmişti. Kök neden: `MultiBreakout` TÜM ~20 farklı kırılım türünü
+     (channel_break_up, donchian_break_down, zone_touch, vb.) AYNI
+     `Marker.kind="breakout"` altında yayınlıyor, generic `_draw_markers`
+     dalının (`structure_label`/`harmonic_*`/`pair_signal` DIŞINDAKİ her şey)
+     HİÇ declutter'ı yoktu — 2 yıllık veride 282 marker'ın HEPSİ kalıcı
+     etiket alıyordu. Düzeltme: YENİ `_generic_marker_group_key()`,
+     `Marker.text`e gömülü GERÇEK kategoriyi (`"Kırılım: ... | {break_type} |
+     ..."`ın 2. bölümü) ayrıştırıp HER kategoriden yalnızca EN GÜNCEL örneği
+     gösterir (`_MAX_GENERIC_MARKERS_PER_GROUP=1`). **Bilinçli olarak
+     YALNIZCA `kind="breakout"`a uygulandı** (`_DECLUTTER_GENERIC_KINDS`) —
+     `structure.golden_zone`/`structure.supply_demand`'ın "BAŞARILI"/
+     "REAKSİYON" gibi generic marker'ları ZATEN az sayıda ve HER biri farklı
+     bir swing/bölgeye ait bilgi taşıyor, bunlara aynı "yalnızca en güncel"
+     kısıtlamasını uygulamak BİLGİ KAYBI olurdu (ilk taslakta tam bu hataya
+     düşüldü — `golden_zone`'un "BAŞARILI" geçmişi 1'e indi — kapsam daraltılıp
+     düzeltildi). 2 yeni test (bir tanesi TAM OLARAK bu ikinci hatayı da
+     kilitliyor: `test_generic_non_breakout_markers_are_not_declutered`).
+  4. **`harmonic.five_zero` — dürüst bir bulgu, DÜZELTİLMEDİ**: galeri için
+     622 sembollük TÜM BIST evreninde (yerel parquet önbelleğinden, ağ
+     çağrısı YOK, ~82 saniye) her ekolün en iyi örneğini bulan bir tarama
+     betiği çalıştırıldı — carney/pesavento/gilmore/cypher/nenstar/
+     navarro200/three_drives HEPSİ "confirmed" durumunda en az bir aday
+     buldu (ör. pesavento→A1YEN, navarro200→ACSEL), ama **five_zero HİÇBİR
+     sembolde HİÇBİR aday bulamadı** (varsayılan VE sıkılaştırılmış zigzag
+     parametreleriyle iki kez denendi). Bu bir görselleştirme sorunu DEĞİL —
+     `harmonic_five_zero_TCELL.png` doğru şekilde "eşleşen formasyon yok"
+     gösteriyor. Kök neden ARAŞTIRILMADI (indikatör-mantığı işi, bu turun
+     kapsamı DIŞINDA) — ya ekolün toleransları gerçek 2023-2026 BIST verisi
+     için aşırı sıkı, ya da `five_zero.py`'de ayrıca incelenmesi gereken bir
+     eşleşme hatası var. **Kullanıcıya açıkça bildirilmesi gereken bir
+     bulgu**, sessizce geçiştirilmedi.
+  5. **`outputs/samples/` TAMAMEN silindi, `outputs/galeri/` oluşturuldu**
+     (ikisi de gitignored, git geçmişine hiçbir görsel/metin GİRMEDİ) — 19
+     dosya: 8 harmonik ekol (her biri ayrı bir sembolde), `structure.report`
+     (TCELL/THYAO/ASELS, artı üçü için Gemini `.txt` rapor), `trend.
+     breakouts`/`structure.golden_zone`/`structure.supply_demand`/`trend.
+     weekly_channel` (TCELL), `pair.relative_momentum` (TCELL/ISCTR).
+  Doğrulama: `pytest -q -m "not network"` 384/384 yeşil (380→384, 4 yeni
+  test), `ruff check`/`mypy`/`lint_lookahead` değişen dosyalarda temiz
+  (baseline AYNI). **Kullanıcı şu an `outputs/galeri/`'yi TEK TEK inceliyor**
+  — bulacağı noktalar bu turun DEVAMI olarak ele alınacak, henüz "kapanmış"
+  SAYILMAMALI. İnceleme bitip son düzeltmeler de tamamlanınca **Faz 8B**'ye
+  geçilecek.
+
+Toplam 384 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
 ruff/mypy/lint_lookahead temiz (yeni kod kapsamında — repo genelindeki 18 ruff/2
 lint_lookahead uyarısı önceden var olan, ilgisiz satırlardır).
 

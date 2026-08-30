@@ -88,6 +88,19 @@ def render_structure_report_live(
     symbol: str, timeframe: str, market: str,
     *, theme: Theme | str | None = "auto", last_n: int | None = None, declutter: bool = True,
 ) -> go.Figure:
+    """**2026-08-30 deneme + geri alma**: kullanıcı "golden zone ve supply
+    demand kısımlarını structure reporta koymamız gerekmiyor mu" diye
+    sordu; `render_structure_report`'a bunun için `gz_result`/`sd_result`
+    parametreleri eklendi ve burada denendi — ama gerçek TCELL verisiyle
+    render edilince `structure.price_structure`'ın ZATEN yoğun bölge/
+    trend/swing etiketleriyle BİRLEŞİNCE ana paneli daha da kalabalıklaştırdı
+    (bu KENDİSİ ayrı ayrı gayet okunur olan iki indikatörün toplamı, ama
+    üçüncü bir katman olarak EKLENİNCE aşırıya kaçtı). Karar: birleştirme
+    YAPILMADI — `render_structure_report`'un `gz_result`/`sd_result`
+    parametreleri (opsiyonel, `None` varsayılan) KOD OLARAK kalıyor (ileride
+    farklı bir declutter stratejisiyle tekrar denenebilir), ama bu canlı
+    kısayol onları GEÇMİYOR — `structure.golden_zone`/`structure.supply_
+    demand` kendi AYRI, temiz grafiklerinde kalmaya devam ediyor."""
     ps_result, sf_result, df = compute_structure_report(symbol, timeframe, market)
     return render_structure_report(
         ps_result, sf_result, df, theme=theme, last_n=last_n, declutter=declutter,

@@ -62,6 +62,18 @@ ZigzagMethod = Literal["fixed", "atr"]
 # bantta olduğunu görebilir.
 _XA_FIB_LEVELS: tuple[float, ...] = (0.382, 0.5, 0.618, 0.786)
 
+# PRZ/fib Level'larının `end`i olmadan (None) `renderer.py::_draw_levels`
+# bunları HER ZAMAN veri setinin GERÇEK son barına kadar çizerdi — bir aday
+# eskiyse (ondan sonra yeni bir aday doğmadıysa) bu, etiketin (`renderer.py::
+# _harmonic_auto_window_start`ın artık ADAYIN KENDİ ufkuna göre kısıtladığı,
+# bkz. `_HARMONIC_END_PAD_BARS`) yakınlaştırılmış görünür pencerenin ÇOK
+# DIŞINDA, görünmez bir noktada kalmasına yol açıyordu (kullanıcı geri
+# bildirimiyle bulunan bir davranış: "fibo/PRZ değerleri desenin üzerinde
+# olmalı, dokundukları noktada hiçbir şey yazmıyor"). Bu pay, renderer'daki
+# `_HARMONIC_END_PAD_BARS` ile AYNI (iki katman birbirini import ETMEZ, ama
+# görsel sonucun tutarlı olması için aynı ufku hedefler).
+_LEVEL_END_PAD_BARS = 60
+
 _SCHOOLS: dict[str, type[HarmonicSchool]] = {
     "carney": CarneySchool,
     "pesavento": PesaventoSchool,
@@ -137,6 +149,7 @@ class HarmonicIndicator(BaseIndicator):
         last_state: dict[str, dict] = {}
 
         for candidate in candidates:
+            horizon_time = df.index[min(n - 1, candidate.born_idx + _LEVEL_END_PAD_BARS)]
             for pmatch in self._school.match(candidate):
                 spec, prz = pmatch.spec, pmatch.prz
                 pid = f"{self._school_name}_{spec.name}_{candidate.pattern_id}"
@@ -208,20 +221,20 @@ class HarmonicIndicator(BaseIndicator):
                 levels.append(
                     Level(
                         price=prz.low, label=f"{pid}_prz_low", style="dotted",
-                        start=candidate.born_time,
+                        start=candidate.born_time, end=horizon_time,
                     )
                 )
                 levels.append(
                     Level(
                         price=prz.high, label=f"{pid}_prz_high", style="dotted",
-                        start=candidate.born_time,
+                        start=candidate.born_time, end=horizon_time,
                     )
                 )
                 for lv, price in fib_retracement(x.price, a.price, _XA_FIB_LEVELS).items():
                     levels.append(
                         Level(
                             price=price, label=f"{pid}_fib_{lv}", style="fib_retracement",
-                            start=candidate.born_time,
+                            start=candidate.born_time, end=horizon_time,
                         )
                     )
 

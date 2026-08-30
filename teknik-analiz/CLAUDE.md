@@ -986,8 +986,100 @@ için `tlab/testing/lint_lookahead.py` da var (CLI: `tlab lint`).
   — bulacağı noktalar bu turun DEVAMI olarak ele alınacak, henüz "kapanmış"
   SAYILMAMALI. İnceleme bitip son düzeltmeler de tamamlanınca **Faz 8B**'ye
   geçilecek.
+- **Harmonik/structure.report KAPSAMLI düzeltme turu (2026-08-30, beşinci/son
+  tur, kullanıcının galeriyi inceleyip verdiği DETAYLI geri bildirim
+  üzerine):** TAMAMLANDI. Kullanıcı 3 ek referans ekran görüntüsünü
+  (203913/203956/204024 — swing_fib_abcd + iki harmonik örneği) "detaylıca
+  analiz et" diyerek verdi ve şunları istedi: harmonikler tamamen yetersizdi
+  (hedef/durum belirsiz, ACSEL'de "saçma bir çizim ekrana sığmamış", A1YEN'de
+  "dokundukları noktada hiçbir şey yazmıyor", fibo desenin üzerinde değildi);
+  structure.report'ta son mumlar görünmüyordu, HH/HL/LH/LL çok yoğundu, alt
+  panellerin "hangisi ne" olduğu belirsizdi, tarih eksikti; breakouts hâlâ
+  karmaşıktı ("düzeltemiyorsak kaldıralım"); golden_zone/supply_demand'ın
+  structure report'a girip girmeyeceği soruldu; pair için tek örnek yetersizdi.
+  1. **GERÇEK HATA (en kritik) — harmonik Y-ekseni, adayın KENDİ geometrisini
+     hesaba katmıyordu**: ACSEL/Navarro200 örneğinde BCD üçgeni (D hedefi
+     görünür mum aralığının ÇOK altında) ekranın dışına taşıp kesiliyor, "D:
+     ... [GEÇERSİZ]" etiketi de görünmez bir y-koordinatına yerleşip
+     ALAKASIZ bir noktadaymış gibi GÖRÜNÜYORDU (aslında yalnızca çizim
+     alanının dışındaydı). Kök neden: `_sync_price_yaxis` yalnızca GÖRÜNÜR
+     MUMLARIN yüksek/düşüğünü kullanıyordu, Polygon/Level (PRZ, D hedefi)
+     fiyatlarını HİÇ hesaba katmıyordu. Düzeltme: YENİ `_harmonic_price_
+     bounds()` — görünür pencereye düşen TÜM polygon noktaları + level
+     fiyatlarını da y-aralığına dahil eder; `_sync_price_yaxis`'e opsiyonel
+     `bounds` parametresi eklendi. 1 yeni test (`test_harmonic_price_bounds_
+     includes_offscreen_polygon_points`).
+  2. **GERÇEK HATA — harmonik pencere BİTİŞİ hep veri setinin gerçek son
+     barıydı**: ALARK gibi eski (yeni aday doğmamış) adaylarda grafiğin
+     çoğu boş/düz mumdan oluşuyordu (referans mockup'lar formasyonu HER
+     ZAMAN ekranın büyük bölümünü doldurur). YENİ `_resolve_window_end()` +
+     `_recent_harmonic_time_range()` (start/end resolver'ların PAYLAŞTIĞI
+     tek kaynak) — pencere artık adayın `born_time`'ından `_HARMONIC_END_
+     PAD_BARS` (60 bar) ötesine kısıtlanıyor (gerçekten daha yeni veri
+     varsa davranış DEĞİŞMEZ). `scanner_indicator.py`'deki PRZ/fib Level'ları
+     da AYNI ufka (`_LEVEL_END_PAD_BARS=60`, `Level.end` artık `None` değil)
+     bağlandı — aksi halde etiketleri yeni daralan pencerenin dışında
+     kalıp görünmez olurdu ("fibo/PRZ desenin üzerinde olmalı" şikayetinin
+     kök nedeni). 2 yeni test.
+  3. **GERÇEK HATA — harmonik marker/panel-başlığı sorunları yol boyunca
+     bulunup düzeltildi**: yukarıdaki iki düzeltmeyi TCELL/ACSEL/A1YEN
+     örnekleriyle doğrularken `_draw_panel_titles`'ın eksen numaralandırma
+     hatası (aşağıda #6) da bu turda bulundu ve düzeltildi.
+  4. **Genel yakınlaştırma sıkılaştırıldı**: `_DEFAULT_LAST_N` 250→150,
+     `_DEFAULT_WIDTH` 1600→1750 — referans ekran görüntüleri mumları
+     bizden belirgin ölçüde daha "şişman"/net gösteriyordu ("son mumları
+     görmek neredeyse imkansız"). Bu, HEM `structure.report` HEM standalone
+     `structure.price_structure`/`swing_fib_abcd` için geçerli (paylaşılan
+     sabitler).
+  5. **`trend.breakouts` galeriden ÇIKARILDI**: kullanıcı "düzeltemiyorsak
+     kaldıralım" dedi; bir önceki turun kategori-bazlı declutter düzeltmesi
+     yeterli bulunmadı (hâlâ "aşırı kötü, ne olduğu belli değil"). Standalone
+     gösterim GALERİDEN kaldırıldı (indikatörün kendisi/CLI'sı SİLİNMEDİ,
+     tarama için hâlâ kullanılabilir) — daha iyi bir görsel tasarım
+     (ör. yalnızca son N güne ait kırılımlar) ayrı bir takip işi.
+  6. **GERÇEK HATA — panel başlıkları YANLIŞ eksene çiziliyordu**: YENİ
+     `_draw_panel_titles()` ("Hacim"/"MACD"/"RSI" gibi alt panel başlıkları
+     — kullanıcı: "hangisi ne belli değil") ilk taslakta `row` numarasını
+     DOĞRUDAN eksen sonekiyle eşleştiriyordu; ama vp paneli varken 1. satır
+     TEK DEĞİL İKİ eksen tüketir (yaxis+yaxis2), bu yüzden "Hacim" (2.
+     satır) başlığı yanlışlıkla vp panelinin (row=1,col=2) ÜSTÜNE
+     çiziliyordu. Düzeltme: `n_cols` parametresi eklenip gerçek eksen
+     numarası (`n_cols + (row-1)`) hesaplanıyor. 1 yeni test (`test_panel_
+     titles_land_on_correct_axis_when_vp_panel_present`).
+  7. **`structure.report`'ta ana panel tarihi eksikti**: eskiden yalnızca EN
+     ALTTAKİ satır tarih gösteriyordu — ama ana panel (zoom'lanmış) ile alt
+     panel grubu (tam geçmiş) FARKLI x-aralıklarına sahip olduğu için ana
+     panel HİÇBİR ZAMAN tarih ALAMIYORDU. Artık hem row=1 hem en alttaki
+     satır kendi tarihini gösteriyor.
+  8. **golden_zone/supply_demand BİRLEŞTİRME denendi, GERİ ALINDI**:
+     `render_structure_report`'a opsiyonel `gz_result`/`sd_result`
+     parametreleri eklendi (KOD OLARAK duruyor, ileride farklı bir declutter
+     stratejisiyle denenebilir) ve `render_structure_report_live`'da
+     denendi — ama gerçek TCELL verisiyle render edilince `structure.price_
+     structure`'ın ZATEN yoğun bölge/trend/swing etiketleriyle BİRLEŞİNCE
+     ana paneli DAHA DA kalabalıklaştırdığı görüldü (dürüstçe test edilip
+     REDDEDİLDİ, kör kabul edilmedi). Karar: `render_structure_report_live`
+     bu parametreleri GEÇMİYOR, `structure.golden_zone`/`structure.supply_
+     demand` kendi ayrı, temiz grafiklerinde kalıyor. Bunun yerine bu ikisi
+     için masthead'e KISA bir açıklama eklendi (YENİ `_INDICATOR_EXPLAIN_TR`
+     sözlüğü, `trend.weekly_channel`'ı da kapsıyor) — "neden ayrı ve ne
+     ifade ediyor belli değil" şikayetini görsel karmaşıklık EKLEMEDEN
+     çözer.
+  9. **Pair için 2 yeni örnek** — `discover_pairs` gerçek 22 sembollük bir
+     alt evrende (BIST bankaları + sanayi) çalıştırılıp GARAN/YKBNK
+     (corr=0.91, klasik banka çifti) ve ASELS/TOASO eklendi; TCELL/ISCTR
+     zaten vardı.
+  Doğrulama: TÜM `outputs/galeri/` yeniden üretildi (harmonikler artık
+  formasyonu ekranın büyük bölümüne yayıyor, D hedefleri kendi noktalarında,
+  fib merdiveni desenin üzerinde; structure.report'ta mumlar net, tarih
+  her iki uçta, panel başlıkları doğru yerde). 4 yeni test (384→388).
+  `pytest -q -m "not network"` 388/388 yeşil, `ruff check`/`mypy`/
+  `lint_lookahead` değişen dosyalarda temiz (baseline AYNI).
+  **Görsel iş burada GERÇEKTEN kapandı** (kullanıcı onayı bekleniyor, ama
+  bu turun kapsamındaki TÜM somut şikayetler ele alındı) — sıradaki oturum
+  **Faz 8B** ile başlamalı.
 
-Toplam 384 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
+Toplam 388 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
 ruff/mypy/lint_lookahead temiz (yeni kod kapsamında — repo genelindeki 18 ruff/2
 lint_lookahead uyarısı önceden var olan, ilgisiz satırlardır).
 

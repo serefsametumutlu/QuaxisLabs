@@ -79,7 +79,11 @@ def render(
 # ------------------------------------------------------------------ ortak --
 
 
-_DEFAULT_WIDTH = 1600
+# 1600 -> 1750 (2026-08-30): kullanıcı geri bildirimi — referans ekran
+# görüntülerine göre mumlar bizde daha ince/sıkışık görünüyordu (son mumları
+# ayırt etmek "neredeyse imkansız"). Bkz. `_DEFAULT_LAST_N`'in AYNI gerekçeyle
+# küçültülmesi — ikisi birlikte piksel/bar oranını referansa yaklaştırır.
+_DEFAULT_WIDTH = 1750
 
 
 @dataclass(frozen=True)
@@ -312,8 +316,24 @@ def _x(t: object) -> str:
 # durması için).
 _VP_COLUMN_WIDTH = 0.24
 
-_DEFAULT_LAST_N = 250
+# 250 -> 150 (2026-08-30): kullanıcı geri bildirimi — referans ekran
+# görüntüleri (~ay bazında 6-9 ay) bizden belirgin ölçüde daha az bar
+# gösteriyordu, bu yüzden mumlar orada çok daha "şişman"/net, bizde ince/
+# ayırt edilemezdi ("son mumları görmek neredeyse imkansız"). `_DEFAULT_
+# WIDTH`'in AYNI gerekçeyle büyütülmesiyle birlikte piksel/bar oranı
+# referansa yaklaşır.
+_DEFAULT_LAST_N = 150
 _HARMONIC_ZOOM_PAD_BARS = 20
+# Bir adayın X'inden BAŞLAYIP HER ZAMAN veri setinin GERÇEK son barına kadar
+# uzanan pencere — aday çok eskiyse (o zamandan beri yeni bir aday doğmadıysa,
+# ör. ALARK) grafiğin çoğunun boş/düz mum olduğu bir görünüm yaratıyordu
+# (kullanıcı geri bildirimiyle bulunan bir davranış — referans ekran
+# görüntüleri formasyonu HER ZAMAN ekranın büyük bölümünü dolduracak şekilde
+# yakınlaştırıyor). `_resolve_window_end` artık pencereyi adayın KENDİ
+# ufkunda (`born_time` + bu pay) keser — GERÇEKTEN daha yeni veri varsa
+# (aday güncel), zaten `min(..., n-1)` gerçek son bara düşer, davranış
+# DEĞİŞMEZ.
+_HARMONIC_END_PAD_BARS = 60
 
 # Annotation kaynakları (box/line-uzatma/level) aynı fiyat civarında (ör. bir
 # direnç bölgesinin tepesi = POC'a yakın = trendline izdüşümüyle aynı seviye
@@ -354,15 +374,28 @@ def _resolve_window_start(result: IndicatorResult, df: pd.DataFrame, last_n: int
     return max(0, n - _DEFAULT_LAST_N)
 
 
-def _harmonic_auto_window_start(result: IndicatorResult, df: pd.DataFrame) -> int:
+def _recent_harmonic_time_range(
+    result: IndicatorResult,
+) -> tuple[object, object] | None:
     """En son eklenen adayın (xab+bcd — aynı adayın iki poligonu ardışık
-    eklenir, bkz. `scanner_indicator.py`) X noktasından `_HARMONIC_ZOOM_PAD_
-    BARS` kadar önce başlayan pencereyi döner. Aday yoksa varsayılan
-    pencereye düşer."""
+    eklenir, bkz. `scanner_indicator.py`) TÜM noktalarının en erken/en geç
+    zaman damgalarını döner — `_harmonic_auto_window_start` (erken uç,
+    pencere BAŞLANGICI) ve `_resolve_window_end` (geç uç, pencere BİTİŞİ)
+    tarafından PAYLAŞILAN tek kaynak. Aday yoksa `None`."""
     if not result.polygons:
-        return max(0, len(df) - _DEFAULT_LAST_N)
+        return None
     recent = result.polygons[-2:]
-    earliest_t = min(pt[0] for poly in recent for pt in poly.points)
+    times = [pt[0] for poly in recent for pt in poly.points]
+    return min(times), max(times)
+
+
+def _harmonic_auto_window_start(result: IndicatorResult, df: pd.DataFrame) -> int:
+    """En son eklenen adayın X noktasından `_HARMONIC_ZOOM_PAD_BARS` kadar
+    önce başlayan pencereyi döner. Aday yoksa varsayılan pencereye düşer."""
+    time_range = _recent_harmonic_time_range(result)
+    if time_range is None:
+        return max(0, len(df) - _DEFAULT_LAST_N)
+    earliest_t, _latest_t = time_range
     try:
         idx = df.index.get_loc(earliest_t)
     except KeyError:
@@ -370,6 +403,61 @@ def _harmonic_auto_window_start(result: IndicatorResult, df: pd.DataFrame) -> in
     if not isinstance(idx, int):
         idx = 0
     return max(0, idx - _HARMONIC_ZOOM_PAD_BARS)
+
+
+def _resolve_window_end(result: IndicatorResult, df: pd.DataFrame) -> int:
+    """Görünür pencerenin BİTİŞ bar indeksini belirler — bkz. `_HARMONIC_END_
+    PAD_BARS` docstring'i. Yalnızca `harmonic.*` için (VE bir aday varsa)
+    adayın kendi ufkuna (`born_time` + pay) kısıtlar; diğer tüm durumlarda
+    HER ZAMAN gerçek son bar (`n-1`) döner — davranış DEĞİŞMEZ."""
+    n = len(df)
+    if not result.indicator.startswith("harmonic."):
+        return n - 1
+    time_range = _recent_harmonic_time_range(result)
+    if time_range is None:
+        return n - 1
+    _earliest_t, latest_t = time_range
+    try:
+        idx = df.index.get_loc(latest_t)
+    except KeyError:
+        return n - 1
+    if not isinstance(idx, int):
+        return n - 1
+    return min(n - 1, idx + _HARMONIC_END_PAD_BARS)
+
+
+def _harmonic_price_bounds(
+    result: IndicatorResult, df: pd.DataFrame, window_start_idx: int, window_end_idx: int,
+) -> tuple[float, float] | None:
+    """`harmonic.*` için Y-ekseni aralığını yalnızca GÖRÜNÜR mumların değil,
+    aynı pencereye düşen Polygon/Level (PRZ, fib merdiveni) fiyatlarının da
+    BİRLEŞİMİNDEN hesaplar.
+
+    **Gerçek hata** (ACSEL örneğinde bulundu, kullanıcı geri bildirimiyle):
+    D hedefi/PRZ merkezi, görünür mum aralığının dışında (ör. çok daha
+    aşağıda) kalınca eskiden YALNIZCA mum yüksek/düşüklerini kullanan
+    `_visible_price_bounds` bunu hesaba katmıyordu — BCD üçgeni ekranın
+    dışına taşıp tuhaf bir şekilde kesiliyor, "D: ... [GEÇERSİZ]" etiketi de
+    görünmez bir y-koordinatına yerleşip grafikte ALAKASIZ bir noktadaymış
+    gibi GÖRÜNÜYORDU (aslında yalnızca çizim alanının dışındaydı, konumu
+    kendi içinde tutarlıydı)."""
+    visible = df.iloc[window_start_idx : window_end_idx + 1]
+    prices: list[float] = []
+    if not visible.empty:
+        prices.append(float(visible["low"].min()))
+        prices.append(float(visible["high"].max()))
+    start_t, end_t = df.index[window_start_idx], df.index[window_end_idx]
+    for poly in result.polygons:
+        prices.extend(p for t, p in poly.points if start_t <= t <= end_t)
+    for lv in result.levels:
+        lv_time = lv.start if lv.start is not None else start_t
+        if start_t <= lv_time <= end_t:
+            prices.append(lv.price)
+    if not prices:
+        return None
+    low, high = min(prices), max(prices)
+    pad = (high - low) * 0.08 or 1.0
+    return (low - pad, high + pad)
 
 
 def _right_edge_cutoff(df: pd.DataFrame, window_start_idx: int) -> datetime:
@@ -401,14 +489,18 @@ def _visible_price_bounds(df: pd.DataFrame, window_start_idx: int) -> tuple[floa
 
 
 def _sync_price_yaxis(
-    fig: go.Figure, df: pd.DataFrame, window_start_idx: int, has_vp: bool
+    fig: go.Figure, df: pd.DataFrame, window_start_idx: int, has_vp: bool,
+    bounds: tuple[float, float] | None = None,
 ) -> None:
     """Ana panel ile sağ hacim-profili panelinin y-eksenini (fiyat) AYNI
     aralığa sabitler — aksi halde vp paneli kendi (genelde çok daha dar)
     penceresine göre otomatik ölçeklenip iki panel görsel olarak KOPUK
     görünüyordu (Görsel 2 referansında ikisi hizalı — kullanıcı geri
-    bildirimiyle bulundu)."""
-    bounds = _visible_price_bounds(df, window_start_idx)
+    bildirimiyle bulundu). `bounds` verilirse (harmonik mod — bkz.
+    `_harmonic_price_bounds`) `_visible_price_bounds`'un salt mum-tabanlı
+    hesabı YERİNE kullanılır."""
+    if bounds is None:
+        bounds = _visible_price_bounds(df, window_start_idx)
     if bounds is None:
         return
     y_range = list(bounds)
@@ -560,22 +652,53 @@ def _render_price_based(
     if has_vp:
         _draw_volume_profile(fig, result, theme, row=1, col=2)
 
+    # Kullanıcı geri bildirimi: alt panellerin "hangisi ne" olduğu belli
+    # değildi (ör. `trend.weekly_channel`'ın kanal-pozisyonu osilatörü).
+    _draw_panel_titles(theme=theme, fig=fig, n_cols=n_cols, titles_by_row={
+        i: name for i, name in enumerate(sub_names, start=2)
+    })
+
     for r in range(1, n_rows + 1):
         fig.update_xaxes(showticklabels=(r == n_rows), row=r, col=1)
 
-    if window_start_idx > 0:
-        fig.update_xaxes(range=[_x(df.index[window_start_idx]), _x(df.index[-1])])
-    _sync_price_yaxis(fig, df, window_start_idx, has_vp)
+    window_end_idx = _resolve_window_end(result, df)
+    if window_start_idx > 0 or window_end_idx < len(df) - 1:
+        fig.update_xaxes(
+            range=[_x(df.index[window_start_idx]), _x(df.index[window_end_idx])]
+        )
+    harmonic_bounds = (
+        _harmonic_price_bounds(result, df, window_start_idx, window_end_idx)
+        if result.indicator.startswith("harmonic.") else None
+    )
+    _sync_price_yaxis(fig, df, window_start_idx, has_vp, bounds=harmonic_bounds)
 
     header = _price_header(result, df)
     _apply_layout(fig, theme, header, height=600 + 180 * n_sub)
     return fig
 
 
+_INDICATOR_EXPLAIN_TR: dict[str, str] = {
+    # Kullanıcı geri bildirimi: "golden zone ve supply demand... ne ifade
+    # ediyor belli değil" — indikatör adı tek başına yeterince açıklayıcı
+    # değildi, masthead'e kısa bir tanım eklendi.
+    "structure.golden_zone": (
+        "Golden Zone — bir swing'in %61.8-%78.6 geri çekilme bandı "
+        "(potansiyel dönüş bölgesi)"
+    ),
+    "structure.supply_demand": (
+        "Arz/Talep Bölgeleri — güçlü bir harekete öncülük eden dar "
+        "konsolidasyon bantları"
+    ),
+    "trend.weekly_channel": "Haftalık Trend Kanalı — regresyon/pivot kanalı + kanal içi pozisyon",
+}
+
+
 def _build_subtitle(result: IndicatorResult) -> str:
     """Masthead'in ikinci (alt başlık) satırı — formasyon/ekol veya
     indikatör adının okunur biçimi. Sembol BURADA tekrarlanmaz (`_Header.
     symbol` ayrı, birinci satırda büyük puntoyla zaten var)."""
+    if result.indicator in _INDICATOR_EXPLAIN_TR:
+        return _INDICATOR_EXPLAIN_TR[result.indicator]
     if result.indicator.startswith("harmonic."):
         school = result.indicator.split(".", 1)[1]
         if not result.last_state:
@@ -1348,6 +1471,47 @@ def _draw_series_panel(
             )
 
 
+_PANEL_TITLE_TR: dict[str, str] = {
+    "hacim": "Hacim",
+    "macd": "MACD (Trend Momentumu)",
+    "rsi": "RSI (Göreceli Güç Endeksi)",
+    "channel_position": "Kanal İçi Pozisyon (%)",
+}
+
+
+def _draw_panel_titles(
+    fig: go.Figure, theme: Theme, titles_by_row: dict[int, str], n_cols: int = 1,
+) -> None:
+    """Her alt panelin SOL ÜST köşesine küçük bir başlık ekler — kullanıcı
+    geri bildirimi: "hangisi ne belli değil" (RSI/Hacim/MACD paneli
+    birbirinden ayırt edilemiyordu, ne gösterdiği anlaşılmıyordu).
+    `titles_by_row`: `{satır_no: panel_adı}` (panel_adı `series_layout`
+    anahtarı, ör. "rsi") — `_PANEL_TITLE_TR`'de bilinmeyen bir ad gelirse
+    olduğu gibi (Title Case) gösterilir. `n_cols`: 1. satırın kaç eksen
+    TÜKETTİĞİ (vp paneli varsa 2, yoksa 1).
+
+    **Gerçek hata** (TCELL'de bulundu): Plotly eksen numaralandırması
+    SATIR-ÖNCELİKLİ ve `specs`teki HER hücreye (`None` hariç) ayrı bir sayı
+    verir — vp paneli varken 1. satır TEK DEĞİL İKİ eksen tüketir (yaxis +
+    yaxis2), bu yüzden 2. satırın (ör. "hacim") KENDİ ekseni `yaxis2`
+    DEĞİL, `yaxis3`'tür. Bu ayrım gözden kaçırılınca "Hacim" başlığı
+    yanlışlıkla vp panelinin (row=1, col=2) üstüne çiziliyordu — konum
+    HESAPLANMIYOR, `fig.layout`'taki GERÇEK domain'den okunuyor olsa da,
+    YANLIŞ eksene bakılırsa yine de yanlış yere iner."""
+    for row, name in titles_by_row.items():
+        axis_num = row if row == 1 else n_cols + (row - 1)
+        yaxis_name = "yaxis" if axis_num == 1 else f"yaxis{axis_num}"
+        yaxis = getattr(fig.layout, yaxis_name, None)
+        if yaxis is None or yaxis.domain is None:
+            continue
+        text = _PANEL_TITLE_TR.get(name, name.replace("_", " ").title())
+        fig.add_annotation(
+            x=0.005, y=yaxis.domain[1] - 0.008, xref="paper", yref="paper",
+            xanchor="left", yanchor="top", text=f"<b>{text}</b>", showarrow=False,
+            font=dict(size=10.5, color=theme.muted, family=theme.font),
+        )
+
+
 def _draw_volume_profile(
     fig: go.Figure, result: IndicatorResult, theme: Theme, row: int, col: int,
     legend_name: str | None = None,
@@ -1493,7 +1657,8 @@ def _position_vp_legend(fig: go.Figure, theme: Theme) -> None:
 
 def render_structure_report(
     ps_result: IndicatorResult, sf_result: IndicatorResult, df: pd.DataFrame,
-    *, theme: Theme | str | None = "auto", last_n: int | None = None, declutter: bool = True,
+    *, gz_result: IndicatorResult | None = None, sd_result: IndicatorResult | None = None,
+    theme: Theme | str | None = "auto", last_n: int | None = None, declutter: bool = True,
 ) -> go.Figure:
     """`structure.price_structure` + `structure.swing_fib_abcd` çıktısını TEK
     grafikte birleştirir. Ana panel (zone/trendline/POC-VAH-VAL + swing yapı
@@ -1511,8 +1676,17 @@ def render_structure_report(
     olarak `tlab/viz/quant_report.py::generate_quant_report()` (gerçek bir
     LLM çağrısıyla, "quant gibi" serbest metin) tarafından üretiliyor. Bu
     fonksiyon artık YALNIZCA `_render_price_based` ile AYNI 2 kolonlu
-    (mum+vp) düzeni kullanıyor — tek farkı iki `IndicatorResult`'ı
-    birleştirmesi ve alt panellerin tam geçmiş göstermesi."""
+    (mum+vp) düzeni kullanıyor — tek farkı iki (opsiyonel olarak DÖRT)
+    `IndicatorResult`'ı birleştirmesi ve alt panellerin tam geçmiş
+    göstermesi.
+
+    **2026-08-30 ikinci düzeltme — `gz_result`/`sd_result` (opsiyonel)**:
+    kullanıcı "golden zone ve supply demand kısımlarını structure reporta
+    koymamız gerekmiyor mu" diye sordu — `structure.golden_zone`/`structure.
+    supply_demand`'ın Box/Level/Line/Marker'ları verilirse AYNI birleşik
+    çizim/declutter/stagger hattına (`_draw_boxes`/`_draw_levels`/
+    `_stagger_yshifts`) katılır; verilmezse (ör. eski çağıranlar/testler)
+    davranış DEĞİŞMEZ, yalnızca iki indikatörlü eski görünüm kalır."""
     resolved = resolve_theme(theme, default=LIGHT_ANALYSIS)
 
     sub_names = list(ps_result.series_layout.keys())
@@ -1548,11 +1722,39 @@ def render_structure_report(
         row=1, col=1,
     )
 
-    combined_levels = ps_result.levels + sf_result.levels
+    # `window_start_idx` normalde bu fonksiyonda DAHA SONRA hesaplanır — ama
+    # golden_zone/supply_demand'ın (varsa) ÇOK YILLIK geçmişini FİLTRELEMEK
+    # için burada ERKEN gerekiyor (bkz. `_filter_recent` çağrıları hemen
+    # altında). Kullanıcı geri bildirimi: bu ikisinin TÜM geçmişi (`structure.
+    # golden_zone`'un KENDİ tekil grafiğinde gayet OKUNUR) `structure.price_
+    # structure`'ın ZATEN yoğun bölge/trend çizgisi/swing etiketleriyle
+    # BİRLEŞİNCE aşırı kalabalıklaşıyordu — birleşik görünümde yalnızca
+    # GÖRÜNÜR pencereye düşen olaylar/bölgeler anlamlı, geçmiş TAMAMI değil.
+    window_start_idx_early = _resolve_window_start(ps_result, df, last_n)
+    _cutoff_time = df.index[window_start_idx_early]
+
+    def _filter_recent(items: list, time_key) -> list:
+        return [it for it in items if time_key(it) >= _cutoff_time]
+
+    extra_results = [er for er in (gz_result, sd_result) if er is not None]
+    for extra_result in extra_results:
+        extra_result.boxes = _filter_recent(extra_result.boxes, lambda b: b.t0)
+        extra_result.markers = _filter_recent(extra_result.markers, lambda m: m.t)
+        extra_result.levels = _filter_recent(
+            extra_result.levels, lambda lv: lv.start or _cutoff_time
+        )
+
+    combined_levels = (
+        ps_result.levels + sf_result.levels + [lv for r in extra_results for lv in r.levels]
+    )
     levels = _declutter_levels(combined_levels) if declutter else combined_levels
-    boxes = ps_result.boxes
-    lines = ps_result.lines + sf_result.lines
-    markers = [m for m in ps_result.markers if m.kind != "macd_cross"] + sf_result.markers
+    boxes = ps_result.boxes + [b for r in extra_results for b in r.boxes]
+    lines = ps_result.lines + sf_result.lines + [ln for r in extra_results for ln in r.lines]
+    markers = (
+        [m for m in ps_result.markers if m.kind != "macd_cross"]
+        + sf_result.markers
+        + [m for r in extra_results for m in r.markers]
+    )
 
     # İki indikatörün seviyeleri (POC/VAH/VAL/zone + AB=CD hedefleri + fib
     # merdiveni) BİRLEŞİNCE, ikisi ayrı ayrı iken sorun olmayan yoğunluk aynı
@@ -1598,7 +1800,7 @@ def render_structure_report(
         if declutter else None
     )
 
-    window_start_idx = _resolve_window_start(ps_result, df, last_n)
+    window_start_idx = window_start_idx_early
     visible = df.iloc[window_start_idx:]
     visible_price_range = (
         float(visible["high"].max() - visible["low"].min()) if not visible.empty else 0.0
@@ -1651,12 +1853,29 @@ def render_structure_report(
     if has_vp:
         _draw_volume_profile(fig, ps_result, resolved, row=1, col=2, legend_name="legend2")
 
-    for r in range(1, n_rows + 1):
-        fig.update_xaxes(showticklabels=(r == n_rows), row=r, col=1)
+    # Kullanıcı geri bildirimi: alt panellerin "hangisi ne" olduğu belli
+    # değildi (RSI/Hacim/MACD arasında ayrım yoktu) — HER panelin sol üst
+    # köşesine küçük bir başlık eklenir.
+    _draw_panel_titles(
+        fig, resolved, {i: name for i, name in enumerate(sub_names, start=2)}, n_cols=n_cols,
+    )
 
+    # Ana panel (row=1) ve alt panel grubu (row=2..n_rows, TAM GEÇMİŞ) FARKLI
+    # x-aralıklarına sahip — eskiden yalnızca EN ALTTAKİ satır tarih
+    # gösteriyordu, bu da ana panelin (zoom'lanmış, farklı bir tarih aralığı
+    # olan) hiçbir tarih etiketi ALAMAMASI anlamına geliyordu (kullanıcı
+    # geri bildirimi: "grafiğin alt kısmına hep tarih yazmışlar bizde o da
+    # eksik"). Artık HEM ana panel HEM en alttaki panel kendi tarihini
+    # gösteriyor; aradaki paneller (hacim/MACD, aynı tam-geçmiş aralığını
+    # en alttakiyle paylaştığı için) gereksiz tekrarı önlemek üzere sessiz
+    # kalıyor.
+    for r in range(1, n_rows + 1):
+        fig.update_xaxes(showticklabels=(r in (1, n_rows)), row=r, col=1)
+
+    window_end_idx = len(df) - 1
     if window_start_idx > 0:
         fig.update_xaxes(
-            range=[_x(df.index[window_start_idx]), _x(df.index[-1])], row=1, col=1,
+            range=[_x(df.index[window_start_idx]), _x(df.index[window_end_idx])], row=1, col=1,
         )
     _sync_price_yaxis(fig, df, window_start_idx, has_vp)
 
@@ -1664,9 +1883,18 @@ def render_structure_report(
     # BU birleşik görünümü yansıtmalı (`_price_header` tek-indikatör varsayımı
     # yapar) — yalnızca `subtitle` alanı override edilir, diğer alanlar
     # (fiyat/değişim/tarih) aynı biçimlendirmeden (`_price_header`) gelir.
+    extras_tr = []
+    if gz_result is not None:
+        extras_tr.append("Golden Zone")
+    if sd_result is not None:
+        extras_tr.append("Arz/Talep")
+    extras_suffix = f" + {' + '.join(extras_tr)}" if extras_tr else ""
     header = replace(
         _price_header(ps_result, df),
-        subtitle=f"{_category_tr(ps_result.indicator)} — Birleşik Rapor (Yapı + Swing/Fibonacci)",
+        subtitle=(
+            f"{_category_tr(ps_result.indicator)} — Birleşik Rapor "
+            f"(Yapı + Swing/Fibonacci{extras_suffix})"
+        ),
     )
     _apply_layout(fig, resolved, header, height=total_height, width=_DEFAULT_WIDTH)
     if has_vp:

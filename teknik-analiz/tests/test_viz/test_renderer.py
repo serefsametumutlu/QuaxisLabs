@@ -15,7 +15,7 @@ import pytest
 from tests.test_harmonics.fixtures import build_gartley_ohlcv
 from tests.test_pairs.fixtures import build_cointegrated_pair
 from tests.test_structure.fixtures import build_abcd_ohlcv
-from tlab.core.types import Box, IndicatorResult, Level, Line, Marker, Timeframe
+from tlab.core.types import Box, IndicatorResult, Level, Line, Marker, Polygon, Timeframe
 from tlab.indicators.harmonics.scanner_indicator import HarmonicIndicator, HarmonicParams
 from tlab.indicators.pairs.relative_momentum import RelativeMomentumPair, RelativeMomentumParams
 from tlab.indicators.structure.price_structure import PriceStructure, PriceStructureParams
@@ -25,7 +25,9 @@ from tlab.viz.renderer import (
     _STAGGER_TRIGGER_PX,
     _cap_frozen_channels,
     _declutter_levels,
+    _harmonic_price_bounds,
     _latest_per_group,
+    _resolve_window_end,
     _stagger_yshifts,
     render,
     render_structure_report,
@@ -125,6 +127,30 @@ def test_line_extension_is_capped_not_unbounded() -> None:
     # Sınırsız (ham eğim * kalan ~193 gün) projeksiyon >2900 verirdi;
     # sınırlı (en fazla 3x bacak süresi = 6 gün) projeksiyon ~190 civarı olmalı.
     assert max(ext_trace.y) < 300
+
+
+def test_panel_titles_land_on_correct_axis_when_vp_panel_present() -> None:
+    """Regresyon (2026-08-30, TCELL'de bulunan GERÇEK bir hata): Plotly eksen
+    numaralandırması SATIR-ÖNCELİKLİ ve `specs`teki HER hücreye (None hariç)
+    ayrı bir sayı verir — vp paneli varken 1. satır İKİ eksen tüketir (yaxis
+    + yaxis2), bu yüzden 2. satırın ("hacim") KENDİ ekseni `yaxis2` DEĞİL,
+    `yaxis3`'tür. Bu ayrım gözden kaçırılınca "Hacim" başlığı yanlışlıkla
+    vp panelinin (row=1, col=2) üstüne çiziliyordu."""
+    df = make_trend(n=200, slope=0.1, noise=1.2)
+    ps_result = PriceStructure(PriceStructureParams())(df)
+    ps_result.symbol = "TEST"
+    sf_result = SwingFibABCD(SwingFibABCDParams())(df)
+    sf_result.symbol = "TEST"
+    fig = render_structure_report(ps_result, sf_result, df, theme="light")
+
+    hacim_title = next(
+        a for a in fig.layout.annotations if "Hacim" in str(a.text) and a.xref == "paper"
+    )
+    # vp paneli varken "hacim" satırının GERÇEK ekseni yaxis3'tür (yaxis +
+    # yaxis2'nin ikisi de row=1'e ait) — domain'i yaxis2'den (vp paneli,
+    # row=1, col=2) FARKLI olmalı.
+    assert fig.layout.yaxis3.domain != fig.layout.yaxis2.domain
+    assert hacim_title.y == pytest.approx(fig.layout.yaxis3.domain[1] - 0.008, abs=1e-6)
 
 
 def test_generic_breakout_markers_declutter_per_category_not_globally() -> None:
@@ -315,6 +341,61 @@ def _render_gartley() -> tuple[IndicatorResult, pd.DataFrame]:
     result = HarmonicIndicator("carney", params)(df)
     result.symbol = "TEST"
     return result, df
+
+
+def test_resolve_window_end_caps_for_old_harmonic_candidate() -> None:
+    """Regresyon (2026-08-30, ALARK'ta bulunan bir davranış): eskiden görünür
+    pencerenin BİTİŞİ her zaman veri setinin GERÇEK son barıydı — bir aday
+    çok eskiyse (o zamandan beri yeni bir aday doğmadıysa) grafiğin çoğu
+    boş/düz mumdan oluşan bir görünüm alıyordu. `_resolve_window_end` artık
+    adayın kendi ufkuna (`_HARMONIC_END_PAD_BARS` kadar ötesi) kısıtlar."""
+    df = make_trend(n=500, slope=0.0, noise=0.5, start_price=100.0)
+    result = IndicatorResult(
+        indicator="harmonic.fake_test", version="0.1.0", params_hash="h",
+        symbol="TEST", timeframe=Timeframe.D1,
+        polygons=[
+            Polygon(
+                points=((df.index[10], 100.0), (df.index[15], 110.0), (df.index[20], 105.0)),
+                label="p_xab", style="bullish",
+            ),
+            Polygon(
+                points=((df.index[15], 110.0), (df.index[20], 105.0), (df.index[25], 108.0)),
+                label="p_bcd", style="bullish",
+            ),
+        ],
+    )
+    end_idx = _resolve_window_end(result, df)
+    assert 25 <= end_idx < len(df) - 1
+
+
+def test_resolve_window_end_uses_last_bar_for_non_harmonic() -> None:
+    df = make_trend(n=100, slope=0.1, noise=0.5)
+    result = PriceStructure(PriceStructureParams())(df)
+    assert _resolve_window_end(result, df) == len(df) - 1
+
+
+def test_harmonic_price_bounds_includes_offscreen_polygon_points() -> None:
+    """Regresyon (2026-08-30, ACSEL'de bulunan GERÇEK bir hata): D hedefi/PRZ
+    görünür mum aralığının ÇOK dışında (ör. çok daha aşağıda) kalınca eskiden
+    yalnızca mum yüksek/düşüklerini kullanan y-ekseni hesabı bunu hesaba
+    katmıyordu — BCD üçgeni ekran dışına taşıp tuhaf bir şekilde kesiliyor,
+    D etiketi de görünmez bir y-koordinatına yerleşip ALAKASIZ bir
+    noktadaymış gibi görünüyordu."""
+    df = make_trend(n=50, slope=0.0, noise=0.5, start_price=100.0)
+    result = IndicatorResult(
+        indicator="harmonic.fake_test", version="0.1.0", params_hash="h",
+        symbol="TEST", timeframe=Timeframe.D1,
+        polygons=[
+            Polygon(
+                points=((df.index[5], 100.0), (df.index[10], 100.0), (df.index[15], 30.0)),
+                label="p_bcd", style="bullish",
+            ),
+        ],
+    )
+    bounds = _harmonic_price_bounds(result, df, 0, len(df) - 1)
+    assert bounds is not None
+    low, _high = bounds
+    assert low < 30.0  # D hedefi (30) aralığa DAHİL edilmeli, kesilmemeli
 
 
 def test_harmonic_confirmed_marker_uses_accent_not_generic_bullish() -> None:

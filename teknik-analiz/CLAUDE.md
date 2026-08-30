@@ -1267,6 +1267,96 @@ için `tlab/testing/lint_lookahead.py` da var (CLI: `tlab lint`).
   kısa seri, `from_json` hatası DEĞİL, düzeltmeden SONRA hiç çökme
   olmadı) — pano bu gerçek run üzerinde de gözle doğrulandı.
 
+- **Görselleştirme — "aracı kurum raporu" tasarımının GERİ ALINMASI +
+  harmonik çoklu-aday temizliği (2026-08-31, kullanıcının "şu ana kadar
+  incelediğim tüm görseller rezalet... hevesim kaçtı" geri bildirimine
+  yanıt):** TAMAMLANDI. Kök neden teşhisi: önceki oturumların "aracı kurum
+  raporu" masthead/kart-çerçevesi/dipnot tasarımı (2026-08-29) kullanıcının
+  KENDİ referans ekran görüntülerinden (`images/`) DEĞİL, hayali bir
+  "kurumsal broker" estetiğinden esinlenmişti — kullanıcı bu turda `images/`
+  klasöründeki TÜM görselleri (10 dosya: harmonik/swing-fib/pair/tablo/kitap
+  örneği) tek tek incelettirip "bunlarla birebir aynı olacak şekilde
+  güncelle, karmaşıklık istemiyorum artık" dedi. Referans görsellerin ORTAK
+  dili: BEYAZ zemin, TEK satırlık düz metin başlık (sağ-hizalı fiyat/değişim
+  bloğu YOK, accent ayraç çizgisi YOK, dipnot YOK, dış "kart" çerçevesi YOK),
+  her harmonik grafiğin TAM OLARAK TEK bir üçgen çifti (XAB+BCD) göstermesi.
+  1. **Masthead sadeleştirmesi** (`renderer.py`) — `_Header` artık yalnızca
+     `symbol`/`subtitle` taşır (eski `value_str`/`change_str`/
+     `change_positive`/`highlighted`/`date_str` alanları SİLİNDİ);
+     `_draw_header` TEK satırlık `"{sembol} - {açıklama}"` yazıyor.
+     `_draw_card_frame` (tüm figürü saran dış çerçeve) TAMAMEN SİLİNDİ;
+     `_draw_footer` (dipnot şeridi) jenerik/harmonik `_apply_layout`'tan
+     ARTIK ÇAĞRILMIYOR (fonksiyonun kendisi pair modu için hâlâ duruyor —
+     kullanıcı pair grafiğini zaten AYRI bir turda onaylamıştı, dokunulmadı).
+     `_MARGIN_T` 112→56, `_MARGIN_B` 60→40 (daha az şerit alanı gerekiyor).
+     `_last_close_change`/`_category_tr` artık kullanılmadığı için SİLİNDİ
+     (görev metninin "emin olduğun şeyi tamamen sil" ilkesi). `_draw_panel_
+     frames` (her alt panelin KENDİ ince çerçevesi) KORUNDU — referans
+     165109 bunu açıkça gösteriyor.
+  2. **GERÇEK hata — harmonik grafikler TEK bir aday YERİNE onlarca üst
+     üste binen üçgen gösteriyordu**: `_draw_polygons` hiçbir filtre
+     UYGULAMADAN `result.polygons`taki HER adayın üçgenini çiziyordu
+     (yalnızca köşe etiketleri/D kutusu `_MAX_HARMONIC_MARKERS=3` ile
+     kısıtlıydı, üçgen ŞEKİLLERİNİN KENDİSİ değil) — bu, kullanıcının "şu
+     ana kadar incelediğim tüm görseller rezalet" değerlendirmesinin en
+     somut kanıtıydı (ACSEL/Navarro200 örneğinde önceki oturumda not
+     edilen "saçma bir çizim ekrana sığmamış" şikayetinin kök nedeni de
+     BUYDU). Yeni `_filter_harmonic_result()` (patterns.*'ın `_filter_
+     confirmed_patterns`'ıyla AYNI mimari desen) `declutter=True` iken
+     `_render_price_based`'in İLK adımında TEK GEÇERLİ (aktif/tamamlanmış,
+     `_HARMONIC_VISIBLE_STATES`) VE en güncel adayın polygon/level/line/
+     marker'ları DIŞINDA HER ŞEYİ TAMAMEN BUDAR (beklemede/geçersiz/süresi
+     dolmuş bir deneme artık üçgen dahil HİÇ ÇİZİLMEZ — eskiden yalnızca
+     D-kutusu/köşe etiketi kısıtlıydı, PRZ/fib/X-B ÇİZGİLERİ hiç
+     filtrelenmiyordu). `_MAX_HARMONIC_MARKERS` 3→1. `_draw_polygons`/
+     `_draw_harmonic_vertices` artık kendi başlarına HİÇBİR seçim yapmıyor
+     (yalnızca `result`te ne kaldıysa çiziyor) — seçim TEK bir yerde.
+  3. **İKİNCİ gerçek hata (yukarıdaki düzeltmeyi A1YEN/Pesavento gerçek
+     verisiyle doğrularken bulundu) — başlık YANLIŞ adayı tarif ediyordu**:
+     `_build_subtitle`, `result.last_state`in SON dict girdisini (`next(
+     reversed(...))`) kullanıyordu — bu, FİİLEN ÇİZİLEN aday ile AYNI olmak
+     ZORUNDA değildi (en son eklenen aday geçersiz çıkıp filtre bir ÖNCEKİ,
+     hâlâ geçerli adayı seçtiğinde). Sonuç: grafik "D: 2.5392 [TAMAMLANDI]"
+     net bir üçgen gösterirken başlık "[GEÇERSİZ]" diyordu — kullanıcının
+     TAM OLARAK şikayet ettiği "indikatörde ne olduğunu başında yazmasa
+     anlamayacağım" sorununun BİREBİR kanıtı. Düzeltme: yeni `_shown_
+     harmonic_pid()` pid'i `last_state`ten DEĞİL, FİİLEN çizilen (filtrelenmiş)
+     `result.polygons`tan türetir; `_build_subtitle` artık bunu kullanıyor.
+     Ayrıca eşleşme SAYISI ("— N eşleşme") kaldırıldı (referans görsellerin
+     hiçbiri saymıyor, "— Tarama eşleşmesi" ile değiştirildi).
+  4. **Alt başlık metinleri referansa yakınlaştırıldı** — `_INDICATOR_
+     EXPLAIN_TR`e `structure.swing_fib_abcd`→"Swing Yapısı, Fibonacci ve
+     AB=CD Analizi" (referans 203913 ile birebir), `structure.
+     price_structure`→"Fiyat Yapısı — Destek/Direnç, Trend Çizgileri, Hacim
+     Profili", ve 6 `patterns.*` indikatörü için Türkçe formasyon adları
+     eklendi (eskiden İngilizce sınıf adının title-case'i sızıyordu, ör.
+     "BAKAB - Head Shoulders").
+  5. `render_structure_report`'un masthead override'ı da aynı sadeleştirmeyi
+     miras aldı (`_category_tr` çağrısı kaldırıldı, "Birleşik Rapor (Yapı +
+     Swing/Fibonacci)" artık kategori öneki OLMADAN).
+  Doğrulama: `outputs/galeri/`'deki TÜM tekil-sembol görseller (8 harmonik
+  ekolü + 3 pair + 6 structure/trend/patterns) yeniden üretildi, İKİ tur
+  (A1YEN/Pesavento, ACSEL/Navarro200, TCELL/swing_fib_abcd, TCELL+ASELS+
+  THYAO/structure.report, BAKAB/head_shoulders) gözle TEK TEK karşılaştırıldı
+  — hepsinde artık tek satırlık düz başlık, dış çerçeve/dipnot yok, harmonik
+  grafiklerde TEK bir net üçgen çifti + doğru durum etiketi var. 1 test
+  güncellendi (`test_panel_frames_drawn_around_each_subplot`, kart çerçevesi
+  kaldırıldığı için beklenen sayı `n_axis_pairs+1`'den `n_axis_pairs`'e
+  düştü) — yeni test EKLENMEDİ (bu tur saf bir tasarım/declutter düzeltmesi,
+  davranış sözleşmesi zaten mevcut testlerle örtüşüyor). `pytest -q -m "not
+  network"` 445/445 yeşil, `ruff check tlab/ tests/` 18 hata (BASELINE İLE
+  AYNI). **DÜRÜST NOT — kaldığı yer**: (a) çok dar bir fiyat bandında
+  (`structure.report`'ta "confluence" bölgeleri, ör. TCELL Ağustos 2026)
+  hâlâ HAFİF metin yakınlığı var — bu, önceki oturumların "tek geçişli
+  açgözlü sezgi" sınırlamasının aynısı, bugün ELE ALINMADI; (b) harmonik
+  pencere sonu hâlâ `born_time + 60 bar` sabit payı kullanıyor — bazı
+  örneklerde (A1YEN/Pesavento) pattern tamamlandıktan sonra hâlâ epey boş
+  alan kalıyor, referans kadar sıkı değil, ayrı bir ince ayar konusu;
+  (c) ACSEL/Navarro200'de "PRZ Üst"/"PRZ Alt" etiketleri grafiğin üst kenar
+  boşluğuna hafif taşıyor (y-ekseni autorange, harmonik `bounds` hesabına
+  PRZ Level'ları dahil edilmemiş olabilir) — küçük bir kalan kusur, bugünün
+  kapsamı DIŞINDA bırakıldı. Kullanıcı galeriyi tekrar incelemeli.
+
 Toplam 445 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
 ruff/mypy/lint_lookahead temiz (yeni kod kapsamında — repo genelindeki 18 ruff/2
 lint_lookahead uyarısı önceden var olan, ilgisiz satırlardır).

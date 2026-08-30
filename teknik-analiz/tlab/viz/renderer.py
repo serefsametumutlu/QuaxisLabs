@@ -89,42 +89,39 @@ _DEFAULT_WIDTH = 1750
 @dataclass(frozen=True)
 class _Header:
     """Masthead için önceden biçimlendirilmiş metin alanları — `_draw_header`
-    bunları `xref/yref="paper"` annotation'larla aracı-kurum-raporu tarzı bir
-    üst şerit olarak çizer (eski tek satırlık `title=` YERİNE). Burada HİÇBİR
-    teknik hesap yapılmaz — yalnızca zaten `IndicatorResult`/`df`'de mevcut
-    değerlerin (son kapanış, önceki kapanış, `last_state`) metne çevrilmesi
-    (biçimlendirme, bkz. görev kısıtı: son fiyat/yüzde değişim gibi basit
-    OHLC aritmetiği ihlal SAYILMAZ)."""
+    bunları `xref/yref="paper"` annotation'larla TEK, sade bir başlık satırı
+    olarak çizer. Burada HİÇBİR teknik hesap yapılmaz — yalnızca zaten
+    `IndicatorResult`'ta mevcut değerlerin (sembol, formasyon/ekol adı) metne
+    çevrilmesi.
+
+    2026-08-30 (kullanıcı geri bildirimi — "hepsi rezalet... images/
+    klasöründeki görsellerle birebir aynı olacak şekilde güncelle"): önceki
+    "aracı kurum raporu" tasarımı (2 satır + sağ-hizalı fiyat/değişim +
+    accent ayraç çizgisi + kart çerçevesi + dipnot) kullanıcının kendi
+    referans ekran görüntülerinin HİÇBİRİYLE örtüşmüyordu — o görsellerin
+    hepsi TEK satırlık düz metin bir başlık kullanıyor (ör. "TCELL - Swing
+    Yapısı, Fibonacci ve AB=CD Analizi (Düşüş)", "ALARK.IS - Kelebek
+    Formasyonu (SAT) [AKTIF] — SİSTEM: Pesavento"). Bu sınıf artık yalnızca
+    `symbol`/`subtitle` taşır, `_draw_header` bunları TEK satırda birleştirir."""
 
     symbol: str
     subtitle: str
-    value_str: str
-    change_str: str | None = None
-    change_positive: bool | None = None
-    highlighted: bool = False
-    date_str: str = ""
 
 
 _MARGIN_L = 56
 _MARGIN_R = 116
-_MARGIN_T = 112
-_MARGIN_B = 60
-# Masthead/dipnot, `yref="paper"` (0..1 = yalnızca ÇİZİM alanı, kenar
-# boşlukları HARİÇ) üzerinden `y>1`/`y<0` ile üst/alt kenar boşluğuna taşan
-# annotation/shape'lerle çizilir. Bu fraksiyon, TOPLAM figür yüksekliğine
-# göre değil yalnızca çizim alanının (height - t - b) yüksekliğine göre
-# ölçeklenir — bu yüzden SABİT bir `y=1.2` gibi bir değer, alt-panelli
-# (hacim/MACD) uzun bir figürde (çizim alanı büyük → aynı fraksiyon çok daha
-# fazla piksele karşılık gelir) kenar boşluğunun DIŞINA taşıp görünmez
-# oluyordu (gerçek render ile bulunan bir hata — ör. `structure.
-# price_structure`'da 2 alt panel varken masthead'in sembol/fiyat satırı
-# hiç görünmüyordu). Bunun yerine SABİT bir piksel ofseti (`_HEADER_ROW1_PX`
-# vb.) hesaplanıp `_apply_layout` içinde figüre özgü paper-fraksiyonuna
-# çevrilir — böylece masthead'in ekrandaki piksel konumu figür
-# yüksekliğinden BAĞIMSIZ, her zaman `_MARGIN_T`/`_MARGIN_B` içinde kalır.
-_HEADER_ROW1_PX = 46.0
-_HEADER_ROW2_PX = 18.0
-_HEADER_RULE_PX = 8.0
+_MARGIN_T = 56
+_MARGIN_B = 40
+# Masthead, `yref="paper"` (0..1 = yalnızca ÇİZİM alanı, kenar boşlukları
+# HARİÇ) üzerinden `y>1` ile üst kenar boşluğuna taşan annotation'larla
+# çizilir. Bu fraksiyon, TOPLAM figür yüksekliğine göre değil yalnızca çizim
+# alanının (height - t - b) yüksekliğine göre ölçeklenir — bu yüzden SABİT
+# bir `y=1.2` gibi bir değer, alt-panelli (hacim/MACD) uzun bir figürde
+# (çizim alanı büyük → aynı fraksiyon çok daha fazla piksele karşılık gelir)
+# kenar boşluğunun DIŞINA taşıp görünmez oluyordu (gerçek render ile bulunan
+# bir hata). Bunun yerine SABİT bir piksel ofseti (`_HEADER_ROW1_PX`)
+# hesaplanıp `_apply_layout` içinde figüre özgü paper-fraksiyonuna çevrilir.
+_HEADER_ROW1_PX = 34.0
 _FOOTER_PX = 32.0
 _FOOTER_TEXT = "Yalnızca teknik analiz amaçlıdır, yatırım tavsiyesi değildir — tlab"
 
@@ -132,13 +129,17 @@ _FOOTER_TEXT = "Yalnızca teknik analiz amaçlıdır, yatırım tavsiyesi değil
 def _apply_layout(
     fig: go.Figure, theme: Theme, header: _Header, height: int, width: int = _DEFAULT_WIDTH,
 ) -> None:
-    """Jenerik/harmonik (`light_analysis`) mod için ortak "aracı kurum
-    raporu" masthead/kart/dipnot çerçevesi. **Pair modu (2026-08-29'dan
-    itibaren) BUNU KULLANMAZ** — kullanıcı bu paylaşılan tasarımı pair
-    grafiği için reddetti, kendi ayrık `_apply_pair_layout`/`_draw_pair_
-    header`'ı var (bkz. `_render_pair`). Bu fonksiyon yalnızca `_render_
-    price_based`'in çağırdığı hâliyle kalmalı; pair'e ÖZGÜ hiçbir dal
-    eklenmemeli."""
+    """Jenerik/harmonik (`light_analysis`) mod için ortak yerleşim: TEK
+    satırlık düz başlık + panel çerçeveleri. **Pair modu (2026-08-29'dan
+    itibaren) BUNU KULLANMAZ** — kendi ayrık `_apply_pair_layout`/`_draw_
+    pair_header`'ı var (bkz. `_render_pair`). Bu fonksiyon yalnızca
+    `_render_price_based`'in çağırdığı hâliyle kalmalı; pair'e ÖZGÜ hiçbir
+    dal eklenmemeli.
+
+    2026-08-30: eskiden burada ayrıca bir dış "kart" çerçevesi (`_draw_
+    card_frame`) ve bir dipnot şeridi (`_draw_footer`) de çiziliyordu —
+    kullanıcının referans ekran görüntülerinin (`images/`) hiçbirinde bu
+    ikisi YOK, kaldırıldı (bkz. `_Header` docstring'i)."""
     margin_t = _MARGIN_T
     fig.update_layout(
         paper_bgcolor=theme.page_bg,
@@ -150,9 +151,8 @@ def _apply_layout(
         # (x1=last_x, xanchor="left") sabitlenir ve `vp` paneli olmayan
         # (tek kolonlu) grafiklerde bu, figürün SAĞ kenarına dayanıp
         # kırpılıyordu (gerçek veriyle bulunan bir davranış — bkz.
-        # `_draw_levels`); `_MARGIN_R` bu tür etiketlere + kart kenar
-        # boşluğuna yetecek kadar pay bırakır. t/b, masthead (2 satır +
-        # ayraç) ve dipnot şeridi için (bkz. `_draw_header`/`_draw_footer`).
+        # `_draw_levels`); `_MARGIN_R` bu tür etiketlere yetecek kadar pay
+        # bırakır. t, tek satırlık başlık için (bkz. `_draw_header`).
         margin=dict(l=_MARGIN_L, r=_MARGIN_R, t=margin_t, b=_MARGIN_B),
         legend=dict(
             bgcolor=with_alpha(theme.bg, 0.92), bordercolor=theme.border, borderwidth=1,
@@ -164,21 +164,8 @@ def _apply_layout(
     fig.update_xaxes(gridcolor=theme.grid, zerolinecolor=theme.grid, showspikes=False)
     fig.update_yaxes(gridcolor=theme.grid, zerolinecolor=theme.grid)
     plot_h = max(height - margin_t - _MARGIN_B, 50.0)
-    _draw_card_frame(fig, theme)
     _draw_panel_frames(fig, theme)
     _draw_header(fig, theme, header, plot_h)
-    _draw_footer(fig, theme, plot_h)
-
-
-def _draw_card_frame(fig: go.Figure, theme: Theme) -> None:
-    """Çizim alanının etrafına ince bir "kart" çerçevesi — `paper_bgcolor`
-    (dış "sayfa") üzerinde oturan, kurumsal bir rapor sayfası hissi veren
-    TEK ince kenarlık (`theme.border`). Aşırıya kaçmamak için yalnızca bu —
-    gölge/döşeme YOK."""
-    fig.add_shape(
-        type="rect", xref="paper", yref="paper", x0=0.0, x1=1.0, y0=0.0, y1=1.0,
-        line=dict(color=theme.border, width=1), fillcolor="rgba(0,0,0,0)", layer="above",
-    )
 
 
 def _draw_panel_frames(fig: go.Figure, theme: Theme) -> None:
@@ -207,81 +194,29 @@ def _draw_panel_frames(fig: go.Figure, theme: Theme) -> None:
 
 
 def _draw_header(fig: go.Figure, theme: Theme, h: _Header, plot_h: float) -> None:
-    """Aracı-kurum-raporu tarzı üst şerit: sol=sembol (büyük), sağ=değer +
-    (varsa) yön-renkli değişim; alt satır sol=kategori/formasyon alt
-    başlığı, sağ=üretim tarihi; ince bir marka-rengi (`accent`) ayraç
-    çizgisiyle grafikten ayrılır. `plot_h`: bkz. `_HEADER_ROW1_PX` grubu
-    docstring'i — piksel ofsetlerini BU figüre özgü paper-fraksiyonuna
-    çevirmek için gerekli. Yalnızca `_render_price_based` çağırır — pair
-    modunun kendi (çok daha küçük/2-satır) `_draw_pair_header`'ı var."""
+    """TEK satırlık düz metin başlık: `"{sembol} - {açıklama}"`, sol-hizalı,
+    normal (rapor-branding'i olmayan) bir başlık gibi — referans ekran
+    görüntülerinin (`images/`) hepsinin kullandığı biçim. `plot_h`: bkz.
+    `_HEADER_ROW1_PX` docstring'i. Yalnızca `_render_price_based` çağırır —
+    pair modunun kendi `_draw_pair_header`'ı var."""
     row1_y = 1.0 + _HEADER_ROW1_PX / plot_h
-    row2_y = 1.0 + _HEADER_ROW2_PX / plot_h
-    rule_y = 1.0 + _HEADER_RULE_PX / plot_h
-
-    change_color = theme.text
-    arrow = ""
-    if h.change_positive is True:
-        change_color, arrow = theme.up, "▲ "
-    elif h.change_positive is False:
-        change_color, arrow = theme.down, "▼ "
-    elif h.highlighted:
-        change_color = theme.accent
-
-    value_text = h.value_str if h.change_str is None else f"{h.value_str}   {arrow}{h.change_str}"
-
+    text = f"<b>{h.symbol}</b> - {h.subtitle}" if h.subtitle else f"<b>{h.symbol}</b>"
     fig.add_annotation(
         x=0.0, y=row1_y, xref="paper", yref="paper", xanchor="left", yanchor="bottom",
-        text=f"<b>{h.symbol}</b>", showarrow=False,
-        font=dict(family=theme.font, size=21, color=theme.text),
-    )
-    fig.add_annotation(
-        x=1.0, y=row1_y, xref="paper", yref="paper", xanchor="right", yanchor="bottom",
-        text=f"<b>{value_text}</b>", showarrow=False,
-        font=dict(family=theme.font, size=16, color=change_color),
-    )
-    fig.add_annotation(
-        x=0.0, y=row2_y, xref="paper", yref="paper", xanchor="left", yanchor="bottom",
-        text=h.subtitle, showarrow=False,
-        font=dict(family=theme.font, size=11, color=theme.muted),
-    )
-    fig.add_annotation(
-        x=1.0, y=row2_y, xref="paper", yref="paper", xanchor="right", yanchor="bottom",
-        text=f"Üretim: {h.date_str}", showarrow=False,
-        font=dict(family=theme.font, size=10, color=theme.muted),
-    )
-    fig.add_shape(
-        type="line", xref="paper", yref="paper", x0=0.0, x1=1.0, y0=rule_y, y1=rule_y,
-        line=dict(color=theme.accent, width=2), layer="above",
+        text=text, showarrow=False,
+        font=dict(family=theme.font, size=15, color=theme.text),
     )
 
 
 def _draw_footer(fig: go.Figure, theme: Theme, plot_h: float) -> None:
+    """Yalnızca pair modu (`_apply_pair_layout`) kullanır — jenerik/harmonik
+    `_apply_layout` artık dipnot şeridi çizmiyor (bkz. `_Header` docstring'i)."""
     footer_y = -_FOOTER_PX / plot_h
     fig.add_annotation(
         x=0.5, y=footer_y, xref="paper", yref="paper", xanchor="center", yanchor="top",
         text=_FOOTER_TEXT, showarrow=False,
         font=dict(family=theme.font, size=9, color=theme.muted),
     )
-
-
-def _last_close_change(df: pd.DataFrame | None) -> tuple[float, float] | None:
-    """Son kapanış ve BİR ÖNCEKİ bara göre yüzde değişimi döner — ham
-    OHLC üzerinde basit görüntüleme aritmetiği (indikatör HESABI değil,
-    bkz. görev kısıtı: "son kapanış/periyot % değişimi" formatlama olarak
-    açıkça İZİNLİ). `df` yoksa veya tek barlıksa `None`."""
-    if df is None or len(df) < 2:
-        return None
-    last = float(df["close"].iloc[-1])
-    prev = float(df["close"].iloc[-2])
-    if prev == 0:
-        return last, 0.0
-    return last, (last - prev) / prev * 100.0
-
-
-def _category_tr(indicator: str) -> str:
-    prefix = indicator.split(".", 1)[0]
-    key = "harmonics" if prefix == "harmonic" else prefix
-    return tr.INDICATOR_CATEGORY_TR.get(key, prefix.title())
 
 
 def _fmt_date(t: datetime) -> str:
@@ -518,6 +453,8 @@ def _render_price_based(
 ) -> go.Figure:
     if declutter and result.indicator.startswith("patterns."):
         result = _filter_confirmed_patterns(result)
+    if declutter and result.indicator.startswith("harmonic."):
+        result = _filter_harmonic_result(result)
     layout = result.series_layout or {}
     sub_names = list(layout.keys())
     has_vp = any(name.startswith("vp_") for name in result.series)
@@ -637,7 +574,7 @@ def _render_price_based(
         has_vp=has_vp, edge_cutoff=edge_cutoff,
     )
     _draw_polygons(fig, result.polygons, theme, row=1, col=1)
-    _draw_harmonic_vertices(fig, result, theme, row=1, col=1, declutter=declutter)
+    _draw_harmonic_vertices(fig, result, theme, row=1, col=1)
     _draw_lines(
         fig, lines, df, theme, row=1, col=1, latest_end=latest_line_end,
         px_per_unit=px_per_unit, yshifts=box_level_yshifts,
@@ -674,7 +611,7 @@ def _render_price_based(
     )
     _sync_price_yaxis(fig, df, window_start_idx, has_vp, bounds=harmonic_bounds)
 
-    header = _price_header(result, df)
+    header = _price_header(result)
     _apply_layout(fig, theme, header, height=600 + 180 * n_sub)
     return fig
 
@@ -692,48 +629,62 @@ _INDICATOR_EXPLAIN_TR: dict[str, str] = {
         "konsolidasyon bantları"
     ),
     "trend.weekly_channel": "Haftalık Trend Kanalı — regresyon/pivot kanalı + kanal içi pozisyon",
+    "structure.swing_fib_abcd": "Swing Yapısı, Fibonacci ve AB=CD Analizi",
+    "structure.price_structure": "Fiyat Yapısı — Destek/Direnç, Trend Çizgileri, Hacim Profili",
+    "patterns.wedge": "Takoz Formasyonu",
+    "patterns.triangle": "Üçgen Formasyonu",
+    "patterns.head_shoulders": "Omuz Baş Omuz Formasyonu",
+    "patterns.flag_pennant": "Bayrak/Flama Formasyonu",
+    "patterns.double_top_bottom": "Çift Tepe/Dip Formasyonu",
+    "patterns.broadening": "Genişleyen Formasyon",
 }
 
 
+def _shown_harmonic_pid(result: IndicatorResult) -> str | None:
+    """`result.polygons`ta (bkz. `_filter_harmonic_result` — bu noktada
+    `declutter=True` iken ZATEN tek adaya indirgenmiş olur) FİİLEN çizilen
+    adayın pid'ini döner. `_build_subtitle` bunu kullanır — eskiden `last_
+    state`in SON dict girdisini alıyordu, ki bu GERÇEKTEN GÖSTERİLEN
+    aday ile AYNI olmak ZORUNDA değildi (ör. en son eklenen aday geçersiz
+    çıkıp filtre bir ÖNCEKİ, hâlâ geçerli adayı seçtiğinde başlık "[GEÇERSİZ]"
+    derken grafik "[TAMAMLANDI]" bir üçgen gösterebiliyordu — gerçek veriyle
+    bulunan bir tutarsızlık, bkz. CLAUDE.md)."""
+    for p in result.polygons:
+        if p.label.endswith("_xab"):
+            return p.label[: -len("_xab")]
+        if p.label.endswith("_bcd"):
+            return p.label[: -len("_bcd")]
+    return None
+
+
 def _build_subtitle(result: IndicatorResult) -> str:
-    """Masthead'in ikinci (alt başlık) satırı — formasyon/ekol veya
+    """Masthead'in başlık satırındaki açıklama kısmı — formasyon/ekol veya
     indikatör adının okunur biçimi. Sembol BURADA tekrarlanmaz (`_Header.
-    symbol` ayrı, birinci satırda büyük puntoyla zaten var)."""
+    symbol` ayrı, `_draw_header` bunu öne ekler)."""
     if result.indicator in _INDICATOR_EXPLAIN_TR:
         return _INDICATOR_EXPLAIN_TR[result.indicator]
     if result.indicator.startswith("harmonic."):
         school = result.indicator.split(".", 1)[1]
-        if not result.last_state:
-            return f"{school.title()} ekolü — eşleşen formasyon yok"
-        _pid, info = next(reversed(result.last_state.items()))
+        pid = _shown_harmonic_pid(result)
+        info = result.last_state.get(pid) if pid is not None else None
+        if info is None:
+            return f"{school.title()} Formasyonu — eşleşen formasyon yok"
         pattern = str(info["pattern"]).replace("_", " ").title()
         direction_tr = tr.tr_direction(info["direction"])
         state_tr = tr.tr_state(info["state"])
         return (
             f"{pattern} Formasyonu ({direction_tr}) [{state_tr}] "
-            f"— Sistem: {school.title()} — {len(result.last_state)} eşleşme"
+            f"— Sistem: {school.title()} — Tarama eşleşmesi"
         )
     return result.indicator.split(".", 1)[-1].replace("_", " ").title()
 
 
-def _price_header(result: IndicatorResult, df: pd.DataFrame) -> _Header:
-    """Fiyat-tabanlı (jenerik/harmonik) mod için masthead içeriği — son
-    kapanış + bir-önceki-bara-göre % değişim (biçimlendirme, bkz.
-    `_last_close_change` docstring'i), kategori (`labels_tr.
-    INDICATOR_CATEGORY_TR`) + formasyon/indikatör alt başlığı, üretim
-    tarihi (bugün — grafiğin ÜRETİLDİĞİ an, verinin son bar tarihi
-    DEĞİL)."""
-    subtitle = f"{_category_tr(result.indicator)} — {_build_subtitle(result)}"
-    change = _last_close_change(df)
-    if change is None:
-        value_str, change_str, positive = "—", None, None
-    else:
-        last, pct = change
-        value_str, change_str, positive = f"{last:.2f}", f"{pct:+.2f}%", pct >= 0
-    return _Header(
-        symbol=result.symbol or "?", subtitle=subtitle, value_str=value_str,
-        change_str=change_str, change_positive=positive, date_str=_fmt_date(datetime.now()),
-    )
+def _price_header(result: IndicatorResult) -> _Header:
+    """Fiyat-tabanlı (jenerik/harmonik) mod için masthead içeriği — TEK
+    satırlık `"{sembol} - {formasyon/indikatör açıklaması}"` (bkz. `_Header`
+    docstring'i: 2026-08-30'dan itibaren fiyat/değişim/kategori/tarih
+    satırları KALDIRILDI, referans ekran görüntülerinin hiçbirinde yoktu)."""
+    return _Header(symbol=result.symbol or "?", subtitle=_build_subtitle(result))
 
 
 def _latest_per_group(items: list, group_key, time_key) -> dict:
@@ -981,8 +932,64 @@ def _draw_boxes(
         )
 
 
+# 2026-08-30 (kullanıcı geri bildirimi — "images/ klasöründeki görsellerle
+# birebir aynı olacak şekilde güncelle, karmaşıklık istemiyorum artık"):
+# referans harmonik ekran görüntülerinin HER BİRİ TEK BİR üçgen çifti (XAB +
+# BCD) gösteriyor — hiçbirinde birden fazla aday üst üste binmiyor, ve hiçbiri
+# beklemede/geçersiz/süresi dolmuş bir deneme göstermiyor. Eskiden
+# `_MAX_HARMONIC_MARKERS=3` idi VE `_draw_polygons`/PRZ-fib Level'ları/X-B
+# Line'ları hiç filtre uygulamadan HER adayı çiziyordu (yalnızca üçgenin köşe
+# etiketleri/D kutusu kısıtlıydı) — gerçek çok-yıllık veride bu, onlarca yarı
+# saydam renkli üçgenin ve PRZ/fib çizgisinin üst üste binip grafiği tam
+# olarak kullanıcının tarif ettiği "rezalet" hâline getiriyordu; bir aday
+# GEÇERSİZ olsa bile PRZ/X-B çizgileri hâlâ görünürdü. `_filter_harmonic_
+# result()` bunu TEK bir yerde çözer (bkz. `_render_price_based`'in ilk
+# satırı) — `_filter_confirmed_patterns`'ın (`patterns.*`) harmoniklere
+# uyarlanmış hâli.
+_MAX_HARMONIC_MARKERS = 1
+_HARMONIC_VISIBLE_STATES = frozenset({"active", "confirmed", "completed"})
+
+
+def _filter_harmonic_result(result: IndicatorResult) -> IndicatorResult:
+    """Yalnızca EN GÜNCEL, hâlâ geçerli (aktif/tamamlanmış) harmonik adayın
+    üçgenini (Polygon), köşelerini, PRZ/fib seviyelerini (Level) ve X-B/hedef
+    zarfı çizgilerini (Line) bırakır; `last_state` anahtarları (pids) ile ham
+    (sıralanmamış) harmonik Marker listesi indeks bazında eşleşir (bkz.
+    `HarmonicIndicator.compute()` — her aday için tam olarak bir Marker, aynı
+    sırada eklenir). `declutter=False` (`--show-all`) çağıran taraftan hiç
+    çağrılmaz, bu fonksiyon her zaman filtreler."""
+    harmonic_markers = [m for m in result.markers if m.kind.startswith("harmonic_")]
+    pids = list(result.last_state.keys())
+    if not pids or len(pids) != len(harmonic_markers):
+        return result  # beklenmedik şekil uyuşmazlığı — güvenli tarafta kal, filtreleme
+
+    paired = sorted(
+        zip(pids, harmonic_markers, strict=True), key=lambda pm: pm[1].t, reverse=True,
+    )
+    valid = [
+        (pid, m) for pid, m in paired
+        if m.kind.removeprefix("harmonic_") in _HARMONIC_VISIBLE_STATES
+    ]
+    visible = {pid for pid, _m in valid[:_MAX_HARMONIC_MARKERS]}
+    visible_markers = {m for _pid, m in valid[:_MAX_HARMONIC_MARKERS]}
+
+    def _kept(label: str) -> bool:
+        return any(label == pid or label.startswith(pid + "_") for pid in visible)
+
+    return replace(
+        result,
+        polygons=[p for p in result.polygons if _kept(p.label)],
+        levels=[lv for lv in result.levels if _kept(lv.label)],
+        lines=[ln for ln in result.lines if _kept(ln.label)],
+        markers=[
+            m for m in result.markers
+            if not m.kind.startswith("harmonic_") or m in visible_markers
+        ],
+    )
+
+
 def _draw_polygons(
-    fig: go.Figure, polygons: list[Polygon], theme: Theme, row: int, col: int
+    fig: go.Figure, polygons: list[Polygon], theme: Theme, row: int, col: int,
 ) -> None:
     for p in polygons:
         xs = [_x(pt[0]) for pt in p.points] + [_x(p.points[0][0])]
@@ -1000,7 +1007,6 @@ def _draw_polygons(
 
 def _draw_harmonic_vertices(
     fig: go.Figure, result: IndicatorResult, theme: Theme, row: int, col: int,
-    declutter: bool = True,
 ) -> None:
     """XAB/BCD üçgenlerinin gerçek fiyat pivotlarına (X, A, B, C) küçük bir
     nokta + kısa harf etiketi ekler — önceden yalnızca son D etiketi vardı,
@@ -1009,25 +1015,12 @@ def _draw_harmonic_vertices(
     "D: fiyat [DURUM]" kutusunu çiziyor; `bcd` poligonunun 3. noktası zaten
     gerçek bir pivot değil, `prz.center`).
 
-    `pid` (ör. `f"{school}_{pattern}_{pattern_id}"`) polygon etiketinin
-    (`{pid}_xab` / `{pid}_bcd`, bkz. `scanner_indicator.py`) son ekini
-    kırparak çıkarılır; hangi pid'lerin "en güncel" sayıldığı `_draw_
-    markers`'daki `visible_harmonic` seçimiyle AYNI mantıkla belirlenir
-    (harmonik Marker'lar `pid` taşımaz, ama `HarmonicIndicator.compute()`
-    her aday için TAM OLARAK bir Marker'ı `last_state[pid]` ile aynı
-    sırada ekler — bu yüzden `last_state` anahtarları ile ham (sıralanmamış)
-    harmonik Marker listesi indeks bazında eşleşir)."""
+    `result.polygons`, `declutter=True` iken çağıran taraf (`_render_price_
+    based`) tarafından `_filter_harmonic_result()` ile ZATEN tek adaya
+    indirgenmiş olur — bu fonksiyon ayrıca bir seçim YAPMAZ, yalnızca ne
+    varsa çizer."""
     if not result.polygons:
         return
-
-    harmonic_markers = [m for m in result.markers if m.kind.startswith("harmonic_")]
-    pids = list(result.last_state.keys())
-    recent_pids: set[str] | None = None
-    if declutter and pids and len(pids) == len(harmonic_markers):
-        paired = sorted(
-            zip(pids, harmonic_markers, strict=True), key=lambda pm: pm[1].t, reverse=True
-        )
-        recent_pids = {pid for pid, _m in paired[:_MAX_HARMONIC_MARKERS]}
 
     by_pid: dict[str, dict[str, Polygon]] = {}
     for p in result.polygons:
@@ -1036,9 +1029,7 @@ def _draw_harmonic_vertices(
         elif p.label.endswith("_bcd"):
             by_pid.setdefault(p.label[: -len("_bcd")], {})["bcd"] = p
 
-    for pid, parts in by_pid.items():
-        if recent_pids is not None and pid not in recent_pids:
-            continue
+    for parts in by_pid.values():
         xab, bcd = parts.get("xab"), parts.get("bcd")
         vertices: list[tuple[object, float, str]] = []
         if xab is not None and len(xab.points) >= 3:
@@ -1320,18 +1311,19 @@ def _draw_levels(
 _STRUCTURE_COLOR = {"HH": "green", "HL": "green", "LH": "red", "LL": "red"}
 
 
-_MAX_HARMONIC_MARKERS = 3
-
 # 2026-08-30: kullanıcı geri bildirimi — eskiden TÜM durumlar (pending/
 # active/confirmed) invalidated HARİÇ aynı yeşili alıyordu ("bearish" if
 # state=="invalidated" else "bullish"), yani "sinyal gerçekten geldi mi
 # (confirmed) yoksa henüz mi (pending/active)" sorusunun cevabı görsel
-# olarak AYIRT EDİLEMİYORDU. Artık her durumun KENDİ rengi var: `confirmed`
-# (sinyal GELDİ) `accent` (projedeki "en karara-değer" marka rengi — bkz.
-# themes.py); `active` (yaklaşıyor) `orange`; `pending` (yeni doğdu, henüz
-# erken) `gray`; `invalidated`/`expired` (artık geçerli değil) `red`/`gray`.
+# olarak AYIRT EDİLEMİYORDU. Artık her durumun KENDİ rengi var: `confirmed`/
+# `completed` (sinyal GELDİ) `accent` (projedeki "en karara-değer" marka
+# rengi — bkz. themes.py); `active` (yaklaşıyor) `orange`; `pending` (yeni
+# doğdu, henüz erken) `gray`; `invalidated`/`expired` (artık geçerli değil)
+# `red`/`gray`. `pending`/`invalidated`/`expired` fiilen HİÇ ÇİZİLMEZ artık
+# (bkz. `_HARMONIC_VISIBLE_STATES`) — renkleri yalnızca `declutter=False`
+# ("--show-all") modunda kullanılır.
 _HARMONIC_STATE_COLOR: dict[str, str] = {
-    "confirmed": "accent", "active": "orange", "pending": "gray",
+    "confirmed": "accent", "completed": "accent", "active": "orange", "pending": "gray",
     "invalidated": "red", "expired": "gray",
 }
 
@@ -1377,11 +1369,18 @@ def _draw_markers(
     declutter: bool = True,
 ) -> None:
     harmonic_markers = sorted(
-        (m for m in markers if m.kind.startswith("harmonic_")), key=lambda m: m.t, reverse=True,
+        (
+            m for m in markers
+            if m.kind.startswith("harmonic_")
+            and m.kind.removeprefix("harmonic_") in _HARMONIC_VISIBLE_STATES
+        ),
+        key=lambda m: m.t, reverse=True,
     )
     # declutter: her okulda onlarca aday birikebilir (özellikle uzun/gürültülü
-    # gerçek veride) — yalnızca EN GÜNCEL birkaç "D: fiyat [DURUM]" kutusu
-    # gösterilir, gerisi (üçgen/PRZ hâlâ çizili) etiketsiz kalır.
+    # gerçek veride) — beklemede/geçersiz/süresi dolmuş denemeler yukarıda
+    # ZATEN elendi; kalan (aktif/tamamlandı) adaylardan da yalnızca EN GÜNCEL
+    # `_MAX_HARMONIC_MARKERS` (=1) tanesi "D: fiyat [DURUM]" kutusu alır —
+    # referans ekran görüntülerinin hepsi TEK bir aday gösteriyor.
     visible_harmonic = set(harmonic_markers[:_MAX_HARMONIC_MARKERS]) if declutter else None
 
     # Jenerik (structure_label/harmonic_*/pair_signal DIŞINDAKİ, ör.
@@ -1963,8 +1962,7 @@ def render_structure_report(
 
     # Alt başlık, `ps_result.indicator` ("structure.price_structure") yerine
     # BU birleşik görünümü yansıtmalı (`_price_header` tek-indikatör varsayımı
-    # yapar) — yalnızca `subtitle` alanı override edilir, diğer alanlar
-    # (fiyat/değişim/tarih) aynı biçimlendirmeden (`_price_header`) gelir.
+    # yapar) — yalnızca `subtitle` alanı override edilir.
     extras_tr = []
     if gz_result is not None:
         extras_tr.append("Golden Zone")
@@ -1972,11 +1970,8 @@ def render_structure_report(
         extras_tr.append("Arz/Talep")
     extras_suffix = f" + {' + '.join(extras_tr)}" if extras_tr else ""
     header = replace(
-        _price_header(ps_result, df),
-        subtitle=(
-            f"{_category_tr(ps_result.indicator)} — Birleşik Rapor "
-            f"(Yapı + Swing/Fibonacci{extras_suffix})"
-        ),
+        _price_header(ps_result),
+        subtitle=f"Birleşik Rapor (Yapı + Swing/Fibonacci{extras_suffix})",
     )
     _apply_layout(fig, resolved, header, height=total_height, width=_DEFAULT_WIDTH)
     if has_vp:

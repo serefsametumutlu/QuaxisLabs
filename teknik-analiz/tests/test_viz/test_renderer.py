@@ -89,8 +89,10 @@ def test_panel_frames_drawn_around_each_subplot() -> None:
         s for s in fig.layout.shapes
         if s.type == "rect" and s.xref == "paper" and s.yref == "paper"
     ]
-    # +1: `_draw_card_frame`'in tüm figürü saran DIŞ çerçevesi.
-    assert len(border_rects) == n_axis_pairs + 1
+    # 2026-08-30: `_draw_card_frame` (tüm figürü saran ayrı dış çerçeve)
+    # kaldırıldı — referans ekran görüntülerinin hiçbirinde yoktu, yalnızca
+    # panel çerçeveleri kaldı.
+    assert len(border_rects) == n_axis_pairs
 
 
 def test_pair_render_draws_holding_period_shading() -> None:

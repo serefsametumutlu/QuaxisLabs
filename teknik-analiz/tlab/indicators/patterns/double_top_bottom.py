@@ -172,8 +172,9 @@ class DoubleTopBottomIndicator(BaseIndicator):
                         start=p2.bar_time, end=level_end_from_signals(pattern_signals),
                     )
                 )
-                markers.append(Marker(t=p1.bar_time, price=p1.price, text="1", kind="dtb_extreme"))
-                markers.append(Marker(t=p2.bar_time, price=p2.price, text="2", kind="dtb_extreme"))
+                vertex_kind = f"pattern_vertex:{pattern_id}"
+                markers.append(Marker(t=p1.bar_time, price=p1.price, text="1", kind=vertex_kind))
+                markers.append(Marker(t=p2.bar_time, price=p2.price, text="2", kind=vertex_kind))
 
                 last_sig = pattern_signals[-1]
                 marker_price = close[df.index.get_loc(last_sig.bar_time)]

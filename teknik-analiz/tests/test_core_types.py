@@ -115,6 +115,29 @@ def test_roundtrip_price_indexed_series_does_not_crash() -> None:
     assert sorted(vp.index) == pytest.approx([10.5, 11.93666632970174, 13.2])
 
 
+def test_roundtrip_price_indexed_series_with_date_like_key_does_not_crash() -> None:
+    """GERÇEK hata (Faz 8B sonrası, gerçek bir çoklu-süreç BIST taramasında
+    ilk kez tetiklendi): eski `_series_from_json` yalnızca serinin İLK
+    anahtarına bakıp karar veriyordu ("Timestamp olarak ayrıştırılamazsa
+    float'a düş") — ama `pd.Timestamp` çok esnek: `"2026.5"` RASTLANTISAL
+    olarak geçerli bir tarihe ("2026-05-01") ayrıştırılıyor, `"4749.375"`
+    (aynı fiyat-indeksli serideki BAŞKA bir anahtar) ise ayrıştırılamıyor —
+    ilk anahtar "yanlışlıkla" geçtiği için fonksiyon TÜM anahtarları
+    Timestamp sanıp ikincisinde yakalanmamış bir `DateParseError`le
+    çöküyordu. Düzeltme: karar artık içerik sezgisi değil, serinin adının
+    `vp_` önekini taşıyıp taşımadığına bakıyor (`series_layout`
+    docstring'indeki ZATEN var olan sözleşme)."""
+    result = IndicatorResult(
+        indicator="test.roundtrip", version="0.1.0", params_hash="h1",
+        symbol="TEST", timeframe=Timeframe.D1,
+        series={"vp_bins": pd.Series([1.0, 2.0], index=[2026.5, 4749.375])},
+    )
+    restored = IndicatorResult.from_json(result.to_json())
+    vp = restored.series["vp_bins"]
+    assert not isinstance(vp.index, pd.DatetimeIndex)
+    assert sorted(vp.index) == pytest.approx([2026.5, 4749.375])
+
+
 def test_roundtrip_empty_series_does_not_crash() -> None:
     result = _sample_result()
     result.series["empty"] = pd.Series(dtype=float)

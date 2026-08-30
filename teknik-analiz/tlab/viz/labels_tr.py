@@ -35,6 +35,10 @@ STYLE_TR: dict[str, str] = {
     "channel": "Kanal",
     "channel_current": "Güncel Kanal",
     "channel_frozen": "Dondurulmuş Kanal",
+    "pattern_boundary": "Sınır/Boyun",
+    "pattern_target": "Hedef",
+    "pattern_pole": "Direk",
+    "pattern_consolidation": "Konsolidasyon",
 }
 
 DIRECTION_TR: dict[str, str] = {"long": "AL", "short": "SAT", "neutral": "NÖTR"}
@@ -44,6 +48,7 @@ INDICATOR_CATEGORY_TR: dict[str, str] = {
     "structure": "Fiyat Yapısı",
     "pair": "Pair (Rölatif Momentum)",
     "trend": "Trend",
+    "patterns": "Klasik Formasyon",
 }
 
 

@@ -25,6 +25,7 @@ from tlab.viz.renderer import (
     _STAGGER_TRIGGER_PX,
     _cap_frozen_channels,
     _declutter_levels,
+    _filter_confirmed_patterns,
     _harmonic_price_bounds,
     _latest_per_group,
     _resolve_window_end,
@@ -486,3 +487,69 @@ def test_render_structure_report_combines_both_indicators() -> None:
     # RSI paneli (`series_layout`'a `render_structure_report`'tan ÖNCE,
     # `PriceStructure.compute()`'a eklendi) üçüncü alt panel olarak var.
     assert "rsi" in ps_result.series_layout
+
+
+def test_filter_confirmed_patterns_drops_invalidated_keeps_confirmed() -> None:
+    """Faz 8B (`patterns.*`) — kullanıcı geri bildirimi: "geçersiz olan
+    denemeler gösterilmemeli, sadece tam olarak obo/tobo olan noktalar
+    gösterilmeli". İki pattern_id: biri confirmed (tutulmalı, Line/Level/
+    vertex/outcome marker'ıyla birlikte), biri invalidated (TAMAMEN
+    budanmalı — Line/Level/vertex/outcome marker'ı dahil)."""
+    ts = pd.Timestamp("2024-01-10", tz="Europe/Istanbul")
+    result = IndicatorResult(
+        indicator="patterns.head_shoulders", version="0.1.0", params_hash="x",
+        symbol="TEST", timeframe=Timeframe.D1,
+        lines=[
+            Line(
+                points=((ts, 100.0), (ts, 101.0)), label="tobo_ok_neckline",
+                style="pattern_boundary",
+            ),
+            Line(
+                points=((ts, 90.0), (ts, 91.0)), label="tobo_bad_neckline",
+                style="pattern_boundary",
+            ),
+        ],
+        levels=[
+            Level(price=110.0, label="tobo_ok_target", style="pattern_target"),
+            Level(price=80.0, label="tobo_bad_target", style="pattern_target"),
+        ],
+        markers=[
+            Marker(t=ts, price=100.0, text="SAĞ OMUZ", kind="pattern_vertex:tobo_ok"),
+            Marker(t=ts, price=90.0, text="SAĞ OMUZ", kind="pattern_vertex:tobo_bad"),
+            Marker(t=ts, price=102.0, text="TOBO [ONAY]", kind="pattern_confirmed"),
+            Marker(t=ts, price=79.0, text="TOBO [GEÇERSİZ]", kind="pattern_invalidated"),
+        ],
+        last_state={
+            "tobo_ok": {"state": "confirmed"},
+            "tobo_bad": {"state": "invalidated"},
+        },
+    )
+    filtered = _filter_confirmed_patterns(result)
+    assert [ln.label for ln in filtered.lines] == ["tobo_ok_neckline"]
+    assert [lv.label for lv in filtered.levels] == ["tobo_ok_target"]
+    assert {m.kind for m in filtered.markers} == {"pattern_vertex:tobo_ok", "pattern_confirmed"}
+
+
+def test_filter_confirmed_patterns_matches_either_direction_for_wedge_style_ids() -> None:
+    """`wedge.py`/`broadening.py`'de Line etiketi YÖNSÜZ bir `pattern_key`
+    kullanır ama `last_state` anahtarı yön soneki taşır (`{pattern_key}_long`/
+    `_short`) — bir yön onaylanmışsa (sym_triangle her iki yönü de dener)
+    paylaşılan çizgi şekli GÖSTERİLMELİ, diğer (short) yön yine de
+    last_state'te ayrı kalsa bile."""
+    ts = pd.Timestamp("2024-01-10", tz="Europe/Istanbul")
+    result = IndicatorResult(
+        indicator="patterns.wedge", version="0.1.0", params_hash="x",
+        symbol="TEST", timeframe=Timeframe.D1,
+        lines=[
+            Line(
+                points=((ts, 100.0), (ts, 101.0)), label="wedge_5_10_15_20_upper",
+                style="pattern_boundary",
+            ),
+        ],
+        last_state={
+            "wedge_5_10_15_20_long": {"state": "confirmed"},
+            "wedge_5_10_15_20_short": {"state": "invalidated"},
+        },
+    )
+    filtered = _filter_confirmed_patterns(result)
+    assert len(filtered.lines) == 1

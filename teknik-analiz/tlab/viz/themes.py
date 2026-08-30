@@ -150,6 +150,13 @@ _LINE_STYLE_COLOR: dict[str, str] = {
     "channel_current": "accent",
     # Geçmiş bir sinyal barında DONDURULMUŞ kanal -> soluk/bağlamsal.
     "channel_frozen": "muted",
+    # Faz 8B (patterns/*) — sınır çizgileri (takoz/üçgen kenarları, boyun,
+    # genişleyen formasyon kenarları) bağlamsal/yardımcı, `dashed`/`swing`
+    # ile AYNI aile; hedef seviyesi (`pattern_target`) POC/channel_current
+    # gibi "en karara-değer TEK seviye" -> marka rengi.
+    "pattern_boundary": "muted",
+    "pattern_target": "accent",
+    "pattern_pole": "orange",
 }
 
 _FILL_STYLE_COLOR: dict[str, str] = {

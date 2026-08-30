@@ -516,6 +516,8 @@ def _render_price_based(
     result: IndicatorResult, df: pd.DataFrame, theme: Theme, last_n: int | None,
     declutter: bool = True,
 ) -> go.Figure:
+    if declutter and result.indicator.startswith("patterns."):
+        result = _filter_confirmed_patterns(result)
     layout = result.series_layout or {}
     sub_names = list(layout.keys())
     has_vp = any(name.startswith("vp_") for name in result.series)
@@ -768,6 +770,61 @@ def _cap_frozen_channels(lines: list[Line]) -> list[Line]:
     keep_times = sorted({ln.points[-1][0] for ln in frozen})[-_MAX_FROZEN_CHANNELS:]
     keep_set = set(keep_times)
     return [ln for ln in lines if ln.style != "channel_frozen" or ln.points[-1][0] in keep_set]
+
+
+_VALID_PATTERN_STATES = frozenset({"confirmed", "completed"})
+
+
+def _filter_confirmed_patterns(result: IndicatorResult) -> IndicatorResult:
+    """Faz 8B (`patterns.*`) için: yalnızca GERÇEKTEN onaylanmış/hedefe
+    ulaşmış (confirmed/completed) formasyonlar grafiğe girer — henüz
+    oluşmakta olan (pending) veya başarısız (invalidated/expired) denemeler
+    HİÇ ÇİZİLMEZ (kullanıcı geri bildirimi: "geçersiz olan denemeler
+    gösterilmemeli, sadece tam olarak obo/tobo olan noktalar gösterilmeli").
+
+    Bu SALT bir görsel filtredir — `result.signals`/`result.last_state`
+    (tarama/SQLite kaydı, `_render_price_based`'e giden ayrı bir KOPYA
+    üzerinde çalışılır) DEĞİŞMEZ, yalnızca boxes/lines/levels/markers budanır.
+
+    Eşleştirme iki yolla yapılır: (1) Marker'lar `kind="pattern_{state}"`
+    taşır (5 modülün ORTAK sözleşmesi, bkz. `pattern_state.py`) — state
+    doğrudan kind'tan okunur, last_state'e bakmaya gerek YOK. (2) Line/Box/
+    Level'lar `label="{pattern_id}_{ek}"` taşır; `pattern_id` `wedge.py`/
+    `broadening.py`'de yön soneki içerir (`{...}_long`/`{...}_short`) ama
+    Line/Box etiketleri YÖNSÜZ bir `pattern_key` kullanır (aynı takoz/
+    genişleyen-formasyon şekli her iki yöne de aday olabildiği için) — bu
+    yüzden `valid_base_keys`, hem tam `pattern_id`'yi hem yön soneki
+    kırpılmış hâlini içerir; bir label ikisinden BİRİYLE eşleşirse (herhangi
+    bir yönü onaylanmışsa) şekil gösterilir."""
+    valid_ids = {
+        pid for pid, info in result.last_state.items()
+        if info.get("state") in _VALID_PATTERN_STATES
+    }
+    if not valid_ids:
+        return replace(result, boxes=[], lines=[], levels=[], markers=[])
+
+    valid_base_keys: set[str] = set()
+    for pid in valid_ids:
+        valid_base_keys.add(pid)
+        for suffix in ("_long", "_short"):
+            if pid.endswith(suffix):
+                valid_base_keys.add(pid[: -len(suffix)])
+
+    def _matches(label: str) -> bool:
+        return any(label == base or label.startswith(base + "_") for base in valid_base_keys)
+
+    def _keep_marker(m: Marker) -> bool:
+        if m.kind in ("pattern_confirmed", "pattern_completed"):
+            return True
+        if m.kind.startswith("pattern_vertex:"):
+            return _matches(m.kind.removeprefix("pattern_vertex:"))
+        return False
+
+    markers = [m for m in result.markers if _keep_marker(m)]
+    levels = [lv for lv in result.levels if _matches(lv.label)]
+    lines = [ln for ln in result.lines if _matches(ln.label)]
+    boxes = [b for b in result.boxes if _matches(b.label)]
+    return replace(result, boxes=boxes, lines=lines, levels=levels, markers=markers)
 
 
 _STAGGER_TRIGGER_PX = 18.0  # ~ tek satır 11px yazı için "görsel olarak değecek" eşik
@@ -1279,6 +1336,16 @@ _HARMONIC_STATE_COLOR: dict[str, str] = {
 }
 
 
+# Faz 8B (patterns/*): `_filter_confirmed_patterns` zaten yalnızca
+# confirmed/completed marker'ları bıraktığı için burada declutter'a GEREK
+# YOK — outcome marker'ı (`pattern_{state}`) harmonik `confirmed` durumuyla
+# AYNI muamele (renkli/kalın kutu+ok) alır; `pattern_vertex:{pid}` (SOL
+# OMUZ/BAŞ/SAĞ OMUZ, çift tepe/dip "1"/"2") harmonik X/A/B/C vertex'leriyle
+# AYNI halo'lu (bgcolor) düz metin muamelesi alır — ikisi de "harmonikler
+# gibi net çizilmeli" geri bildirimine karşılık gelir.
+_PATTERN_OUTCOME_COLOR: dict[str, str] = {"confirmed": "accent", "completed": "green"}
+
+
 _MAX_GENERIC_MARKERS_PER_GROUP = 1
 # Yalnızca BU kind için sıkı declutter uygulanır (bkz. `_generic_marker_
 # group_key` docstring'i) — `structure.golden_zone`/`structure.supply_
@@ -1362,6 +1429,21 @@ def _draw_markers(
             )
         elif m.kind == "pair_signal":
             continue  # yalnızca pair modunda, _render_pair kendi çizer
+        elif m.kind in ("pattern_confirmed", "pattern_completed"):
+            state = m.kind.removeprefix("pattern_")
+            color = getattr(theme, _PATTERN_OUTCOME_COLOR[state])
+            fig.add_annotation(
+                x=_x(m.t), y=m.price, text=f"<b>{m.text}</b>",
+                showarrow=True, arrowhead=2, arrowcolor=color, arrowwidth=2,
+                font=dict(size=11, color=theme.text), bgcolor=with_alpha(color, 0.15),
+                bordercolor=color, borderwidth=2, ax=30, ay=-30, row=row, col=col,
+            )
+        elif m.kind.startswith("pattern_vertex:"):
+            fig.add_annotation(
+                x=_x(m.t), y=m.price, text=m.text, showarrow=False,
+                font=dict(size=11, color=theme.text, family=theme.font),
+                bgcolor=with_alpha(theme.bg, 0.75), yshift=14, row=row, col=col,
+            )
         else:
             if (
                 visible_generic is not None

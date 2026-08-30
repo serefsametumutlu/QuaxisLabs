@@ -182,14 +182,15 @@ class HeadShouldersIndicator(BaseIndicator):
                         start=hs.l3.bar_time, end=level_end_from_signals(pattern_signals),
                     )
                 )
+                vertex_kind = f"pattern_vertex:{pattern_id}"
                 markers.append(
-                    Marker(t=hs.l1.bar_time, price=hs.l1.price, text="SOL OMUZ", kind="hs_shoulder")
+                    Marker(t=hs.l1.bar_time, price=hs.l1.price, text="SOL OMUZ", kind=vertex_kind)
                 )
                 markers.append(
-                    Marker(t=hs.head.bar_time, price=hs.head.price, text="BAŞ", kind="hs_head")
+                    Marker(t=hs.head.bar_time, price=hs.head.price, text="BAŞ", kind=vertex_kind)
                 )
                 markers.append(
-                    Marker(t=hs.l3.bar_time, price=hs.l3.price, text="SAĞ OMUZ", kind="hs_shoulder")
+                    Marker(t=hs.l3.bar_time, price=hs.l3.price, text="SAĞ OMUZ", kind=vertex_kind)
                 )
 
                 last_sig = pattern_signals[-1]

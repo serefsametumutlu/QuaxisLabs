@@ -559,5 +559,23 @@ def report_cmd(
     store.close()
 
 
+@app.command("dashboard")
+def dashboard_cmd(
+    port: int = typer.Option(8501, "--port", help="Streamlit sunucu portu"),
+) -> None:
+    """Tarama panosunu (Streamlit) tarayıcıda açar — `tlab/dashboard.py`'yi
+    `streamlit run` ile başlatır. Ekranda: son taramanın sinyal listesi
+    (filtrelenebilir, sembol/kategori/durum/yön), bir satıra tıklayınca
+    o sinyalin grafiği, ve "Bugünü Tara" butonuyla yeniden tarama."""
+    import subprocess
+    import sys
+
+    dashboard_path = Path(__file__).parent / "dashboard.py"
+    subprocess.run(
+        [sys.executable, "-m", "streamlit", "run", str(dashboard_path), "--server.port", str(port)],
+        check=False,
+    )
+
+
 if __name__ == "__main__":
     app()

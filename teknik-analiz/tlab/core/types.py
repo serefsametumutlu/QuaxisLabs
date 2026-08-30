@@ -132,21 +132,30 @@ class IndicatorMeta:
     supported_timeframes: tuple[Timeframe, ...]
 
 
-def _series_from_json(values: dict[str, float | None]) -> pd.Series:
+def _series_from_json(name: str, values: dict[str, float | None]) -> pd.Series:
     """`to_json()`'ın ürettiği {str(key): value} sözlüğünü geri bir Series'e
     çevirir. Series'ler İKİ türde index taşıyabilir: ÇOĞU zaman-indeksli
     (`str(pd.Timestamp)`), ama bazı indikatörler (ör. `PriceStructure`'ın
     `vp_bins`/`vp_volumes`/`vp_gauss`'ı — bkz. o modülün docstring'i)
-    BİLEREK FİYAT-indekslidir. Anahtarları önce Timestamp olarak ayrıştırmayı
-    dener; başarısız olursa (fiyat gibi salt sayısal bir anahtarsa) float
-    index'e düşer. Bir Series'in TÜMÜ aynı index türünü paylaşır, bu yüzden
-    karar tek bir anahtara bakarak verilir."""
+    BİLEREK FİYAT-indekslidir.
+
+    **GERÇEK hata (Faz 8B sonrası, ProcessPoolExecutor'lı gerçek bir tarama
+    ilk kez tetikledi) — DÜZELTİLDİ**: eskiden karar TEK bir anahtarın
+    (`first_key`) Timestamp olarak ayrıştırılıp ayrıştırılamadığına
+    bakılarak veriliyordu ("başarısız olursa float index'e düş"). Bu YANLIŞ
+    varsayımdı: bir fiyat değerinin string hâli (ör. bir hisse fiyatı)
+    PANDAS'ın son derece esnek `dateutil` tabanlı ayrıştırıcısı tarafından
+    RASTLANTISAL olarak geçerli bir tarih gibi yorumlanabiliyor — serinin
+    İLK anahtarı böyle "yanlışlıkla" ayrıştırılabilirken SONRAKİ bir anahtar
+    (ör. `"4749.375"`) ayrıştırılamayınca `pd.Timestamp(k)` dict comprehension
+    İÇİNDE çöküyordu (tek anahtarlık ön-kontrolden SONRA, yakalanamayan bir
+    `DateParseError`). Düzeltme: içerik sezgisi YERİNE serinin ADI kullanılır
+    — `vp_` öneki zaten projede (bkz. `IndicatorResult.series_layout`
+    docstring'i) "bu seri fiyat-indekslidir" için TEK doğru/dokümante
+    sözleşme; içerik sniffing'e hiç gerek yok."""
     if not values:
         return pd.Series(dtype=float)
-    first_key = next(iter(values))
-    try:
-        pd.Timestamp(first_key)
-    except (ValueError, TypeError):
+    if name.startswith("vp_"):
         return pd.Series({float(k): v for k, v in values.items()})
     return pd.Series({pd.Timestamp(k): v for k, v in values.items()})
 
@@ -265,7 +274,9 @@ class IndicatorResult:
             Marker(t=_dt(x["t"]), price=x["price"], text=x["text"], kind=x["kind"])
             for x in raw["markers"]
         ]
-        series = {name: _series_from_json(values) for name, values in raw["series"].items()}
+        series = {
+            name: _series_from_json(name, values) for name, values in raw["series"].items()
+        }
 
         return cls(
             indicator=raw["indicator"],

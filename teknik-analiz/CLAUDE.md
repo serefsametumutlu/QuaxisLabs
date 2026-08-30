@@ -1169,8 +1169,105 @@ için `tlab/testing/lint_lookahead.py` da var (CLI: `tlab lint`).
   51 yeni test (388→439). `pytest -q -m "not network"` 439/439 yeşil,
   `ruff check`/`mypy` yeni dosyalarda temiz, `lint_lookahead` 2 uyarı
   (BASELINE İLE AYNI, ilgisiz). GİT'E COMMIT/PUSH EDİLDİ (bkz. `git log`).
+- **Faz 8B görsel düzeltmesi + gerçek `IndicatorResult.from_json()` hatası +
+  Streamlit tarama panosu** (2026-08-30, Faz 8B'nin HEMEN ardından, kullanıcı
+  BAKAB grafiğini inceleyip "hâlâ karışık, sadece gerçek OBO/TOBO noktaları
+  gösterilmeli, harmonikler gibi net çizilmeli" dedikten sonra — AYNI mesajda
+  "artık bir ekran görmek, orada tarama yapmak, sinyal gelen hisseleri
+  listeleyip grafiğiyle görmek istiyorum" talebi de geldi, İKİSİ de bu turda
+  ele alındı, sıradaki fazlardan (8D) ÖNCE):
+  1. **Görsel düzeltme** — `renderer.py::_filter_confirmed_patterns()`
+     (YENİ): `patterns.*` indikatörleri için yalnızca `last_state`'i
+     confirmed/completed olan pattern_id'lerin Box/Line/Level/Marker'ları
+     çizilir; pending/invalidated/expired denemeler TAMAMEN elenir
+     (`declutter=True` iken, `--show-all` ile eski davranışa dönülebilir).
+     Eşleştirme Marker'larda `kind` üzerinden (outcome marker'lar zaten
+     `"pattern_{state}"` taşıyor); Line/Box/Level'larda `label`in
+     `pattern_id` (ya da wedge/broadening'in yönsüz `pattern_key`'i) ile
+     eşleşmesi üzerinden. Vertex marker'lar (SOL OMUZ/BAŞ/SAĞ OMUZ, çift
+     tepe/dip "1"/"2") artık `kind="pattern_vertex:{pattern_id}"` taşıyor
+     (filtre için) VE harmonik X/A/B/C vertex'leriyle AYNI halo'lu
+     (bgcolor) düz-metin stilini kullanıyor (`_draw_markers`'a yeni dal).
+     Outcome marker'lar (`pattern_confirmed`→accent, `pattern_completed`→
+     yeşil) harmonik `confirmed` durumuyla AYNI kalın/kutulu/ok'lu
+     muameleyi alıyor. `themes.py`/`labels_tr.py`'ye yeni stil eşlemeleri
+     (`pattern_boundary`→muted, `pattern_target`→accent, `pattern_pole`→
+     turuncu + Türkçe karşılıkları "Sınır/Boyun"/"Hedef"/"Direk") — eskiden
+     ham `style` adı ("pattern_boundary") çıplak metin olarak sızıyordu.
+     2 yeni test (`tests/test_viz/test_renderer.py`). Doğrulama: BAKAB'ın
+     `patterns.head_shoulders` grafiği yeniden üretildi — artık yalnızca
+     2 TOBO (tamamlandı) + 1 OBO (retest tuttu) + 1 OBO (tamamlandı) net
+     görünüyor, eskiden ekranı dolduran ~6+ geçersiz/beklemede deneme gitti.
+  2. **GERÇEK hata — `IndicatorResult.from_json()`** (bu turda, Streamlit
+     panosuna GERÇEK bir tarama sonucu doldururken, `ProcessPoolExecutor`
+     üzerinden 80 sembol/tüm indikatörler çalıştırılırken tetiklendi):
+     `_series_from_json`'ın eski sürümü fiyat-indeksli mi zaman-indeksli mi
+     kararını yalnızca serinin İLK anahtarının `pd.Timestamp` olarak
+     ayrıştırılıp ayrıştırılamadığına bakarak veriyordu. Ama `pd.Timestamp`
+     son derece esnek: bir fiyat değerinin string hâli (ör. `"2026.5"`)
+     RASTLANTISAL olarak geçerli bir tarihe (`"2026-05-01"`) ayrıştırılabilir
+     — serinin İLK anahtarı böyle "yanlışlıkla" geçince fonksiyon TÜM
+     anahtarları Timestamp sanıp, aynı (fiyat-indeksli) serideki BAŞKA bir
+     anahtarda (`"4749.375"`, ayrıştırılamıyor) yakalanmamış bir
+     `DateParseError`le çöküyordu. Faz 6'nın kendi testi (`vp_bins` için
+     `[10.5, 11.93..., 13.2]`) bu senaryoyu YAKALAMAMIŞTI çünkü o
+     fixture'daki HİÇBİR anahtar (ilk dahil) rastlantısal olarak
+     ayrıştırılmıyordu. Düzeltme: karar artık içerik sezgisi YERİNE serinin
+     ADI kullanılıyor (`vp_` öneki — zaten `IndicatorResult.series_layout`
+     docstring'inde dokümante edilmiş TEK doğru sözleşme, `_series_from_json`
+     artık `name` parametresi alıyor). 1 yeni regresyon testi
+     (`tests/test_core_types.py`, `[2026.5, 4749.375]` anahtarlarıyla —
+     gerçek hatayı BİREBİR yeniden üretir). **Bu hata Faz 8B'ye özgü
+     DEĞİL** — `structure.price_structure`'ın `vp_*` serilerini taşıyan HER
+     tarama, tesadüfen bu şansız anahtar kombinasyonuna denk gelirse aynı
+     şekilde çökerdi; yalnızca bu turda GERÇEK çoklu-sembol bir tarama ilk
+     kez tetikledi (önceki tüm testler/registry bootstrap'ı küçük/sentetik
+     veriyle çalışıyordu).
+  3. **`tlab/dashboard.py` (YENİ) — Streamlit tarama panosu**: `tlab
+     dashboard` (yeni CLI komutu, `streamlit run` sarmalayıcısı) ile açılır.
+     Tek sayfa: kenar çubuğunda piyasa seçimi + "🔄 Bugünü Tara" butonu
+     (`run_eod()`'u doğrudan çağırır, `force` checkbox'ıyla yeniden
+     koşulabilir) + run seçici (`ResultsStore.list_runs`) + kategori/durum/
+     yön filtreleri; ana alanda metrik kartları (tarama tarihi, taranan
+     sembol, aktif sinyal, `ResultsStore.diff()`'ten yeni sinyal sayısı) +
+     REPAINT ALARM banner'ı (varsa) + tıklanabilir bir sinyal tablosu
+     (`st.dataframe(..., on_select="rerun")`) — bir satıra tıklayınca ALTINDA
+     `render_live()` ile o sinyalin grafiği açılır. Ayrıca "Hızlı bakış"
+     bölümü (sinyal listesinden bağımsız, herhangi bir sembol/indikatör/tf
+     için grafik). **Mimari kararlar**: (a) `signals` tablosu her durum
+     geçişini AYRI satır tutar (non-repaint geçmiş) — pano her (sembol, tf,
+     indikatör, pattern_id) zinciri için yalnızca EN GÜNCEL satırı gösterir
+     (`_rows_to_frame`, `detected_at`e göre `drop_duplicates`); "tüm
+     geçmiş" hâlâ `tlab signals` CLI'sında. (b) varsayılan filtre yalnızca
+     confirmed/completed gösterir (görsel düzeltmedeki AYNI ilke, "gerçek
+     sinyal" ile "henüz/artık değil" ayrımı) — "Tüm durumları göster" ile
+     açılabilir. (c) `ResultsStore` (sqlite3) HER script koşusunda TAZE
+     açılıp kapanır, `st.cache_resource` KULLANILMAZ — Streamlit'in çoklu-
+     oturum modeli sqlite bağlantılarını thread'ler arası paylaşmayı
+     yasaklıyor, yerel/tek-kullanıcı ölçekte açma/kapama maliyeti ihmal
+     edilebilir. `pyproject.toml`'a `streamlit` bağımlılığı eklendi. 3 yeni
+     test (`tests/test_dashboard.py`, `streamlit.testing.v1.AppTest` ile —
+     izole `tmp_path`'te sahte bir `ResultsStore` dolduruluyor, kullanıcının
+     GERÇEK `outputs/results.db`'sine HİÇ dokunulmuyor). **DÜRÜST NOT**:
+     "Bugünü Tara" `run_eod()`'u SENKRON çağırır (tam evren veri güncellemesi
+     dahil — büyük evrende dakikalar sürebilir, buton bu süre boyunca
+     Streamlit'i bloklar, kabul edilebilir görüldü çünkü günde bir kez
+     manuel tetiklenen bir işlem); GERÇEK otomatik ("her gün kapanışta
+     kendiliğinden") zamanlama hâlâ İşletim sistemi görev zamanlayıcısı
+     (Windows Görev Zamanlayıcı/cron, `tlab eod` komutunu çağıracak şekilde
+     — README.md'de örnek var) gerektirir, bu oturumun kapsamı DIŞINDA
+     (panoyla birlikte KULLANILMASI ÖNERİLEN, ayrı bir kurulum adımı).
+  6 yeni test (439→445: 2 görsel + 1 from_json regresyonu + 3 dashboard).
+  `pytest -q -m "not network"` 445/445 yeşil, `ruff check`/`mypy` yeni
+  dosyalarda temiz (repo geneli hâlâ 18 ruff/2 lint_lookahead, BASELINE
+  İLE AYNI). Gerçek doğrulama: yerel önbellekten 80 BIST sembolü/context-
+  gerektirmeyen TÜM indikatörlerle (harmonik×8, structure×4, trend×2,
+  patterns×6 — 1D) gerçek bir tarama koşulup `outputs/results.db`'ye
+  bugünün run'ı olarak yazıldı (1600 sonuç, 160 hata — çoğu veri eksikliği/
+  kısa seri, `from_json` hatası DEĞİL, düzeltmeden SONRA hiç çökme
+  olmadı) — pano bu gerçek run üzerinde de gözle doğrulandı.
 
-Toplam 439 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
+Toplam 445 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
 ruff/mypy/lint_lookahead temiz (yeni kod kapsamında — repo genelindeki 18 ruff/2
 lint_lookahead uyarısı önceden var olan, ilgisiz satırlardır).
 

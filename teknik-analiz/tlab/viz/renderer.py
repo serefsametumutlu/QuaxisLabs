@@ -18,7 +18,6 @@ etmeksizin hizalama sorunu oluşmaz."""
 
 from __future__ import annotations
 
-import textwrap
 from dataclasses import dataclass, replace
 from datetime import datetime
 
@@ -28,7 +27,6 @@ from plotly.subplots import make_subplots
 
 from tlab.core.types import Box, IndicatorResult, Level, Line, Marker, Polygon
 from tlab.viz import labels_tr as tr
-from tlab.viz.report_text import build_summary_lines
 from tlab.viz.themes import (
     DARK_TERMINAL,
     LIGHT_ANALYSIS,
@@ -163,6 +161,7 @@ def _apply_layout(
     fig.update_yaxes(gridcolor=theme.grid, zerolinecolor=theme.grid)
     plot_h = max(height - margin_t - _MARGIN_B, 50.0)
     _draw_card_frame(fig, theme)
+    _draw_panel_frames(fig, theme)
     _draw_header(fig, theme, header, plot_h)
     _draw_footer(fig, theme, plot_h)
 
@@ -176,6 +175,31 @@ def _draw_card_frame(fig: go.Figure, theme: Theme) -> None:
         type="rect", xref="paper", yref="paper", x0=0.0, x1=1.0, y0=0.0, y1=1.0,
         line=dict(color=theme.border, width=1), fillcolor="rgba(0,0,0,0)", layer="above",
     )
+
+
+def _draw_panel_frames(fig: go.Figure, theme: Theme) -> None:
+    """Birden fazla alt panel varken (mum+vp, hacim, MACD, RSI, ...) HER
+    birinin KENDİ ince çerçevesini çizer — referans ekran görüntüsündeki
+    ("aracı kurum raporu" mockup'ı, images/Ekran görüntüsü 2026-08-26
+    203900.png) "widget grid" hissi: her panel kendi kutusunda, net
+    sınırlarla ayrılmış. `_draw_card_frame`'in TÜM figürü saran TEK
+    çerçevesine EK olarak çalışır (onun yerine değil). Panel sayısı/düzeni
+    ÖNCEDEN bilinmez — doğrudan `fig.layout`'taki eksen ÇİFTLERİNDEN
+    (xaxisN/yaxisN, `select_xaxes`'in döndürdüğü `plotly_name` sonekiyle
+    eşleştirilir) okunur, bu yüzden tek panelli (vp'siz/alt panelsiz)
+    grafiklerde tek bir çerçeve (zaten `_draw_card_frame`'inkiyle çakışan)
+    çizip fazladan bir şey eklemez."""
+    for xaxis in fig.select_xaxes():
+        suffix = xaxis.plotly_name.removeprefix("xaxis")
+        yaxis = getattr(fig.layout, f"yaxis{suffix}", None)
+        if yaxis is None or xaxis.domain is None or yaxis.domain is None:
+            continue
+        x0, x1 = xaxis.domain
+        y0, y1 = yaxis.domain
+        fig.add_shape(
+            type="rect", xref="paper", yref="paper", x0=x0, x1=x1, y0=y0, y1=y1,
+            line=dict(color=theme.border, width=1), fillcolor="rgba(0,0,0,0)", layer="above",
+        )
 
 
 def _draw_header(fig: go.Figure, theme: Theme, h: _Header, plot_h: float) -> None:
@@ -1277,10 +1301,20 @@ def _draw_volume_profile(
                 fill_color(theme, "bullish", 0.85) if in_va
                 else fill_color(theme, "support_zone", 0.6)
             )
+    # Çubuklar arasında BOŞLUK bırakılmaz (`width`, bin merkezleri arası
+    # mesafeye eşitlenir) — referans ekran görüntüsündeki gibi "dolu dolu",
+    # birbirine bitişik bir histogram görünümü (varsayılan `bargap` global
+    # bir figür ayarıdır, bu TEK trace'e özgü boşluksuzluk `width` ile
+    # sağlanır). Kullanıcı geri bildirimi: eski hâli ince/aralıklı
+    # çubuklarla "cılız" görünüyordu.
+    bin_centers = bins.to_numpy()
+    bin_height = (
+        float(bin_centers[1] - bin_centers[0]) if len(bin_centers) > 1 else 1.0
+    )
     fig.add_trace(
         go.Bar(
-            x=vols.to_numpy(), y=bins.to_numpy(), orientation="h", marker_color=colors,
-            name="Hacim Profili", showlegend=False,
+            x=vols.to_numpy(), y=bin_centers, orientation="h", marker_color=colors,
+            width=bin_height, name="Hacim Profili", showlegend=False,
         ),
         row=row, col=col,
     )
@@ -1329,16 +1363,24 @@ def _add_hvn_legend_swatch(
 
 def _position_vp_legend(fig: go.Figure, theme: Theme) -> None:
     """`legend2`'yi (bkz. `_draw_volume_profile`'ın `legend_name` parametresi)
-    vp panelinin (row=1, col=2) KENDİ x/y domain'inin hemen ÜSTÜNE
-    yerleştirir — `_apply_pair_legends`'daki "sabit kesir varsayma, gerçek
-    domain'i oku" ilkesiyle AYNI (make_subplots'ın column_widths/row_heights'
-    tan hesapladığı domain, sabit bir sayı değil)."""
-    x0 = fig.layout.xaxis2.domain[0]
+    vp panelinin (row=1, col=2) KENDİ x/y domain'inin SAĞ-ÜST köşesine,
+    panelin İÇİNE yerleştirir — `_apply_pair_legends`'daki "sabit kesir
+    varsayma, gerçek domain'i oku" ilkesiyle AYNI (make_subplots'ın column_
+    widths/row_heights'tan hesapladığı domain, sabit bir sayı değil).
+    **Gerçek hata (ilk taslak)**: `yanchor="bottom"` ile domain'in HEMEN
+    ÜSTÜNE (`y1+0.015`) yerleştirilmişti — ama bir legend kutusu `yanchor=
+    "bottom"` iken YUKARI doğru büyür, bu da onu masthead'in (sembol/fiyat
+    satırı) tam ÜSTÜNE bindiriyordu (ASELS'te "404.00" fiyatıyla görsel
+    olarak iç içe geçmişti). Düzeltme: `yanchor="top"`, panelin KENDİ üst
+    kenarının hemen altına (panelin İÇİNE, bar'ların üstüne biner — hafif
+    saydam arkaplanla okunur kalır) — artık panel yüksekliğinden BAĞIMSIZ
+    olarak asla masthead'e taşmaz."""
+    x1 = fig.layout.xaxis2.domain[1]
     y1 = fig.layout.yaxis2.domain[1]
     fig.update_layout(
         legend2=dict(
-            x=x0, y=y1 + 0.015, xanchor="left", yanchor="bottom", orientation="v",
-            bgcolor="rgba(0,0,0,0)", bordercolor=theme.border, borderwidth=0,
+            x=x1, y=y1 - 0.005, xanchor="right", yanchor="top", orientation="v",
+            bgcolor=with_alpha(theme.bg, 0.85), bordercolor=theme.border, borderwidth=1,
             font=dict(color=theme.text, size=9.5, family=theme.font),
         ),
     )
@@ -1360,10 +1402,6 @@ def _position_vp_legend(fig: go.Figure, theme: Theme) -> None:
 # ayrı bir fonksiyon.
 
 
-_REPORT_COL_WIDTH = 0.24
-_REPORT_WRAP_CHARS = 34
-
-
 def render_structure_report(
     ps_result: IndicatorResult, sf_result: IndicatorResult, df: pd.DataFrame,
     *, theme: Theme | str | None = "auto", last_n: int | None = None, declutter: bool = True,
@@ -1375,8 +1413,17 @@ def render_structure_report(
     (referans mockup'ın kendi tasarımı — ana panel "şu an"a odaklanırken alt
     osilatörler uzun vadeli bağlamı korur, bu yüzden `shared_xaxes=False` —
     aksi halde Plotly satırların x-eksenini birbirine kilitleyip ana panelin
-    zoom'unu alt panellere de yansıtırdı). Sağdaki üçüncü kolon deterministik
-    bir "Özet Raporu" metnidir (bkz. `report_text.build_summary_lines`)."""
+    zoom'unu alt panellere de yansıtırdı).
+
+    **2026-08-30 NOT — "Özet Raporu" görselden ÇIKARILDI**: ilk taslak
+    grafiğin sağına 3. bir kolon olarak deterministik bir metin paneli
+    ekliyordu; kullanıcı bunu beğenmedi ("görselde vermeyelim... metin
+    olarak verelim") — anlatı artık GÖRSELİN DIŞINDA, ayrı bir metin
+    olarak `tlab/viz/quant_report.py::generate_quant_report()` (gerçek bir
+    LLM çağrısıyla, "quant gibi" serbest metin) tarafından üretiliyor. Bu
+    fonksiyon artık YALNIZCA `_render_price_based` ile AYNI 2 kolonlu
+    (mum+vp) düzeni kullanıyor — tek farkı iki `IndicatorResult`'ı
+    birleştirmesi ve alt panellerin tam geçmiş göstermesi."""
     resolved = resolve_theme(theme, default=LIGHT_ANALYSIS)
 
     sub_names = list(ps_result.series_layout.keys())
@@ -1387,15 +1434,17 @@ def render_structure_report(
     row_heights = [main_h] + [sub_h] * n_sub
 
     has_vp = any(name.startswith("vp_") for name in ps_result.series)
-    vp_w = 0.16 if has_vp else 0.0
-    main_w = 1.0 - _REPORT_COL_WIDTH - vp_w
-    column_widths = [main_w, vp_w or 0.001, _REPORT_COL_WIDTH]
+    n_cols = 2 if has_vp else 1
+    column_widths = [0.82, 0.18] if has_vp else None
 
-    specs: list[list[dict[str, object] | None]] = [[{}, {}, {"rowspan": n_rows}]]
-    specs.extend([{"colspan": 2}, None, None] for _ in range(n_sub))
+    if n_cols == 2:
+        specs: list[list[dict[str, object] | None]] = [[{}, {}]]
+        specs.extend([{"colspan": 2}, None] for _ in range(n_sub))
+    else:
+        specs = [[{}] for _ in range(n_rows)]
 
     fig = make_subplots(
-        rows=n_rows, cols=3, shared_xaxes=False, vertical_spacing=0.04,
+        rows=n_rows, cols=n_cols, shared_xaxes=False, vertical_spacing=0.04,
         row_heights=row_heights, column_widths=column_widths, specs=specs,
         horizontal_spacing=0.02,
     )
@@ -1522,9 +1571,6 @@ def render_structure_report(
         )
     _sync_price_yaxis(fig, df, window_start_idx, has_vp)
 
-    summary_lines = build_summary_lines(ps_result, sf_result, df)
-    _draw_summary_panel(fig, summary_lines, resolved, row=1, col=3)
-
     # Alt başlık, `ps_result.indicator` ("structure.price_structure") yerine
     # BU birleşik görünümü yansıtmalı (`_price_header` tek-indikatör varsayımı
     # yapar) — yalnızca `subtitle` alanı override edilir, diğer alanlar
@@ -1533,51 +1579,10 @@ def render_structure_report(
         _price_header(ps_result, df),
         subtitle=f"{_category_tr(ps_result.indicator)} — Birleşik Rapor (Yapı + Swing/Fibonacci)",
     )
-    _apply_layout(fig, resolved, header, height=total_height, width=1750)
+    _apply_layout(fig, resolved, header, height=total_height, width=_DEFAULT_WIDTH)
     if has_vp:
         _position_vp_legend(fig, resolved)
     return fig
-
-
-def _draw_summary_panel(
-    fig: go.Figure, lines: list[str], theme: Theme, row: int, col: int,
-) -> None:
-    """Sağdaki "Özet Raporu" sütunu — gerçek bir veri ekseni taşımaz, yalnızca
-    sabit [0,1]x[0,1] bir "tuval" üzerinde üstten alta metin satırları
-    (`report_text.build_summary_lines` — deterministik, LLM'siz). Boş bir
-    `Scatter` trace'i eklenir (bkz. `add_vrect`/`add_shape`'in bir satırın
-    İLK trace'inden önce çağrılırsa sessizce no-op olması — modüldeki `_render_
-    pair` notuyla AYNI kısıt, burada annotation'lar için tedbiren uygulanıyor)."""
-    fig.update_xaxes(visible=False, range=[0, 1], showgrid=False, row=row, col=col)
-    fig.update_yaxes(visible=False, range=[0, 1], showgrid=False, row=row, col=col)
-    fig.add_trace(
-        go.Scatter(
-            x=[0, 1], y=[0, 1], mode="markers", marker=dict(opacity=0),
-            showlegend=False, hoverinfo="skip",
-        ),
-        row=row, col=col,
-    )
-    fig.add_annotation(
-        x=0.0, y=0.99, xanchor="left", yanchor="top", showarrow=False,
-        text="<b>ÖZET RAPORU</b>", font=dict(size=13, color=theme.accent, family=theme.font),
-        row=row, col=col,
-    )
-    fig.add_shape(
-        type="line", x0=0.0, x1=1.0, y0=0.955, y1=0.955,
-        line=dict(color=theme.border, width=1), row=row, col=col,
-    )
-    y = 0.90
-    for raw_line in lines:
-        wrapped_lines = textwrap.wrap(raw_line, _REPORT_WRAP_CHARS) or [""]
-        for j, wrapped in enumerate(wrapped_lines):
-            prefix = "•  " if j == 0 else "    "
-            fig.add_annotation(
-                x=0.0, y=y, xanchor="left", yanchor="top", showarrow=False,
-                text=prefix + wrapped, font=dict(size=11, color=theme.text, family=theme.font),
-                row=row, col=col,
-            )
-            y -= 0.034
-        y -= 0.018  # madde aralarında ekstra boşluk
 
 
 # ---------------------------------------------------------------- pair mod --

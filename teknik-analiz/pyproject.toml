@@ -18,6 +18,7 @@ dependencies = [
     "pyyaml",
     "statsmodels",
     "yfinance",
+    "anthropic",
 ]
 
 [project.optional-dependencies]

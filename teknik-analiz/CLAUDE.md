@@ -735,8 +735,93 @@ için `tlab/testing/lint_lookahead.py` da var (CLI: `tlab lint`).
   Faz 10 → Faz 9. Harmonik grafiklerin (Pesavento/Carney vb.) AYNI zenginleştirme
   turundan (renkli fib ladder zaten vardı, RSI/HVN o grafiklerde YOK) geçip
   geçmeyeceği HENÜZ karara bağlanmadı — ayrı bir kullanıcı kararı gerektirir.
+- **"Özet Raporu" GÖRSELDEN ÇIKARILDI + gerçek LLM metni + hacim profili/panel
+  çerçevesi düzeltmesi (2026-08-30, bir önceki maddenin HEMEN ardından, kullanıcı
+  çıktıyı inceleyip geri bildirim verince):** TAMAMLANDI. Kullanıcı üç şey söyledi:
+  (1) grafiğin İÇİNDEKİ deterministik "Özet Raporu" metnini sevmedi — "yapay zeka
+  gibi değil bir quant gibi" yazılmış, samimi, X'te (Twitter) paylaşılabilecek
+  SERBEST metin istedi, GÖRSELİN DIŞINDA ayrı bir çıktı olarak; (2) hacim profili
+  (HVN+Gaussian Fit) paneli referansla (`images/Ekran görüntüsü 2026-08-26
+  203900.png`) kıyaslanınca "çok cılız, kendi alanını doldurmuyor" bulundu; (3)
+  genel ilke: görseller göze hoş gelmeli, metinler konuya hakim olmayan insanlar
+  için de anlaşılır olmalı.
+  1. **"Özet Raporu" paneli SİLİNDİ** — `render_structure_report` artık `_render_
+     price_based` ile AYNI 2 kolonlu (mum+vp) düzeni kullanıyor (3. kolon/`rowspan`/
+     `_draw_summary_panel` KALDIRILDI, genişlik `_DEFAULT_WIDTH`e döndü). Bir önceki
+     maddenin `report_text.py::build_summary_lines()` SİLİNMEDİ — artık görselde
+     DEĞİL, aşağıdaki LLM modülüne HAM GİRDİ olarak kullanılıyor.
+  2. **YENİ `tlab/viz/quant_report.py::generate_quant_report()`** — gerçek bir
+     Anthropic Claude API çağrısı (`anthropic` paketi `pyproject.toml`'a eklendi,
+     model varsayılanı `claude-sonnet-5`, `ANTHROPIC_API_KEY` ortam değişkeninden
+     okunur). Prompt tasarımı: `build_summary_lines()`'ın ürettiği olgu maddeleri
+     LLM'e HAM VERİ olarak veriliyor + katı bir "bu olguların DIŞINDA hiçbir sayı/
+     seviye UYDURMA" talimatı (halüsinasyon riskine karşı — tüm sayısal içerik
+     ZATEN hesaplanmış `IndicatorResult`'lardan geliyor, LLM yalnızca SUNUMU
+     üstleniyor, yeni bir "hesap" ORTAYA ÇIKMIYOR) + "bir yapay zeka gibi değil
+     bir quant gibi, samimi, terimleri açıklayarak yaz, AL/SAT tavsiyesi verme"
+     talimatları. API anahtarı yoksa ya da çağrı başarısız olursa (`except
+     Exception` — harici bir API'ye bağımlılık, geniş yakalama kasıtlı) sessizce
+     ÇÖKMEZ, deterministik madde listesine (`QuantReport.used_ai=False` + `note`)
+     DÜŞER. 4 yeni test (`tests/test_viz/test_quant_report.py`) — `anthropic.
+     Anthropic` HER ZAMAN mock'lanır, gerçek bir API çağrısı YAPILMAZ.
+  3. **CLI**: YENİ `tlab quant-report --symbol X --tf 1d --market bist [--out]`
+     (yalnızca metni üretir) + `tlab plot --indicator structure.report --with-
+     report` (grafiğin YANINA aynı metni bir `.txt` olarak da yazar, stdout'a da
+     basar). İkisi de `tlab/viz/live.py::compute_structure_report`'u paylaşır.
+  4. **GERÇEK HATA — hacim profili paneli "kendi alanını doldurmuyordu"**: kök
+     neden `PriceStructureParams.profile_window_bars` (60 bar, ~3 ay) varsayılan
+     grafik yakınlaştırmasından (`renderer.py::_DEFAULT_LAST_N`, ~250 bar, ~1 yıl)
+     ÇOK DAHA DAR bir pencereydi — sağdaki vp panelinin dikey ekseni ana panelin
+     GÖRÜNÜR fiyat aralığıyla senkronize edildiği için (`_sync_price_yaxis`), dar
+     pencereden gelen histogram panelin yalnızca küçük bir dilimine sıkışıp geri
+     kalanı BOŞ kalıyordu. Düzeltme: varsayılan `profile_window_bars` 60→250 (viz
+     katmanına SIKI bağlı değil — `price_structure.py` `renderer.py`'yi import
+     ETMEZ, yalnızca aynı "tipik görünür pencere" varsayımını PAYLAŞAN bağımsız
+     bir varsayılan; testler kendi `profile_window_bars=40`'ını EXPLICIT verdiği
+     için etkilenmedi).
+  5. **İkinci gerçek sorun — çubuklar arası boşluk "cılız" görünüme katkıdaydı**:
+     `_draw_volume_profile`'ın `go.Bar` trace'i varsayılan `bargap`den dolayı ince/
+     aralıklı çubuklar üretiyordu; artık her çubuğun `width`i (Plotly'nin yatay
+     bar'larda y-yönü kalınlığı) bin merkezleri arası mesafeye EŞİTLENİYOR — bitişik,
+     "dolu dolu" bir histogram (referansla aynı görünüm). Yeni regresyon testi
+     (`test_volume_profile_bars_are_gapless`).
+  6. **Panel-başına çerçeve** — kullanıcının "çerçevelerden çok uzak" ifadesi
+     referans mockup'ın her alt paneli (mum+vp, hacim, MACD, RSI) KENDİ ince
+     kenarlığıyla çizdiğini işaret ediyordu (eskiden yalnızca TÜM figürü saran TEK
+     dış çerçeve vardı, `_draw_card_frame`). YENİ `_draw_panel_frames()` —
+     `fig.select_xaxes()`/`plotly_name` son ekiyle HER eksen çiftinin (xaxis/
+     yaxis, xaxis2/yaxis2, ...) domain'ini okuyup bir dikdörtgen çizer; panel
+     sayısı/düzeni ÖNCEDEN bilinmez, doğrudan figürden introspect edilir — bu
+     yüzden `_apply_layout`'u çağıran TÜM grafiklere (standalone `structure.
+     price_structure`/`swing_fib_abcd`/harmonik dahil, yalnızca birleşik rapora
+     DEĞİL) otomatik yansıdı. Yeni regresyon testi (`test_panel_frames_drawn_
+     around_each_subplot`).
+  7. **VP legend'ında GERÇEK bir konumlandırma hatası bulunup düzeltildi** (bu
+     düzeltmeleri doğrularken, ASELS'te fark edildi): `_position_vp_legend`'in
+     ilk taslağı `yanchor="bottom"` ile vp panelinin HEMEN ÜSTÜNE (`y1+0.015`)
+     yerleştiriyordu — ama `yanchor="bottom"` bir legend kutusunun YUKARI doğru
+     büyümesi demek, bu da onu masthead'in (sembol/fiyat satırı, ör. "404.00")
+     TAM ÜSTÜNE bindiriyordu. Düzeltme: `yanchor="top"`, panelin KENDİ üst
+     kenarının hemen ALTINA (panelin İÇİNE, hafif saydam arkaplanla okunur) —
+     artık panel yüksekliğinden BAĞIMSIZ olarak asla masthead'e taşmaz.
+  Doğrulama: TCELL/THYAO/ASELS `structure.report` grafikleri yeniden üretildi,
+  `images/Ekran görüntüsü 2026-08-26 203900.png` referansıyla gözle karşılaştırıldı
+  — vp paneli artık dolu/yoğun, HVN yeşili net, Gaussian eğrisi panelin tamamını
+  kapsıyor, her panelin kendi çerçevesi var, legend doğru konumda. `tlab quant-
+  report`/`tlab plot --with-report` API anahtarı OLMADAN test edildi (fallback
+  yolu) — gerçek bir Anthropic API anahtarıyla uçtan uca deneme bu oturumda
+  YAPILMADI (ortamda `ANTHROPIC_API_KEY` yok), yalnızca mock'lu testlerle
+  doğrulandı; kullanıcı kendi anahtarıyla ilk gerçek denemeyi yapmalı. 6 yeni test
+  (370→376). `pytest -q -m "not network"` 376/376 yeşil, `ruff check`/`mypy`
+  değişen dosyalarda temiz (baseline AYNI). **DÜRÜST NOT**: `tlab scan`/EOD
+  toplu tarama akışına (`tlab/scanner/eod.py`) otomatik quant-report üretimi
+  HENÜZ ENTEGRE EDİLMEDİ — kullanıcının senaryosu ("taramadan sonra ASELS
+  çıktı... görselle birlikte metin") bunu ima ediyor, ama çoklu-sinyal bir
+  taramada HER sinyal için LLM çağrısı yapmak maliyet/gecikme açısından ayrı bir
+  tasarım kararı gerektirir (ör. yalnızca YENİ sinyaller için çağrı) — bilinçli
+  olarak bu oturumun kapsamı DIŞINDA bırakıldı, ayrı bir takip görevi.
 
-Toplam 370 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
+Toplam 376 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
 ruff/mypy/lint_lookahead temiz (yeni kod kapsamında — repo genelindeki 18 ruff/2
 lint_lookahead uyarısı önceden var olan, ilgisiz satırlardır).
 

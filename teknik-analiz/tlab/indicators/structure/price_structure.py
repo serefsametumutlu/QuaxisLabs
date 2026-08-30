@@ -96,7 +96,17 @@ class PriceStructureParams(BaseParams):
     zone_band_atr: float = 0.5
     zone_min_pivots: int = 2
     zone_breakout_confirm: int = 1
-    profile_window_bars: int = 60
+    # 60 -> 250 (2026-08-30): varsayılan grafik yakınlaştırması (renderer.py::
+    # _DEFAULT_LAST_N) ~250 bar iken hacim profili yalnızca son 60 barı
+    # kapsıyordu — sağdaki vp panelinin dikey ekseni ana panelin GÖRÜNÜR fiyat
+    # aralığıyla senkronize edildiği için (`_sync_price_yaxis`) bu, çubukların
+    # panelin yalnızca dar bir dilimine sıkışıp geri kalanının boş kalmasına
+    # yol açıyordu (kullanıcı geri bildirimi, referans ekran görüntüsüyle
+    # kıyaslanınca "çok cılız/kendi alanını doldurmuyor" — images/Ekran
+    # görüntüsü 2026-08-26 203900.png). 250, viz katmanına SIKI BAĞLI değil
+    # (bu dosya renderer.py'yi import etmez) — yalnızca aynı "tipik görünür
+    # pencere" varsayımını paylaşan bağımsız bir varsayılan.
+    profile_window_bars: int = 250
     profile_bins: int = 24
     profile_va_pct: float = 0.70
     volume_ma_window: int = 20

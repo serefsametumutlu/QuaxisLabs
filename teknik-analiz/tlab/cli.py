@@ -24,7 +24,8 @@ from tlab.scanner.eod import run_eod
 from tlab.scanner.results import ResultsStore
 from tlab.testing.lint_lookahead import has_errors, lint_paths
 from tlab.testing.repaint import repaint_test
-from tlab.viz.live import render_live
+from tlab.viz.live import STRUCTURE_REPORT_NAME, compute_structure_report, render_live
+from tlab.viz.quant_report import generate_quant_report
 from tlab.viz.report import build_report_html
 
 app = typer.Typer(add_completion=False, help="Teknik Lab (tlab) komut satırı arayüzü")
@@ -407,7 +408,7 @@ def plot_cmd(
         help=(
             "Katalogdaki ad (ör. structure.price_structure) veya 'structure.report' "
             "— price_structure+swing_fib_abcd'i tek bir 'aracı kurum raporu' "
-            "grafiğinde birleştiren, Özet Raporu panelli özel görünüm"
+            "grafiğinde birleştiren özel görünüm"
         ),
     ),
     market: str = typer.Option("bist", "--market", help="bist | nasdaq"),
@@ -425,6 +426,14 @@ def plot_cmd(
         None, "--out", help="Çıktı yolu (.html veya .png); varsayılan outputs/samples/"
     ),
     open_: bool = typer.Option(False, "--open", help="Üretilen HTML'i tarayıcıda aç"),
+    with_report: bool = typer.Option(
+        False, "--with-report",
+        help=(
+            "Yalnızca --indicator structure.report ile: grafiğin YANINA "
+            "(.txt) bir 'quant' rapor metni de üretir (bkz. `tlab quant-report` "
+            "— ANTHROPIC_API_KEY gerektirir, yoksa deterministik özete düşer)"
+        ),
+    ),
 ) -> None:
     """Tek bir (sembol, tf, indikatör) grafiğini üretir (outputs/samples/'a
     HTML olarak kaydeder; --out ile .png verilirse kaleido kullanılır).
@@ -449,10 +458,65 @@ def plot_cmd(
     else:
         fig.write_html(str(out_path), include_plotlyjs="cdn")
     typer.echo(f"Grafik: {out_path}")
+
+    if with_report:
+        if indicator != STRUCTURE_REPORT_NAME:
+            typer.echo("--with-report yalnızca --indicator structure.report ile çalışır", err=True)
+        else:
+            _write_quant_report(symbol, tf, market, out_path)
+
     if open_:
         import webbrowser
 
         webbrowser.open(out_path.resolve().as_uri())
+
+
+def _write_quant_report(symbol: str, tf: str, market: str, chart_out_path: Path) -> None:
+    ps_result, sf_result, df = compute_structure_report(symbol, tf, market)
+    report = generate_quant_report(ps_result, sf_result, df, symbol=symbol)
+    text_path = chart_out_path.with_suffix(".txt")
+    text_path.write_text(report.text, encoding="utf-8")
+    typer.echo(f"Rapor metni: {text_path}")
+    if not report.used_ai:
+        typer.echo(f"(uyarı: {report.note})", err=True)
+    typer.echo("")
+    typer.echo(report.text)
+
+
+@app.command("quant-report")
+def quant_report_cmd(
+    symbol: str = typer.Option(..., "--symbol", help="Sembol, ör. ASELS"),
+    tf: str = typer.Option("1d", "--tf", help="1h | 4h | 1d | w1"),
+    market: str = typer.Option("bist", "--market", help="bist | nasdaq"),
+    out: str = typer.Option(
+        None, "--out", help="Çıktı .txt yolu; varsayılan outputs/samples/"
+    ),
+) -> None:
+    """`structure.price_structure` + `structure.swing_fib_abcd` çıktısından
+    gerçek bir LLM çağrısıyla (bkz. `tlab/viz/quant_report.py`) "quant"
+    üslubunda, X'te paylaşılabilecek serbest bir rapor metni üretir —
+    `ANTHROPIC_API_KEY` ortam değişkeni gerekir, yoksa deterministik özete
+    (`report_text.build_summary_lines`) düşer ve bunu bir UYARI ile belirtir.
+    `tlab plot --indicator structure.report --with-report` ile AYNI metni,
+    grafiğin YANINDA üretir — bu komut yalnızca metni istediğinizde (grafik
+    üretmeden) kullanışlıdır."""
+    try:
+        ps_result, sf_result, df = compute_structure_report(symbol, tf, market)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
+
+    report = generate_quant_report(ps_result, sf_result, df, symbol=symbol)
+    out_path = (
+        Path(out) if out else Path("outputs") / "samples" / f"{symbol}_{tf}_quant_report.txt"
+    )
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(report.text, encoding="utf-8")
+    typer.echo(f"Rapor metni: {out_path}")
+    if not report.used_ai:
+        typer.echo(f"(uyarı: {report.note})", err=True)
+    typer.echo("")
+    typer.echo(report.text)
 
 
 @app.command("report")

@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 
 import pandas as pd
+import pytest
 
 from tests.test_harmonics.fixtures import build_gartley_ohlcv
 from tests.test_pairs.fixtures import build_cointegrated_pair
@@ -53,6 +54,40 @@ def test_generic_render_produces_candlestick_and_subpanels() -> None:
     # series_layout iki alt panel istiyor (hacim, macd) -> en az 3 farklı yaxis
     yaxes = {getattr(t, "yaxis", "y") or "y" for t in fig.data}
     assert len(yaxes) >= 3
+
+
+def test_volume_profile_bars_are_gapless() -> None:
+    """Regresyon (2026-08-30, kullanıcı geri bildirimi — referans ekran
+    görüntüsüyle kıyaslayınca bizimki 'çok cılız' görünüyordu): vp çubukları
+    artık `width=bin_height` ile birbirine BİTİŞİK çizilir (varsayılan
+    Plotly `bargap` boşluk bırakırdı), yoğun/dolu bir histogram görünümü
+    için."""
+    df = make_trend(n=250, slope=0.1, noise=1.2)
+    result = PriceStructure(PriceStructureParams())(df)
+    result.symbol = "TEST"
+    fig = render(result, df, theme="light")
+    vp_bar = next(t for t in fig.data if t.type == "bar" and t.name == "Hacim Profili")
+    bins = result.series["vp_bins"].to_numpy()
+    expected_height = float(bins[1] - bins[0])
+    assert vp_bar.width == pytest.approx(expected_height)
+
+
+def test_panel_frames_drawn_around_each_subplot() -> None:
+    """Regresyon (2026-08-30): kullanıcı, referans ekran görüntüsündeki gibi
+    her alt panelin (mum+vp, hacim, MACD) KENDİ çerçevesini istedi — eskiden
+    yalnızca TÜM figürü saran tek bir dış çerçeve vardı. `_draw_panel_frames`
+    her eksen çiftine (xaxis/yaxis, xaxis2/yaxis2, ...) bir dikdörtgen çizer."""
+    df = make_trend(n=250, slope=0.1, noise=1.2)
+    result = PriceStructure(PriceStructureParams())(df)
+    result.symbol = "TEST"
+    fig = render(result, df, theme="light")
+    n_axis_pairs = len(list(fig.select_xaxes()))
+    border_rects = [
+        s for s in fig.layout.shapes
+        if s.type == "rect" and s.xref == "paper" and s.yref == "paper"
+    ]
+    # +1: `_draw_card_frame`'in tüm figürü saran DIŞ çerçevesi.
+    assert len(border_rects) == n_axis_pairs + 1
 
 
 def test_pair_render_draws_holding_period_shading() -> None:
@@ -274,8 +309,12 @@ def test_harmonic_vertices_labeled_for_recent_candidate() -> None:
 
 def test_render_structure_report_combines_both_indicators() -> None:
     """`structure.report` (2026-08-30) — `structure.price_structure` +
-    `structure.swing_fib_abcd`'i TEK figürde birleştirir: mum + 3. kolonda
-    deterministik "Özet Raporu" metni (bkz. `report_text.py` — LLM YOK)."""
+    `structure.swing_fib_abcd`'i TEK figürde birleştirir (mum + vp paneli +
+    hacim/MACD/RSI alt panelleri). **2026-08-30 ikinci düzeltme**: kullanıcı
+    grafiğin İÇİNDEKİ "Özet Raporu" metin sütununu istemedi — anlatı artık
+    görselin DIŞINDA, ayrı bir LLM metni olarak üretiliyor (bkz. `tlab/viz/
+    quant_report.py`); bu yüzden bu test artık yalnızca GÖRSEL birleşimi
+    (mum + swing etiketleri + RSI paneli) doğrular, rapor metnini DEĞİL."""
     df = make_trend(n=250, slope=0.1, noise=1.2)
     ps_result = PriceStructure(PriceStructureParams())(df)
     ps_result.symbol = "TEST"
@@ -291,8 +330,6 @@ def test_render_structure_report_combines_both_indicators() -> None:
         ann.text for ann in fig.layout.annotations if ann.text in ("HH", "HL", "LH", "LL")
     }
     assert structure_labels  # en az bir swing etiketi
-    report_texts = [ann.text for ann in fig.layout.annotations if "ÖZET RAPORU" in str(ann.text)]
-    assert report_texts
     # RSI paneli (`series_layout`'a `render_structure_report`'tan ÖNCE,
     # `PriceStructure.compute()`'a eklendi) üçüncü alt panel olarak var.
     assert "rsi" in ps_result.series_layout

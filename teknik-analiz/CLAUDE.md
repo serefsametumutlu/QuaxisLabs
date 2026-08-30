@@ -1078,8 +1078,99 @@ için `tlab/testing/lint_lookahead.py` da var (CLI: `tlab lint`).
   **Görsel iş burada GERÇEKTEN kapandı** (kullanıcı onayı bekleniyor, ama
   bu turun kapsamındaki TÜM somut şikayetler ele alındı) — sıradaki oturum
   **Faz 8B** ile başlamalı.
+- **Faz 8B — Klasik grafik formasyonları** (`tlab/indicators/patterns/`,
+  2026-08-30): TAMAMLANDI. 5 indikatör: `wedge.py::WedgeIndicator`
+  (`patterns.wedge` + bonus `patterns.triangle`, TEK sınıf/iki katalog
+  girdisi — `HarmonicIndicator`'ın instance-level `meta` deseniyle AYNI),
+  `head_shoulders.py::HeadShouldersIndicator` (`patterns.head_shoulders`,
+  TOBO/OBO), `flag_pennant.py::FlagPennantIndicator` (`patterns.
+  flag_pennant`), `double_top_bottom.py::DoubleTopBottomIndicator`
+  (`patterns.double_top_bottom`, K1 TWYS eki), `broadening.py::
+  BroadeningIndicator` (`patterns.broadening`).
+  1. **Ortak durum makinesi** — `tlab/core/pattern_state.py::
+     track_breakout_pattern` (`harmonics/state.py::track_pattern`'in
+     XABCD'den bağımsız genelleştirilmesi): PENDING -> CONFIRMED (kırılım)
+     -> RETEST_HOLD/TARGET_REACHED; PENDING -> INVALIDATED/EXPIRED.
+     `SignalState`'in yalnızca 6 sabit değeri olduğu için (retest_hold/
+     target_reached AYRI bir state DEĞİL) `golden_zone.py`'nin ZATEN
+     kullandığı desenle `payload["event"]="{pattern_name}_{suffix}"`
+     üzerinden ayrım yapılır (pending->pending, confirmed VE retest_hold->
+     confirmed, target_reached->completed). `PatternTrackingConfig.
+     invalidation_check`/`break_line` callable'lar sayesinde 5 farklı
+     formasyonun tamamen farklı geometrisine (sabit çizgi/eğik çizgi/OLS
+     kanalı) uyarlanabiliyor. `marker_text()`/`level_end_from_signals()`
+     de paylaşılan yardımcılar — 5 modülün hepsi aynı Türkçe durum
+     etiketlerini ve "açık/kapalı Level" mantığını taşır. 24 yeni test
+     (`tests/test_pattern_state.py`) 5 ucu (confirmed/retest_hold/
+     target_reached/invalidated/expired) + confirm_bars semantiği +
+     born_idx ofseti + extra_payload birleşimini sentetik dizilerle doğrular.
+  2. **`patterns_geom.py::diverging_lines`** (YENİ) — `converging_lines`'ın
+     tersi (broadening/megafon için): apex/slope_ratio YOK, yalnızca
+     created_idx'te gap pozitif VE zamanla büyüyor mu. 5 yeni test.
+  3. **`wedge.py`** — `trendlines.build_trendlines`'ın resistance/support
+     aday havuzundan her (upper,lower) çiftini `converging_lines`/
+     `classify`'a verir; falling_wedge/asc_triangle->long (break_line=üst),
+     rising_wedge/desc_triangle->short (break_line=alt), sym_triangle
+     YÖNSÜZ (her iki yön bağımsız izlenir). Ek filtreler: `min_pivots`,
+     `min_bars`, `max_apex_bars` (+ EXPIRED eşiği = apex mesafesinin %80'i),
+     `slope_ratio_range`. Aday havuzu zamanlaması (`price_structure`/
+     `trend.breakouts` ile AYNI sorun) nedeniyle `register_verified_
+     elsewhere` kullanır. 15 yeni test (11 birim — `_normalized_ratio`/
+     `_passes_shape_filters`/`_direction_candidates` saf fonksiyonlar
+     doğrudan test edildi — + gerçekçi/gürültülü veride sözleşme testi).
+  4. **`head_shoulders.py`** — `hs_pattern.py::find_hs`'in sarmalayıcısı,
+     `swings.alternate_pivots` (yalnızca kesinleşmiş pivotlar) kullandığı
+     için generic `Registry.register()`'a TEMİZ kaydolur. **GERÇEK hata
+     bulundu**: PENDING doğum barı olarak `HSPattern.created_idx`
+     (=`l3.confirmed_idx`) KULLANILMADI — doğrusu `hs.l3.finalized_idx`
+     (`GoldenZoneIndicator`'ın "A onay barında DEĞİL finalized_idx'inde
+     doğar" kararıyla AYNI gerekçe: l3, `confirmed_idx` ile `finalized_idx`
+     arasında hâlâ daha ekstrem bir pivotla değiştirilebilir — `created_idx`
+     kullanmak walk-forward'da gerçek bir repaint olurdu). Elle inşa edilmiş,
+     gerçek `find_pivots`/`alternate_pivots`/`find_hs` çalıştırılarak
+     doğrulanmış bir TOBO senaryosuyla hem bu düzeltme hem `repaint_test`
+     PASS'i kilitlendi. 7 yeni test.
+  5. **`flag_pennant.py`** — direk tespiti `zones_sd.py::find_impulses`'in
+     DOĞRUDAN yeniden kullanımı (Faz 8C'de zaten vardı, yeni hesap YOK);
+     konsolidasyon kanalı `trendlines`'ın pivot aday havuzuyla DEĞİL, direk
+     sonrası SABİT `flag_min_bars` pencereye numpy OLS fit edilerek kurulur
+     (born barında dondurulur, `weekly_channel`'ın `channel_frozen_*`
+     felsefesiyle aynı) — bu yüzden `register_verified_elsewhere` kullanır
+     (aday havuzu YOK ama "dondurulmuş overlay" istisnası). Bayrak/flama
+     ayrımı basit bir geometrik sezgi (kitap referansı YOK, docstring'de
+     belirtildi). 3 yeni test (elle inşa edilmiş direk+bayrak senaryosu dahil).
+  6. **`double_top_bottom.py`** (K1 TWYS eki) — `alternate_pivots`
+     zigzag'inden aynı türden ardışık (p1,p2) + aralarındaki TEK zıt-türde
+     "boyun" pivotu; `p2.finalized_idx`'te PENDING doğar (AYNI GoldenZone/
+     HeadShoulders gerekçesi). Generic `Registry.register()`'a TEMİZ
+     kaydolur. Elle inşa edilmiş, gerçek pivot/zigzag çalıştırılarak
+     doğrulanmış bir çift-dip senaryosuyla 7 yeni test + `repaint_test` PASS.
+  7. **`broadening.py`** — `wedge.py` ile AYNI aday havuzu mimarisi, tek
+     fark `diverging_lines` (apex YOK). Yön YOKSUZ (sym_triangle gibi HER
+     İKİ yön bağımsız izlenir); `top`/`bottom` etiketi YALNIZCA açıklayıcı
+     bir bağlamsal sezgi (`prior_trend_lookback` bar önceki kapanışa göre
+     önceki trend yönü) — sinyal üretimini ETKİLEMEZ, TASARIM KARARI olarak
+     belgelendi. `register_verified_elsewhere` kullanır. 3 yeni test.
+  8. **Registry/CLI** — `bootstrap.py::CATALOG`'a 6 yeni girdi
+     (`patterns.wedge`/`triangle`/`head_shoulders`/`flag_pennant`/
+     `double_top_bottom`/`broadening`), yeni `"patterns"` kategorisi.
+     `config/scans.yaml`'a 3 yeni preset: `tobo_onay`, `cift_tepe_dip`,
+     `takoz_bayrak`.
+  Gerçek veri smoke: yerel BIST parquet önbelleğinden (ilk 80 sembol
+  taranarak) HER 5 formasyon için en az bir GERÇEK "confirmed" örneği
+  bulundu (BAKAB: TOBO+OBO+bayrak/flama; BRSAN: takoz; BARMA: genişleyen
+  formasyon). BAKAB'ın `patterns.head_shoulders` grafiği `tlab plot`
+  ile üretildi (`outputs/galeri/patterns_head_shoulders_BAKAB.png`,
+  gitignored) — SOL OMUZ/BAŞ/SAĞ OMUZ etiketleri, boyun çizgisi, hedef
+  seviyesi ve TOBO/OBO [ONAY/GEÇERSİZ/HEDEFE ULAŞTI] markerları doğru
+  görünüyor (birden fazla ardışık formasyon aynı grafikte üst üste
+  bindiği için görsel yoğunluk var — bu turun kapsamı görsel cila DEĞİL,
+  mantık doğruluğu; declutter gerekirse ayrı bir takip işi).
+  51 yeni test (388→439). `pytest -q -m "not network"` 439/439 yeşil,
+  `ruff check`/`mypy` yeni dosyalarda temiz, `lint_lookahead` 2 uyarı
+  (BASELINE İLE AYNI, ilgisiz). GİT'E COMMIT/PUSH EDİLDİ (bkz. `git log`).
 
-Toplam 388 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
+Toplam 439 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
 ruff/mypy/lint_lookahead temiz (yeni kod kapsamında — repo genelindeki 18 ruff/2
 lint_lookahead uyarısı önceden var olan, ilgisiz satırlardır).
 

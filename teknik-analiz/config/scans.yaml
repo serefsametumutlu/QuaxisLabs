@@ -30,3 +30,23 @@ presets:
     indicators: ["trend.weekly_channel"]
     filter:
       events: ["channel_bottom_touch"]
+  tobo_onay:
+    description: "Boynu kırarak onaylanan TOBO/OBO formasyonları (patterns.head_shoulders)"
+    indicators: ["patterns.head_shoulders"]
+    filter:
+      events: ["tobo_confirmed", "obo_confirmed"]
+  cift_tepe_dip:
+    description: "Boynu kırarak onaylanan çift tepe/çift dip formasyonları (patterns.double_top_bottom)"
+    indicators: ["patterns.double_top_bottom"]
+    filter:
+      events: ["double_top_confirmed", "double_bottom_confirmed"]
+  takoz_bayrak:
+    description: "Onaylanmış takoz/üçgen/bayrak/flama kırılımları (patterns.wedge, patterns.triangle, patterns.flag_pennant)"
+    indicators: ["patterns.wedge", "patterns.triangle", "patterns.flag_pennant"]
+    filter:
+      events:
+        [
+          "falling_wedge_confirmed", "rising_wedge_confirmed",
+          "sym_triangle_confirmed", "asc_triangle_confirmed", "desc_triangle_confirmed",
+          "bayrak_confirmed", "flama_confirmed",
+        ]

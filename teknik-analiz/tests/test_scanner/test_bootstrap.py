@@ -22,7 +22,7 @@ def test_second_call_is_idempotent() -> None:
 
 def test_catalog_has_expected_categories() -> None:
     categories = {spec.category for spec in CATALOG.values()}
-    assert categories == {"harmonics", "structure", "pair", "trend"}
+    assert categories == {"harmonics", "structure", "pair", "trend", "patterns"}
     assert sum(1 for s in CATALOG.values() if s.category == "harmonics") == 8
     assert CATALOG["pair.relative_momentum"].needs_context is True
     assert CATALOG["structure.swing_fib_abcd"].needs_context is False

@@ -13,6 +13,7 @@ from tlab.features.patterns_geom import (
     ClassifyParams,
     classify,
     converging_lines,
+    diverging_lines,
 )
 from tlab.features.swings import Pivot
 from tlab.features.trendlines import Trendline
@@ -157,3 +158,43 @@ def test_classify_custom_params_flat_ratio() -> None:
 
     strict = classify(conv, params=ClassifyParams(flat_ratio=0.01))
     assert strict == "sym_triangle"  # artık 'düz' sayılmıyor, iki eğim de yönlü
+
+
+# --- diverging_lines (Faz 8B, patterns/broadening.py) -------------------
+
+
+def test_diverging_lines_widening_gap_is_diverging() -> None:
+    upper = _line(slope=1.0, intercept=110.0)  # yukarı eğimli, gap büyüyor
+    lower = _line(slope=-1.0, intercept=90.0)  # aşağı eğimli
+    dv = diverging_lines(upper, lower)
+    assert dv.is_diverging is True
+    assert dv.created_idx == 0
+
+
+def test_diverging_lines_converging_gap_is_not_diverging() -> None:
+    upper = _line(slope=-1.0, intercept=110.0)
+    lower = _line(slope=1.0, intercept=90.0)
+    dv = diverging_lines(upper, lower)
+    assert dv.is_diverging is False
+
+
+def test_diverging_lines_negative_gap_at_created_is_not_diverging() -> None:
+    """upper, created_idx'te lower'ın ALTINDAYSA (geçersiz kanal) diverging sayılmaz."""
+    upper = _line(slope=1.0, intercept=50.0, created_idx=10)  # value_at(10)=60
+    lower = _line(slope=-1.0, intercept=90.0, created_idx=10)  # value_at(10)=80 > 60
+    dv = diverging_lines(upper, lower)
+    assert dv.is_diverging is False
+
+
+def test_diverging_lines_parallel_is_not_diverging() -> None:
+    upper = _line(slope=1.0, intercept=110.0)
+    lower = _line(slope=1.0, intercept=90.0)
+    dv = diverging_lines(upper, lower)
+    assert dv.is_diverging is False
+
+
+def test_diverging_lines_created_idx_is_max_of_both() -> None:
+    upper = _line(slope=1.0, intercept=110.0, created_idx=7)
+    lower = _line(slope=-1.0, intercept=90.0, created_idx=15)
+    dv = diverging_lines(upper, lower)
+    assert dv.created_idx == 15

@@ -21,7 +21,16 @@ havuzu) ve `ChannelIndicator` (bilerek her barda değişen "güncel kanal"
 overlay'i + method='pivot' aday havuzu) de AYNI istisna yolunu kullanır —
 bkz. o modüllerin docstring'leri. `GoldenZoneIndicator` ise `SwingFibABCD`
 ile aynı mimariyi (yalnızca kesinleşmiş zigzag pivotları) paylaştığı için
-generic `Registry.register()`'a TEMİZ kaydolur.
+generic `Registry.register()`'a TEMİZ kaydolur. Faz 8B (`tlab/indicators/
+patterns/`): `WedgeIndicator` (`patterns.wedge`/`patterns.triangle`) ve
+`BroadeningIndicator` (`patterns.broadening`) `trendlines.build_trendlines`
+aday havuzunu paylaştığı için AYNI istisna yolunu kullanır;
+`FlagPennantIndicator` (`patterns.flag_pennant`) aday havuzu YOK ama kanalı
+sabit bir OLS penceresine dondurduğu için (bkz. modül docstring'i) YİNE
+`register_verified_elsewhere` kullanır — `HeadShouldersIndicator`/
+`DoubleTopBottomIndicator` ise `GoldenZoneIndicator` ile AYNI "yalnızca
+kesinleşmiş zigzag pivotları" mimarisini paylaştığı için generic
+`Registry.register()`'a TEMİZ kaydolur.
 
 `CATALOG`: {indikatör_adı: IndicatorSpec} — scanner motoru (Faz 6) bunu
 kullanır (`Registry`'nin kendisi değil), çünkü motor context'li (pair)
@@ -39,6 +48,14 @@ import pandas as pd
 from tlab.core.indicator import BaseIndicator, RegistryError, registry
 from tlab.indicators.harmonics.scanner_indicator import HarmonicIndicator, HarmonicParams
 from tlab.indicators.pairs.relative_momentum import RelativeMomentumPair, RelativeMomentumParams
+from tlab.indicators.patterns.broadening import BroadeningIndicator, BroadeningParams
+from tlab.indicators.patterns.double_top_bottom import (
+    DoubleTopBottomIndicator,
+    DoubleTopBottomParams,
+)
+from tlab.indicators.patterns.flag_pennant import FlagPennantIndicator, FlagPennantParams
+from tlab.indicators.patterns.head_shoulders import HeadShouldersIndicator, HeadShouldersParams
+from tlab.indicators.patterns.wedge import WedgeIndicator, WedgeParams
 from tlab.indicators.structure.golden_zone import GoldenZoneIndicator, GoldenZoneParams
 from tlab.indicators.structure.price_structure import PriceStructure, PriceStructureParams
 from tlab.indicators.structure.supply_demand import SupplyDemandIndicator, SupplyDemandParams
@@ -101,6 +118,30 @@ def build_catalog() -> dict[str, IndicatorSpec]:
         name="trend.weekly_channel", category="trend",
         factory=lambda: ChannelIndicator(ChannelParams()),
     )
+    catalog["patterns.wedge"] = IndicatorSpec(
+        name="patterns.wedge", category="patterns",
+        factory=lambda: WedgeIndicator("wedge", WedgeParams()),
+    )
+    catalog["patterns.triangle"] = IndicatorSpec(
+        name="patterns.triangle", category="patterns",
+        factory=lambda: WedgeIndicator("triangle", WedgeParams()),
+    )
+    catalog["patterns.head_shoulders"] = IndicatorSpec(
+        name="patterns.head_shoulders", category="patterns",
+        factory=lambda: HeadShouldersIndicator(HeadShouldersParams()),
+    )
+    catalog["patterns.flag_pennant"] = IndicatorSpec(
+        name="patterns.flag_pennant", category="patterns",
+        factory=lambda: FlagPennantIndicator(FlagPennantParams()),
+    )
+    catalog["patterns.double_top_bottom"] = IndicatorSpec(
+        name="patterns.double_top_bottom", category="patterns",
+        factory=lambda: DoubleTopBottomIndicator(DoubleTopBottomParams()),
+    )
+    catalog["patterns.broadening"] = IndicatorSpec(
+        name="patterns.broadening", category="patterns",
+        factory=lambda: BroadeningIndicator(BroadeningParams()),
+    )
     return catalog
 
 
@@ -161,6 +202,8 @@ def populate_registry() -> None:
             if spec.name in (
                 "structure.price_structure", "trend.breakouts",
                 "structure.supply_demand", "trend.weekly_channel",
+                "patterns.wedge", "patterns.triangle",
+                "patterns.flag_pennant", "patterns.broadening",
             ):
                 registry.register_verified_elsewhere(instance)
             elif spec.needs_context:

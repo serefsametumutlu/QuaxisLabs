@@ -120,6 +120,37 @@ class ClassifyParams(BaseParams):
     small_pattern_ratio: float = 0.5
 
 
+@dataclass(frozen=True)
+class DivergingLines:
+    """`upper`/`lower`'ın created_idx'ten itibaren birbirinden UZAKLAŞTIĞI
+    (genişleyen üçgen/megafon — 'broadening') geometrisi. `converging_lines`'ın
+    tersi: apex YOKTUR (ileride hiç kesişmezler), bu yüzden apex/slope_ratio
+    hesaplanmaz — yalnızca created_idx'te gap pozitif VE gap_slope pozitifse
+    (mesafe zamanla büyüyorsa) `is_diverging=True`. Formasyonun 'top' mu
+    'bottom' mu (Faz 8B `patterns/broadening.py`) son pivotların pozisyonuna
+    göre çağıran tarafından ayrıca belirlenir — bu fonksiyon yalnızca SAF
+    iki-çizgi geometrisiyle ilgilenir."""
+
+    upper: Trendline
+    lower: Trendline
+    created_idx: int
+    is_diverging: bool
+
+
+def diverging_lines(upper: Trendline, lower: Trendline) -> DivergingLines:
+    """İki çizginin created_idx'ten itibaren birbirinden uzaklaşıp
+    uzaklaşmadığını hesaplar — yalnızca `Trendline.slope`/`intercept`/
+    `created_idx` kullanır, df'ye erişmez (girdi çizgiler sabit kaldığı
+    sürece sonuç DAİMA aynıdır, non-repaint)."""
+    created_idx = max(upper.created_idx, lower.created_idx)
+    gap_at_created = upper.value_at(created_idx) - lower.value_at(created_idx)
+    gap_slope = upper.slope - lower.slope
+    is_diverging = gap_at_created > 0 and gap_slope > 0
+    return DivergingLines(
+        upper=upper, lower=lower, created_idx=created_idx, is_diverging=is_diverging,
+    )
+
+
 def _slope_sign(this_slope: float, other_slope: float, flat_ratio: float) -> _SlopeSign:
     if abs(this_slope) <= flat_ratio * max(abs(other_slope), 1e-12):
         return "flat"

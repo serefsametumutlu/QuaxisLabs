@@ -19,7 +19,7 @@ from typing import Any, Callable
 
 import pandas as pd
 
-from tlab.core.indicator import BaseIndicator
+from tlab.core.indicator import BaseIndicator, UniverseIndicator
 from tlab.core.types import Signal
 
 _TOL = 1e-9
@@ -220,4 +220,59 @@ def repaint_test(
         passed=not mismatches,
         mismatches=mismatches,
         stats={"n_bars": n, "cuts_checked": checked_cuts},
+    )
+
+
+def universe_repaint_test(
+    indicator: UniverseIndicator,
+    universe: dict[str, pd.DataFrame],
+    index_df: pd.DataFrame,
+    cut_dates: list[pd.Timestamp] | None = None,
+    tail: int = 20,
+) -> RepaintReport:
+    """`repaint_test`'in Faz 8D "universe" kategorisi karşılığı — TEK bir
+    df yerine `universe`'in HER df'i + `index_df` AYNI `cut_time`'da (tarihe
+    göre) kesilir, `compute_universe` yeniden çalıştırılır. Rank_pct her
+    barda YALNIZCA o bardaki (t VE ÖNCESİ verilerle hesaplanmış) skorlara
+    bağlı olduğu için — bkz. `alpha_rank.py`/`momentum_rank.py` docstring'i
+    — kesik ⊆ tam eşitliği (`repaint_test` ile AYNI mantık) burada da geçerli
+    OLMALIDIR: bir sembolün kesikte ürettiği HER sinyal, tam koşunun o ana
+    kadar ürettiği sinyallerin İÇİNDE olmalı. Kesik evrende bir sembolün HİÇ
+    görünmemesi (ör. `min_history_bars` o kadar geriye gitmiyorsa) repaint
+    DEĞİLDİR — yalnızca o sembol kesikte KARŞILAŞTIRILMAZ (dışlanmaz, hata
+    sayılmaz)."""
+    if cut_dates is None:
+        all_dates = index_df.index
+        start = max(0, len(all_dates) - tail)
+        cut_dates = list(all_dates[start::max(1, tail // 10) or 1])
+
+    full = indicator(universe, index_df)
+    mismatches: list[str] = []
+    checked = 0
+
+    for cut_time in cut_dates:
+        partial_index = index_df.loc[index_df.index <= cut_time]
+        partial_universe = {
+            sym: df.loc[df.index <= cut_time]
+            for sym, df in universe.items()
+            if (df.index <= cut_time).any()
+        }
+        if len(partial_index) < 2 or not partial_universe:
+            continue
+        partial = indicator(partial_universe, partial_index)
+        checked += 1
+
+        for symbol, partial_result in partial.items():
+            full_result = full.get(symbol)
+            if full_result is None:
+                mismatches.append(
+                    f"[cut={cut_time}] {symbol} kesikte sonuç üretti, tam koşuda HİÇ YOK"
+                )
+                continue
+            partial_signals = partial_result.signals
+            full_signals_upto = [s for s in full_result.signals if s.detected_at <= cut_time]
+            _diff_signals(0, cut_time, partial_signals, full_signals_upto, mismatches)
+
+    return RepaintReport(
+        passed=not mismatches, mismatches=mismatches, stats={"cuts_checked": checked},
     )

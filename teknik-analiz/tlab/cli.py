@@ -15,9 +15,11 @@ from tlab.core.types import Market, Timeframe
 from tlab.data.providers.yfinance_provider import YFinanceProvider
 from tlab.data.settings import load_settings
 from tlab.data.store import Store
-from tlab.data.universe import load_universe
+from tlab.data.universe import BENCHMARK_SYMBOL, load_universe
 from tlab.data.validate import check_data_quality
 from tlab.indicators.bootstrap import CATALOG
+from tlab.indicators.momentum.momentum_rank import MomentumRankParams, momentum_heatmap_data
+from tlab.indicators.pairs.discovery import load_sector_map
 from tlab.indicators.pairs.relative_momentum import RelativeMomentumPair, RelativeMomentumParams
 from tlab.scanner import engine
 from tlab.scanner.eod import run_eod
@@ -27,6 +29,7 @@ from tlab.testing.repaint import repaint_test
 from tlab.viz.live import STRUCTURE_REPORT_NAME, compute_structure_report, render_live
 from tlab.viz.quant_report import generate_quant_report
 from tlab.viz.report import build_report_html
+from tlab.viz.universe_charts import render_alpha_scatter, render_momentum_heatmap
 
 app = typer.Typer(add_completion=False, help="Teknik Lab (tlab) komut satırı arayüzü")
 
@@ -229,7 +232,78 @@ def list_indicators_cmd() -> None:
     """Katalogdaki tüm indikatörleri (isim, kategori, context gerekir mi) listeler."""
     for name, spec in sorted(CATALOG.items()):
         ctx = " (context gerekir)" if spec.needs_context else ""
+        ctx += " (evren-geneli)" if spec.needs_universe else ""
         typer.echo(f"{name:<28} [{spec.category}]{ctx}")
+
+
+@app.command("universe-plot")
+def universe_plot_cmd(
+    market: str = typer.Option(..., "--market", help="bist | nasdaq"),
+    indicator: str = typer.Option(
+        ..., "--indicator", help="momentum.alpha_rank | momentum.momentum_rank"
+    ),
+    tf: str = typer.Option("1d", "--tf", help="1h | 4h | 1d"),
+    symbols: str = typer.Option(None, "--symbols", help="Virgülle ayrılmış (boşsa tam evren)"),
+    out: str = typer.Option(None, "--out", help="Çıktı yolu (.html veya .png)"),
+) -> None:
+    """Faz 8D evren-geneli görselleri: `momentum.alpha_rank` -> α-β saçılımı
+    (bkz. `tlab/viz/universe_charts.py::render_alpha_scatter`), `momentum.
+    momentum_rank` -> sektör × ufuk momentum ısı haritası (`config/
+    sectors_bist.yaml`'dan, yalnızca BIST için — NASDAQ'ta sektör haritası
+    yok, boş matris döner). Kendi CATALOG kaydını kullanır ama `tlab scan`'in
+    aksine önbellekteki veriyi DOĞRUDAN okur (Registry/scanner motoru
+    devreye girmez) — hızlı, tek seferlik bir görselleştirme kısayolu."""
+    mkt = Market(market.lower())
+    tf_map = {"1h": Timeframe.H1, "4h": Timeframe.H4, "1d": Timeframe.D1}
+    timeframe = tf_map.get(tf.lower())
+    if timeframe is None:
+        typer.echo(f"Geçersiz --tf: {tf} (1h|4h|1d bekleniyor)", err=True)
+        raise typer.Exit(code=2)
+    if indicator not in ("momentum.alpha_rank", "momentum.momentum_rank"):
+        typer.echo("--indicator momentum.alpha_rank | momentum.momentum_rank olmalı", err=True)
+        raise typer.Exit(code=2)
+
+    universe = (
+        [s.strip() for s in symbols.split(",") if s.strip()] if symbols else load_universe(mkt)
+    )
+    store = Store(YFinanceProvider())
+    universe_dfs: dict[str, pd.DataFrame] = {}
+    for symbol in universe:
+        try:
+            universe_dfs[symbol] = store.get(symbol, timeframe, mkt)
+        except FileNotFoundError:
+            continue
+
+    benchmark_symbol = BENCHMARK_SYMBOL[mkt]
+    try:
+        index_df = store.get(benchmark_symbol, timeframe, mkt)
+    except FileNotFoundError as exc:
+        typer.echo(
+            f"Endeks verisi yok ({benchmark_symbol}): önce "
+            f"'tlab update-data --market {mkt.value} --symbols {benchmark_symbol}' çalıştırın",
+            err=True,
+        )
+        raise typer.Exit(code=1) from exc
+
+    instance = CATALOG[indicator].factory()
+    results = instance(universe_dfs, index_df)
+
+    if indicator == "momentum.alpha_rank":
+        fig = render_alpha_scatter(results)
+    else:
+        sector_map = load_sector_map("config/sectors_bist.yaml") if mkt is Market.BIST else {}
+        heatmap_df = momentum_heatmap_data(results, sector_map, MomentumRankParams().horizons)
+        fig = render_momentum_heatmap(heatmap_df)
+
+    out_path = (
+        Path(out) if out else Path("outputs") / "samples" / f"{indicator}_{mkt.value}_{tf}.html"
+    )
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    if out_path.suffix == ".png":
+        fig.write_image(str(out_path), scale=2)
+    else:
+        fig.write_html(str(out_path), include_plotlyjs="cdn")
+    typer.echo(f"Grafik: {out_path} ({len(results)} sembol)")
 
 
 def _load_scan_preset(name: str, path: str = "config/scans.yaml") -> tuple[list[str], dict]:

@@ -13,6 +13,7 @@ import plotly.graph_objects as go
 from tlab.core.types import IndicatorResult, Market, Timeframe
 from tlab.data.providers.yfinance_provider import YFinanceProvider
 from tlab.data.store import Store
+from tlab.data.universe import BENCHMARK_SYMBOL, load_universe
 from tlab.indicators.bootstrap import CATALOG
 from tlab.indicators.pairs.relative_momentum import RelativeMomentumPair, RelativeMomentumParams
 from tlab.viz.renderer import render, render_structure_report
@@ -55,6 +56,36 @@ def compute_live(
         result = instance(df_y, context={"x": df_x})
         result.symbol = symbol
         return result, None
+
+    if spec.needs_universe:
+        # Faz 8D "universe" kategorisi (`UniverseIndicator`) — `rank_pct`
+        # TANIM GEREĞİ tüm evreni birlikte görmeyi gerektirdiği için TEK bir
+        # sembolün "tekil" grafiği bile evrenin TAMAMININ hesaplanmasını
+        # gerektirir (bkz. `tlab/core/indicator.py::UniverseIndicator`).
+        # DÜRÜST NOT: bu, `tlab plot`'un diğer tüm indikatörlerden ÇOK daha
+        # yavaş olmasına yol açar (tam evren × cache okuma + cross-sectional
+        # rank) — `tlab universe-plot` zaten AYNI maliyeti evren-geneli
+        # görseller (saçılım/ısı haritası) için taşıyordu, burada yalnızca
+        # TEK sembolün sonucu seçilip standart `render()`'a verilir.
+        universe_symbols = load_universe(mkt)
+        universe_dfs: dict[str, pd.DataFrame] = {}
+        for sym in universe_symbols:
+            try:
+                universe_dfs[sym] = store.get(sym, tf, mkt)
+            except FileNotFoundError:
+                continue
+        if symbol not in universe_dfs:
+            universe_dfs[symbol] = store.get(symbol, tf, mkt)
+        index_df = store.get(BENCHMARK_SYMBOL[mkt], tf, mkt)
+        instance = spec.factory()
+        results = instance(universe_dfs, index_df)
+        if symbol not in results:
+            raise ValueError(
+                f"'{symbol}' için {indicator_name} sonucu üretilemedi "
+                "(yetersiz geçmiş/likidite — bkz. min_history_bars/min_liquidity_try)"
+            )
+        result = results[symbol]
+        return result, universe_dfs[symbol]
 
     instance = spec.factory()
     df = store.get(symbol, tf, mkt)

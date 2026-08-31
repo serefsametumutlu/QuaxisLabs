@@ -1356,8 +1356,179 @@ için `tlab/testing/lint_lookahead.py` da var (CLI: `tlab lint`).
   boşluğuna hafif taşıyor (y-ekseni autorange, harmonik `bounds` hesabına
   PRZ Level'ları dahil edilmemiş olabilir) — küçük bir kalan kusur, bugünün
   kapsamı DIŞINDA bırakıldı. Kullanıcı galeriyi tekrar incelemeli.
+- **Faz 8D — alpha_rank, momentum_rank, ma_systems, ewmac + "universe" kategorisi**
+  (2026-08-31): TAMAMLANDI. Kullanıcının verdiği görev metni master prompt'un 14.
+  bölümünden alıntıydı (bu proje, önceki oturumda bir "master prompt" referans
+  ediyordu ama tam metni repoda yoktu — bu oturumda kullanıcı ilgili bölümü
+  doğrudan yapıştırdı).
+  1. **YENİ mimari — `UniverseIndicator`** (`tlab/core/indicator.py`): `alpha_rank`/
+     `momentum_rank`'ın `rank_pct`'i TANIM GEREĞİ tüm evrenin AYNI bardaki
+     skorlarını BİRLİKTE görmeyi gerektirdiği için `BaseIndicator.compute(df,
+     context)`'in tekil-sembol imzasına UYMAZ — `BaseIndicator`'dan TÜREMEYEN
+     kardeş bir ABC eklendi: `compute_universe({sembol: df}, index_df) ->
+     {sembol: IndicatorResult}`. Ortak doğrulama mantığı (`_validate_indicator_
+     result`) iki sınıf arasında paylaşılacak şekilde serbest fonksiyona
+     çıkarıldı. `IndicatorSpec`'e `needs_universe: bool` eklendi (`needs_context`
+     ile AYNI desen); `scanner/engine.py::run()`'a ÜÇÜNCÜ bir iş kuyruğu
+     (`jobs_universe`) eklendi — evren sembol-sembol PARÇALANMAZ, her (indikatör,
+     tf) için TEK bir `ProcessPoolExecutor` işi (`_run_universe_worker`) tüm
+     evren + endeksi çeker, indikatörü BİR KEZ çağırır, dönen `{sembol:
+     IndicatorResult}`'ı `_universe_result_to_runs()` ile motorun geri kalanının
+     (ResultsStore/diff/dashboard) beklediği DÜZ `IndicatorRunResult` listesine
+     açar — bu satırdan SONRASI hiçbir yerde universe/tekil ayrımı GEREKMEDİ
+     (persist/diff/CLI `scan`/`eod` sıfır değişiklikle çalıştı).
+  2. **Endeks verisi** (`tlab/data/universe.py::BENCHMARK_SYMBOL`) — XU100
+     (BIST) / ^NDX (NASDAQ). Provider/Store'a HİÇBİR özel kod EKLENMEDİ: endeks
+     sıradan bir sembol gibi `to_provider_symbol()`'dan geçip (XU100->XU100.IS)
+     aynı parquet cache mekanizmasıyla saklanıyor.
+  3. **`tlab/indicators/momentum/alpha_rank.py::AlphaRank`** — her sembol için
+     `xsec.rolling_alpha_beta`'yı `windows=(60,120,250)` her birinde çalıştırır;
+     sıralama skoru = pencereler arası ORTALAMA t_stat (TASARIM KARARI: ölçek-
+     bağımsız olduğu için alpha_ann'dan daha uygun birleştirme — master prompt
+     tam formül vermiyordu). `persistence` = 1-|fip(aktif_getiri,window)| (`fip`
+     Faz 2-EK'te TAM BU AMAÇLA yazılmıştı, docstring'i zaten işaret ediyordu).
+     Likidite filtresi (`min_liquidity_try`) ZAMANA GÖRE DEĞİŞİR (rolling
+     ortalama ciro eşiğin altındaysa o BARDA skor NaN'a çevrilip o barın
+     sıralamasından çıkar) — sabit/tek seferlik bir filtre DEĞİL. Cross-sectional
+     `rank_pct`: tüm sembollerin skor serileri `pd.concat({sembol: seri}, axis=1)`
+     ile TEK matriste toplanır (ilk taslak `score_df[sembol] = ...` döngüsüyle
+     sütun sütun dolduruyordu — 648 sembollük GERÇEK evrende pandas
+     "highly fragmented DataFrame" performans uyarısı verdi, `pd.concat`'e
+     çevrilip düzeltildi), her SATIR için `pandas.rank(axis=1, ascending=False,
+     pct=True)` (xsec.rank_pct'in AYNI "en iyi->en küçük pct" yönü, vektörize
+     hâli). Sinyaller: `alpha_entry`/`alpha_exit` (rank_pct top_pct eşiğine
+     giriş/çıkış). Tekil görsel: 4 panel (hisse-vs-endeks normalize, α_yıllık+
+     t-istatistiği+±2 anlamlılık bandı, β, kümülatif artık getiri ε) — YENİ
+     renderer kodu GEREKMEDİ, `IndicatorResult.series_layout` (Faz 7'den beri
+     var olan mekanizma) doğrudan kullanıldı.
+  4. **`tlab/indicators/momentum/momentum_rank.py::MomentumRank`** — `xsec.
+     momentum_horizons` (12-1 tarzı, `skip` ile son barı dışlar) + vol-ayarlı
+     momentum (`realized_vol*sqrt(ufuk)`'a bölünür — TASARIM KARARI, kaba bir
+     "Sharpe benzeri" normalizasyon) + `_rolling_trend_tstat` (YENİ, bu modülde
+     — `rolling_alpha_beta`'nın AYNI kapalı-form OLS formülleri ama y=RS,
+     x=bar_indeksi; zamana karşı rolling eğim+t-istatistiği) + `fip` (getiri
+     tutarlılığı) + `trend_score` (close/EMA20/EMA50/EMA200 sıralaması + eğim
+     işaretleri, 5 koşulun ortalaması). Skor = vol-ayarlı momentum ortalaması +
+     trend_score - |fip| (TASARIM KARARI, basit toplam — master prompt ağırlık
+     vermiyordu). Sinyaller: `momentum_top_entry`/`_exit` (AYNI rank_pct
+     deseni) + `rs_breakout` (RS'nin ÖNCEKİ `rs_breakout_window` barın KESİN
+     üstüne çıkması — bugünün barı hariç trailing maksimuma göre, gerçek "yeni
+     zirve"). `momentum_heatmap_data()`: sektör × ufuk ortalama HAM momentum
+     matrisi (`config/sectors_bist.yaml`'dan, salt biçimlendirme — yeni hesap
+     yok), `tlab/viz/universe_charts.py::render_momentum_heatmap` bunu ısı
+     haritasına çevirir.
+  5. **`tlab/indicators/trend/ma_systems.py::MASystems`** — periyotlar
+     (varsayılan 8/21/55/200, `ema`/`sma`/`kama`/`hull` seçilebilir) arası
+     ardışık kesişim (`ma.crossovers`), "ribbon" sıralama durumu (`bull_stack`/
+     `bear_stack`/`mixed` — close + tüm MA'ların göreli sırası), bant genişliği
+     (max-min MA farkı/close) kendi rolling `quantile`'ının ALTINA düşünce
+     `is_squeeze`, oradan ÇIKIŞ `squeeze_expansion` sinyali üretir. **GERÇEK
+     hata (yazarken)**: `_stack_state`'te `zip(values, values[1:], strict=True)`
+     — `strict=True` bu ikili (pairwise) karşılaştırma deseninde YANLIŞ (iki
+     liste TANIM GEREĞİ farklı uzunlukta, `ValueError` fırlatıyordu); `strict=
+     False`'a düzeltildi. **Kayıt istisnası**: her MA'nın TAM (büyüyen) serisi
+     tek bir `Line` overlay'i olarak taşınıyor (`weekly_channel`'ın
+     `channel_current`'ıyla AYNI kategori — generic `repaint_test`'in
+     `(points,label)` tam-eşitliği bunu yanlış alarm sanıyor); `register_
+     verified_elsewhere` kullanılır, sinyallerin GERÇEK non-repaint'liği
+     hedefli bir testle (her kesim noktasında üretilen sinyaller = tam koşunun
+     o ana kadarki sinyalleri) ayrıca doğrulanır.
+  6. **`tlab/indicators/trend/ewmac.py::EWMACIndicator`** — Carver'ın (Systematic
+     Trading) standart geometrik çift kümesi (2,8)/(4,16)/(8,32)/(16,64)/
+     (32,128)/(64,256) — bu kısım kamuya açık/genel bilgi. **DÜRÜST NOT/TODO**:
+     `forecast_scalar` kitaptan (bilgi-bankasi/teknik/11 — K3, HENÜZ
+     ÇIKARILMADI, bu oturumda kontrol edildi, dosya yok) doğrulanmış SABİT
+     değerler yerine EMPİRİK olarak (trailing `abs(vol_adj_ewmac)` ortalamasının
+     tersi × hedef 10) hesaplanıyor — görev metninin AÇIKÇA verdiği "K3
+     bitmediyse Carver standart çiftlerini kullan ve TODO bırak" talimatına
+     göre; memorized/tahmini sabit sayılar (ör. belirli bir forecast scalar
+     tablosu) BİLEREK kullanılmadı (doğrulanamayan "kitaptan" rakam uydurma
+     riski). `series["ewmac_combined"]` (Faz 10 forecast katmanının İLK gerçek
+     üreticisi) sıfırı kestiğinde `ewmac_bullish`/`ewmac_bearish` sinyali.
+  7. **`tlab/features/ma.py::kama()`** — Kaufman Adaptive MA (verimlilik oranı +
+     hızlı/yavaş smoothing constant, özyinelemeli ama yalnızca t-1 ve öncesini
+     kullanır). `ma_systems.py`'nin `ma_type="kama"` seçeneği bunu kullanır.
+  8. **CLI/Registry/scans.yaml** — `tlab list-indicators` artık "(evren-geneli)"
+     etiketini gösteriyor; YENİ `tlab universe-plot --indicator momentum.
+     alpha_rank|momentum_rank` (α-β saçılımı / sektör×ufuk ısı haritası,
+     `tlab/viz/universe_charts.py`, YENİ dosya — `renderer.py`'ye dokunulmadı,
+     bu evren-geneli görseller `IndicatorResult`+df yerine `{sembol:
+     IndicatorResult}` sözlüğü üzerinde çalıştığı için AYRI bir modül).
+     `populate_registry()`: universe indikatörleri `register_verified_elsewhere`
+     ile kaydolur (repaint_test'in `compute(df,context)` imzasıyla UYUMSUZ);
+     GERÇEK non-repaint sözleşmesi YENİ `tlab/testing/repaint.py::
+     universe_repaint_test()` ile (evrenin HER df'i + endeks AYNI cut_time'da
+     kesilir, kesik ⊆ tam) doğrulanır. `config/scans.yaml`'a `alpha_top`/
+     `momentum_top` preset'leri eklendi.
+  9. **GERÇEK HATA — `tlab plot` universe indikatörlerini render EDEMİYORDU**
+     (gerçek veriyle ilk denemede bulundu): `viz/live.py::compute_live()`
+     tüm katalog indikatörlerinin `instance(df)` (tekil `BaseIndicator`
+     çağrısı) ile çalıştığını varsayıyordu — `UniverseIndicator.__call__()`
+     FARKLI bir imza istediği için `TypeError` fırlatıyordu. Düzeltme:
+     `compute_live()`'a `spec.needs_universe` dalı eklendi — TEK bir sembolün
+     "tekil" grafiği bile evrenin TAMAMININ (configured universe + endeks)
+     hesaplanmasını gerektiriyor (rank_pct'in doğası gereği), sonuçtan yalnızca
+     istenen sembol seçilip standart `render()`'a veriliyor. **DÜRÜST NOT**:
+     bu yüzden `tlab plot --indicator momentum.*` diğer TÜM indikatörlerden
+     ÇOK daha yavaş (648 sembollük gerçek BIST evreninde ~22-30s) — `tlab
+     universe-plot` zaten AYNI maliyeti taşıyordu, burada yalnızca tek sembol
+     seçiliyor; tekrarlı/interaktif kullanım için önbellekleme YAPILMADI
+     (ayrı bir olası iyileştirme).
+  10. **GERÇEK HATA — α-β saçılımında 500+ sembol etiketi üst üste biniyordu**
+      (584 sembollük gerçek evrenle ilk render'da görüldü, `outputs/samples/
+      alpha_scatter_bist.png` gözle incelendi): TÜM sembollere metin etiketi
+      eklemek yoğun bir merkez kümesinde okunaksız oluyordu. Düzeltme: iki
+      ayrı Scatter trace'i — evrenin geri kalanı ETİKETSİZ nokta bulutu
+      (hover'da tam bilgi kalır), yalnızca `top_pct` içindeki (altın) semboller
+      etiketlenir.
+  11. **Testler** — 29 yeni (445→474): `tests/test_ma.py` (+2, KAMA), `tests/
+      test_momentum/` (YENİ paket: `fixtures.py` — 20 sembollük, BİLİNEN
+      alfa/momentum gradyanlı sentetik evren üreticisi; `test_alpha_rank.py`/
+      `test_momentum_rank.py` — Spearman korelasyonuyla sıralama doğruluğu
+      + likidite filtresi + `compute_universe`'in evrenin ALT KÜMESİ döndürme
+      sözleşmesi; `test_universe_repaint.py` — `universe_repaint_test` ile),
+      `tests/test_trend/test_ma_systems.py`/`test_ewmac.py`, `tests/
+      test_universe_indicator.py` (`UniverseIndicator` ABC sözleşmesi, sahte
+      bir `_EchoIndicator` ile), `tests/test_scanner/test_engine_universe.py`
+      (`_run_universe_worker`/`_universe_result_to_runs`, `_fetch_and_prepare`
+      monkeypatch'lenerek — gerçek ağ/cache GEREKMEZ), `tests/test_viz/
+      test_universe_charts.py`, `tests/test_scanner/test_bootstrap.py`
+      (+2, yeni kategori/needs_universe kontrolü).
+  12. **GERÇEK VERİYLE UÇTAN UCA DOĞRULAMA** (bu oturumda, sentetik testlerin
+      ÖTESİNDE): XU100 (D1) ilk kez indirilip cache'lendi (`tlab update-data
+      --market bist --symbols XU100 --tf 1d` — **not**: `--tf 1h` yfinance'ın
+      "60m veri yalnızca son ~730 gün" kısıtına takıldı, önceki oturumlarda
+      da gözlenen AYNI sağlayıcı kısıtı, bu göreve AİT DEĞİL). 60 sembollük
+      bir alt evrende `tlab scan --indicators momentum.alpha_rank,momentum.
+      momentum_rank,trend.ma_systems,trend.ewmac` (122 iş, 234 sonuç, 0 HATA)
+      ve `--preset alpha_top`/`momentum_top` (57 sonuç, 0 hata, filtre gerçek
+      sinyal sayıları üretti) çalıştırıldı. `tlab plot` ile EREGL için 4
+      indikatörün TEKİL grafiği (`outputs/samples/{alpha_rank,momentum_rank,
+      ma_systems,ewmac}_EREGL.png`) ve `tlab universe-plot` ile TAM 584-648
+      sembollük gerçek evrende α-β saçılımı + sektör×ufuk ısı haritası
+      üretilip GÖZLE incelendi — hepsi görsel olarak tutarlı/anlamlı (ör.
+      EREGL β≈1.0-1.1, pozitif kümülatif ε, EWMAC forecast trend yönüyle
+      uyumlu, DemirÇelik sektörü 252 günlük ufukta güçlü pozitif momentum).
+      Bu, projedeki İLK universe-level indikatör turunda gerçek veriyle
+      doğrulama yapılan oturum (önceki fazların çoğu gerçek veri smoke testini
+      ZATEN standart pratik olarak uyguluyordu, burada da aynı disiplin
+      korundu).
+  **DÜRÜST NOT — bilinen sınırlamalar**: (a) skor birleştirme formülleri
+  (alpha_rank: ortalama t_stat; momentum_rank: vol_adj_mom+trend_score-|fip|)
+  master prompt'ta VERİLMEMİŞ TASARIM KARARLARI, geriye-dönük optimize
+  EDİLMEDİ; (b) `min_liquidity_try` varsayılanı (5M TL) gerçek BIST ciro
+  dağılımına göre doğrulanmadı, spec'ten olduğu gibi taşındı; (c) EMA overlay
+  renkleri yalnızca varsayılan periyotlar (8/21/55/200) için ayrı renk taşıyor,
+  `momentum_rank`'ın kendi EMA'ları (20/50/200) kısmen bu kümeye denk
+  DÜŞMEDİĞİ için (20/50) aynı gri fallback'i paylaşıyor — küçük bir görsel
+  ayırt edilebilirlik kaybı, bilinçli kabul edildi; (d) EWMAC forecast
+  scalar'ı K3 (Carver kitap çıkarımı) tamamlanınca sabit tabloya geçirilmeli.
+  `pytest -q -m "not network"` 474/474 yeşil, `ruff check tlab/ tests/` 18
+  hata (BASELINE İLE AYNI, yeni dosyalarda SIFIR), `mypy tlab/` 2 hata
+  (BASELINE İLE AYNI, `renderer.py`/`dashboard.py` — bu göreve AİT DEĞİL),
+  `lint_lookahead` 2 uyarı (BASELINE İLE AYNI).
 
-Toplam 445 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
+Toplam 474 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
 ruff/mypy/lint_lookahead temiz (yeni kod kapsamında — repo genelindeki 18 ruff/2
 lint_lookahead uyarısı önceden var olan, ilgisiz satırlardır).
 
@@ -1766,6 +1937,13 @@ Bağlantı yavaşsa/kesilirse `GCM_INTERACTIVE=never GIT_TERMINAL_PROMPT=0` orta
 retry edilebilir.
 
 ## Sıradaki Adımlar / Backlog
+
+**Roadmap durumu (2026-08-31):** Faz 8B ve Faz 8D TAMAMLANDI. Roadmap sırasına göre
+sıradaki resmi adım **K3** (Carver/"Systematic Trading" kitap çıkarımı,
+bilgi-bankasi/teknik/11 — bu oturumda `trend.ewmac`'in forecast scalar'ı için
+gerekli olduğu görüldü, henüz çıkarılmadı) → Faz 8E → Faz 10 → Faz 9. Aşağıdaki
+backlog listesi (1-5) bu roadmap'ten BAĞIMSIZ, ayrı bir kullanıcı kararı bekleyen
+öneriler.
 
 Detaylı öneri raporu: **Medyan Rotasyon Notu** (artifact olarak yayınlandı, kullanıcıda linki
 var). Özet:

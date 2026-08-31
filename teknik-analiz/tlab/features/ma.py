@@ -32,6 +32,33 @@ def hull(series: pd.Series, window: int) -> pd.Series:
     return wma(raw, sqrt_w)
 
 
+def kama(series: pd.Series, er_window: int = 10, fast: int = 2, slow: int = 30) -> pd.Series:
+    """Kaufman Adaptive Moving Average (Faz 8D, ch1 STRAT atfı).
+
+    Verimlilik oranı (efficiency ratio) ER = |net değişim| / toplam mutlak
+    değişim (er_window penceresinde) — trend güçlüyse ER~1 (hızlı MA'ya
+    yakın davranır), yatay/gürültülüyse ER~0 (yavaş MA'ya yakın davranır).
+    Smoothing constant SC = (ER*(fast_sc-slow_sc)+slow_sc)^2, fast_sc/slow_sc
+    klasik EMA span->alpha dönüşümüyle (2/(n+1)). KAMA[t] = KAMA[t-1] +
+    SC[t]*(close[t]-KAMA[t-1]) — özyinelemeli ama yalnızca t-1 ve öncesini
+    kullanır (non-repaint); ilk değer er_window'daki ilk kapanışa sabitlenir."""
+    change = (series - series.shift(er_window)).abs()
+    volatility = series.diff().abs().rolling(er_window).sum()
+    er = (change / volatility.replace(0.0, np.nan)).fillna(0.0)
+    fast_sc = 2.0 / (fast + 1)
+    slow_sc = 2.0 / (slow + 1)
+    sc = (er * (fast_sc - slow_sc) + slow_sc) ** 2
+
+    values = np.full(len(series), np.nan)
+    if len(series) > er_window:
+        values[er_window] = series.iloc[er_window]
+        sc_arr = sc.to_numpy()
+        close_arr = series.to_numpy()
+        for i in range(er_window + 1, len(series)):
+            values[i] = values[i - 1] + sc_arr[i] * (close_arr[i] - values[i - 1])
+    return pd.Series(values, index=series.index)
+
+
 def crossovers(fast: pd.Series, slow: pd.Series) -> pd.Series:
     """Her barda kesişim yönü: fast slow'u yukarı kestiyse "up", aşağı
     kestiyse "down", aksi halde NaN (object dtype — pandas, boş object

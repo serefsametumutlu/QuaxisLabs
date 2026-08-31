@@ -23,6 +23,7 @@ from tlab.core.types import IndicatorResult, Market, Timeframe
 from tlab.data.calendar import last_closed_session
 from tlab.data.providers.yfinance_provider import YFinanceProvider
 from tlab.data.store import Store
+from tlab.data.universe import BENCHMARK_SYMBOL
 from tlab.data.validate import DataQualityReport, check_data_quality
 from tlab.scanner.results import DataQualityRecord, SymbolIndicatorRun
 
@@ -129,6 +130,83 @@ def _run_pair_worker(
         }
 
 
+def _run_universe_worker(
+    indicator_name: str, market_value: str, timeframe_value: str, universe_symbols: list[str],
+    lookback_bars: int, drop_open_bar: bool,
+) -> dict:
+    """Faz 8D "universe" kategorisi (`needs_universe=True`) için TEK bir iş:
+    tüm evren + endeks çekilir, indikatör BİR KEZ çağrılır (`{symbol:
+    IndicatorResult}` döner). Sembol başına başarısız veri çekimi TÜM işi
+    durdurmaz (`symbol_errors`'a düşer); indikatörün KENDİSİ de yetersiz
+    geçmişi olan sembolleri sessizce atlayabilir (bkz. `UniverseIndicator`
+    docstring'i — dönen sözlük `universe`'in ALT KÜMESİ olabilir), bu da
+    `symbol_errors`'a DÜŞMEZ (hata değil, tasarım gereği filtre)."""
+    from tlab.indicators.bootstrap import CATALOG
+
+    t0 = time.perf_counter()
+    market, timeframe = Market(market_value), Timeframe(timeframe_value)
+    out: dict = {
+        "indicator": indicator_name, "market": market_value, "timeframe": timeframe_value,
+        "symbol_results": {}, "symbol_errors": {}, "error": None, "duration_s": 0.0,
+    }
+    try:
+        universe_dfs: dict[str, pd.DataFrame] = {}
+        for symbol in universe_symbols:
+            try:
+                universe_dfs[symbol] = _fetch_and_prepare(
+                    symbol, market, timeframe, lookback_bars, drop_open_bar
+                )
+            except Exception as exc:  # noqa: BLE001 — tek sembol veri hatası taramayı durdurmamalı
+                out["symbol_errors"][symbol] = f"{type(exc).__name__}: {exc}"
+
+        benchmark_symbol = BENCHMARK_SYMBOL[market]
+        index_df = _fetch_and_prepare(
+            benchmark_symbol, market, timeframe, lookback_bars, drop_open_bar
+        )
+        indicator = CATALOG[indicator_name].factory()
+        results = indicator(universe_dfs, index_df)
+        out["symbol_results"] = {sym: r.to_json() for sym, r in results.items()}
+    except Exception as exc:  # noqa: BLE001 — bkz. _run_single_worker
+        out["error"] = f"{type(exc).__name__}: {exc}"
+    out["duration_s"] = time.perf_counter() - t0
+    return out
+
+
+def _universe_result_to_runs(raw: dict) -> list[IndicatorRunResult]:
+    """`_run_universe_worker`'ın TEK sözlük çıktısını, motorun geri
+    kalanının (ResultsStore/diff/dashboard) beklediği düz `IndicatorRunResult`
+    listesine açar — bu satırdan SONRASI universe/tekil ayrımını bilmez."""
+    if raw["error"] is not None:
+        # İndikatör/endeks düzeyinde genel bir hata — hangi sembole ait
+        # olduğu bilinmiyor, tek bir "evren" satırı olarak kaydedilir.
+        return [
+            IndicatorRunResult(
+                symbol=f"__universe__:{raw['indicator']}", market=raw["market"],
+                timeframe=raw["timeframe"], indicator=raw["indicator"], params_hash="",
+                result=None, error=raw["error"], duration_s=raw["duration_s"],
+            )
+        ]
+    runs = []
+    for symbol, result_json in raw["symbol_results"].items():
+        result = IndicatorResult.from_json(result_json)
+        runs.append(
+            IndicatorRunResult(
+                symbol=symbol, market=raw["market"], timeframe=raw["timeframe"],
+                indicator=raw["indicator"], params_hash=result.params_hash,
+                result=result, error=None,
+                duration_s=raw["duration_s"] / max(1, len(raw["symbol_results"])),
+            )
+        )
+    runs += [
+        IndicatorRunResult(
+            symbol=symbol, market=raw["market"], timeframe=raw["timeframe"],
+            indicator=raw["indicator"], params_hash="", result=None, error=error, duration_s=0.0,
+        )
+        for symbol, error in raw["symbol_errors"].items()
+    ]
+    return runs
+
+
 def _to_indicator_run_result(raw: dict) -> IndicatorRunResult:
     result = (
         IndicatorResult.from_json(raw["result_json"]) if raw["result_json"] is not None else None
@@ -176,13 +254,16 @@ def run(
 ) -> ScanRun:
     """`indicator_names` "pair" kategorisindeyse `pairs` listesi (Y,X)
     çiftleri üzerinde çalışır (`universe` YOK SAYILIR bu indikatörler için);
-    diğerleri `universe`'in her sembolü için ayrı ayrı çalışır."""
+    "universe" kategorisindeyse (`needs_universe=True`, Faz 8D) her zaman
+    dilimi için TEK bir iş olarak (evrenin TAMAMI + endeks) çalışır; diğerleri
+    `universe`'in her sembolü için ayrı ayrı çalışır."""
     from tlab.indicators.bootstrap import CATALOG, populate_registry
 
     populate_registry()
     started_at = datetime.now(UTC)
     jobs_single: list[tuple] = []
     jobs_pair: list[tuple] = []
+    jobs_universe: list[tuple] = []
 
     for name in indicator_names:
         spec = CATALOG.get(name)
@@ -194,6 +275,10 @@ def run(
                     jobs_pair.append(
                         (y_sym, x_sym, market.value, tf.value, name, lookback_bars, drop_open_bar)
                     )
+            elif spec.needs_universe:
+                jobs_universe.append(
+                    (name, market.value, tf.value, universe, lookback_bars, drop_open_bar)
+                )
             else:
                 for symbol in universe:
                     jobs_single.append(
@@ -201,17 +286,25 @@ def run(
                     )
 
     max_workers = workers if workers is not None else max(1, (os.cpu_count() or 2) - 1)
-    total_jobs = len(jobs_single) + len(jobs_pair)
+    total_jobs = len(jobs_single) + len(jobs_pair) + len(jobs_universe)
     raw_results: list[dict] = []
+    raw_universe_results: list[dict] = []
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
         futures = [executor.submit(_run_single_worker, *job) for job in jobs_single]
         futures += [executor.submit(_run_pair_worker, *job) for job in jobs_pair]
+        universe_futures = [executor.submit(_run_universe_worker, *job) for job in jobs_universe]
         for done, future in enumerate(as_completed(futures), start=1):
             raw_results.append(future.result())
             if progress is not None:
                 progress(done, total_jobs)
+        for done, future in enumerate(as_completed(universe_futures), start=len(futures) + 1):
+            raw_universe_results.append(future.result())
+            if progress is not None:
+                progress(done, total_jobs)
 
     results = [_to_indicator_run_result(r) for r in raw_results]
+    for raw_universe in raw_universe_results:
+        results += _universe_result_to_runs(raw_universe)
 
     dq_symbols = sorted(set(universe) | {s for pair in (pairs or []) for s in pair})
     data_quality = (

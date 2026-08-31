@@ -637,6 +637,14 @@ _INDICATOR_EXPLAIN_TR: dict[str, str] = {
     "patterns.flag_pennant": "Bayrak/Flama Formasyonu",
     "patterns.double_top_bottom": "Çift Tepe/Dip Formasyonu",
     "patterns.broadening": "Genişleyen Formasyon",
+    "trend.ma_systems": (
+        "Çoklu MA Sistemi — kesişim, sıralama (ribbon) durumu, bant sıkışma/genişleme"
+    ),
+    "trend.ewmac": "EWMAC Forecast Bataryası (Carver) — çoklu ufuk trend takip sinyali",
+    "momentum.alpha_rank": "Alfa Sıralaması — evren-geneli rolling-alfa (endekse göre)",
+    "momentum.momentum_rank": (
+        "Momentum Sıralaması — çoklu-ufuk (12-1 tarzı) momentum + RS kırılımı"
+    ),
 }
 
 
@@ -1557,6 +1565,17 @@ _PANEL_TITLE_TR: dict[str, str] = {
     "macd": "MACD (Trend Momentumu)",
     "rsi": "RSI (Göreceli Güç Endeksi)",
     "channel_position": "Kanal İçi Pozisyon (%)",
+    # Faz 8D (momentum.alpha_rank/momentum_rank, trend.ma_systems/ewmac)
+    "vs_endeks": "Hisse vs Endeks (Normalize)",
+    "alfa_t_istatistik": "Yıllık Alfa + T-İstatistiği",
+    "beta": "Beta (Endekse Göre)",
+    "kumulatif_epsilon": "Kümülatif Artık Getiri (ε)",
+    "rs": "Rölatif Güç (RS)",
+    "rs_egim_t_istatistik": "RS Eğimi + T-İstatistiği",
+    "ufuklar": "Ufuklara Göre Momentum",
+    "fip": "FIP (Trend Tutarlılığı)",
+    "bant_genisligi": "MA Bant Genişliği (Sıkışma/Genişleme)",
+    "ewmac": "EWMAC Forecast (Carver)",
 }
 
 

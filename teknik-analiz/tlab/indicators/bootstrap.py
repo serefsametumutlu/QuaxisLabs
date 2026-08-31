@@ -30,7 +30,15 @@ sabit bir OLS penceresine dondurduğu için (bkz. modül docstring'i) YİNE
 `register_verified_elsewhere` kullanır — `HeadShouldersIndicator`/
 `DoubleTopBottomIndicator` ise `GoldenZoneIndicator` ile AYNI "yalnızca
 kesinleşmiş zigzag pivotları" mimarisini paylaştığı için generic
-`Registry.register()`'a TEMİZ kaydolur.
+`Registry.register()`'a TEMİZ kaydolur. Faz 8D `MASystems`
+(`trend.ma_systems`) de AYNI istisna yolunu kullanır — ama FARKLI bir
+gerekçeyle: aday havuzu YOK, sinyaller (kesişim/stack/squeeze) tamamen
+non-repaint'tir; sorun yalnızca HER MA'nın TAM (büyüyen) serisini tek bir
+`Line` primitifiyle (overlay) taşımasından kaynaklanır — `weekly_channel`'ın
+`channel_current`'ıyla AYNI kategori (`points` her barda uzar, generic
+`repaint_test`'in Line eşleştirmesi `(points, label)` TAM eşitliği aradığı
+için bunu "değişti" sanır). Sinyallerin GERÇEK non-repaint'liği `tests/
+test_trend/test_ma_systems.py`'de hedefli testlerle doğrulanır.
 
 `CATALOG`: {indikatör_adı: IndicatorSpec} — scanner motoru (Faz 6) bunu
 kullanır (`Registry`'nin kendisi değil), çünkü motor context'li (pair)
@@ -47,6 +55,8 @@ import pandas as pd
 
 from tlab.core.indicator import BaseIndicator, RegistryError, registry
 from tlab.indicators.harmonics.scanner_indicator import HarmonicIndicator, HarmonicParams
+from tlab.indicators.momentum.alpha_rank import AlphaRank, AlphaRankParams
+from tlab.indicators.momentum.momentum_rank import MomentumRank, MomentumRankParams
 from tlab.indicators.pairs.relative_momentum import RelativeMomentumPair, RelativeMomentumParams
 from tlab.indicators.patterns.broadening import BroadeningIndicator, BroadeningParams
 from tlab.indicators.patterns.double_top_bottom import (
@@ -61,6 +71,8 @@ from tlab.indicators.structure.price_structure import PriceStructure, PriceStruc
 from tlab.indicators.structure.supply_demand import SupplyDemandIndicator, SupplyDemandParams
 from tlab.indicators.structure.swing_fib_abcd import SwingFibABCD, SwingFibABCDParams
 from tlab.indicators.trend.breakouts import BreakoutParams, MultiBreakout
+from tlab.indicators.trend.ewmac import EWMACIndicator, EwmacParams
+from tlab.indicators.trend.ma_systems import MASystems, MASystemsParams
 from tlab.indicators.trend.weekly_channel import ChannelIndicator, ChannelParams
 
 _HARMONIC_SCHOOLS = (
@@ -73,8 +85,13 @@ _HARMONIC_SCHOOLS = (
 class IndicatorSpec:
     name: str
     category: str
-    factory: Any  # () -> BaseIndicator
+    factory: Any  # () -> BaseIndicator | UniverseIndicator
     needs_context: bool = False
+    # Faz 8D: "universe" kategorisi (`alpha_rank`/`momentum_rank`) — motor
+    # (scanner/engine.py) `universe`'in her sembolü için AYRI bir iş
+    # AÇMAZ, tüm evren + endeksi TEK bir işte `UniverseIndicator.__call__`e
+    # verir (bkz. `tlab/core/indicator.py::UniverseIndicator` docstring'i).
+    needs_universe: bool = False
 
 
 def _harmonic_factory(school: str) -> Any:
@@ -142,6 +159,22 @@ def build_catalog() -> dict[str, IndicatorSpec]:
         name="patterns.broadening", category="patterns",
         factory=lambda: BroadeningIndicator(BroadeningParams()),
     )
+    catalog["trend.ewmac"] = IndicatorSpec(
+        name="trend.ewmac", category="trend",
+        factory=lambda: EWMACIndicator(EwmacParams()),
+    )
+    catalog["trend.ma_systems"] = IndicatorSpec(
+        name="trend.ma_systems", category="trend",
+        factory=lambda: MASystems(MASystemsParams()),
+    )
+    catalog["momentum.alpha_rank"] = IndicatorSpec(
+        name="momentum.alpha_rank", category="momentum",
+        factory=lambda: AlphaRank(AlphaRankParams()), needs_universe=True,
+    )
+    catalog["momentum.momentum_rank"] = IndicatorSpec(
+        name="momentum.momentum_rank", category="momentum",
+        factory=lambda: MomentumRank(MomentumRankParams()), needs_universe=True,
+    )
     return catalog
 
 
@@ -199,11 +232,21 @@ def populate_registry() -> None:
     for spec in CATALOG.values():
         instance = spec.factory()
         try:
-            if spec.name in (
+            if spec.needs_universe:
+                # `UniverseIndicator.__call__({symbol: df}, index_df)` — generic
+                # `repaint_test`'in `BaseIndicator.__call__(df, context)` imzasıyla
+                # UYUMSUZ (tamamen farklı bir sözleşme, bkz. `tlab/core/
+                # indicator.py::UniverseIndicator` docstring'i). Non-repaint
+                # sözleşmesi KENDİ dedicated testinde (bkz. `tests/
+                # test_momentum/test_universe_repaint.py`) doğrulanır — bu
+                # yol yalnızca kayıt/isim çakışması kontrolü yapar.
+                registry.register_verified_elsewhere(instance)
+            elif spec.name in (
                 "structure.price_structure", "trend.breakouts",
                 "structure.supply_demand", "trend.weekly_channel",
                 "patterns.wedge", "patterns.triangle",
                 "patterns.flag_pennant", "patterns.broadening",
+                "trend.ma_systems",
             ):
                 registry.register_verified_elsewhere(instance)
             elif spec.needs_context:

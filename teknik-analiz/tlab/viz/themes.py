@@ -157,6 +157,15 @@ _LINE_STYLE_COLOR: dict[str, str] = {
     "pattern_boundary": "muted",
     "pattern_target": "accent",
     "pattern_pole": "orange",
+    # Faz 8D (trend.ma_systems) — varsayılan periyot kümesi (8/21/55/200)
+    # için sabit renk; kullanıcı FARKLI periyotlar seçerse `line_color()`'ın
+    # jenerik `gray` düşüşüne düşer (bilinçli basitleştirme — periyot sayısı
+    # çalışma zamanında değişebildiği için sonsuz bir palet tanımlamak yerine
+    # en yaygın/varsayılan durum renklendirilir).
+    "ma_8": "blue",
+    "ma_21": "orange",
+    "ma_55": "purple",
+    "ma_200": "accent",
 }
 
 _FILL_STYLE_COLOR: dict[str, str] = {

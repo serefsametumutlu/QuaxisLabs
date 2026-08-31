@@ -22,7 +22,14 @@ def test_second_call_is_idempotent() -> None:
 
 def test_catalog_has_expected_categories() -> None:
     categories = {spec.category for spec in CATALOG.values()}
-    assert categories == {"harmonics", "structure", "pair", "trend", "patterns"}
+    assert categories == {"harmonics", "structure", "pair", "trend", "patterns", "momentum"}
     assert sum(1 for s in CATALOG.values() if s.category == "harmonics") == 8
     assert CATALOG["pair.relative_momentum"].needs_context is True
     assert CATALOG["structure.swing_fib_abcd"].needs_context is False
+
+
+def test_universe_indicators_flagged_needs_universe() -> None:
+    assert CATALOG["momentum.alpha_rank"].needs_universe is True
+    assert CATALOG["momentum.momentum_rank"].needs_universe is True
+    assert CATALOG["trend.ma_systems"].needs_universe is False
+    assert CATALOG["trend.ewmac"].needs_universe is False

@@ -50,3 +50,18 @@ presets:
           "sym_triangle_confirmed", "asc_triangle_confirmed", "desc_triangle_confirmed",
           "bayrak_confirmed", "flama_confirmed",
         ]
+  # Faz 8D — "universe" kategorisi (momentum.alpha_rank/momentum_rank):
+  # scanner motoru bunları evrenin TAMAMI için TEK işte çalıştırır (bkz.
+  # tlab/scanner/engine.py::_run_universe_worker), sonuç yine sembol
+  # başına düz sinyal satırına açılır — filtre mekanizması diğer
+  # preset'lerle AYNIDIR.
+  alpha_top:
+    description: "Alfa sıralamasının ilk %10'una YENİ giren (likit) hisseler (momentum.alpha_rank)"
+    indicators: ["momentum.alpha_rank"]
+    filter:
+      events: ["alpha_entry"]
+  momentum_top:
+    description: "Momentum sıralamasının ilk %10'una YENİ giren ya da yeni RS (52h) zirvesi yapan hisseler (momentum.momentum_rank)"
+    indicators: ["momentum.momentum_rank"]
+    filter:
+      events: ["momentum_top_entry", "rs_breakout"]

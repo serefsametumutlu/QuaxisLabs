@@ -39,6 +39,10 @@ STYLE_TR: dict[str, str] = {
     "pattern_target": "Hedef",
     "pattern_pole": "Direk",
     "pattern_consolidation": "Konsolidasyon",
+    "ma_8": "MA (Hızlı)",
+    "ma_21": "MA (Orta-Hızlı)",
+    "ma_55": "MA (Orta-Yavaş)",
+    "ma_200": "MA (Yavaş)",
 }
 
 DIRECTION_TR: dict[str, str] = {"long": "AL", "short": "SAT", "neutral": "NÖTR"}
@@ -49,6 +53,7 @@ INDICATOR_CATEGORY_TR: dict[str, str] = {
     "pair": "Pair (Rölatif Momentum)",
     "trend": "Trend",
     "patterns": "Klasik Formasyon",
+    "momentum": "Momentum/Alfa Sıralaması",
 }
 
 

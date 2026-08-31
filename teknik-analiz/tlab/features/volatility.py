@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 import numpy as np
@@ -83,6 +84,61 @@ def keltner(df: pd.DataFrame, n: int = 20, atr_period: int = 10, k: float = 2.0)
     upper = mid + k * a
     lower = mid - k * a
     return Keltner(mid=mid, upper=upper, lower=lower)
+
+
+def garch11_forecast(
+    returns: pd.Series, window: int = 252, refit_stride: int = 21, annualize: bool = True,
+) -> pd.Series:
+    """GARCH(1,1) koşullu oynaklık tahmini (Faz 8E — `arch` paketi).
+
+    MLE fit HER barda tekrarlamak pahalı olduğu için yalnızca `refit_stride` barda
+    bir yeniden fit edilir (`window` bar trailing pencereyle — yalnızca [t-window+1,t]
+    kullanır, non-repaint). Aradaki barlarda son fit'in (omega, alpha, beta)
+    parametreleriyle GARCH özyinelemesi (σ²_t = ω + α·ε²_{t-1} + β·σ²_{t-1}) İLERİ
+    sarılır — ε_{t-1} her zaman GEÇMİŞ (t-1) getirisidir, σ²_{t-1} bir önceki barın
+    DURUMUDUR; ikisi de yalnızca t'den ÖNCEki bilgidir. Getiriler `arch` paketinin
+    MLE optimizasyonunun kararlılığı için ×100 ölçeklenir (yüzde), sonuç ÷100'e
+    geri çevrilir. Fit ıraksarsa (`ConvergenceWarning`/istisna) o pencere için NaN
+    döner (sessizce sıfır/uydurma değere düşülmez).
+    """
+    from arch import arch_model  # opsiyonel ağır bağımlılık — yalnızca burada import edilir
+
+    n = len(returns)
+    sigma = pd.Series(np.nan, index=returns.index)
+    if n <= window:
+        return sigma
+
+    ret_pct = returns.to_numpy(dtype=float) * 100.0
+    first_fit = window - 1
+    omega = alpha = beta = None
+    sigma2_state: float | None = None
+
+    for t in range(first_fit, n):
+        need_refit = omega is None or (t - first_fit) % refit_stride == 0
+        if need_refit:
+            window_ret = ret_pct[t - window + 1 : t + 1]
+            if np.any(np.isnan(window_ret)):
+                omega = alpha = beta = sigma2_state = None
+                continue
+            try:
+                am = arch_model(window_ret, vol="GARCH", p=1, q=1, mean="Zero", rescale=False)
+                res = am.fit(disp="off", show_warning=False)
+                omega = float(res.params["omega"])
+                alpha = float(res.params["alpha[1]"])
+                beta = float(res.params["beta[1]"])
+                sigma2_state = float(res.conditional_volatility[-1] ** 2)
+            except Exception:  # noqa: BLE001 — MLE ıraksaması: bu bar NaN kalır, uydurma değer YOK
+                omega = alpha = beta = sigma2_state = None
+                continue
+        else:
+            eps_prev = ret_pct[t - 1]
+            sigma2_state = omega + alpha * eps_prev**2 + beta * sigma2_state  # type: ignore[operator]
+
+        sigma.iloc[t] = math.sqrt(sigma2_state) / 100.0
+
+    if annualize:
+        sigma = sigma * math.sqrt(252)
+    return sigma
 
 
 def vol_zscore(close: pd.Series, vol_window: int = 20, zscore_window: int = 100) -> pd.Series:

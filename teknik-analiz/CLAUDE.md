@@ -1528,9 +1528,163 @@ için `tlab/testing/lint_lookahead.py` da var (CLI: `tlab lint`).
   (BASELINE İLE AYNI, `renderer.py`/`dashboard.py` — bu göreve AİT DEĞİL),
   `lint_lookahead` 2 uyarı (BASELINE İLE AYNI).
 
-Toplam 474 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
+- **Faz 8E — Sürekli ağırlıklı oynaklık hasadı, dönüş haritası (confluence),
+  güvenli tarama filtreleri** (2026-08-31): TAMAMLANDI. Master prompt'un
+  "Bölüm 12.12"sine (tam `scans.yaml` preset kataloğu) atıf yapıyordu ama bu
+  bölüm/doküman repo'da HİÇBİR YERDE bulunamadı (`git ls-tree -r origin/main`
+  ile doğrulandı) — Faz 8A'da AYNI türde eksik bir referansla karşılaşıldığında
+  izlenen emsal takip edildi: mühendislik takdiriyle makul bir alt küme
+  üretilip her tasarım kararı kod içinde "TASARIM KARARI" olarak belgelendi.
+  1. **`features/volatility.py::garch11_forecast(returns, window=252,
+     refit_stride=21, annualize=True)`** — `arch` paketiyle GARCH(1,1)
+     volatilite tahmini, GARCH `refit_stride` deseninde (Faz 6/8A'nın
+     `check_stride` mantığıyla AYNI performans gerekçesi): her `refit_stride`
+     barda [t-window+1,t] penceresiyle yeniden fit edilir, aradaki barlarda
+     son (ω,α,β) ile σ² İLERİ sarılır (yalnızca t-1'deki bilgi kullanır,
+     non-repaint). Getiriler MLE kararlılığı için ×100 ölçeklenir. Fit
+     ıraksarsa (`except Exception`) o pencere NaN kalır — uydurma değere
+     DÜŞÜLMEZ. THYAO gerçek verisiyle doğrulandı (~%29-30 yıllıklaştırılmış
+     vol, makul). 4 yeni test.
+  2. **`pair.vol_harvest` (`tlab/indicators/pairs/vol_harvest.py::
+     VolHarvestPair`)** — `RelativeMomentumPair` (Faz 5) ile AYNI Z-skor
+     makinesini paylaşır ama sinyal İKİLİ DEĞİL: Z-skora göre SÜREKLİ bir
+     hedef ağırlık `w_target(z)` üretir (`weight_fn="linear"`: `0.5-slope·z`
+     `w_min`/`w_max`'a kırpılır; `"grid"`: `grid_levels` eşiklerinde basamaklı
+     `math.copysign` adımlaması) ve yalnızca `rebalance_band` aşıldığında
+     rebalans eder. "Hasat" (harvest) = aktif rebalans edilen portföyün, HİÇ
+     rebalans edilmeyen statik bir al-tut'a göre FAZLASI. **Duraklama (pause)
+     mekanizması — backlog'daki "kointegrasyon çürüme izleyicisi" notunun
+     (madde 4, 2026-08-29) doğal karşılığı**: rolling ADF p-değeri
+     `adf_pause_p`'yi aşarsa VEYA rolling halflife `halflife_max`'ı aşarsa
+     VEYA (opsiyonel) oynaklık rejimi aşırı uçtaysa (`vol_regime_filter`,
+     `vol_zscore`) hedef ağırlık SON değerinde DONDURULUR; kontrol HER barda
+     değil `check_stride` barda bir yapılır (ADF testi ucuz değil). `tlab/
+     backtest/pairs_engine.py::run_pair_backtest_weighted` — yeni sürekli-
+     ağırlıklı motor, `shares_y`/`shares_x` takip eder, drift `rebalance_band`ı
+     aşınca EXACT hedefe rebalans eder, komisyonu yalnızca TİCARET EDİLEN
+     değer üzerinden uygular.
+  3. **GERÇEK HATA bulundu ve düzeltildi (kayıt-anı repaint testiyle
+     yakalandı, tam da bu altyapının tasarlandığı senaryo)**: pause/resume
+     Signal payload'ları `adf_p_last`/`hl_last` module-döngü değişkenlerini
+     TÜM hesap biterken taşıdıkları SON değerle okuyordu — olay barı `t`'deki
+     GERÇEK değeri değil, serinin en son `check_stride` kontrolündeki değeri
+     yazıyordu (kısmi/tam koşu karşılaştırıldığında `populate_registry()`
+     erken barlarda gerçek bir mismatch bastı). Düzeltme: `pause_reason:
+     dict[int, str]` → `dict[int, tuple[str, float, float]]`, olayın
+     GERÇEKLEŞTİĞİ ANDA `(reason, adf_p_last, hl_last)` olarak yakalanıp
+     sinyal döngüsünde bu anlık değerler kullanılıyor. Ayrıca `math.isinf`
+     kontrolü eklendi (halflife mean-reversion olmayan spread'lerde `inf`
+     olabilir, JSON'a yazılamaz — `None`'a çevrilir).
+  4. **Görsel yeniden kullanım** — `_render_pair`/`_pair_header_lines`
+     (Faz 5 için yazıldı) `VolHarvestPair`e uyumlu `last_state` alias'ları
+     eklenerek (`holding`/`signal_today`/`zone_state`/`n_trades`/
+     `buyhold_5050`) ÜCRETSİZ yeniden kullanıldı; yeni
+     `_STRATEGY_NAME_TR_BY_INDICATOR` sözlüğü doğru strateji adını
+     (`result.indicator`e göre) seçiyor — ilk taslakta hardcoded
+     `_STRATEGY_NAME_TR` sabiti YANLIŞ strateji adı/geçiş sayısı/Z-skor
+     gösteriyordu, gerçek TCELL/ISCTR render'ıyla bulunup düzeltildi.
+     **DÜRÜST NOT (ERTELENDİ)**: görev metninin istediği 4. panel (w_Y adım
+     grafiği + rebalans markerları) HENÜZ ÇİZİLMEDİ — altta yatan veri
+     (`w_target`/`w_actual`/`harvest_rebalance` marker'ları)
+     `IndicatorResult`'ta HAZIR duruyor, ayrı bir görsel geliştirme turunda
+     eklenebilir; mevcut 3 panel (fiyat/portföy/Z-skor) `_render_pair`'den
+     ÜCRETSİZ miras alınıyor.
+  5. **`tlab/scanner/confluence.py::build_reversal_map`** — YENİ bir
+     mimari kategori: `tlab/indicators/`de DEĞİL, girdisi ham OHLCV değil
+     ZATEN HESAPLANMIŞ birden fazla `IndicatorResult` (structure.
+     supply_demand/golden_zone/price_structure, trend.weekly_channel,
+     harmonic.*, structure.swing_fib_abcd) — bu yüzden `BaseIndicator`
+     sözleşmesine UYMAZ, `scanner/` altında yaşayan bir "post-processing"
+     katmanı. **Kapsam (bilinçli): yalnızca DESTEK/DİP tarafı** — görev
+     metninin `bottom_probability`/"DİPTE OLASI" adlandırması bunu
+     doğruluyor, direnç/tepe tarafı bu turun DIŞINDA (simetrik "TEPEDE
+     OLASI" haritası ileride aynı iskeletle eklenebilir). Ağırlıklandırma =
+     kaynak_türü_temel_ağırlığı (`_SOURCE_BASE_WEIGHT`/`_HARMONIC_BASE_
+     WEIGHT` — TASARIM KARARI, görev metni sayısal değer vermiyor, dar/
+     keskin bölgeler EN YÜKSEK, istatistiksel referans seviyeleri EN
+     DÜŞÜK) × tazelik (`2^(-yaş_gün/45)`, EWMA/EWMAC'ın üstel çürüme
+     deseniyle TUTARLI) × tf_ağırlığı (W1=1.5/1D=1.0/4H=0.6, görev
+     metninin sabit çarpanları). Aday fiyatları ATR-bazlı bucket'lara
+     (`bucket_atr_fraction`) toplanıp yoğunluk profili (`price_structure.
+     py`'nin `vp_bins`/`vp_volumes` price-indexed konvansiyonuyla BİREBİR
+     aynı) çıkarılır; `bottom_probability = 1-exp(-yoğunluk/ölçek)` en son
+     ONAYLI (`finalized_idx`, GoldenZone/HeadShoulders ile AYNI non-repaint
+     gerekçe) swing low'un bucket'ında hesaplanır. `tlab/viz/renderer.py::
+     render_reversal_map` — katmanlı bölge kutuları (opaklık=ağırlık,
+     genel `_draw_boxes` KULLANILMAZ çünkü o sabit opaklık varsayar) + sağ
+     panelde yoğunluk histogramı + "DİPTE OLASI: X | N kaynak" etiketi.
+     THYAO gerçek verisiyle render edilip gözle doğrulandı.
+  6. **`tlab/scanner/filter_expr.py`** — `eval()` KULLANMADAN güvenli AST
+     tabanlı ifade değerlendirici (görev metninin açık isteği): yalnızca
+     `Compare`/`BoolOp`/`UnaryOp(Not)`/`Name`/`Constant`/`Tuple`/`List`
+     düğümlerine izin verir, `Call`/`Attribute`/atama/comprehension/lambda
+     dahil HER ŞEY reddedilir (`__import__`, `.bit_length()`, `.__class__`
+     ile test edildi). `tlab/cli.py::_signal_passes_filter`e `expr` dalı
+     eklendi (`signal.payload`+`score`+`direction`+`state` namespace'i).
+     `config/scans.yaml`'a 3 yeni preset: `hasat_duraklatildi`/
+     `hasat_devam` (`pair.vol_harvest`, `--pairs` mekanizmasıyla — diğer
+     pair preset'leriyle AYNI), `dipte_olasi` (`indicators: ["confluence"]`
+     + `expr: "bottom_probability >= 0.5 and n_sources >= 3"` — `expr`
+     alanının GERÇEK kullanım örneği).
+  7. **`tlab eod --build-reversal-maps`** — `run_eod()`'a `build_
+     reversal_maps: bool = False` parametresi + `_build_confluence_runs()`
+     (universe'i gezip her sembol için `build_reversal_map_from_run()`
+     çağırır, per-symbol try/except ile hata izolasyonu — kod tabanının
+     GENEL desenine uygun) eklendi. **GERÇEK EKSİK bulunup düzeltildi**: bu
+     parametre `run_eod()`'a eklenmişti ama `tlab/cli.py::eod_cmd`'ye
+     KARŞILIK GELEN `--build-reversal-maps` CLI bayrağı hiç YAZILMAMIŞTI —
+     `config/scans.yaml`'ın kendi yorumu `tlab eod --build-reversal-maps`den
+     bahsediyordu ama komut fiilen ÇALIŞMAZDI (mypy/ruff/pytest bunu
+     yakalamaz, yalnızca elle `--help` denemesiyle fark edildi). Düzeltildi,
+     `PYTHONIOENCODING=utf-8 python -m tlab.cli eod --help` ile bayrağın
+     göründüğü doğrulandı.
+  8. **`ResultsStore` — geri okuma yolu**: `read_result(run_id, symbol, tf,
+     indicator)` (JSON'dan TAM `IndicatorResult` geri okur, yoksa `None`)
+     ve `list_symbol_indicators(run_id, tf=None)` — confluence.py'nin
+     `results.db`'den ZATEN hesaplanmış indikatör sonuçlarını okuma
+     ihtiyacı için (Faz 6'nın `persist()`/`query()`'sinin eksik kalan
+     karşılığı — o zamana kadar hiçbir tüketici tam sonuç geri okumaya
+     ihtiyaç duymamıştı).
+  9. **Testler** — 32 yeni (474→506): `test_volatility.py` (+4, GARCH),
+     `test_pairs/test_pairs_engine.py` (+4, ağırlıklı motor: aktif ağırlık
+     hep [0,1], bant-içi rebalans yok, bant-aşımı tetikler, hiç rebalans
+     olmazsa hasat sıfır), `test_pairs/test_vol_harvest.py` (+6),
+     `test_scanner/test_confluence.py` (+7, destek-only filtre/kırık
+     bölge dışlama/geçersiz harmonik dışlama/ağırlık toplamı/gerçek swing
+     low tespiti + gerçek TCELL/ISCTR uçtan uca smoke), `test_filter_expr.py`
+     (+11, parametrized tehlikeli-ifade reddi dahil), `test_scanner/
+     test_engine_and_results.py`/`test_bootstrap.py` (mevcut testlere
+     `read_result`/`list_symbol_indicators`/`pair.vol_harvest` katalog
+     doğrulaması eklendi).
+  10. **Gerçek veri doğrulaması** — `_build_confluence_runs` gerçek
+      `outputs/results.db`nin en güncel çalışmasına (`bist_2026-08-28`)
+      karşı TCELL/ISCTR/AKBNK/GARAN için elle çalıştırıldı, 4/4 sembol
+      hatasız `confluence` sonucu üretti.
+  **DÜRÜST NOT — ERTELENEN kalemler (bilinçli, kayıt altında)**:
+  (a) Görev metninin 4. maddesindeki EOD rapor sekmeleri (preset başına
+  grafik linki, "Dipte olası" sekmesi reversal_map grafiklerine bağlı) —
+  `tlab/viz/report.py`ye HİÇ dokunulmadı, ayrı bir takip işi;
+  (b) tam evren × (4H,1D,W1) × tüm registry performans ölçümü (madde 6) —
+  bu ölçekte bir koşu (622 sembol × 3 TF × ~20 indikatör) saatler
+  sürebilir, bu oturumun bütçesine SIĞMADI; küçük ölçekli (4 sembol)
+  gerçek-veri doğrulaması yapıldı ama tam-ölçek ekstrapolasyon YOK —
+  Faz 6/8A/8D'nin de aynı şekilde "küçük örneklemden ekstrapolasyon"
+  ilkesini izlediği emsal not edilerek ertelendi; (c) confluence'ın
+  direnç/tepe tarafı ("TEPEDE OLASI") kapsam dışı bırakıldı (madde 5'te
+  açıklandı). `pytest -q -m "not network"` 506/506 yeşil, `ruff check
+  tlab/ tests/` 18 hata (BASELINE İLE AYNI, yeni dosyalarda SIFIR),
+  `mypy tlab/` 2 hata (BASELINE İLE AYNI — `renderer.py::_pair_header_
+  lines`/`dashboard.py`, bu göreve AİT DEĞİL), `lint_lookahead` 3 uyarı
+  (BASELINE 2 + `vol_harvest.py:174` — AYNI bilinen false-positive
+  kategorisi, `.iloc[window_start:t+1]` geriye-bakan pencere sonu `t+1`
+  ifadesi lint'in `.iloc[i+...]` sezgisini tetikliyor, `relative_
+  momentum.py:163`/`kerkez_nenstar.py:34` ile AYNI kök neden — GERÇEK bir
+  lookahead DEĞİL).
+
+Toplam 506 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
 ruff/mypy/lint_lookahead temiz (yeni kod kapsamında — repo genelindeki 18 ruff/2
-lint_lookahead uyarısı önceden var olan, ilgisiz satırlardır).
+mypy/3 lint_lookahead uyarısı önceden var olan ya da bilinen false-positive,
+ilgisiz satırlardır).
 
 ## Repo Yapısı / Modül Haritası
 

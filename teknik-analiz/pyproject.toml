@@ -21,6 +21,7 @@ dependencies = [
     "google-genai",
     "anthropic",
     "streamlit",
+    "arch",
 ]
 
 [project.optional-dependencies]

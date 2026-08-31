@@ -65,3 +65,27 @@ presets:
     indicators: ["momentum.momentum_rank"]
     filter:
       events: ["momentum_top_entry", "rs_breakout"]
+  # Faz 8E — `pair.vol_harvest` bir "pair" indikatörüdür (needs_context), bu
+  # yüzden bu preset `tlab scan` yerine `--pairs` (config/pairs.yaml) ile
+  # verilen çiftlerde çalışır (diğer pair preset'leriyle AYNI mekanizma).
+  hasat_duraklatildi:
+    description: "Kointegrasyon/oynaklık rejimi bozulduğu için REBALANS DURDURULMUŞ çiftler (pair.vol_harvest)"
+    indicators: ["pair.vol_harvest"]
+    filter:
+      events: ["harvest_paused"]
+  hasat_devam:
+    description: "Duraklamadan ÇIKIP rebalansa yeniden başlayan çiftler (pair.vol_harvest)"
+    indicators: ["pair.vol_harvest"]
+    filter:
+      events: ["harvest_resumed"]
+  # `confluence` gerçek bir katalog indikatörü DEĞİLDİR (bkz. tlab/scanner/
+  # confluence.py) — `tlab eod --build-reversal-maps` ile ÜRETİLİP AYNI
+  # results.db'ye yazılır, bu preset'ler `tlab scan`'de DEĞİL yalnızca
+  # `tlab signals --indicator confluence` ya da EOD raporunun "Dipte Olası"
+  # sekmesinde anlamlıdır.
+  dipte_olasi:
+    description: "Çoklu kaynak (arz/talep, golden zone, POC/VAH/VAL, harmonik PRZ, AB=CD hedefi) desteğine denk gelen olası dip bölgeleri (confluence)"
+    indicators: ["confluence"]
+    filter:
+      events: ["reversal_confluence"]
+      expr: "bottom_probability >= 0.5 and n_sources >= 3"

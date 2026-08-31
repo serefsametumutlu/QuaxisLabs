@@ -1998,6 +1998,96 @@ def render_structure_report(
     return fig
 
 
+# ---------------------------------------------------------- dönüş haritası --
+#
+# Faz 8E (`tlab/scanner/confluence.py::build_reversal_map`) — HESAP burada
+# YAPILMAZ, yalnızca `result.last_state["zones"]`teki (ZATEN ağırlıklandırılmış)
+# bölgeler + `vp_bins`/`vp_volumes` (yoğunluk profili, `_draw_volume_profile`
+# ile PAYLAŞILAN aynı çizim yolu) çizilir. Genel `_draw_boxes`'ı KULLANMAZ —
+# o fonksiyon sabit opaklık varsayar, burada "opaklık = ağırlık" (görev
+# metninin kendi isteği) gerektiği için özel bir kutu çizim döngüsü var.
+
+
+def render_reversal_map(
+    result: IndicatorResult, df: pd.DataFrame,
+    *, theme: Theme | str | None = "auto", last_n: int | None = None,
+) -> go.Figure:
+    """`confluence` IndicatorResult'ını çizer: katmanlı bölgeler (opaklık =
+    ağırlık), sağ panelde destek yoğunluk profili, "DİPTE OLASI: X | N kaynak"
+    etiketi + kısa dönüş-kaynağı açıklama kutusu."""
+    resolved = resolve_theme(theme, default=LIGHT_ANALYSIS)
+    has_vp = "vp_bins" in result.series and "vp_volumes" in result.series
+    n_cols = 2 if has_vp else 1
+
+    specs: list[list[dict[str, object]]] = [[{}, {}]] if has_vp else [[{}]]
+    column_widths = [1.0 - _VP_COLUMN_WIDTH, _VP_COLUMN_WIDTH] if has_vp else None
+    fig = make_subplots(
+        rows=1, cols=n_cols, shared_xaxes=False, specs=specs,
+        column_widths=column_widths, horizontal_spacing=0.02,
+    )
+
+    fig.add_trace(
+        go.Candlestick(
+            x=_xs(df.index), open=df["open"], high=df["high"], low=df["low"], close=df["close"],
+            increasing_line_color=resolved.up, decreasing_line_color=resolved.down,
+            increasing_fillcolor=resolved.up, decreasing_fillcolor=resolved.down,
+            name="Fiyat", showlegend=False,
+        ),
+        row=1, col=1,
+    )
+
+    window_start_idx = _resolve_window_start(result, df, last_n)
+
+    zones = result.last_state.get("zones") or []
+    for zone in sorted(zones, key=lambda z: z["weight_norm"]):
+        opacity = 0.06 + 0.40 * float(zone["weight_norm"])
+        color = with_alpha(resolved.green, opacity)
+        fig.add_shape(
+            type="rect", xref="x", yref="y",
+            x0=_x(df.index[window_start_idx]), x1=_x(df.index[-1]),
+            y0=zone["low"], y1=zone["high"],
+            fillcolor=color, line=dict(width=0), layer="below",
+            row=1, col=1,
+        )
+
+    swing_price = result.last_state.get("swing_low_price")
+    bottom_probability = result.last_state.get("bottom_probability", 0.0)
+    n_sources = result.last_state.get("n_sources", 0)
+    if swing_price is not None:
+        swing_time = result.last_state.get("swing_low_time")
+        fig.add_trace(
+            go.Scatter(
+                x=[_x(swing_time)] if swing_time else [], y=[swing_price],
+                mode="markers+text",
+                marker=dict(color=resolved.accent, size=11, symbol="triangle-up"),
+                text=[f"DİPTE OLASI: {bottom_probability:.2f} | {n_sources} kaynak"],
+                textposition="bottom center", textfont=dict(color=resolved.accent, size=11),
+                showlegend=False, name="Dönüş",
+            ),
+            row=1, col=1,
+        )
+
+    sources_desc = result.last_state.get("sources", "")
+    fig.add_annotation(
+        x=0.01, y=0.02, xref="x domain", yref="y domain", xanchor="left", yanchor="bottom",
+        text=f"Dönüş kaynakları: {sources_desc}", showarrow=False, align="left",
+        bgcolor=with_alpha(resolved.bg, 0.85), bordercolor=resolved.border, borderwidth=1,
+        font=dict(color=resolved.text, size=10.5, family=resolved.font),
+        row=1, col=1,
+    )
+
+    if has_vp:
+        _draw_volume_profile(fig, result, resolved, row=1, col=2)
+        _sync_price_yaxis(fig, df, window_start_idx, has_vp)
+
+    header = _Header(symbol=result.symbol, subtitle="Dönüş Haritası (Confluence)")
+    _apply_layout(fig, resolved, header, height=650, width=_DEFAULT_WIDTH)
+    if has_vp:
+        _position_vp_legend(fig, resolved)
+    fig.update_xaxes(range=[_x(df.index[window_start_idx]), _x(df.index[-1])], row=1, col=1)
+    return fig
+
+
 # ---------------------------------------------------------------- pair mod --
 #
 # 2026-08-29: kullanıcı, `_render_pair`e (o zaman) az önce uygulanan
@@ -2031,6 +2121,14 @@ _ZONE_STATE_TR: dict[str, str] = {
     "veri_yok": "VERİ YOK",
 }
 _STRATEGY_NAME_TR = "LONG-ONLY ROLATIF MOMENTUM (Dönüş Onaylı)"
+# Faz 8E — `pair.vol_harvest` `_render_pair`'in MEVCUT 3 panelini (bkz.
+# `vol_harvest.py`'nin `buyhold_5050` alias'ı) yeniden kullanıyor ama FARKLI
+# bir stratejidir (ikili geçiş değil, sürekli ağırlık) — sabit tek isim
+# YANLIŞ olurdu, indikatöre göre seçiliyor.
+_STRATEGY_NAME_TR_BY_INDICATOR: dict[str, str] = {
+    "pair.relative_momentum": _STRATEGY_NAME_TR,
+    "pair.vol_harvest": "SÜREKLİ AĞIRLIKLI OYNAKLIK HASADI (Z-Skor Rebalans)",
+}
 
 
 def _render_pair(result: IndicatorResult, theme: Theme, last_n: int | None) -> go.Figure:
@@ -2234,8 +2332,9 @@ def _pair_header_lines(
     net_pnl = ls.get("net_pnl") or 0.0
     return_pct = ls.get("return_pct") or 0.0
     n_trades = ls.get("n_trades") or 0
+    strategy_name = _STRATEGY_NAME_TR_BY_INDICATOR.get(result.indicator, _STRATEGY_NAME_TR)
     line2 = (
-        f"{_STRATEGY_NAME_TR} | {y_symbol} <-> {x_symbol} | "
+        f"{strategy_name} | {y_symbol} <-> {x_symbol} | "
         f"K/Z: {net_pnl:+,.0f} TL (%{return_pct:+.1f}) | Geçiş: {n_trades} kez"
     )
     return line1, color, line2

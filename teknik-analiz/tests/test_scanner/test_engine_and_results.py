@@ -67,6 +67,16 @@ def test_small_universe_end_to_end(tmp_path: Path) -> None:
     rows = store.query(run_id="test_e2e")
     assert len(rows) > 0
     assert store.latest_run("bist") == "test_e2e"
+
+    # Faz 8E — read_result/list_symbol_indicators (confluence.py'nin ihtiyaç
+    # duyduğu, results.db'den TAM IndicatorResult geri okuma yolu).
+    triples = store.list_symbol_indicators("test_e2e", timeframe="1D")
+    assert ("TCELL", "1D", "harmonic.pesavento") in triples
+    result = store.read_result("test_e2e", "TCELL", "1D", "harmonic.pesavento")
+    assert result is not None
+    assert result.indicator == "harmonic.pesavento"
+    assert store.read_result("test_e2e", "TCELL", "1D", "does.not.exist") is None
+
     store.close()
 
 

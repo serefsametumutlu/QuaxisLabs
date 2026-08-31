@@ -58,6 +58,7 @@ from tlab.indicators.harmonics.scanner_indicator import HarmonicIndicator, Harmo
 from tlab.indicators.momentum.alpha_rank import AlphaRank, AlphaRankParams
 from tlab.indicators.momentum.momentum_rank import MomentumRank, MomentumRankParams
 from tlab.indicators.pairs.relative_momentum import RelativeMomentumPair, RelativeMomentumParams
+from tlab.indicators.pairs.vol_harvest import VolHarvestPair, VolHarvestParams
 from tlab.indicators.patterns.broadening import BroadeningIndicator, BroadeningParams
 from tlab.indicators.patterns.double_top_bottom import (
     DoubleTopBottomIndicator,
@@ -174,6 +175,10 @@ def build_catalog() -> dict[str, IndicatorSpec]:
     catalog["momentum.momentum_rank"] = IndicatorSpec(
         name="momentum.momentum_rank", category="momentum",
         factory=lambda: MomentumRank(MomentumRankParams()), needs_universe=True,
+    )
+    catalog["pair.vol_harvest"] = IndicatorSpec(
+        name="pair.vol_harvest", category="pair",
+        factory=lambda: VolHarvestPair(VolHarvestParams()), needs_context=True,
     )
     return catalog
 

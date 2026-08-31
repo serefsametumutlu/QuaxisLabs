@@ -23,6 +23,7 @@ from tlab.indicators.pairs.discovery import load_sector_map
 from tlab.indicators.pairs.relative_momentum import RelativeMomentumPair, RelativeMomentumParams
 from tlab.scanner import engine
 from tlab.scanner.eod import run_eod
+from tlab.scanner.filter_expr import FilterExprError, eval_filter_expr
 from tlab.scanner.results import ResultsStore
 from tlab.testing.lint_lookahead import has_errors, lint_paths
 from tlab.testing.repaint import repaint_test
@@ -322,7 +323,11 @@ def _signal_passes_filter(signal, filt: dict) -> bool:
     `payload["event"]`/`payload["zone_kind"]` değeri verilen listede mi diye
     bakar, herhangi bir indikatörle çalışır. `fresh` verilirse
     `payload["fresh"]` tam eşleşmeli (bkz. `structure.supply_demand`'ın
-    `sd_new` sinyali — yeni doğan bir bölge her zaman fresh=True taşır)."""
+    `sd_new` sinyali — yeni doğan bir bölge her zaman fresh=True taşır).
+    `expr` (Faz 8E, YENİ): `tlab/scanner/filter_expr.py`'nin GÜVENLİ
+    (eval() YOK) karşılaştırma dilbilgisiyle değerlendirilen serbest bir
+    ifade — `payload`'ın TÜM alanları + `score`/`direction`/`state` namespace
+    olarak sunulur (ör. `"bottom_probability >= 0.5 and n_sources >= 3"`)."""
     break_types = filt.get("break_types")
     if break_types and signal.payload.get("break_type") not in break_types:
         return False
@@ -334,6 +339,17 @@ def _signal_passes_filter(signal, filt: dict) -> bool:
         return False
     if "fresh" in filt and signal.payload.get("fresh") != filt["fresh"]:
         return False
+    expr = filt.get("expr")
+    if expr:
+        namespace = {
+            **signal.payload, "score": signal.score, "direction": signal.direction,
+            "state": signal.state,
+        }
+        try:
+            if not eval_filter_expr(expr, namespace):
+                return False
+        except FilterExprError as exc:
+            raise ValueError(f"scans.yaml 'expr' hatalı: {expr!r} — {exc}") from exc
     return True
 
 
@@ -401,11 +417,18 @@ def eod_cmd(
     market: str = typer.Option(..., "--market", help="bist | nasdaq"),
     eod_date: str = typer.Option(None, "--date", help="ISO tarih (varsayılan: son kapanmış seans)"),
     force: bool = typer.Option(False, "--force", help="Aynı gün için var olan run'ı yeniden koş"),
+    build_reversal_maps: bool = typer.Option(
+        False, "--build-reversal-maps",
+        help="Ana taramadan SONRA `confluence` (dönüş haritası) sonuçlarını da üretip kaydeder",
+    ),
 ) -> None:
     """Gün sonu akışını çalıştırır: veri güncelleme → tarama → kayıt → diff → rapor."""
     date_ = date.fromisoformat(eod_date) if eod_date else None
     pairs = _load_pairs_yaml()
-    report = run_eod(market=market, date_=date_, force=force, pairs=pairs)
+    report = run_eod(
+        market=market, date_=date_, force=force, pairs=pairs,
+        build_reversal_maps=build_reversal_maps,
+    )
     typer.echo(json.dumps(report, ensure_ascii=False, indent=2))
 
 

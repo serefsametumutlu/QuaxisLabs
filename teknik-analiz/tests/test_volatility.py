@@ -14,7 +14,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from tlab.features.volatility import atr, bollinger, keltner, realized_vol, vol_zscore
+from tlab.features.volatility import (
+    atr,
+    bollinger,
+    garch11_forecast,
+    keltner,
+    realized_vol,
+    vol_zscore,
+)
 
 TZ = ZoneInfo("Europe/Istanbul")
 
@@ -128,3 +135,47 @@ def test_existing_helpers_still_importable(fn_name: str) -> None:
     """Faz 2-EK'in eklediği importların (numpy, stats.zscore) mevcut
     atr/bollinger'ı bozmadığını doğrular (regresyon güvenliği)."""
     assert callable(atr) if fn_name == "atr" else callable(bollinger)
+
+
+# --- garch11_forecast (Faz 8E) ------------------------------------------
+
+
+def _returns(n: int, seed: int) -> pd.Series:
+    idx = pd.date_range("2024-01-02", periods=n, freq="1D", tz=TZ)
+    rng = np.random.default_rng(seed)
+    return pd.Series(rng.normal(0, 0.015, size=n), index=idx)
+
+
+def test_garch11_forecast_nan_before_window() -> None:
+    ret = _returns(150, seed=20)
+    sigma = garch11_forecast(ret, window=60, refit_stride=15)
+    assert sigma.iloc[:59].isna().all()
+    assert sigma.iloc[59:].notna().all()
+
+
+def test_garch11_forecast_positive_and_annualized_scale() -> None:
+    ret = _returns(150, seed=21)
+    sigma = garch11_forecast(ret, window=60, refit_stride=15, annualize=True)
+    valid = sigma.dropna()
+    assert (valid > 0).all()
+    # Günlük ~%1.5 std -> yıllıklaştırılmış oynaklık kabaca %15-%40 bandında
+    # olmalı (gevşek bir makuliyet kontrolü, kesin bir değer değil).
+    assert valid.between(0.05, 1.5).all()
+
+
+def test_garch11_forecast_walk_forward_prefix_consistency() -> None:
+    """Non-repaint: kısa serinin (n=100) ürettiği DEĞERLER, uzun serinin
+    (n=150) İLK 100 barındaki değerlerle BİREBİR aynı olmalı — her ikisi de
+    AYNI noktalarda (mutlak bar indeksine göre) refit ediyor, MLE
+    deterministik (rastgelelik YOK), bu yüzden tam eşitlik beklenir."""
+    ret_full = _returns(150, seed=22)
+    ret_short = ret_full.iloc[:100]
+    sigma_full = garch11_forecast(ret_full, window=60, refit_stride=15)
+    sigma_short = garch11_forecast(ret_short, window=60, refit_stride=15)
+    pd.testing.assert_series_equal(sigma_short, sigma_full.iloc[:100])
+
+
+def test_garch11_forecast_short_series_returns_all_nan() -> None:
+    ret = _returns(30, seed=23)
+    sigma = garch11_forecast(ret, window=60, refit_stride=15)
+    assert sigma.isna().all()

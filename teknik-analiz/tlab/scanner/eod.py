@@ -24,7 +24,13 @@ from tlab.data.store import Store
 from tlab.data.universe import load_universe
 from tlab.indicators.bootstrap import CATALOG
 from tlab.scanner import engine
-from tlab.scanner.results import DEFAULT_DB_PATH, DiffReport, ResultsStore, RunRecord
+from tlab.scanner.results import (
+    DEFAULT_DB_PATH,
+    DiffReport,
+    ResultsStore,
+    RunRecord,
+    SymbolIndicatorRun,
+)
 
 DEFAULT_LOG_DIR = Path("outputs") / "logs"
 
@@ -61,6 +67,43 @@ def _setup_logger(log_path: Path) -> logging.Logger:
     return logger
 
 
+def _build_confluence_runs(
+    results_store: ResultsStore, run_id: str, universe: list[str], mkt: Market,
+    logger: logging.Logger,
+) -> list[SymbolIndicatorRun]:
+    """`build_reversal_maps=True` iken ANA taramanın (`structure.*`/
+    `harmonic.*`) TAMAMLANMIŞ sonuçlarını `results.db`'den okuyup her sembol
+    için `confluence` sonucu üretir — bu yüzden ANA `engine.run()` işinden
+    SONRA, `persist()` ÇAĞRILDIKTAN SONRA çalıştırılmalı (kaynak JSON
+    dosyaları henüz yazılmamışsa `store.read_result()` `None` döner, o
+    sembol için confluence sessizce boş/düşük güvenli bir sonuç üretir —
+    hata SAYILMAZ, yalnızca az kaynaklı bir harita demektir)."""
+    from tlab.data.store import Store
+    from tlab.scanner.confluence import build_reversal_map_from_run
+
+    store = Store(YFinanceProvider())
+    runs: list[SymbolIndicatorRun] = []
+    for symbol in universe:
+        try:
+            df = store.get(symbol, Timeframe.D1, mkt)
+            result = build_reversal_map_from_run(results_store, run_id, symbol, "1D", df)
+            runs.append(
+                SymbolIndicatorRun(
+                    symbol=symbol, market=mkt.value, timeframe="1D", indicator="confluence",
+                    params_hash=result.params_hash, result=result, error=None,
+                )
+            )
+        except Exception as exc:  # noqa: BLE001 — tek sembol hatası taramayı durdurmamalı
+            logger.warning("confluence hatası %s: %s", symbol, exc)
+            runs.append(
+                SymbolIndicatorRun(
+                    symbol=symbol, market=mkt.value, timeframe="1D", indicator="confluence",
+                    params_hash="", result=None, error=f"{type(exc).__name__}: {exc}",
+                )
+            )
+    return runs
+
+
 def run_eod(
     market: str,
     date_: date | None = None,
@@ -71,6 +114,7 @@ def run_eod(
     notify: NotifyHook = _noop_notify,
     results_db: Path | None = None,
     universe_override: list[str] | None = None,
+    build_reversal_maps: bool = False,
 ) -> dict[str, Any]:
     mkt = Market(market.lower())
     target_date = date_ or last_closed_session(datetime.now(UTC), mkt)
@@ -128,6 +172,16 @@ def run_eod(
 
     results_store.persist(run_id, [r.to_symbol_indicator_run() for r in scan.results])
     results_store.persist_data_quality(run_id, scan.data_quality)
+
+    if build_reversal_maps:
+        logger.info("Dönüş haritası (confluence) hesaplanıyor ...")
+        confluence_runs = _build_confluence_runs(results_store, run_id, universe, mkt, logger)
+        results_store.persist(run_id, confluence_runs)
+        logger.info(
+            "Dönüş haritası: %d sembol, %d hata", len(confluence_runs),
+            sum(1 for r in confluence_runs if r.error is not None),
+        )
+
     results_store.finish_run(run_id, datetime.now(UTC).isoformat(), "completed")
 
     diff_report: DiffReport | None = None

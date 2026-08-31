@@ -10,12 +10,14 @@ from __future__ import annotations
 import pandas as pd
 import plotly.graph_objects as go
 
+from tlab.core.indicator import BaseIndicator
 from tlab.core.types import IndicatorResult, Market, Timeframe
 from tlab.data.providers.yfinance_provider import YFinanceProvider
 from tlab.data.store import Store
 from tlab.data.universe import BENCHMARK_SYMBOL, load_universe
 from tlab.indicators.bootstrap import CATALOG
 from tlab.indicators.pairs.relative_momentum import RelativeMomentumPair, RelativeMomentumParams
+from tlab.indicators.pairs.vol_harvest import VolHarvestPair, VolHarvestParams
 from tlab.viz.renderer import render, render_structure_report
 from tlab.viz.themes import Theme
 
@@ -46,14 +48,18 @@ def compute_live(
         if "/" not in symbol:
             raise ValueError("Pair indikatörler için symbol 'Y/X' biçiminde olmalı")
         y_sym, x_sym = symbol.split("/", 1)
-        instance = (
-            RelativeMomentumPair(RelativeMomentumParams(y_symbol=y_sym, x_symbol=x_sym))
-            if indicator_name == "pair.relative_momentum"
-            else spec.factory()
-        )
+        pair_instance: BaseIndicator
+        if indicator_name == "pair.relative_momentum":
+            pair_instance = RelativeMomentumPair(
+                RelativeMomentumParams(y_symbol=y_sym, x_symbol=x_sym)
+            )
+        elif indicator_name == "pair.vol_harvest":
+            pair_instance = VolHarvestPair(VolHarvestParams(y_symbol=y_sym, x_symbol=x_sym))
+        else:
+            pair_instance = spec.factory()
         df_y = store.get(y_sym, tf, mkt)
         df_x = store.get(x_sym, tf, mkt)
-        result = instance(df_y, context={"x": df_x})
+        result = pair_instance(df_y, context={"x": df_x})
         result.symbol = symbol
         return result, None
 

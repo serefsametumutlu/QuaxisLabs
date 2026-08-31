@@ -242,6 +242,40 @@ class ResultsStore:
 
     # -- okuma -------------------------------------------------------------
 
+    def read_result(
+        self, run_id: str, symbol: str, timeframe: str, indicator: str
+    ) -> IndicatorResult | None:
+        """`_write_json`'ın YAZDIĞI tam `IndicatorResult`'ı geri okur (Faz 8E
+        `confluence.py`'nin ihtiyaç duyduğu Level/Box/Line geometrisi
+        `signals` tablosunda YOK — yalnızca tam JSON dosyasında var). Dosya
+        yoksa (o run'da bu indikatör bu sembolde HATA vermiş veya hiç
+        koşulmamış) `None` döner, istisna fırlatmaz."""
+        safe_symbol = symbol.replace("/", "-")
+        path = self.json_root / run_id / f"{safe_symbol}_{timeframe}_{indicator}.json"
+        if not path.exists():
+            return None
+        return IndicatorResult.from_json(path.read_text(encoding="utf-8"))
+
+    def list_symbol_indicators(
+        self, run_id: str, timeframe: str | None = None
+    ) -> list[tuple[str, str, str]]:
+        """O run'da BAŞARIYLA sonuç üretmiş (hatasız) (symbol, timeframe,
+        indicator) üçlülerini döner — `states` tablosu yalnızca `persist()`'in
+        `item.result is not None` dalında yazılır (bkz. `persist()`), bu
+        yüzden hatalı koşular burada hiç görünmez."""
+        if timeframe is not None:
+            cur = self._conn.execute(
+                "SELECT DISTINCT symbol, timeframe, indicator FROM states "
+                "WHERE run_id = ? AND timeframe = ?",
+                (run_id, timeframe),
+            )
+        else:
+            cur = self._conn.execute(
+                "SELECT DISTINCT symbol, timeframe, indicator FROM states WHERE run_id = ?",
+                (run_id,),
+            )
+        return [(row[0], row[1], row[2]) for row in cur.fetchall()]
+
     def list_runs(self, market: str, status: str | None = None) -> list[str]:
         """market için run_id'leri, EN YENİDEN EN ESKİYE sıralı döner
         (`started_at` bazlı) — `eod.py`'nin "önceki run"u bulması için."""

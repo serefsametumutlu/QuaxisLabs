@@ -1548,6 +1548,8 @@ tlab/
   cli.py
 config/          settings.yaml, holidays_tr.yaml, universe_bist.txt
 tests/           her tlab/ modülüne karşılık gelen test dosyaları + test_harmonics/
+docs/spec/       tlab_NN_*.md — teknik-analiz-uzmani'nin (bilanco-radar agent'ı)
+                 ürettiği spec taslakları (K3'ten sonra: tlab_10_portfolio.md)
 ```
 
 ## Harmonik Formasyon Tarayıcı (Faz 3 — TAMAMLANDI)
@@ -1938,10 +1940,22 @@ retry edilebilir.
 
 ## Sıradaki Adımlar / Backlog
 
-**Roadmap durumu (2026-08-31):** Faz 8B ve Faz 8D TAMAMLANDI. Roadmap sırasına göre
-sıradaki resmi adım **K3** (Carver/"Systematic Trading" kitap çıkarımı,
-bilgi-bankasi/teknik/11 — bu oturumda `trend.ewmac`'in forecast scalar'ı için
-gerekli olduğu görüldü, henüz çıkarılmadı) → Faz 8E → Faz 10 → Faz 9. Aşağıdaki
+**Roadmap durumu (2026-08-31, güncellendi):** Faz 8B, Faz 8D ve **K3 TAMAMLANDI**
+(aynı gün, Faz 8D'nin hemen ardından). K3 — Carver ("Systematic Trading") kitap
+çıkarımı, kullanıcı kararıyla HEDEFLİ (kitabın tamamı değil, master prompt madde
+1-6'nın istediği ~180 sayfa: forecast/scalar/capping, vol targeting, position sizing,
+handcrafting, fitting disiplini, EWMAC, hız limiti) — çıktı `bilanco-radar/bilgi-
+bankasi/teknik/11_carver_systematic.md` (KURAL-01/05, ORAN-01..10, DISIPLIN-01..12,
+PSK-01/02) + bu projede **YENİ** `docs/spec/tlab_10_portfolio.md` (Faz 10'un
+`tlab/portfolio/{forecast,sizing,allocation,risk}.py` + `backtest/metrics.py`
+genişletmesi için TASLAK spec — henüz KOD YAZILMADI, bu bir spec dokümanı). Gerçek
+bulgu: `trend.ewmac`'in (Faz 8D) forecast scalar'ı empirik/rolling hesaplıyordu çünkü
+K3 henüz yapılmamıştı; K3'ün ORAN-01'i kitaptan DOĞRULANMIŞ sabit tabloyu (EWMAC 2,8→
+10.6 ... 64,256→1.87) verdi — bu tablonun `ewmac.py`'ye ENTEGRASYONU (sabit-tablo
+seçeneği) bu oturumda YAPILMADI, Faz 10'un/ayrı bir takip işinin parçası olarak
+bırakıldı (K3 bir BİLGİ görevi, `ewmac.py`'ye dokunmadı). Roadmap sırasına göre
+sıradaki resmi adım **Faz 8E** (vol harvest + GARCH) → Faz 10 (K3 spec onayı ön
+koşuluydu, artık spec TASLAĞI var — kullanıcı onayı gerekiyor) → Faz 9. Aşağıdaki
 backlog listesi (1-5) bu roadmap'ten BAĞIMSIZ, ayrı bir kullanıcı kararı bekleyen
 öneriler.
 

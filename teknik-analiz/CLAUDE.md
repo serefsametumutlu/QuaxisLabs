@@ -1681,7 +1681,119 @@ için `tlab/testing/lint_lookahead.py` da var (CLI: `tlab lint`).
   momentum.py:163`/`kerkez_nenstar.py:34` ile AYNI kök neden — GERÇEK bir
   lookahead DEĞİL).
 
-Toplam 506 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
+- **Faz 10 — Sinyalden Portföye** (`tlab/portfolio/`, `tlab/backtest/metrics.py`,
+  2026-09-01): TAMAMLANDI. K3'ün (`bilgi-bankasi/teknik/11_carver_systematic.md`)
+  ve kendi spec taslağının (`docs/spec/tlab_10_portfolio.md`, K3'ün hemen ardından
+  yazılmıştı) doğrudan koda çevirisi — Carver'ın forecast→volatilite hedefleme→
+  pozisyon boyutlama→handcrafting zincirini tlab'a uyarlar. Bu katman ÖNCEKİ
+  fazların indikatörlerinden FARKLI bir doğaya sahiptir: `IndicatorResult`/
+  `Signal` ÜRETMEZ (tarama/sinyal katmanı değil, zaten üretilmiş forecast/
+  sinyal serilerini GERÇEK pozisyon büyüklüğüne çeviren bir HESAP katmanı).
+  1. **`tlab/portfolio/risk.py`** — `diversification_multiplier(weights,
+     corr_matrix, max_multiplier=2.5)`: 11/ORAN-03'ün KESİN formülü
+     (`1/sqrt(W·H·Wᵀ)`), negatif korelasyon hesap ÖNCESİ sıfıra taban değeri
+     (kitabın açık şartı), sonuç tavana (varsayılan 2.5, 11/ORAN-02) kırpılır.
+     Bu fonksiyon HEM `forecast.py`'nin forecast diversification multiplier'ı
+     HEM `risk.py`'nin kendi instrument diversification multiplier'ı için
+     PAYLAŞILAN tek kaynak (11/ORAN-03: "aynı formül, girdi matrisi değişir").
+     `round_target_position` (İLK ve TEK yuvarlama noktası, adım 12),
+     `apply_position_inertia` (hedefin `inertia_pct` — varsayılan %10 —
+     içindeyse işlem YOK, adım 13), `portfolio_instrument_position` (saf
+     çarpım, adım 11).
+  2. **`tlab/portfolio/forecast.py::combine_forecasts`** — 11/DISIPLIN-02
+     zinciri: ağırlıklı ortalama → rolling korelasyondan (yalnızca t ve
+     öncesi, `correlation_window` varsayılan 120 — TASARIM KARARI, kaynak
+     atfı yok) diversification multiplier → `[-cap,+cap]` (varsayılan ±20)
+     kırpma. Tek kural verildiğinde (`forecast_weights={rule:1.0}`)
+     çeşitlendirme HİÇ hesaplanmadan (tanım gereği 1.0) girdinin AYNISını
+     döndürür — kabul kriteri #1. `forecast_weights` toplamı ≠1.0 ise
+     `ValueError` (KURAL-02).
+  3. **`tlab/portfolio/sizing.py`** — FORMÜL ZİNCİRİ adım 1-8 (11/DISIPLIN-
+     03/04, ORAN-05): `price_volatility` (**FİYAT PUANI cinsinden**,
+     `close.diff()` bazlı, YÜZDE DEĞİL — Faz 10 spec'in "Girdiler" bölümünün
+     açık kararı, `features/volatility.py::realized_vol`'dan KASITLI OLARAK
+     farklı birim, block_value ile çarpılıp para birimi riskine çevrilecek
+     şekilde) → `instrument_currency_volatility` → `instrument_value_
+     volatility` → `annualised_cash_vol_target`/`daily_cash_vol_target`
+     (÷16, 256 iş günü varsayımı) → `compute_volatility_scalar` →
+     `compute_subsystem_position`. `load_portfolio_config()` — yeni
+     `config/portfolio.yaml`'dan `pct_vol_target`/`trading_capital` okur
+     (kullanıcının hesap büyüklüğü/risk toleransı — tlab'ın hiçbir mevcut
+     veri katmanında YOK, kod içine GÖMÜLMEDİ); ikisi de `null` bırakılmışsa
+     (repo'daki varsayılan durum) AÇIK bir `ValueError` fırlatır, sessizce
+     fabrika varsayımına DÜŞÜLMEZ.
+  4. **`tlab/portfolio/allocation.py::handcraft_weights`** — 11/KURAL-05
+     (Markowitz optimizasyonunun küçük-tahmin-hatası kırılganlığından
+     kaçınan, korelasyona göre GRUPLANMIŞ + Tablo 8'in — 11/ORAN-07 —
+     grup-ağırlık kurallarını uygulayan yöntem). N=1: %100. N=2: %50/%50
+     (korelasyondan BAĞIMSIZ). N=3: tabloya (7 somut satır) en yakın satır
+     — **permütasyon-farkında** (`_lookup_3asset_weights`, üç varlığın
+     olası TÜM 6 A/B/C-rol eşleşmesini deneyip en yakın satırı bulur, çünkü
+     tablo rolleri sembol SIRASINDAN bağımsız değil — B her zaman "ortadaki"
+     varlık). N≥4 eşit-korelasyonlu: eşit ağırlık; N≥4 farklı-korelasyonlu:
+     otomatik gruplama YOK (kitap algoritma vermiyor), `groups` parametresiyle
+     elle alt-gruplanmalı → `ValueError`. İç içe `groups` (`[["Bond"],
+     ["SP500","Nasdaq"]]` gibi) özyinelemeli çözülür, grup-arası korelasyon
+     TÜM çapraz-grup varlık çiftlerinin ORTALAMASI (TASARIM KARARI, kitap
+     kesin yöntem vermiyor — tek-elemanlı gruplarda TAM olarak ham
+     korelasyona indirgendiği için flat/gruplu çağrılar TUTARLI).
+     `periodic_handcraft_schedule` — üç aylık (varsayılan, TASARIM KARARI)
+     gibi PERİYODİK/adım-fonksiyonu yeniden hesaplama, her noktada YALNIZCA
+     trailing `correlation_window` kadar geçmişle (non-repaint); `weights_at`
+     — "extend-only sabit değer" okuma (`structure.golden_zone`'un bant
+     deseniyle AYNI ilke, Faz 8C). `apply_sharpe_adjustment` (11/DISIPLIN-07,
+     varsayılan KAPALI) çarpanları PARAMETRE olarak alır — **Tablo 12'nin
+     (s.86) kendi sayısal değerleri K3'ün hedefli çıkarımına DAHİL EDİLMEDİ**,
+     bu fonksiyon SABİT/uydurma bir tablo TAŞIMAZ.
+  5. **`tlab/backtest/metrics.py`** (YENİ dosya) — fitting disiplini + hız
+     limiti, kod SEVİYESİNDE bir sinyal DEĞİL, backtest SONUÇLARINI
+     değerlendiren araçlar. `ACHIEVABLE_SHARPE_REFERENCE` (11/ORAN-10),
+     `MIN_SHARPE_THRESHOLD`+`min_sharpe_threshold()` (11/ORAN-08, Tablo 4 —
+     tablo dışına taşan (kural_sayısı,yıl) çiftleri EN BÜYÜK tanımlı hücreye
+     düşer), `PESSIMISM_FACTOR` (11/DISIPLIN-08, Tablo 14). `speed_limit_
+     check()` (11/DISIPLIN-12) — maliyet bütçesi = gerçekçi ön-maliyet
+     Sharpe'ın 1/3'ü; **kitabın kendi Euro Stoxx örneğiyle KASITLI bir
+     sayısal fark var** (görüntülenen 2-ondalık yuvarlanmış `0.13/0.002=65`
+     round-trip diyor, TAM kesirle `1/3×0.40=0.1333.../0.002≈66.67` —
+     fonksiyon TAM formülü uygular, kitabın kendi yuvarlama zincirinin
+     ARTEFAKTINI DEĞİL, testte bu fark açıkça belgelendi).
+  6. **`tlab/testing/repaint.py::allocation_repaint_test`** (YENİ) —
+     `universe_repaint_test`in (Faz 8D) AYNI "kesik ⊆ tam" mantığı ama bir
+     SERİ yerine `{recompute_tarihi: ağırlıklar}` sözlüğü üzerinde; periyodik
+     `allocation.py` çıktısının GERÇEK non-repaint sözleşmesini doğrular
+     (kabul kriteri #6).
+  7. **DÜRÜST BOŞLUK — 16-varlıklı Tablo 10/11 kabul kriteri KARŞILANAMADI**:
+     spec taslağının kabul kriteri #3 "16-varlık (Tablo 10/11) örneğinin de
+     fixture olarak kodlanmasını" istiyordu, ama bu tablolar K3'ün hedefli
+     çıkarımına HİÇ DAHİL EDİLMEMİŞ (`bilgi-bankasi/teknik/11_carver_
+     systematic.md`'de yalnızca Tablo 8/12/14 var) — Faz 8A/8E'deki AYNI
+     "eksik dış referans" emsaliyle, 16-varlıklı senaryo TEST EDİLMEDİ;
+     genel özyinelemeli algoritma yalnızca DOĞRULANABİLİR (Tablo 8, 7 satırın
+     TAMAMI) örneklerle test edildi. Bu, kod EKSİKLİĞİ değil VERİ eksikliği —
+     algoritmanın kendisi (N≥4 eşit-korelasyon + iç içe `groups`) genel ve
+     test edilmiş durumda.
+  8. **Gerçek veri doğrulaması** (TCELL/ISCTR/AKBNK, yerel önbellek):
+     `trend.ewmac`'in gerçek `series["ewmac_combined"]` serilerinden iki
+     farklı çift (2,8 / 4,16) `combine_forecasts`'a verildi — sonuç hep
+     `[-20,20]` içinde kaldı; `price_volatility` TCELL'de ~1.5-2.0 TL/gün
+     (makul); gerçek 250 barlık TCELL/ISCTR/AKBNK getiri korelasyon
+     matrisiyle (`ISCTR-AKBNK`≈0.82 yüksek, `TCELL` diğerleriyle ~0.52-0.53
+     daha düşük korelasyonlu) `handcraft_weights` TCELL'e %42, ISCTR/AKBNK'a
+     %29/%29 verdi — sezgiyle TUTARLI (daha az korele olan TCELL daha
+     yüksek ağırlık aldı, birbirine yüksek korele bankalar payı paylaştı).
+  9. **Testler** — 54 yeni: `tests/test_portfolio/` (YENİ paket —
+     `test_risk.py` 12, `test_forecast.py` 5, `test_sizing.py` 8,
+     `test_allocation.py` 15), `tests/test_backtest/` (YENİ paket —
+     `test_metrics.py` 7), artı `allocation_repaint_test`in kendisi
+     `test_allocation.py`'de bir kabul-kriteri testinde egzersiz edildi.
+  `pytest -q -m "not network"` 560/560 yeşil (506→560), `ruff check tlab/
+  tests/` 18 hata (BASELINE İLE AYNI, yeni dosyalarda SIFIR), `mypy tlab/`
+  2 hata (BASELINE İLE AYNI, `renderer.py`/`dashboard.py` — bu göreve AİT
+  DEĞİL), `lint_lookahead` 3 uyarı (BASELINE İLE AYNI, yeni dosyalarda
+  SIFIR). Roadmap: Faz 8B ✓ → Faz 8D ✓ → K3 ✓ → Faz 8E ✓ → **Faz 10 ✓** →
+  sırada **Faz 9**.
+
+Toplam 560 test yeşil (`pytest -q`, varsayılan olarak `-m "not network"` uygular),
 ruff/mypy/lint_lookahead temiz (yeni kod kapsamında — repo genelindeki 18 ruff/2
 mypy/3 lint_lookahead uyarısı önceden var olan ya da bilinen false-positive,
 ilgisiz satırlardır).

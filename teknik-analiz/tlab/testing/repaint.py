@@ -276,3 +276,44 @@ def universe_repaint_test(
     return RepaintReport(
         passed=not mismatches, mismatches=mismatches, stats={"cuts_checked": checked},
     )
+
+
+def allocation_repaint_test(
+    compute_fn: Callable[[list[pd.Timestamp]], dict[pd.Timestamp, dict[str, float]]],
+    recompute_dates: list[pd.Timestamp],
+) -> RepaintReport:
+    """Faz 10'un PERİYODİK (adım-fonksiyonu) `allocation.py::
+    periodic_handcraft_schedule` gibi çıktıları için `universe_repaint_test`
+    ile AYNI "kesik ⊆ tam" mantığı — ama bir SERİ yerine {recompute_tarihi:
+    ağırlıklar} sözlüğü üzerinde: her kesim noktasında (yalnızca o ana
+    kadarki recompute noktaları `compute_fn`'e verilir) üretilen ağırlıklar,
+    TAM koşunun o tarihte ürettiği ağırlıkla BİREBİR eşleşmeli (bkz. `docs/
+    spec/tlab_10_portfolio.md`, "Durum makinesi")."""
+    full = compute_fn(recompute_dates)
+    mismatches: list[str] = []
+    checked = 0
+
+    for cut_i in range(1, len(recompute_dates) + 1):
+        cut_dates = recompute_dates[:cut_i]
+        partial = compute_fn(cut_dates)
+        checked += 1
+        for dt in cut_dates:
+            partial_w = partial.get(dt)
+            full_w = full.get(dt)
+            if partial_w is None and full_w is None:
+                continue
+            if partial_w is None or full_w is None or not _weights_close(partial_w, full_w):
+                mismatches.append(
+                    f"[cut={cut_dates[-1]}] {dt} tarihindeki ağırlık kesimde değişti "
+                    f"(partial={partial_w}, full={full_w})"
+                )
+
+    return RepaintReport(
+        passed=not mismatches, mismatches=mismatches, stats={"cuts_checked": checked},
+    )
+
+
+def _weights_close(a: dict[str, float], b: dict[str, float]) -> bool:
+    if set(a) != set(b):
+        return False
+    return all(math.isclose(a[k], b[k], abs_tol=_TOL, rel_tol=_TOL) for k in a)

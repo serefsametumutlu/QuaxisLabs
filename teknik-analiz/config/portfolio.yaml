@@ -1,0 +1,17 @@
+# tlab/portfolio (Faz 10) — kullanıcıya özgü risk parametreleri. Kod içine
+# GÖMÜLMEZ (bkz. docs/spec/tlab_10_portfolio.md, "VERİ BAĞIMLILIĞI").
+#
+# pct_vol_target: yıllık % oynaklık hedefi (0.0-1.0 arası, ör. 0.20 = %20).
+#   bilgi-bankasi/teknik/11/DISIPLIN-03 (Half-Kelly), Tablo 25/26'dan
+#   kullanıcının GERÇEKÇİ geriye-dönük Sharpe tahminine göre SEÇİLMELİ.
+#   Belirlendikten SONRA değiştirilmemeli (meddling riski) — tek istisna:
+#   risk toleransı gerçekten yanlış hesaplanmışsa, tek seferlik ve yalnızca
+#   AŞAĞI yönlü bir düzeltme.
+# trading_capital: toplam işlem sermayesi (hesap para biriminde, ör. TL).
+#
+# Aşağıdaki değerler PLACEHOLDER'dır (null) — kullanıcı KENDİ risk
+# toleransına göre doldurmalı. `sizing.py::load_portfolio_config()` null
+# bırakılan bir alan varsa AÇIK bir ValueError fırlatır, sessizce bir
+# fabrika varsayımı KULLANMAZ.
+pct_vol_target: null
+trading_capital: null

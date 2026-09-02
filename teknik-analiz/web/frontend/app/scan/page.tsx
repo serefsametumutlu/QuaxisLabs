@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { fetchCatalog, fetchRuns, fetchSignals } from "@/lib/api";
-import type { ScanRun, ScanSignal } from "@/lib/api";
+import { fetchCatalog, fetchRuns, fetchScanStatus, fetchSignals, startScan } from "@/lib/api";
+import type { ScanJob, ScanRun, ScanSignal } from "@/lib/api";
 import type { CatalogEntry } from "@/lib/types";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { useTheme } from "@/lib/useTheme";
@@ -28,11 +28,12 @@ function formatDate(iso: string): string {
   }
 }
 
-/** Mevcut taramaları (`tlab eod`/`tlab scan`'in ZATEN ürettiği, `outputs/
- * results.db`'deki) listeler — YENİ bir tarama BAŞLATMAZ (bkz. `web/backend/
- * routes/scan.py` docstring'i: `run_eod()` dakikalarca sürebilen senkron
- * bir işlem, web isteği içinde tetiklemek kapsam dışı bırakıldı — kullanıcı
- * `tlab eod` komutunu kendi terminalinden çalıştırmalı). */
+/** Mevcut taramaları (`outputs/results.db`) listeler VE "Yeni Tarama Başlat"
+ * ile `web/backend/routes/scan_trigger.py`'nin arka planda (thread içinde)
+ * çalıştırdığı `run_eod()`'u tetikleyip durumunu (`queued/running/completed/
+ * failed`) periyodik sorgulayarak (polling) izler — tam evrende dakikalarca
+ * sürebileceği için sayfa bu süre boyunca bloklanmaz, bittiğinde tarama
+ * listesi otomatik yenilenir. */
 export default function ScanPage() {
   const router = useRouter();
   const [theme, setTheme] = useTheme();
@@ -49,20 +50,51 @@ export default function ScanPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [scanJob, setScanJob] = useState<ScanJob | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCatalog().then(setCatalog).catch(() => setCatalog([]));
   }, []);
 
-  useEffect(() => {
+  const loadRuns = useCallback((selectLatest: boolean) => {
     fetchRuns(market)
       .then((rs) => {
         setRuns(rs);
-        setRunId(rs[0]?.run_id ?? "");
-        setOffset(0);
+        if (selectLatest) {
+          setRunId(rs[0]?.run_id ?? "");
+          setOffset(0);
+        }
       })
       .catch(() => setRuns([]));
   }, [market]);
+
+  useEffect(() => {
+    loadRuns(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [market]);
+
+  // Aktif bir tarama işi varsa (queued/running) her 5sn'de bir durumunu
+  // sorgular; bitince (completed/failed) tarama listesini yeniler.
+  useEffect(() => {
+    if (!scanJob || scanJob.status === "completed" || scanJob.status === "failed") return;
+    const interval = setInterval(() => {
+      fetchScanStatus(scanJob.job_id)
+        .then((job) => {
+          setScanJob(job);
+          if (job.status === "completed") loadRuns(true);
+        })
+        .catch(() => {});
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [scanJob, loadRuns]);
+
+  const triggerScan = () => {
+    setScanError(null);
+    startScan(market)
+      .then(setScanJob)
+      .catch((e: Error) => setScanError(e.message));
+  };
 
   const load = useCallback(() => {
     if (!runId) return;
@@ -199,9 +231,39 @@ export default function ScanPage() {
             />
             Tüm durumları göster
           </label>
+          <div className="ml-auto flex items-center gap-3">
+            {scanJob && (scanJob.status === "queued" || scanJob.status === "running") && (
+              <span className="font-mono text-xs text-warning">
+                Tarama çalışıyor… (birkaç dakika sürebilir)
+              </span>
+            )}
+            {scanJob?.status === "completed" && (
+              <span className="font-mono text-xs text-accent">
+                Tarama tamamlandı — {scanJob.result?.run_id}
+              </span>
+            )}
+            {scanJob?.status === "failed" && (
+              <span className="font-mono text-xs text-danger">Tarama başarısız: {scanJob.error}</span>
+            )}
+            {scanJob?.status === "already_running" && (
+              <span className="font-mono text-xs text-warning">Bu piyasa için zaten bir tarama çalışıyor</span>
+            )}
+            <button
+              onClick={triggerScan}
+              disabled={scanJob?.status === "queued" || scanJob?.status === "running"}
+              className="rounded-md bg-accent px-3.5 py-1.5 text-sm font-medium text-bg hover:opacity-90 disabled:opacity-50"
+            >
+              Yeni Tarama Başlat
+            </button>
+          </div>
         </header>
 
         <main className="flex flex-col gap-4 px-6 py-5">
+          {scanError && (
+            <div className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
+              {scanError}
+            </div>
+          )}
           {selectedRun && (
             <div className="flex flex-wrap gap-4 text-xs text-text-3">
               <span>

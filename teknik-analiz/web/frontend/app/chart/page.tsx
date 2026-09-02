@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback, Suspense } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { fetchCatalog, fetchChart, fetchUniverse } from "@/lib/api";
-import type { CatalogEntry, ChartResponse } from "@/lib/types";
-import { PriceChart } from "@/components/chart/PriceChart";
+import { fetchCatalog, fetchUniverse } from "@/lib/api";
+import type { CatalogEntry } from "@/lib/types";
+import { ChartImage } from "@/components/chart/ChartImage";
 import { ChartGuide } from "@/components/chart/ChartGuide";
 import { AiReportPanel } from "@/components/chart/AiReportPanel";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -63,9 +63,9 @@ function ChartPageInner() {
   );
   const [catalog, setCatalog] = useState<CatalogEntry[]>([]);
   const [universe, setUniverse] = useState<string[]>([]);
-  const [data, setData] = useState<ChartResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Grafik `<img>` olarak geliyor — aynı URL'e tekrar basmak tarayıcı
+  // önbelleğinden dönebilir, "Yenile" butonu bu sayacı artırıp cache-bust eder.
+  const [refreshTick, setRefreshTick] = useState(0);
 
   useEffect(() => {
     fetchCatalog().then(setCatalog).catch(() => setCatalog([]));
@@ -74,22 +74,6 @@ function ChartPageInner() {
   useEffect(() => {
     fetchUniverse(market).then(setUniverse).catch(() => setUniverse([]));
   }, [market]);
-
-  const load = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    fetchChart({ symbol, tf, indicator, market })
-      .then(setData)
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [symbol, tf, indicator, market]);
-
-  useEffect(() => {
-    // Standart "effect veri çeker" deseni (React docs) — `load` zaten
-    // loading/error/data state'ini kendi async akışında yönetiyor.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    load();
-  }, [load]);
 
   const singleIndicators = catalog.filter((c) => !c.needs_context && !c.needs_universe);
   const indicatorOptions = ["structure.report", ...singleIndicators.map((c) => c.name)];
@@ -130,7 +114,7 @@ function ChartPageInner() {
             </select>
           </label>
           <button
-            onClick={load}
+            onClick={() => setRefreshTick((t) => t + 1)}
             className="rounded-md bg-accent px-3.5 py-1.5 text-sm font-medium text-bg hover:opacity-90"
           >
             Yenile
@@ -138,33 +122,30 @@ function ChartPageInner() {
         </header>
 
         <main className="flex flex-col gap-4 px-6 py-5">
-          {loading && <div className="font-mono text-sm text-text-3">Yükleniyor…</div>}
-          {error && (
-            <div className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
-              {error}
+          <div className="rounded-lg border border-border bg-surface-1 p-3">
+            <div className="mb-2 flex items-baseline gap-3 px-1">
+              <span className="text-base font-semibold">{symbol}</span>
+              <span className="font-mono text-xs text-text-3">
+                {indicator} · {tf.toUpperCase()}
+              </span>
             </div>
-          )}
-          {data && !loading && !error && (
-            <>
-              <div className="rounded-lg border border-border bg-surface-1 p-3">
-                <div className="mb-2 flex items-baseline gap-3 px-1">
-                  <span className="text-base font-semibold">{data.symbol}</span>
-                  <span className="font-mono text-xs text-text-3">
-                    {data.result.indicator} · {data.tf.toUpperCase()}
-                  </span>
-                </div>
-                <PriceChart data={data} theme={theme} />
-              </div>
-              <ChartGuide indicator={data.result.indicator} />
-              <AiReportPanel
-                key={`${symbol}-${tf}-${market}-${indicator}`}
-                symbol={symbol}
-                tf={tf}
-                market={market}
-                indicator={indicator}
-              />
-            </>
-          )}
+            <ChartImage
+              key={refreshTick}
+              symbol={symbol}
+              tf={tf}
+              indicator={indicator}
+              market={market}
+              theme={theme}
+            />
+          </div>
+          <ChartGuide indicator={indicator} />
+          <AiReportPanel
+            key={`${symbol}-${tf}-${market}-${indicator}`}
+            symbol={symbol}
+            tf={tf}
+            market={market}
+            indicator={indicator}
+          />
         </main>
       </div>
     </div>

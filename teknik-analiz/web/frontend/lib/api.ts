@@ -1,4 +1,4 @@
-import type { CatalogEntry, ChartResponse } from "./types";
+import type { CatalogEntry } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000/api";
 
@@ -49,16 +49,6 @@ export function fetchGuide(indicator: string): Promise<GuideEntry | null> {
   return getJson<GuideEntry | null>(`/guide?indicator=${encodeURIComponent(indicator)}`);
 }
 
-export function fetchChart(params: {
-  symbol: string;
-  tf: string;
-  indicator: string;
-  market: string;
-}): Promise<ChartResponse> {
-  const qs = new URLSearchParams(params).toString();
-  return getJson<ChartResponse>(`/chart?${qs}`);
-}
-
 export interface ScanRun {
   run_id: string;
   started_at: string;
@@ -91,6 +81,32 @@ export interface ScanSignalsResponse {
   total: number;
   limit: number;
   offset: number;
+}
+
+export interface ScanJob {
+  job_id: string;
+  market: string;
+  status: "queued" | "running" | "completed" | "failed" | "already_running";
+  started_at: string;
+  finished_at?: string;
+  error?: string;
+  result?: { run_id: string; status: string };
+}
+
+export async function startScan(market: string, force = false): Promise<ScanJob> {
+  const res = await fetch(
+    `${API_BASE}/scan/start?market=${encodeURIComponent(market)}&force=${force}`,
+    { method: "POST" }
+  );
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { detail?: string }).detail ?? `İstek başarısız (${res.status})`);
+  }
+  return res.json() as Promise<ScanJob>;
+}
+
+export function fetchScanStatus(jobId: string): Promise<ScanJob> {
+  return getJson<ScanJob>(`/scan/status?job_id=${encodeURIComponent(jobId)}`);
 }
 
 export function fetchSignals(params: {

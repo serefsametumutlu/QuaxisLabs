@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000/api";
 
@@ -23,40 +23,57 @@ export function ChartImage({ symbol, tf, indicator, market, theme }: Props) {
   const [failed, setFailed] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
   const qs = new URLSearchParams({ symbol, tf, indicator, market, theme }).toString();
   const src = `${API_BASE}/chart.png?${qs}`;
 
-  // GERÇEK HATA (bulunup düzeltildi): `<a href={src} download>` — `src`
-  // backend'de AYRI bir origin'de (localhost:8000) olduğu için tarayıcılar
-  // `download` özniteliğini GÖRMEZDEN GELİR (yalnızca same-origin/blob:/
-  // data: URL'lerde çalışır) — tıklayınca dosya inmek yerine görsel yeni
-  // sekmede/pencerede AÇILIYORDU. Çözüm: görseli `fetch()` ile (bu, `<a
-  // download>`in aksine cross-origin kısıtlamasına TAKILMAZ) byte olarak
-  // indirip bir `blob:` URL'e çevirmek — blob: URL'ler HER ZAMAN same-origin
-  // sayılır, `download` orada güvenilir çalışır.
-  const downloadPng = async () => {
+  // GERÇEK HATA (2 tur bulunup düzeltildi):
+  // (1) `<a href={src} download>` — `src` backend'de AYRI bir origin'de
+  //     (localhost:8000) olduğu için tarayıcılar `download` özniteliğini
+  //     GÖRMEZDEN GELİR — tıklayınca dosya inmek yerine görsel yeni
+  //     sekmede açılıyordu.
+  // (2) İlk düzeltme `fetch(src)` ile YENİDEN indiriyordu — ama bu, `<img>`
+  //     ZATEN aynı görseli başarıyla yüklemişken GEREKSİZ ikinci bir ağ
+  //     isteğiydi; `structure.report` gibi göstergeler saniyeler sürebildiği
+  //     ve (geliştirme sırasında) backend arada yeniden başlayabildiği için
+  //     bu ikinci istek "Failed to fetch" ile başarısız olabiliyordu.
+  // Çözüm: ekranda ZATEN yüklü/görünür olan `<img>`'i bir `<canvas>`'a
+  // çizip `toBlob()` ile PNG'ye çevirmek — hiçbir YENİ ağ isteği YOK,
+  // backend'in o an ayakta olup olmaması tamamen İLGİSİZ. `<img
+  // crossOrigin="anonymous">` (+ backend'in zaten gönderdiği CORS
+  // başlığı) canvas'ın "kirlenmesini" (taint) önler.
+  const downloadPng = () => {
     setDownloading(true);
     setDownloadError(null);
     try {
-      const res = await fetch(src);
-      if (!res.ok) throw new Error(`İndirme başarısız (${res.status})`);
-      const blob = await res.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = `${symbol}_${indicator}_${tf}.png`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(blobUrl);
+      const img = imgRef.current;
+      if (!img || !img.complete || img.naturalWidth === 0) {
+        throw new Error("Görsel henüz hazır değil");
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas oluşturulamadı");
+      ctx.drawImage(img, 0, 0);
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          setDownloadError("İndirilemedi — görsel dönüştürülemedi, tekrar deneyin.");
+          setDownloading(false);
+          return;
+        }
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = `${symbol}_${indicator}_${tf}.png`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(blobUrl);
+        setDownloading(false);
+      }, "image/png");
     } catch {
-      // `fetch` ağ hatasında (backend o an ayakta değilse, bağlantı
-      // koparsa vb.) bir `TypeError` fırlatır — eskiden bu yakalanmadan
-      // Next.js'in hata ekranına düşüyordu ("Failed to fetch" runtime
-      // crash'i). Artık kullanıcıya sayfa içi, anlaşılır bir mesaj olarak
-      // gösteriliyor.
-      setDownloadError("İndirilemedi — backend'e ulaşılamadı, tekrar deneyin.");
-    } finally {
+      setDownloadError("İndirilemedi — tekrar deneyin.");
       setDownloading(false);
     }
   };
@@ -75,9 +92,11 @@ export function ChartImage({ symbol, tf, indicator, market, theme }: Props) {
       )}
       {/* eslint-disable-next-line @next/next/no-img-element -- sunucudan gelen dinamik PNG, next/image optimizasyonuna uygun değil */}
       <img
+        ref={imgRef}
         key={src}
         src={src}
         alt={`${symbol} — ${indicator}`}
+        crossOrigin="anonymous"
         className={`w-full rounded-md ${loaded ? "block" : "hidden"}`}
         onLoad={() => {
           setLoaded(true);

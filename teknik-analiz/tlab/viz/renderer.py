@@ -123,7 +123,7 @@ _MARGIN_B = 40
 # hesaplanıp `_apply_layout` içinde figüre özgü paper-fraksiyonuna çevrilir.
 _HEADER_ROW1_PX = 34.0
 _FOOTER_PX = 32.0
-_FOOTER_TEXT = "Yalnızca teknik analiz amaçlıdır, yatırım tavsiyesi değildir — tlab"
+_FOOTER_TEXT = "Yalnızca teknik analiz amaçlıdır, yatırım tavsiyesi değildir — QuaxisLabs"
 
 
 def _apply_layout(
@@ -244,6 +244,33 @@ def _x(t: object) -> str:
     return pd.Timestamp(t).isoformat()
 
 
+_RIGHT_PAD_BARS = 12.0
+# 0.6 -> 12.0 (2026-09-02): kullanıcı geri bildirimi — 0.6 bar'lık pay yalnızca
+# "son mum gövdesi eksen dışına taşıp kesilmesin" sorununu çözüyordu (bkz. alt
+# satırlardaki eski gerekçe), ama referans görsellerin (ornek1/ornek2.png,
+# TradingView tarzı) son bardan SONRA bıraktığı GENİŞ boşlukla aynı şey
+# DEĞİL — kullanıcı "son mumun sağında boş kısım kalsın" dedi, mumlar hâlâ
+# panelin sağ kenarına yapışık duruyordu. `lightweight-charts`'ın Faz 1'de
+# kullanılan `rightOffset: 12` ayarıyla AYNI değer (görsel tutarlılık için).
+
+
+def _right_padded_x(df: pd.DataFrame, end_idx: int) -> str:
+    """`fig.update_xaxes(range=[...])` sağ kenarı için — eksenin sağ sınırına
+    son bardan sonra `_RIGHT_PAD_BARS` kadar boş zaman payı eklenir (en yakın
+    komşu bar aralığından türetilir, sabit bir gün sayısı VARSAYILMAZ — 4H/1D/
+    W1 hepsi farklı adımlarda çalışır). Bu hem "son mum sağa yapışık"
+    şikayetini çözer hem de (daha önce çözülmüş) mum gövdesinin eksen dışına
+    taşıp kesilmesi sorununu ZATEN kapsar (12 bar >> 0.6 bar)."""
+    end_idx = min(end_idx, len(df) - 1)
+    if end_idx <= 0:
+        step = pd.Timedelta(days=1)
+    else:
+        step = df.index[end_idx] - df.index[end_idx - 1]
+        if step <= pd.Timedelta(0):
+            step = pd.Timedelta(days=1)
+    return _x(df.index[end_idx] + step * _RIGHT_PAD_BARS)
+
+
 # 0.18 -> 0.24 (2026-08-30): kullanıcı geri bildirimi — hacim profili paneli
 # (HVN+Gaussian Fit) referansla kıyaslayınca dar geliyordu, çubuklar/eğri
 # panelin sağ kenarına fazla yakın duruyordu. Bkz. `_draw_volume_profile`'daki
@@ -268,7 +295,18 @@ _HARMONIC_ZOOM_PAD_BARS = 20
 # ufkunda (`born_time` + bu pay) keser — GERÇEKTEN daha yeni veri varsa
 # (aday güncel), zaten `min(..., n-1)` gerçek son bara düşer, davranış
 # DEĞİŞMEZ.
-_HARMONIC_END_PAD_BARS = 60
+#
+# 2026-09-01: SABİT 60 bar, kısa ömürlü (birkaç haftalık) adaylarda formasyonu
+# yine küçük bir köşeye sıkıştırıyordu — kuyruk, deseninin kendisinden DAHA
+# UZUN olabiliyordu (gerçek TCELL/pesavento verisiyle bulunan bir durum,
+# kullanıcı "mockup'la birebir aynı, karışıklık istemiyorum" dedi). Artık
+# adayın KENDİ X→D açıklığının bir kesri (`_HARMONIC_END_PAD_FRACTION`),
+# `_HARMONIC_END_PAD_MIN/MAX_BARS` ile alt/üst sınırlanır — kısa adaylar kısa
+# kuyruk, uzun adaylar (three_drives gibi çok bacaklı ekoller) hâlâ makul bir
+# üst sınırda kalır.
+_HARMONIC_END_PAD_MIN_BARS = 15
+_HARMONIC_END_PAD_MAX_BARS = 60
+_HARMONIC_END_PAD_FRACTION = 0.5
 
 # Annotation kaynakları (box/line-uzatma/level) aynı fiyat civarında (ör. bir
 # direnç bölgesinin tepesi = POC'a yakın = trendline izdüşümüyle aynı seviye
@@ -351,14 +389,25 @@ def _resolve_window_end(result: IndicatorResult, df: pd.DataFrame) -> int:
     time_range = _recent_harmonic_time_range(result)
     if time_range is None:
         return n - 1
-    _earliest_t, latest_t = time_range
+    earliest_t, latest_t = time_range
     try:
         idx = df.index.get_loc(latest_t)
     except KeyError:
         return n - 1
     if not isinstance(idx, int):
         return n - 1
-    return min(n - 1, idx + _HARMONIC_END_PAD_BARS)
+    pad = _HARMONIC_END_PAD_MAX_BARS
+    try:
+        start_idx = df.index.get_loc(earliest_t)
+    except KeyError:
+        start_idx = None
+    if isinstance(start_idx, int):
+        span = max(0, idx - start_idx)
+        pad = min(
+            _HARMONIC_END_PAD_MAX_BARS,
+            max(_HARMONIC_END_PAD_MIN_BARS, int(span * _HARMONIC_END_PAD_FRACTION)),
+        )
+    return min(n - 1, idx + pad)
 
 
 def _harmonic_price_bounds(
@@ -496,7 +545,10 @@ def _render_price_based(
     )
 
     levels = _declutter_levels(result.levels) if declutter else result.levels
+    prz_pairs, levels = _extract_prz_pairs(levels)
     boxes, lines = result.boxes, result.lines
+    if declutter:
+        boxes = _declutter_single_instance_boxes(boxes)
     if declutter:
         lines = _cap_frozen_channels(lines)
     markers = [m for m in result.markers if m.kind != "macd_cross"]
@@ -537,7 +589,7 @@ def _render_price_based(
     # DEĞİL, hâlâ tek geçişli açgözlü bir sezgi, ama artık iki kategori
     # arasında da minimum ayrımı garanti eder.
     labeled_boxes = [
-        b for b in boxes if latest_box_t0 is None or b.t0 == latest_box_t0.get(b.style)
+        b for b in boxes if latest_box_t0 is None or b is latest_box_t0.get(b.style)
     ]
     # Line-uzatma izdüşümleri de AYNI birleşik merdivene katılır (2026-08-30
     # düzeltmesi, bkz. `_stagger_yshifts` docstring'i) — bir direnç ÇİZGİSİ
@@ -548,7 +600,7 @@ def _render_price_based(
     line_extensions = _line_extensions(lines, df)
     labeled_line_ext = [
         (ln, proj) for ln, (_et, proj) in line_extensions.items()
-        if latest_line_end is None or ln.points[-1][0] == latest_line_end.get(ln.style)
+        if latest_line_end is None or ln is latest_line_end.get(ln.style)
     ]
     box_level_yshifts = _stagger_yshifts(
         [(b, b.high, _BOX_YSHIFT_BASE) for b in labeled_boxes]
@@ -575,6 +627,7 @@ def _render_price_based(
     )
     _draw_polygons(fig, result.polygons, theme, row=1, col=1)
     _draw_harmonic_vertices(fig, result, theme, row=1, col=1)
+    _draw_prz_bands(fig, prz_pairs, df, theme, row=1, col=1)
     _draw_lines(
         fig, lines, df, theme, row=1, col=1, latest_end=latest_line_end,
         px_per_unit=px_per_unit, yshifts=box_level_yshifts,
@@ -583,7 +636,7 @@ def _render_price_based(
         fig, levels, df, theme, row=1, col=1, px_per_unit=px_per_unit,
         yshifts=box_level_yshifts, has_vp=has_vp, edge_cutoff=edge_cutoff,
     )
-    _draw_markers(fig, markers, theme, row=1, col=1, declutter=declutter)
+    _draw_markers(fig, markers, theme, row=1, col=1, declutter=declutter, px_per_unit=px_per_unit)
 
     for i, name in enumerate(sub_names, start=2):
         _draw_series_panel(fig, result, name, layout[name], theme, row=i, col=1, df=df)
@@ -601,10 +654,9 @@ def _render_price_based(
         fig.update_xaxes(showticklabels=(r == n_rows), row=r, col=1)
 
     window_end_idx = _resolve_window_end(result, df)
-    if window_start_idx > 0 or window_end_idx < len(df) - 1:
-        fig.update_xaxes(
-            range=[_x(df.index[window_start_idx]), _x(df.index[window_end_idx])]
-        )
+    fig.update_xaxes(
+        range=[_x(df.index[window_start_idx]), _right_padded_x(df, window_end_idx)]
+    )
     harmonic_bounds = (
         _harmonic_price_bounds(result, df, window_start_idx, window_end_idx)
         if result.indicator.startswith("harmonic.") else None
@@ -696,17 +748,29 @@ def _price_header(result: IndicatorResult) -> _Header:
 
 
 def _latest_per_group(items: list, group_key, time_key) -> dict:
-    """`items`ı `group_key(item)`e göre gruplar, her grubun EN BÜYÜK
-    `time_key(item)` değerini döner (`{grup: en_yeni_zaman}`). Declutter
-    modunda yalnızca bu "en yeni" zamana sahip öğe tam etiketlenir —
-    diğerleri (aynı stilin eski/çözülmüş kopyaları) şekil olarak
-    kalır, metinleri bastırılır."""
-    best: dict = {}
+    """`items`ı `group_key(item)`e göre gruplar, her grubun EN GÜNCEL
+    `time_key(item)`e sahip TEK öğesini döner (`{grup: öğe}`). Declutter
+    modunda yalnızca bu öğe tam etiketlenir — diğerleri (aynı stilin eski/
+    çözülmüş kopyaları) şekil olarak kalır, metinleri bastırılır.
+
+    2026-09-02 GERÇEK HATA düzeltmesi: eskiden `{grup: en_yeni_zaman_DEĞERİ}`
+    döndürüyordu ve çağıran taraf `item.<alan> == best[group]` (DEĞER
+    eşitliği) ile karşılaştırıyordu — birden fazla öğe TAM OLARAK aynı
+    zamanda bitiyorsa (ör. `trend.breakouts`'ta birçok trendline adayı
+    `extend_right=True` ile AYNI son bara uzatıldığı için `points[-1][0]`
+    çakışıyordu — gerçek ISCTR verisiyle bulunan bir durum: "uptrend_break
+    adayı" etiketi İKİ KEZ görünüyordu) bu eşitliği paylaşan HEPSİ etiket
+    alıyordu. Artık ÖĞENİN KENDİSİ döndürülür, çağıran taraf KİMLİK (`is`)
+    karşılaştırması yapar — kaç öğe zamanı paylaşırsa paylaşsın kesin
+    olarak TEK bir öğe (liste sırasına göre SONUNCU, `>=`) kazanır."""
+    best_time: dict = {}
+    best_item: dict = {}
     for it in items:
         g, t = group_key(it), time_key(it)
-        if g not in best or t > best[g]:
-            best[g] = t
-    return best
+        if g not in best_time or t >= best_time[g]:
+            best_time[g] = t
+            best_item[g] = it
+    return best_item
 
 
 _MAX_FROZEN_CHANNELS = 2
@@ -909,7 +973,7 @@ def _draw_boxes(
     yshifts: dict[object, float] | None = None,
     has_vp: bool = False, edge_cutoff: datetime | None = None,
 ) -> None:
-    labeled = [b for b in boxes if latest_t0 is None or b.t0 == latest_t0.get(b.style)]
+    labeled = [b for b in boxes if latest_t0 is None or b is latest_t0.get(b.style)]
     # Kutu etiketleri HER ZAMAN yukarı (+) yönde fanlanır — `_BOX_YSHIFT_
     # BASE` pozitif olduğu için `_stagger_yshifts` tek yönde büyür, ASLA
     # `_LINE_EXT_YSHIFT`in negatif "şeridi"ne (uzatma etiketlerinin yaşadığı
@@ -929,7 +993,7 @@ def _draw_boxes(
             line=dict(color=line_color(theme, b.style), width=1, dash=dash),
             row=row, col=col,
         )
-        if latest_t0 is not None and b.t0 != latest_t0.get(b.style):
+        if latest_t0 is not None and b is not latest_t0.get(b.style):
             continue  # declutter: yalnızca bu stilin EN GÜNCEL kutusu etiketlenir
         # Sağ kenara yakın kutular (ör. yeni oluşmuş bir Direnç/Destek
         # Bölgesi) VP paneli varken sağa doğru büyüyünce panele taşıyordu —
@@ -1006,10 +1070,14 @@ def _draw_polygons(
     for p in polygons:
         xs = [_x(pt[0]) for pt in p.points] + [_x(p.points[0][0])]
         ys = [pt[1] for pt in p.points] + [p.points[0][1]]
+        # 2026-09-02: mockup'ta klasik formasyon hologramı (`pattern_hologram`)
+        # kesikli kenarlıklı ("henüz teyit gerektiren aday" hissi), harmonik
+        # XAB/BCD üçgeni ise düz çizgili — bu ayrım burada da korunuyor.
+        dash = "dash" if p.style == "pattern_hologram" else "solid"
         fig.add_trace(
             go.Scatter(
                 x=xs, y=ys, mode="lines", fill="toself",
-                line=dict(color=line_color(theme, p.style), width=1.5),
+                line=dict(color=line_color(theme, p.style), width=1.5, dash=dash),
                 fillcolor=fill_color(theme, p.style, 0.22),
                 name=p.label, showlegend=False, hoverinfo="skip",
             ),
@@ -1078,6 +1146,57 @@ def _draw_harmonic_vertices(
                 bgcolor=with_alpha(theme.bg, 0.75),
                 yshift=14, row=row, col=col,
             )
+
+
+def _extract_prz_pairs(levels: list[Level]) -> tuple[list[tuple[Level, Level]], list[Level]]:
+    """`{pid}_prz_low`/`{pid}_prz_high` Level çiftlerini (bkz.
+    `scanner_indicator.py`'nin PRZ üretimi) ayırır. Dönüş: (eşleşen çiftler,
+    geri kalan Level'lar — eşleşmeyen tek bir prz_low/high dahil, ör. aktif
+    bir adayda henüz PRZ oluşmamışsa normal çizgi olarak çizilmeye devam
+    eder)."""
+    by_pid: dict[str, dict[str, Level]] = {}
+    others: list[Level] = []
+    for lv in levels:
+        if lv.label.endswith("_prz_low"):
+            by_pid.setdefault(lv.label[: -len("_prz_low")], {})["low"] = lv
+        elif lv.label.endswith("_prz_high"):
+            by_pid.setdefault(lv.label[: -len("_prz_high")], {})["high"] = lv
+        else:
+            others.append(lv)
+    pairs: list[tuple[Level, Level]] = []
+    for parts in by_pid.values():
+        low, high = parts.get("low"), parts.get("high")
+        if low is not None and high is not None:
+            pairs.append((low, high))
+        else:
+            others.extend(parts.values())
+    return pairs, others
+
+
+def _draw_prz_bands(
+    fig: go.Figure, pairs: list[tuple[Level, Level]], df: pd.DataFrame, theme: Theme,
+    row: int, col: int,
+) -> None:
+    """PRZ alt/üst çiftini iki ayrı kesikli çizgi+etiket YERİNE tek bir yarı
+    saydam dolgulu bant + ortak "Hedef Bölge (PRZ): low–high" etiketiyle
+    çizer — "Grafik Stil Vitrini" mockup'ının (`harmonicPanel`) PRZ
+    dolgusuyla birebir aynı görsel dil (bkz. proje planı, 2026-09-01)."""
+    first_x, last_x = df.index[0], df.index[-1]
+    for low, high in pairs:
+        x0 = low.start if low.start is not None else first_x
+        x1 = low.end if low.end is not None else last_x
+        fig.add_shape(
+            type="rect", x0=_x(x0), x1=_x(x1), y0=low.price, y1=high.price,
+            fillcolor=with_alpha(theme.accent, 0.12),
+            line=dict(color=theme.accent, width=1, dash="dash"),
+            row=row, col=col,
+        )
+        fig.add_annotation(
+            x=_x(x0), y=high.price, xanchor="left", yanchor="bottom",
+            text=f"Hedef Bölge (PRZ): {low.price:.1f}–{high.price:.1f}",
+            showarrow=False, font=dict(size=10, color=theme.accent, family=theme.font),
+            row=row, col=col,
+        )
 
 
 _DASH_FOR_STYLE = {"dashed": "dash", "dotted": "dot"}
@@ -1169,7 +1288,7 @@ def _draw_lines(
         yshifts = _stagger_yshifts(
             [
                 (ln, proj, _LINE_EXT_YSHIFT) for ln, (_et, proj) in extensions.items()
-                if latest_end is None or ln.points[-1][0] == latest_end.get(ln.style)
+                if latest_end is None or ln is latest_end.get(ln.style)
             ],
             px_per_unit=px_per_unit, step=14.0,
         )
@@ -1203,7 +1322,7 @@ def _draw_lines(
             ),
             row=row, col=col,
         )
-        if latest_end is not None and t1 != latest_end.get(ln.style):
+        if latest_end is not None and ln is not latest_end.get(ln.style):
             continue
         fig.add_annotation(
             x=_x(ext_time), y=proj, text=_display_text(ln.label, ln.style),
@@ -1239,6 +1358,35 @@ def _declutter_levels(levels: list[Level], keep_recent: int = 1) -> list[Level]:
         starts = sorted({lv.start for lv in group if lv.start is not None}, reverse=True)
         keep = set(starts[:keep_recent])
         kept.extend(lv for lv in group if lv.start is None or lv.start in keep)
+    return kept
+
+
+# 2026-09-02: `structure.golden_zone`/`structure.supply_demand` gerçek
+# çok-aylık veride HER swing/taban için bir Box üretir — mockup ise (ve
+# kullanıcının "sade, karmaşık değil" isteği) yalnızca EN GÜNCEL örneği
+# gösteriyor. Önceki tasarım kararı ("her biri farklı bir bölgeye ait,
+# bilgi kaybı olur" — bkz. `_DECLUTTER_GENERIC_KINDS` docstring'i) az
+# sayıda örnek varsayıyordu; gerçek ALARK/ASELS verisiyle bu varsayım
+# YANLIŞ çıktı (düzinelerce kutu üst üste bindi). `_draw_boxes` diğer
+# stiller (resistance_zone/support_zone/range_box) için TÜM şekilleri
+# BİLEREK korumaya devam ediyor (orada birden fazla eşzamanlı seviye
+# anlamlı) — bu fonksiyon yalnızca "tek-örnek" ailesini kısıtlar.
+_SINGLE_INSTANCE_BOX_STYLES = frozenset(
+    {"golden_zone", "golden_zone_alt", "demand", "supply", "demand_broken", "supply_broken"}
+)
+
+
+def _declutter_single_instance_boxes(boxes: list[Box], keep_recent: int = 1) -> list[Box]:
+    rest = [b for b in boxes if b.style not in _SINGLE_INSTANCE_BOX_STYLES]
+    by_style: dict[str, list[Box]] = {}
+    for b in boxes:
+        if b.style in _SINGLE_INSTANCE_BOX_STYLES:
+            by_style.setdefault(b.style, []).append(b)
+    kept = list(rest)
+    for group in by_style.values():
+        starts = sorted({b.t0 for b in group}, reverse=True)
+        keep = set(starts[:keep_recent])
+        kept.extend(b for b in group if b.t0 in keep)
     return kept
 
 
@@ -1350,14 +1498,30 @@ _HARMONIC_STATE_COLOR: dict[str, str] = {
 _PATTERN_OUTCOME_COLOR: dict[str, str] = {"confirmed": "accent", "completed": "green"}
 
 
+# 2026-09-02: "her kategoriden 1" tek başına yetersizdi — `trend.breakouts`
+# ~20 farklı break_type üretir, kategori-başına-1 bile 15-20 uzun ("Kırılım:
+# YUKARI | channel_break_up | Temas:0 | Hacim ×1.4 | Q:58" gibi) etiketin
+# AYNI ANDA üst üste binmesine yol açıyordu (gerçek ISCTR verisiyle bulunan,
+# kullanıcının "rezalet" diye tarif ettiği durum). Kategori bütçesi
+# KORUNUYOR (bir tür diğerini tamamen dışlamasın diye), ama tüm kategoriler
+# TOPLANDIKTAN SONRA global bir üst sınıra (`_MAX_GENERIC_MARKERS_TOTAL`) da
+# tabi tutuluyor — yalnızca en güncel N tanesi görünür kalır.
 _MAX_GENERIC_MARKERS_PER_GROUP = 1
+_MAX_GENERIC_MARKERS_TOTAL = 4
 # Yalnızca BU kind için sıkı declutter uygulanır (bkz. `_generic_marker_
 # group_key` docstring'i) — `structure.golden_zone`/`structure.supply_
 # demand`'ın "REAKSİYON"/"BAŞARILI"/"KIRILDI" gibi generic marker'ları
 # ZATEN az sayıda ve HER biri farklı bir swing/bölgeye ait, bilgi taşıyan
 # bir geçmiş (kutu declutter'ı gibi "yalnızca en güncel" uygulamak burada
 # BİLGİ KAYBI olurdu — sorun yalnızca `trend.breakouts`'ta gözlemlendi).
-_DECLUTTER_GENERIC_KINDS = frozenset({"breakout"})
+_DECLUTTER_GENERIC_KINDS = frozenset({
+    "breakout",
+    # golden_zone.py / supply_demand.py — bkz. `_declutter_single_instance_
+    # boxes` docstring'i, AYNI gerekçe: gerçek veride onlarca "REAKSİYON"/
+    # "BAŞARILI"/"BAŞARISIZ"/"KIRILDI" markerı üst üste biniyordu.
+    "golden_zone_reaction", "golden_zone_fail", "golden_zone_success",
+    "sd_reaction", "sd_new", "sd_test", "sd_broken",
+})
 
 
 def _generic_marker_group_key(m: Marker) -> str:
@@ -1376,9 +1540,22 @@ def _generic_marker_group_key(m: Marker) -> str:
     return f"{m.kind}:{parts[1].strip()}" if len(parts) >= 2 else m.kind
 
 
+def _short_generic_text(m: Marker) -> str:
+    """`_generic_marker_group_key`'in ayrıştırdığı uzun cümleyi (ör. "Kırılım:
+    YUKARI | channel_break_up | Temas:0 | Hacim ×1.4 | Q:58") grafik üzerinde
+    okunur kalacak kısa bir "yön oku + tür" etiketine indirger (ör. "▲
+    channel_break_up") — Temas/Hacim/Q gibi ayrıntılar annotation'ın
+    `hovertext`'ine taşınır, bilgi kaybı yok, yalnızca varsayılan görünüm
+    sadeleşiyor."""
+    parts = [p.strip() for p in m.text.split("|")]
+    arrow = "▲" if "YUKARI" in parts[0].upper() else "▼" if "AŞAĞI" in parts[0].upper() else ""
+    kind = parts[1] if len(parts) >= 2 else parts[0]
+    return f"{arrow} {kind}".strip()
+
+
 def _draw_markers(
     fig: go.Figure, markers: list[Marker], theme: Theme, row: int, col: int,
-    declutter: bool = True,
+    declutter: bool = True, px_per_unit: float = 1.0,
 ) -> None:
     harmonic_markers = sorted(
         (
@@ -1411,6 +1588,24 @@ def _draw_markers(
         for group in by_group.values():
             group.sort(key=lambda m: m.t, reverse=True)
             visible_generic.update(group[:_MAX_GENERIC_MARKERS_PER_GROUP])
+        if len(visible_generic) > _MAX_GENERIC_MARKERS_TOTAL:
+            newest = sorted(visible_generic, key=lambda m: m.t, reverse=True)
+            visible_generic = set(newest[:_MAX_GENERIC_MARKERS_TOTAL])
+
+    # 2026-09-02 GERÇEK HATA düzeltmesi: `visible_generic`e kadar birden
+    # fazla FARKLI kategori (ör. "zone_break_down"/"ma_break_ema50_up")
+    # kalabiliyor (bilerek — her biri farklı bilgi taşıyor, tek bir örneğe
+    # indirgemek bilgi kaybı olurdu), ama HEPSİ sabit `yshift=10` kullanıyordu
+    # — gerçek ISCTR verisiyle bulunan bir durum: aynı fiyat/zaman civarına
+    # düşen 2-3 marker'ın metni üst üste binip okunmaz bir "harf çorbası"
+    # oluşturuyordu. `_stagger_yshifts` (Level/Box etiketlerinin ZATEN
+    # kullandığı "cetvel" sezgisi) burada da uygulanır.
+    generic_yshifts = (
+        _stagger_yshifts(
+            [(m, m.price, 10.0) for m in visible_generic], px_per_unit=px_per_unit, step=14.0,
+        )
+        if visible_generic else {}
+    )
 
     for m in markers:
         if m.kind == "structure_label":
@@ -1431,22 +1626,38 @@ def _draw_markers(
             # yeterince göze çarpmayabilir (ör. accent altın tonu, ince bir
             # çizgide soluk kalabilir).
             confirmed = state == "confirmed"
+            # 2026-09-01: mockup'taki (`Grafik Stil Vitrini`) D rozeti TAM
+            # dolgulu bir "pill" — eskiden `confirmed` durumda bile yalnızca
+            # %15 opaklıkta dolgu kullanılıyordu, mockup'la birebir eşleşmesi
+            # için `confirmed` artık tam opak dolgu + zıt renkte metin alır
+            # (`badgeStyle` ilkesi: `dark_terminal`in parlak altın vurgusunda
+            # koyu metin, diğer temaların daha mat altın/kahve vurgusunda
+            # beyaz metin — ikisi de mockup'ın kendi kararı).
+            bgcolor = color if confirmed else with_alpha(color, 0.15)
+            confirmed_text = "#0a0c10" if theme.name == "dark_terminal" else "#ffffff"
+            text_color = confirmed_text if confirmed else theme.text
             fig.add_annotation(
                 x=_x(m.t), y=m.price, text=f"<b>{m.text}</b>" if confirmed else m.text,
                 showarrow=True, arrowhead=2, arrowcolor=color, arrowwidth=2 if confirmed else 1,
-                font=dict(size=11, color=theme.text), bgcolor=with_alpha(color, 0.15),
+                font=dict(size=11, color=text_color), bgcolor=bgcolor,
                 bordercolor=color, borderwidth=2 if confirmed else 1,
                 ax=30, ay=-30, row=row, col=col,
             )
         elif m.kind == "pair_signal":
             continue  # yalnızca pair modunda, _render_pair kendi çizer
         elif m.kind in ("pattern_confirmed", "pattern_completed"):
+            # 2026-09-02: harmonik D rozetinin "confirmed = tam dolgulu pill"
+            # düzeltmesiyle AYNI — mockup'ın "TOBO · ONAY"/"BAYRAK · DEVAM"
+            # rozetleri de HER ZAMAN solid dolgu (bu iki durum zaten "sinyal
+            # arrived" anlamına geliyor, harmonikteki pending/active gibi ayrı
+            # bir "henüz gelmedi" hâli YOK).
             state = m.kind.removeprefix("pattern_")
             color = getattr(theme, _PATTERN_OUTCOME_COLOR[state])
+            confirmed_text = "#0a0c10" if theme.name == "dark_terminal" else "#ffffff"
             fig.add_annotation(
                 x=_x(m.t), y=m.price, text=f"<b>{m.text}</b>",
                 showarrow=True, arrowhead=2, arrowcolor=color, arrowwidth=2,
-                font=dict(size=11, color=theme.text), bgcolor=with_alpha(color, 0.15),
+                font=dict(size=11, color=confirmed_text), bgcolor=color,
                 bordercolor=color, borderwidth=2, ax=30, ay=-30, row=row, col=col,
             )
         elif m.kind.startswith("pattern_vertex:"):
@@ -1462,9 +1673,11 @@ def _draw_markers(
                 and m not in visible_generic
             ):
                 continue
+            text = _short_generic_text(m) if m.kind in _DECLUTTER_GENERIC_KINDS else m.text
             fig.add_annotation(
-                x=_x(m.t), y=m.price, text=m.text, showarrow=False,
-                font=dict(size=10, color=theme.muted), yshift=10, row=row, col=col,
+                x=_x(m.t), y=m.price, text=text, showarrow=False, hovertext=m.text,
+                font=dict(size=10, color=theme.muted),
+                yshift=generic_yshifts.get(m, 10.0), row=row, col=col,
             )
 
 
@@ -1914,12 +2127,12 @@ def render_structure_report(
     px_per_unit = main_row_px / visible_price_range if visible_price_range else 1.0
 
     labeled_boxes = [
-        b for b in boxes if latest_box_t0 is None or b.t0 == latest_box_t0.get(b.style)
+        b for b in boxes if latest_box_t0 is None or b is latest_box_t0.get(b.style)
     ]
     line_extensions = _line_extensions(lines, df)
     labeled_line_ext = [
         (ln, proj) for ln, (_et, proj) in line_extensions.items()
-        if latest_line_end is None or ln.points[-1][0] == latest_line_end.get(ln.style)
+        if latest_line_end is None or ln is latest_line_end.get(ln.style)
     ]
     levels_for_stagger = [lv for lv in levels if labeled_levels is None or lv in labeled_levels]
     box_level_yshifts = _stagger_yshifts(
@@ -1944,7 +2157,9 @@ def render_structure_report(
         yshifts=box_level_yshifts, has_vp=has_vp, edge_cutoff=edge_cutoff,
         labeled=labeled_levels,
     )
-    _draw_markers(fig, markers, resolved, row=1, col=1, declutter=declutter)
+    _draw_markers(
+        fig, markers, resolved, row=1, col=1, declutter=declutter, px_per_unit=px_per_unit,
+    )
 
     for i, name in enumerate(sub_names, start=2):
         _draw_series_panel(
@@ -1952,7 +2167,9 @@ def render_structure_report(
         )
         # Alt paneller TAM GEÇMİŞİ gösterir — ana panelin `last_n` zoom'undan
         # BİLİNÇLİ OLARAK bağımsız (bkz. fonksiyon docstring'i).
-        fig.update_xaxes(range=[_x(df.index[0]), _x(df.index[-1])], row=i, col=1)
+        fig.update_xaxes(
+            range=[_x(df.index[0]), _right_padded_x(df, len(df) - 1)], row=i, col=1,
+        )
 
     if has_vp:
         _draw_volume_profile(fig, ps_result, resolved, row=1, col=2, legend_name="legend2")
@@ -1977,10 +2194,10 @@ def render_structure_report(
         fig.update_xaxes(showticklabels=(r in (1, n_rows)), row=r, col=1)
 
     window_end_idx = len(df) - 1
-    if window_start_idx > 0:
-        fig.update_xaxes(
-            range=[_x(df.index[window_start_idx]), _x(df.index[window_end_idx])], row=1, col=1,
-        )
+    fig.update_xaxes(
+        range=[_x(df.index[window_start_idx]), _right_padded_x(df, window_end_idx)],
+        row=1, col=1,
+    )
     _sync_price_yaxis(fig, df, window_start_idx, has_vp)
 
     # Alt başlık, `ps_result.indicator` ("structure.price_structure") yerine
@@ -2088,7 +2305,9 @@ def render_reversal_map(
     _apply_layout(fig, resolved, header, height=650, width=_DEFAULT_WIDTH)
     if has_vp:
         _position_vp_legend(fig, resolved)
-    fig.update_xaxes(range=[_x(df.index[window_start_idx]), _x(df.index[-1])], row=1, col=1)
+    fig.update_xaxes(
+        range=[_x(df.index[window_start_idx]), _right_padded_x(df, len(df) - 1)], row=1, col=1,
+    )
     return fig
 
 

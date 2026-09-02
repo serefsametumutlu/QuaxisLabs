@@ -21,8 +21,35 @@ interface Props {
 export function ChartImage({ symbol, tf, indicator, market, theme }: Props) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const qs = new URLSearchParams({ symbol, tf, indicator, market, theme }).toString();
   const src = `${API_BASE}/chart.png?${qs}`;
+
+  // GERÇEK HATA (bulunup düzeltildi): `<a href={src} download>` — `src`
+  // backend'de AYRI bir origin'de (localhost:8000) olduğu için tarayıcılar
+  // `download` özniteliğini GÖRMEZDEN GELİR (yalnızca same-origin/blob:/
+  // data: URL'lerde çalışır) — tıklayınca dosya inmek yerine görsel yeni
+  // sekmede/pencerede AÇILIYORDU. Çözüm: görseli `fetch()` ile (bu, `<a
+  // download>`in aksine cross-origin kısıtlamasına TAKILMAZ) byte olarak
+  // indirip bir `blob:` URL'e çevirmek — blob: URL'ler HER ZAMAN same-origin
+  // sayılır, `download` orada güvenilir çalışır.
+  const downloadPng = async () => {
+    setDownloading(true);
+    try {
+      const res = await fetch(src);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = `${symbol}_${indicator}_${tf}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <div className="relative w-full">
@@ -52,13 +79,13 @@ export function ChartImage({ symbol, tf, indicator, market, theme }: Props) {
         }}
       />
       {loaded && (
-        <a
-          href={src}
-          download={`${symbol}_${indicator}_${tf}.png`}
-          className="absolute right-1 top-1 rounded border border-border bg-surface-1/90 px-2 py-1 text-xs text-text-2 hover:border-accent hover:text-text-1"
+        <button
+          onClick={downloadPng}
+          disabled={downloading}
+          className="absolute right-1 top-1 rounded border border-border bg-surface-1/90 px-2 py-1 text-xs text-text-2 hover:border-accent hover:text-text-1 disabled:opacity-50"
         >
-          PNG indir
-        </a>
+          {downloading ? "İndiriliyor…" : "PNG indir"}
+        </button>
       )}
     </div>
   );

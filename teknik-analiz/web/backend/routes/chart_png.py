@@ -34,4 +34,11 @@ def get_chart_png(
         raise HTTPException(404, f"Veri bulunamadı: {exc}") from exc
 
     png_bytes = fig.to_image(format="png", scale=2)
-    return Response(content=png_bytes, media_type="image/png")
+    # `structure.report` gibi göstergeler (price_structure'ın O(n²) trendline
+    # üretimi) birkaç saniye sürebiliyor — tarayıcı aynı URL'i (görüntüleme +
+    # "PNG indir" ikinci bir fetch) kısa süre içinde tekrar isterse sunucuda
+    # YENİDEN ÇİZMEK yerine kendi önbelleğinden döndürsün diye kısa bir
+    # Cache-Control eklendi (query string zaten doğal bir önbellek anahtarı).
+    return Response(
+        content=png_bytes, media_type="image/png", headers={"Cache-Control": "private, max-age=300"}
+    )

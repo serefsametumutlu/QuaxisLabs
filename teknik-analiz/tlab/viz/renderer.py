@@ -25,7 +25,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from tlab.core.types import Box, IndicatorResult, Level, Line, Marker, Polygon
+from tlab.core.types import Box, IndicatorResult, Level, Line, Marker, Polygon, Timeframe
 from tlab.viz import labels_tr as tr
 from tlab.viz.themes import (
     DARK_TERMINAL,
@@ -271,6 +271,34 @@ def _right_padded_x(df: pd.DataFrame, end_idx: int) -> str:
     return _x(df.index[end_idx] + step * _RIGHT_PAD_BARS)
 
 
+def _rangebreaks_for(df: pd.DataFrame, timeframe: Timeframe) -> list[dict[str, object]]:
+    """GERÇEK HATA (bulunup düzeltildi, 2026-09-02): Plotly'nin tarih eksen'i
+    varsayılan olarak SÜREKLİ zaman akışı varsayar — hafta sonları VE
+    (4H/1H gibi gün-içi zaman dilimlerinde) seans dışı gece saatleri de
+    eksende PAY alıyordu. BIST 4H'te bir gün yalnızca ~3 bar üretirken
+    (bkz. `tlab/data/calendar.py`), eksen 24 saatlik takvim gününe göre
+    ölçeklendiği için o 3 gerçek mumun kapladığı pay, gece boşluğuna göre
+    orantısız küçülüyordu — kullanıcının "mumlar çubuk grafiği gibi, gövde
+    görünmüyor" şikayetinin `_DEFAULT_LAST_N` küçültmesinden (aynı sorunun
+    başka bir yüzü) BAĞIMSIZ, muhtemelen daha büyük bir bileşeni.
+    Piyasa/seans saatlerini burada yeniden TANIMLAMAK yerine (bu modül
+    `market` parametresi almıyor, `tlab/data/calendar.py::SESSION_HOURS`e
+    bağımlı olmak istemiyoruz), gün-içi aktif saat aralığı DOĞRUDAN
+    `df.index`'in kendisinden (gerçekte hangi saatlerde bar VARSA) türetilir
+    — piyasadan bağımsız, sağlam bir yöntem. Günlük/haftalık zaman
+    dilimlerinde saat kısıtı UYGULANMAZ (gün-içi boşluk sorunu yok)."""
+    breaks: list[dict[str, object]] = [{"bounds": ["sat", "mon"]}]
+    if timeframe in (Timeframe.H1, Timeframe.H4) and len(df) > 1:
+        hours = df.index.hour
+        active_start, active_end = int(hours.min()), int(hours.max())
+        if active_start > 0 or active_end < 23:
+            # Son aktif saatten BİR SONRAKİ günün ilk aktif saatine kadar
+            # (gece boyu) eksende gizlenir — `bounds=[a, b]` a>b iken
+            # gece yarısını saracak şekilde yorumlanır (Plotly semantiği).
+            breaks.append({"bounds": [active_end + 1, active_start], "pattern": "hour"})
+    return breaks
+
+
 # 0.18 -> 0.24 (2026-08-30): kullanıcı geri bildirimi — hacim profili paneli
 # (HVN+Gaussian Fit) referansla kıyaslayınca dar geliyordu, çubuklar/eğri
 # panelin sağ kenarına fazla yakın duruyordu. Bkz. `_draw_volume_profile`'daki
@@ -278,13 +306,18 @@ def _right_padded_x(df: pd.DataFrame, end_idx: int) -> str:
 # durması için).
 _VP_COLUMN_WIDTH = 0.24
 
-# 250 -> 150 (2026-08-30): kullanıcı geri bildirimi — referans ekran
-# görüntüleri (~ay bazında 6-9 ay) bizden belirgin ölçüde daha az bar
-# gösteriyordu, bu yüzden mumlar orada çok daha "şişman"/net, bizde ince/
-# ayırt edilemezdi ("son mumları görmek neredeyse imkansız"). `_DEFAULT_
-# WIDTH`'in AYNI gerekçeyle büyütülmesiyle birlikte piksel/bar oranı
-# referansa yaklaşır.
-_DEFAULT_LAST_N = 150
+# 250 -> 150 (2026-08-30) -> 90 (2026-09-02): kullanıcı geri bildirimi —
+# 150'de bile mumlar "çubuk grafiği gibi, mum gövdesi görünmüyor" (doji/
+# harami gibi mum formasyonlarını ayırt edemiyor) diye bildirdi. Kök neden:
+# bu sabit PNG'nin (1750px, `scale=2` ile 3500px dışa aktarılıyor) STANDALONE
+# görüntüleyicide (ör. `tlab plot` çıktısını doğrudan açmak) NASIL
+# göründüğüne göre ayarlanmıştı — web arayüzünde ise tarayıcı bu 3500px'lik
+# görseli ~1200-1400px'lik bir karta sığdırmak için KÜÇÜLTÜYOR (ek bir
+# ölçek faktörü, önceki ayarlamalar bunu hesaba KATMAMIŞTI), bu da her mum
+# gövdesinin ekranda birkaç piksele (bazen 1px'in altına) düşmesine yol
+# açıyordu. 90 bar, aynı panel genişliğinde her muma önceki ayardan ~%65
+# daha fazla piksel bırakır.
+_DEFAULT_LAST_N = 90
 _HARMONIC_ZOOM_PAD_BARS = 20
 # Bir adayın X'inden BAŞLAYIP HER ZAMAN veri setinin GERÇEK son barına kadar
 # uzanan pencere — aday çok eskiyse (o zamandan beri yeni bir aday doğmadıysa,
@@ -655,7 +688,8 @@ def _render_price_based(
 
     window_end_idx = _resolve_window_end(result, df)
     fig.update_xaxes(
-        range=[_x(df.index[window_start_idx]), _right_padded_x(df, window_end_idx)]
+        range=[_x(df.index[window_start_idx]), _right_padded_x(df, window_end_idx)],
+        rangebreaks=_rangebreaks_for(df, result.timeframe),
     )
     harmonic_bounds = (
         _harmonic_price_bounds(result, df, window_start_idx, window_end_idx)
@@ -2161,15 +2195,21 @@ def render_structure_report(
         fig, markers, resolved, row=1, col=1, declutter=declutter, px_per_unit=px_per_unit,
     )
 
+    # 2026-09-02 GERİ ALINDI — "alt paneller TAM GEÇMİŞİ gösterir" (bkz. Git
+    # geçmişi): kullanıcı bunu "Hacim/MACD/RSI net ve özenli değil" olarak
+    # yorumladı — ana panel yalnızca ~90 bar'a yakınlaşırken alt paneller
+    # 2+ yıllık geçmişi AYNI panel genişliğine sıkıştırıyordu, bu da
+    # onlardaki en son (asıl ilgi alanı) kısmı tanınmaz kadar küçültüyordu.
+    # Referans görseller (ornek1/ornek2.png) osilatörleri HER ZAMAN ana
+    # panelle AYNI zoom'da gösteriyor — artık burada da öyle.
+    zoomed_range = [_x(df.index[window_start_idx]), _right_padded_x(df, len(df) - 1)]
+    rangebreaks = _rangebreaks_for(df, ps_result.timeframe)
     for i, name in enumerate(sub_names, start=2):
         _draw_series_panel(
             fig, ps_result, name, ps_result.series_layout[name], resolved, row=i, col=1, df=df,
         )
-        # Alt paneller TAM GEÇMİŞİ gösterir — ana panelin `last_n` zoom'undan
-        # BİLİNÇLİ OLARAK bağımsız (bkz. fonksiyon docstring'i).
-        fig.update_xaxes(
-            range=[_x(df.index[0]), _right_padded_x(df, len(df) - 1)], row=i, col=1,
-        )
+        fig.update_xaxes(range=zoomed_range, rangebreaks=rangebreaks, row=i, col=1)
+    fig.update_xaxes(range=zoomed_range, rangebreaks=rangebreaks, row=1, col=1)
 
     if has_vp:
         _draw_volume_profile(fig, ps_result, resolved, row=1, col=2, legend_name="legend2")
@@ -2182,22 +2222,12 @@ def render_structure_report(
     )
 
     # Ana panel (row=1) ve alt panel grubu (row=2..n_rows, TAM GEÇMİŞ) FARKLI
-    # x-aralıklarına sahip — eskiden yalnızca EN ALTTAKİ satır tarih
-    # gösteriyordu, bu da ana panelin (zoom'lanmış, farklı bir tarih aralığı
-    # olan) hiçbir tarih etiketi ALAMAMASI anlamına geliyordu (kullanıcı
-    # geri bildirimi: "grafiğin alt kısmına hep tarih yazmışlar bizde o da
-    # eksik"). Artık HEM ana panel HEM en alttaki panel kendi tarihini
-    # gösteriyor; aradaki paneller (hacim/MACD, aynı tam-geçmiş aralığını
-    # en alttakiyle paylaştığı için) gereksiz tekrarı önlemek üzere sessiz
-    # kalıyor.
+    # x-aralığını (bkz. yukarıdaki `zoomed_range` bloğu, 2026-09-02) — artık
+    # bütün paneller AYNI zoom'landığı için tarih etiketini yalnızca EN
+    # ALTTAKİ satır gösterir (standart yerleşim, gereksiz tekrar yok).
     for r in range(1, n_rows + 1):
-        fig.update_xaxes(showticklabels=(r in (1, n_rows)), row=r, col=1)
+        fig.update_xaxes(showticklabels=(r == n_rows), row=r, col=1)
 
-    window_end_idx = len(df) - 1
-    fig.update_xaxes(
-        range=[_x(df.index[window_start_idx]), _right_padded_x(df, window_end_idx)],
-        row=1, col=1,
-    )
     _sync_price_yaxis(fig, df, window_start_idx, has_vp)
 
     # Alt başlık, `ps_result.indicator` ("structure.price_structure") yerine
@@ -2306,7 +2336,8 @@ def render_reversal_map(
     if has_vp:
         _position_vp_legend(fig, resolved)
     fig.update_xaxes(
-        range=[_x(df.index[window_start_idx]), _right_padded_x(df, len(df) - 1)], row=1, col=1,
+        range=[_x(df.index[window_start_idx]), _right_padded_x(df, len(df) - 1)],
+        rangebreaks=_rangebreaks_for(df, result.timeframe), row=1, col=1,
     )
     return fig
 

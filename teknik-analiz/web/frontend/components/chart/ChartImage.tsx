@@ -22,6 +22,7 @@ export function ChartImage({ symbol, tf, indicator, market, theme }: Props) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const qs = new URLSearchParams({ symbol, tf, indicator, market, theme }).toString();
   const src = `${API_BASE}/chart.png?${qs}`;
 
@@ -35,8 +36,10 @@ export function ChartImage({ symbol, tf, indicator, market, theme }: Props) {
   // sayılır, `download` orada güvenilir çalışır.
   const downloadPng = async () => {
     setDownloading(true);
+    setDownloadError(null);
     try {
       const res = await fetch(src);
+      if (!res.ok) throw new Error(`İndirme başarısız (${res.status})`);
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -46,6 +49,13 @@ export function ChartImage({ symbol, tf, indicator, market, theme }: Props) {
       a.click();
       a.remove();
       URL.revokeObjectURL(blobUrl);
+    } catch {
+      // `fetch` ağ hatasında (backend o an ayakta değilse, bağlantı
+      // koparsa vb.) bir `TypeError` fırlatır — eskiden bu yakalanmadan
+      // Next.js'in hata ekranına düşüyordu ("Failed to fetch" runtime
+      // crash'i). Artık kullanıcıya sayfa içi, anlaşılır bir mesaj olarak
+      // gösteriliyor.
+      setDownloadError("İndirilemedi — backend'e ulaşılamadı, tekrar deneyin.");
     } finally {
       setDownloading(false);
     }
@@ -79,13 +89,18 @@ export function ChartImage({ symbol, tf, indicator, market, theme }: Props) {
         }}
       />
       {loaded && (
-        <button
-          onClick={downloadPng}
-          disabled={downloading}
-          className="absolute right-1 top-1 rounded border border-border bg-surface-1/90 px-2 py-1 text-xs text-text-2 hover:border-accent hover:text-text-1 disabled:opacity-50"
-        >
-          {downloading ? "İndiriliyor…" : "PNG indir"}
-        </button>
+        <div className="absolute right-1 top-1 flex flex-col items-end gap-1">
+          <button
+            onClick={downloadPng}
+            disabled={downloading}
+            className="rounded border border-border bg-surface-1/90 px-2 py-1 text-xs text-text-2 hover:border-accent hover:text-text-1 disabled:opacity-50"
+          >
+            {downloading ? "İndiriliyor…" : "PNG indir"}
+          </button>
+          {downloadError && (
+            <span className="rounded bg-danger/15 px-2 py-1 text-[11px] text-danger">{downloadError}</span>
+          )}
+        </div>
       )}
     </div>
   );

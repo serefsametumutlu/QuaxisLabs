@@ -615,3 +615,26 @@ def test_filter_confirmed_patterns_matches_either_direction_for_wedge_style_ids(
     )
     filtered = _filter_confirmed_patterns(result)
     assert len(filtered.lines) == 1
+
+
+def test_filter_confirmed_patterns_target_level_stays_direction_specific() -> None:
+    """2026-09-03 GERÇEK bulgu (ODAS `patterns.triangle` render'ı): yön
+    soneki kırpılmış `pattern_key` eşleşmesi paylaşılan Line/Polygon için
+    doğru olsa da, `_target` Level'i YÖNE ÖZGÜdür (`{pattern_key}_{direction}
+    _target`) — geçersiz (short) yönün hedef fiyatı, kırpılmış base'e göre
+    yanlışlıkla geçerli (long) yönle eşleşip başıboş bir "Hedef" çizgisi
+    olarak sızmamalı."""
+    result = IndicatorResult(
+        indicator="patterns.triangle", version="0.1.0", params_hash="x",
+        symbol="TEST", timeframe=Timeframe.D1,
+        levels=[
+            Level(price=110.0, label="triangle_5_10_15_20_long_target", style="pattern_target"),
+            Level(price=80.0, label="triangle_5_10_15_20_short_target", style="pattern_target"),
+        ],
+        last_state={
+            "triangle_5_10_15_20_long": {"shape": "sym_triangle", "state": "confirmed"},
+            "triangle_5_10_15_20_short": {"shape": "sym_triangle", "state": "invalidated"},
+        },
+    )
+    filtered = _filter_confirmed_patterns(result)
+    assert [lv.label for lv in filtered.levels] == ["triangle_5_10_15_20_long_target"]

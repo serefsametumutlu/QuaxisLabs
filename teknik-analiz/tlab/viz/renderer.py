@@ -968,6 +968,19 @@ def _filter_confirmed_patterns(result: IndicatorResult) -> IndicatorResult:
     def _matches(label: str) -> bool:
         return any(label == base or label.startswith(base + "_") for base in valid_base_keys)
 
+    # 2026-09-03 GERÇEK bulgu (ODAS `patterns.triangle` render'ıyla
+    # bulundu): `_target` Level'leri `wedge.py`/`broadening.py`'de YÖN-
+    # ÖZGÜ `pattern_id`'den geliyor (`{pattern_key}_{direction}_target`),
+    # ama yukarıdaki `_matches` yön soneki KIRPILMIŞ `pattern_key`'e göre
+    # de eşleşiyor -- bu yüzden AYNI üçgen/takoz geometrisinin GEÇERSİZ
+    # (invalidated) yönünün hedef çizgisi de, geçerli yönün yanında,
+    # başıboş bir "Hedef" olarak sızıyordu (kaynağı belirsiz, ekrandaki
+    # fiyattan çok uzak bir seviyede). Hedef Level'leri bu yüzden yalnızca
+    # TAM (yön dahil) `pattern_id` ile eşleşmeli -- paylaşılan geometri
+    # (sınır çizgileri/hologram/vertex marker) hâlâ yön-agnostik kalır.
+    def _matches_target(label: str) -> bool:
+        return any(label == pid or label.startswith(pid + "_") for pid in valid_ids)
+
     def _keep_marker(m: Marker) -> bool:
         if m.kind.startswith("pattern_confirmed:") or m.kind.startswith("pattern_completed:"):
             return m.kind.split(":", 1)[1] in valid_ids
@@ -976,7 +989,7 @@ def _filter_confirmed_patterns(result: IndicatorResult) -> IndicatorResult:
         return False
 
     markers = [m for m in result.markers if _keep_marker(m)]
-    levels = [lv for lv in result.levels if _matches(lv.label)]
+    levels = [lv for lv in result.levels if _matches_target(lv.label)]
     lines = [ln for ln in result.lines if _matches(ln.label)]
     boxes = [b for b in result.boxes if _matches(b.label)]
     polygons = [pg for pg in result.polygons if _matches(pg.label)]

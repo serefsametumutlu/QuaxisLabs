@@ -105,12 +105,16 @@ def test_eq_tol_too_strict_filters_out_pair() -> None:
     assert result.signals == []
 
 
-def test_hologram_polygon_covers_p1_neckline_p2() -> None:
+def test_hologram_polygon_traces_close_path_p1_to_p2() -> None:
+    """Hologram artık düz 3 köşeli bir üçgen DEĞİL, p1->p2 arası GERÇEK
+    kapanış fiyatı yolunu izliyor (2026-09-03, bkz. modül yorumu) — bu
+    yüzden nokta sayısı bar aralığı kadar (idx2..idx12 dahil = 11)."""
     df = _double_bottom_ohlcv()
     result = DoubleTopBottomIndicator(_params()).compute(df)
     hologram = next(p for p in result.polygons if p.style == "pattern_hologram")
     prices = [price for _t, price in hologram.points]
-    assert prices == pytest.approx([97, 117, 96])
+    close = df["close"].to_numpy()
+    assert prices == pytest.approx(list(close[2:13]))
     assert hologram.points[0][0] == df.index[2]
     assert hologram.points[-1][0] == df.index[12]
 

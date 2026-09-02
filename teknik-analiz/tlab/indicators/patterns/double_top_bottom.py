@@ -178,15 +178,14 @@ class DoubleTopBottomIndicator(BaseIndicator):
                         start=p2.bar_time, end=level_end_from_signals(pattern_signals),
                     )
                 )
-                # Hologram dolgusu: 1-boyun-2 zigzag'inin çevrelediği alan
-                # (marker'lar için kullanılan AYNI 3 pivot).
+                # Hologram dolgusu: 1-boyun-2 arası GERÇEK kapanış fiyatı
+                # yolunu izler (yalnızca 3 köşeli düz üçgen değil) — böylece
+                # M/W silueti gerçek mumlara oturur, geometrik bir üçgen
+                # yerine tanınabilir bir formasyon hattı görünür.
+                path_idxs = range(p1.bar_idx, p2.bar_idx + 1)
                 polygons.append(
                     Polygon(
-                        points=(
-                            (p1.bar_time, p1.price),
-                            (neckline_pivot.bar_time, neckline_pivot.price),
-                            (p2.bar_time, p2.price),
-                        ),
+                        points=tuple((df.index[i], float(close[i])) for i in path_idxs),
                         label=f"{pattern_id}_hologram", style="pattern_hologram",
                     )
                 )

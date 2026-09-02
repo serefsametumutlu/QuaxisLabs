@@ -19,7 +19,7 @@ from tlab.data.universe import BENCHMARK_SYMBOL, load_universe
 from tlab.data.validate import check_data_quality
 from tlab.indicators.bootstrap import CATALOG
 from tlab.indicators.momentum.momentum_rank import MomentumRankParams, momentum_heatmap_data
-from tlab.indicators.pairs.discovery import load_sector_map
+from tlab.indicators.pairs.discovery import load_pairs_yaml, load_sector_map
 from tlab.indicators.pairs.relative_momentum import RelativeMomentumPair, RelativeMomentumParams
 from tlab.scanner import engine
 from tlab.scanner.eod import run_eod
@@ -220,14 +220,6 @@ def pair_cmd(
     typer.echo(f"\nJSON: {out_path}")
 
 
-def _load_pairs_yaml(path: str = "config/pairs.yaml") -> list[tuple[str, str]]:
-    p = Path(path)
-    if not p.exists():
-        return []
-    raw = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
-    return [(entry["y"], entry["x"]) for entry in raw.get("pairs", [])]
-
-
 @app.command("list-indicators")
 def list_indicators_cmd() -> None:
     """Katalogdaki tüm indikatörleri (isim, kategori, context gerekir mi) listeler."""
@@ -383,7 +375,7 @@ def scan_cmd(
     universe = (
         [s.strip() for s in symbols.split(",") if s.strip()] if symbols else load_universe(mkt)
     )
-    pairs = _load_pairs_yaml()
+    pairs = load_pairs_yaml()
 
     scan = engine.run(
         run_id=f"scan_{datetime.now(UTC).isoformat()}", universe=universe, timeframes=tf_list,
@@ -424,7 +416,7 @@ def eod_cmd(
 ) -> None:
     """Gün sonu akışını çalıştırır: veri güncelleme → tarama → kayıt → diff → rapor."""
     date_ = date.fromisoformat(eod_date) if eod_date else None
-    pairs = _load_pairs_yaml()
+    pairs = load_pairs_yaml()
     report = run_eod(
         market=market, date_=date_, force=force, pairs=pairs,
         build_reversal_maps=build_reversal_maps,

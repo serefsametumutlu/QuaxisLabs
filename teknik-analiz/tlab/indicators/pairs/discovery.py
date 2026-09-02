@@ -151,6 +151,27 @@ def load_sector_map(path: str) -> dict[str, str]:
     return mapping
 
 
+def load_pairs_yaml(path: str = "config/pairs.yaml") -> list[tuple[str, str]]:
+    """config/pairs.yaml'daki elle seçilmiş (y,x) çift listesini okur.
+
+    2026-09-03: bu fonksiyon eskiden yalnızca `tlab/cli.py` içinde ÖZEL
+    (`_load_pairs_yaml`) tanımlıydı — web backend'in tarama tetikleyicisi
+    (`web/backend/routes/scan_trigger.py`) bunu hiç çağırmadığı için
+    `run_eod(pairs=None)` (→ boş liste) ile koşuyordu, bu yüzden web'den
+    başlatılan taramalarda `pair.*` göstergeleri HİÇ sinyal üretmiyordu
+    (gerçek kullanıcı bulgusu). Ortak kaynağa taşındı, hem CLI hem web
+    AYNI fonksiyonu çağırır."""
+    from pathlib import Path
+
+    import yaml
+
+    p = Path(path)
+    if not p.exists():
+        return []
+    raw = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+    return [(entry["y"], entry["x"]) for entry in raw.get("pairs", [])]
+
+
 def format_report(candidates: list[PairCandidate]) -> str:
     if not candidates:
         return "Aday çift bulunamadı (eşikleri gevşetmeyi veya evreni genişletmeyi düşünün)."

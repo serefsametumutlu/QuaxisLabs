@@ -20,6 +20,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 
 from tlab.indicators.bootstrap import CATALOG
+from tlab.indicators.pairs.discovery import load_pairs_yaml
 from tlab.scanner.eod import run_eod
 
 router = APIRouter(tags=["scan_trigger"])
@@ -32,7 +33,16 @@ def _run_job(job_id: str, market: str, force: bool, indicator_names: list[str] |
     with _LOCK:
         _JOBS[job_id]["status"] = "running"
     try:
-        result = run_eod(market, force=force, indicator_names=indicator_names)
+        # 2026-09-03 GERÇEK HATA: bu eskiden `pairs=` hiç geçmiyordu, bu
+        # yüzden `pair.*` göstergeleri web'den başlatılan HER taramada boş
+        # dönüyordu (CLI'nin `tlab eod` komutu `config/pairs.yaml`'ı zaten
+        # okuyordu, web tarafı bunu hiç yapmıyordu — kullanıcı "pair
+        # kısmında hiç sinyal yok" diye bildirdi). `load_pairs_yaml()` artık
+        # ikisi arasında paylaşılan TEK kaynak (`tlab/indicators/pairs/
+        # discovery.py`).
+        result = run_eod(
+            market, force=force, indicator_names=indicator_names, pairs=load_pairs_yaml()
+        )
         with _LOCK:
             _JOBS[job_id]["status"] = "completed"
             _JOBS[job_id]["result"] = {

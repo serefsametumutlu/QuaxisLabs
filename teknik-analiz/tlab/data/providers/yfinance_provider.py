@@ -17,7 +17,7 @@ high < close gibi şema ihlallerine yol açabileceğinden tercih edilmedi.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pandas as pd
 import yfinance as yf
@@ -32,6 +32,17 @@ _YF_INTERVAL: dict[Timeframe, str] = {
     Timeframe.H1: "60m",
     Timeframe.D1: "1d",
 }
+
+# 2026-09-03 GERÇEK HATA: modülün kendi docstring'i yfinance'ın 730 günden
+# eski bir `start` istendiğinde SESSİZCE daha yakın bir tarihten başladığını
+# varsayıyordu (`_warn_if_truncated` bu varsayıma göre yazılmıştı) — ama
+# `start` PENCERENİN TAMAMEN DIŞINDAysa (ör. hiç cache'i olmayan bir sembol
+# için `store.update()`'in sabit `datetime(2020,1,1)` başlangıcı), yfinance
+# sessizce kısaltmıyor, TÜMÜYLE BOŞ dönüyor — `raw.empty` → `ValueError`
+# ("veri dönmedi"). Gerçek veride 648 sembolün 583'ünde bu yüzden 1H/4H
+# hiç cache'lenemiyordu. `start`'ı indirmeden ÖNCE pencereye kelepçelemek
+# (clamp) bu tam-boş-dönüş durumunu baştan önlüyor.
+_H1_MAX_LOOKBACK_DAYS = 729
 
 
 class YFinanceProvider(DataProvider):
@@ -56,6 +67,11 @@ class YFinanceProvider(DataProvider):
         yf_symbol = to_provider_symbol(symbol, market)
         interval = _YF_INTERVAL[timeframe]
         adjusted = self._settings.adjusted
+
+        if timeframe is Timeframe.H1:
+            min_start = end - timedelta(days=_H1_MAX_LOOKBACK_DAYS)
+            if start < min_start:
+                start = min_start
 
         raw = yf.download(
             yf_symbol,

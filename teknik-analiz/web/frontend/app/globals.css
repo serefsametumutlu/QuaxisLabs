@@ -1,38 +1,28 @@
 @import "tailwindcss";
 
-/* Calm-Trading-UI token seti — quant-platform'un tasarım dilinden alındı
-   (docs/03_FullStack_System_Architecture_and_UI_Roadmap.md), tlab'a uyarlandı.
-   Streamlit'in aksine bunlar GERÇEK CSS custom property'leri — herhangi bir
-   component'te sızma riski yok, çünkü Streamlit'in dışarıdan `data-testid`
-   yamalama sorunu burada YOK (component'lerin kendisi bu değişkenleri kullanır). */
+/* Tema token seti — `lib/themes.ts::THEMES`ten (3 tema: Klasik Beyaz Rapor/
+   Terminal Koyu/Kağıt Rapor) çalışma-anında `applyTheme()` ile üzerine
+   yazılır; buradaki değerler yalnızca İLK boyama (SSR/hydration öncesi,
+   Terminal Koyu ile eşleşir — varsayılan tema) için. Gerçek CSS custom
+   property'ler olduğu için Streamlit'in `data-testid` yamalama sorunu YOK. */
 :root {
-  --clr-bg: #0a0e1a;
-  --clr-surface-1: #131929;
-  --clr-surface-2: #1c2541;
-  --clr-border: #2a3656;
-  --clr-accent: #00d4aa;
-  --clr-danger: #ff5c7c;
-  --clr-warning: #ffb547;
-  --clr-info: #5e9eff;
-  --clr-text-1: #f5f7fa;
-  --clr-text-2: #a8b2d1;
-  --clr-text-3: #6b7896;
+  --clr-bg: #090b0f;
+  --clr-surface-1: #0d1015;
+  --clr-surface-2: #0d1015;
+  --clr-border: #1b2028;
+  --clr-accent: #f5b400;
+  --clr-danger: #ff5c5c;
+  --clr-warning: #f5b400;
+  --clr-info: #35b8ff;
+  --clr-text-1: #e7eaf0;
+  --clr-text-2: #6d7480;
+  --clr-text-3: #454b56;
+  --clr-up: #22d67f;
+  --clr-down: #ff5c5c;
+  --clr-grid: #161a21;
+  --clr-axis: #232935;
   --font-body: "Inter", -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
-}
-
-[data-theme="light"] {
-  --clr-bg: #f6f7fb;
-  --clr-surface-1: #ffffff;
-  --clr-surface-2: #eef0f7;
-  --clr-border: #dde1ee;
-  --clr-accent: #0aa07f;
-  --clr-danger: #d8365a;
-  --clr-warning: #b9760a;
-  --clr-info: #2f6fd6;
-  --clr-text-1: #12151f;
-  --clr-text-2: #4b5468;
-  --clr-text-3: #8890a6;
 }
 
 @theme inline {
@@ -47,6 +37,8 @@
   --color-text-1: var(--clr-text-1);
   --color-text-2: var(--clr-text-2);
   --color-text-3: var(--clr-text-3);
+  --color-up: var(--clr-up);
+  --color-down: var(--clr-down);
   --font-sans: var(--font-body);
   --font-mono: var(--font-mono);
 }

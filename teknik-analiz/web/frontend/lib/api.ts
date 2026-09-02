@@ -21,6 +21,18 @@ export function fetchUniverse(market: string): Promise<string[]> {
   return getJson<string[]>(`/universe?market=${encodeURIComponent(market)}`);
 }
 
+export interface QuantReportResponse {
+  text: string;
+  used_ai: boolean;
+  provider: string | null;
+  note: string | null;
+}
+
+export function fetchReport(params: { symbol: string; tf: string; market: string }): Promise<QuantReportResponse> {
+  const qs = new URLSearchParams(params).toString();
+  return getJson<QuantReportResponse>(`/report?${qs}`);
+}
+
 export function fetchChart(params: {
   symbol: string;
   tf: string;

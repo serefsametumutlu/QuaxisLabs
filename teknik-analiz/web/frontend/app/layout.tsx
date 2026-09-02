@@ -13,6 +13,15 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="tr" data-theme="dark" className={`${inter.variable} ${jetbrainsMono.variable} h-full`}>
+      <head>
+        {/* `lib/themes.ts`'in "classic"/"editorial" temalarının kullandığı,
+            next/font'a dahil edilmemiş ek yazı tipleri (Inter/JetBrains Mono
+            zaten next/font ile yükleniyor). */}
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap"
+        />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

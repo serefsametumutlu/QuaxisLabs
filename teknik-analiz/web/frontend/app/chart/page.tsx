@@ -4,6 +4,9 @@ import { useEffect, useState, useCallback } from "react";
 import { fetchCatalog, fetchChart, fetchUniverse } from "@/lib/api";
 import type { CatalogEntry, ChartResponse } from "@/lib/types";
 import { PriceChart } from "@/components/chart/PriceChart";
+import { ChartGuide } from "@/components/chart/ChartGuide";
+import { AiReportPanel } from "@/components/chart/AiReportPanel";
+import { THEMES, THEME_KEYS, applyTheme } from "@/lib/themes";
 
 const TIMEFRAMES = ["1h", "4h", "1d", "w1"];
 const MARKETS = ["bist", "nasdaq"];
@@ -38,7 +41,7 @@ function Select({
 }
 
 export default function ChartPage() {
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [theme, setTheme] = useState<string>("dark");
   const [market, setMarket] = useState("bist");
   const [symbol, setSymbol] = useState("AKFIS");
   const [tf, setTf] = useState("4h");
@@ -50,7 +53,7 @@ export default function ChartPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
+    applyTheme(theme);
   }, [theme]);
 
   useEffect(() => {
@@ -78,10 +81,7 @@ export default function ChartPage() {
   }, [load]);
 
   const singleIndicators = catalog.filter((c) => !c.needs_context && !c.needs_universe);
-  const indicatorOptions = [
-    "structure.report",
-    ...singleIndicators.map((c) => c.name),
-  ];
+  const indicatorOptions = ["structure.report", ...singleIndicators.map((c) => c.name)];
 
   return (
     <div className="min-h-screen bg-bg text-text-1">
@@ -123,15 +123,23 @@ export default function ChartPage() {
         >
           Yenile
         </button>
-        <button
-          onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
-          className="ml-auto rounded-md border border-border px-3 py-1.5 text-sm text-text-2 hover:border-accent"
-        >
-          {theme === "dark" ? "Açık Tema" : "Koyu Tema"}
-        </button>
+        <label className="ml-auto flex flex-col gap-1 text-xs text-text-3">
+          Tasarım
+          <select
+            value={theme}
+            onChange={(e) => setTheme(e.target.value)}
+            className="rounded-md border border-border bg-surface-1 px-2.5 py-1.5 text-sm text-text-1 outline-none focus:border-accent"
+          >
+            {THEME_KEYS.map((k) => (
+              <option key={k} value={k}>
+                {THEMES[k].name}
+              </option>
+            ))}
+          </select>
+        </label>
       </header>
 
-      <main className="px-6 py-5">
+      <main className="flex flex-col gap-4 px-6 py-5">
         {loading && <div className="font-mono text-sm text-text-3">Yükleniyor…</div>}
         {error && (
           <div className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
@@ -139,15 +147,19 @@ export default function ChartPage() {
           </div>
         )}
         {data && !loading && !error && (
-          <div className="rounded-lg border border-border bg-surface-1 p-3">
-            <div className="mb-2 flex items-baseline gap-3 px-1">
-              <span className="text-base font-semibold">{data.symbol}</span>
-              <span className="font-mono text-xs text-text-3">
-                {data.result.indicator} · {data.tf.toUpperCase()}
-              </span>
+          <>
+            <div className="rounded-lg border border-border bg-surface-1 p-3">
+              <div className="mb-2 flex items-baseline gap-3 px-1">
+                <span className="text-base font-semibold">{data.symbol}</span>
+                <span className="font-mono text-xs text-text-3">
+                  {data.result.indicator} · {data.tf.toUpperCase()}
+                </span>
+              </div>
+              <PriceChart data={data} />
             </div>
-            <PriceChart ohlcv={data.ohlcv} result={data.result} />
-          </div>
+            <ChartGuide indicator={data.result.indicator} />
+            <AiReportPanel symbol={symbol} tf={tf} market={market} />
+          </>
         )}
       </main>
     </div>

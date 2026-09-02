@@ -49,7 +49,9 @@ def _run_job(job_id: str, market: str, force: bool, indicator_names: list[str] |
 
 
 @router.post("/scan/start")
-def start_scan(market: str = "bist", force: bool = False, category: str | None = None) -> dict[str, str]:
+def start_scan(
+    market: str = "bist", force: bool = False, category: str | None = None
+) -> dict[str, str]:
     # Aynı piyasa için ZATEN çalışan bir iş varsa yenisini başlatma —
     # `run_eod` kendi içinde de idempotent (force=False iken aynı gün
     # ikinci koşuyu atlar) ama gereksiz paralel iş yaratmayı burada

@@ -147,6 +147,10 @@ class HeadShouldersIndicator(BaseIndicator):
                     return neckline_value_at(_hs, t)
 
                 max_bars_to_confirm = int(p.max_bars_to_confirm_mult * (left_span + right_span))
+                # 2026-09-03: kırılım sonrası hedef beklemesi için üst sınır
+                # yoktu -- bkz. `PatternTrackingConfig.max_bars_to_target`
+                # docstring'i (`wedge.py`'deki aynı düzeltmeyle aynı gerekçe).
+                max_bars_to_target = max(1, round(1.5 * (left_span + right_span)))
                 cfg = PatternTrackingConfig(
                     pattern_id=pattern_id, pattern_name=kind, direction=direction,
                     break_line=_break_line, target=hs.target,
@@ -154,6 +158,7 @@ class HeadShouldersIndicator(BaseIndicator):
                     retest_tol_atr=p.retest_tol_atr, atr_series=atr_series, score=0.65,
                     invalidation_check=_invalidation,
                     extra_payload={"depth": hs.depth},
+                    max_bars_to_target=max_bars_to_target,
                 )
                 pattern_signals = track_breakout_pattern(df, born_idx, cfg)
 

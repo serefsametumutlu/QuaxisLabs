@@ -69,6 +69,10 @@ class BroadeningParams(BaseParams):
     vol_k: float = 1.2
     max_lines_per_side: int = 6
     max_bars_to_confirm: int = 90
+    # 2026-09-03: bkz. `PatternTrackingConfig.max_bars_to_target` docstring'i
+    # -- diğer formasyonlar geometriden ölçekliyor, broadening'in apex'i
+    # olmadığı için (yukarıdaki `max_bars_to_confirm` gibi) sabit bir değer.
+    max_bars_to_target: int = 130
     retest_tol_atr: float = 0.3
     atr_period: int = 14
     prior_trend_lookback: int = 20
@@ -182,6 +186,7 @@ class BroadeningIndicator(BaseIndicator):
                         max_bars_to_confirm=p.max_bars_to_confirm, retest_tol_atr=p.retest_tol_atr,
                         atr_series=atr_series, score=0.55, invalidation_check=_invalidation,
                         extra_payload={"height": height},
+                        max_bars_to_target=p.max_bars_to_target,
                     )
                     pattern_signals = track_breakout_pattern(df, dv.created_idx, cfg)
 

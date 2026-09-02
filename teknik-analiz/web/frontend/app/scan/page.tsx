@@ -27,6 +27,24 @@ const STATE_COLOR: Record<string, string> = {
   expired: "text-text-3",
 };
 
+/** 2026-09-03: kullanıcı "tamamlandı sinyali veren hisseler AL sinyali geldi
+ * olarak gösterilsin, aktif/beklemede olanlar BEKLENİYOR olarak gösterilsin"
+ * dedi -- çıplak `state` sözcükleri (confirmed/active/pending...) yerine bu
+ * okunabilir Türkçe metni kullanıyoruz. Yön burada da hesaba katılıyor
+ * ("AL sinyali geldi" / "SAT sinyali geldi") çünkü TAMAMLANDI/onaylanmış bir
+ * sinyalin AL mı SAT mı olduğu asıl önemli bilgi. */
+function statusLabel(state: string, direction: string): string {
+  if (state === "confirmed" || state === "completed") {
+    if (direction === "long") return "AL sinyali geldi";
+    if (direction === "short") return "SAT sinyali geldi";
+    return "Sinyal geldi";
+  }
+  if (state === "active" || state === "pending") return "BEKLENİYOR";
+  if (state === "invalidated") return "Geçersiz";
+  if (state === "expired") return "Süresi doldu";
+  return state.toUpperCase();
+}
+
 function formatDate(iso: string): string {
   try {
     return new Date(iso).toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" });
@@ -374,7 +392,7 @@ function ScanPageInner() {
                     <td className="px-3 py-2 font-mono text-xs text-text-2">{s.timeframe}</td>
                     <td className="px-3 py-2 text-xs text-text-2">{s.display_name}</td>
                     <td className={`px-3 py-2 font-medium ${STATE_COLOR[s.state] ?? "text-text-2"}`}>
-                      {s.state}
+                      {statusLabel(s.state, s.direction)}
                     </td>
                     <td className="px-3 py-2">
                       {s.direction === "long" ? (

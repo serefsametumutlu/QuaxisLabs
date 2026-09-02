@@ -78,6 +78,16 @@ class PatternTrackingConfig:
     score: float
     invalidation_check: Callable[[int, float, float], bool] | None = None
     extra_payload: dict = field(default_factory=dict)
+    max_bars_to_target: int | None = None
+    """CONFIRMED (kırılım onaylandı) olduktan sonra hedefin gelmesi için
+    üst sınır — `max_bars_to_confirm`'ün AYNISI ama kırılım SONRASI hedef
+    bekleyişi için (2026-09-03, gerçek veriyle bulunan bir sorun: bu alan
+    eklenmeden önce hedef beklemesi SÜRESİZDİ — `patterns.*` göstergelerinde
+    684 güne kadar çıkan "kırılım oldu, aylarca sonra tesadüfen hedefe
+    değindi" zincirleri `latest_signals()`'ın en-güncel-satır mantığıyla
+    bugünmüş gibi bir AL sinyali olarak görünüyordu). None ise (varsayılan,
+    geriye dönük uyumluluk için) süresiz beklenir — çağıran taraf KENDİ
+    formasyon geometrisine göre bir değer vermelidir (bkz. `patterns/*.py`)."""
 
 
 def level_end_from_signals(signals: list[Signal]) -> pd.Timestamp | None:
@@ -166,6 +176,20 @@ def track_breakout_pattern(
             continue
 
         # state == "confirmed": hedef ve retest izlemesi
+        if (
+            cfg.max_bars_to_target is not None
+            and confirmed_idx is not None
+            and (t - confirmed_idx) > cfg.max_bars_to_target
+        ):
+            signals.append(
+                Signal(
+                    bar_time=df.index[t], detected_at=df.index[t], direction=direction,
+                    state="expired", score=cfg.score, payload=_payload("expired"),
+                )
+            )
+            state = "expired"
+            break
+
         target_hit = close[t] >= cfg.target if direction == "long" else close[t] <= cfg.target
         if target_hit:
             signals.append(

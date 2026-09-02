@@ -10,6 +10,8 @@ import pandas as pd
 from tlab.indicators.harmonics.geometry import Candidate
 from tlab.indicators.harmonics.prz import PRZ, DComponent, PRZMethod, compute_prz
 
+_DEFAULT_MAX_WAIT_MULT = 2.0
+
 
 @dataclass(frozen=True)
 class PatternSpec:
@@ -132,5 +134,22 @@ class HarmonicSchool(ABC):
         return None
 
     def time_window(self, candidate: Candidate, spec: PatternSpec) -> tuple[int, int] | None:
-        """Yalnızca Gilmore override eder; diğerleri None (zaman kısıtı yok)."""
-        return None
+        """2026-09-03 ÖNCESİ: yalnızca Gilmore override ediyordu, diğer 7
+        ekol None (SÜRESİZ bekleme) dönüyordu. Gerçek veride (648 sembol,
+        BIST) bu, C'den D'ye 650 GÜNE kadar süren zincirlerin `confirmed`
+        olarak (yani "AL sinyali" gibi) görünmesine yol açtığını ortaya
+        çıkardı — kullanıcının bildirdiği "ABC oluşup uzun süre yatay
+        gidince/başka yöne gidip geri gelince bile eninde sonunda D'ye
+        değindi diye sinyal veriyor" sorunuydu (median bekleme 29 gün ama
+        kuyruk 650 güne kadar çıkıyordu — 2 yıla yakın "beklemiş" bir yapı
+        artık trade edilebilir bir harmonik DEĞİL).
+
+        Bu varsayılan, Gilmore'un KENDİ kitabından (Time Bars) gelen kesin
+        oran tablosu DEĞİL — genel bir SAĞLIK SINIRI: D, XABC yapısının
+        kendi oluşum süresinin (X'ten C'ye kadar geçen bar sayısı) makul
+        bir katı içinde gelmeli, aksi halde EXPIRED olur (bkz. `state.py::
+        track_pattern`'daki `time_window[1]` kontrolü). Alt sınıflar (ör.
+        Gilmore) kendi kitap-kaynaklı kuralıyla override etmeye devam eder."""
+        structure_bars = max(candidate.c.bar_idx - candidate.x.bar_idx, 1)
+        max_wait = max(candidate.bars_ab, round(_DEFAULT_MAX_WAIT_MULT * structure_bars))
+        return (0, max_wait)

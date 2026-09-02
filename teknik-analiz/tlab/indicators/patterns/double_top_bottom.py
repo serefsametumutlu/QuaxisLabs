@@ -139,6 +139,9 @@ class DoubleTopBottomIndicator(BaseIndicator):
 
                 pattern_id = f"{pattern_name}_{p1.bar_idx}_{neckline_pivot.bar_idx}_{p2.bar_idx}"
                 max_bars_to_confirm = int(p.max_bars_to_confirm_mult * (p2.bar_idx - p1.bar_idx))
+                # 2026-09-03: bkz. `PatternTrackingConfig.max_bars_to_target`
+                # docstring'i (`wedge.py`'deki aynı düzeltmeyle aynı gerekçe).
+                max_bars_to_target = max(1, round(1.5 * (p2.bar_idx - p1.bar_idx)))
                 cfg = PatternTrackingConfig(
                     pattern_id=pattern_id, pattern_name=pattern_name, direction=direction,
                     break_line=_break_line, target=target,
@@ -146,6 +149,7 @@ class DoubleTopBottomIndicator(BaseIndicator):
                     retest_tol_atr=p.retest_tol_atr, atr_series=atr_series, score=0.6,
                     invalidation_check=_invalidation,
                     extra_payload={"depth": depth, "neckline": neckline_price},
+                    max_bars_to_target=max_bars_to_target,
                 )
                 pattern_signals = track_breakout_pattern(df, born_idx, cfg)
 

@@ -169,6 +169,14 @@ class WedgeIndicator(BaseIndicator):
                 )
                 apex_span = conv.apex_idx - conv.created_idx  # type: ignore[operator]
                 max_bars_to_confirm = int(0.8 * apex_span)
+                # 2026-09-03: kırılım ONAYI için zaten bir üst sınır vardı
+                # (yukarıdaki satır) ama kırılım SONRASI hedefin gelmesi için
+                # YOKTU — gerçek veride kırılım aylar/yıllar önce olup hedefe
+                # tesadüfen çok sonra değinen zincirler `latest_signals()`'ta
+                # bugünmüş gibi görünüyordu (bkz. `PatternTrackingConfig.
+                # max_bars_to_target` docstring'i). Formasyonun kendi oluşum
+                # süresinin (apex_span) makul bir katı kadar bekleniyor.
+                max_bars_to_target = max(1, round(1.5 * apex_span))
 
                 upper_points = (
                     (upper.p1.bar_time, upper.p1.price), (upper.p2.bar_time, upper.p2.price),
@@ -219,6 +227,7 @@ class WedgeIndicator(BaseIndicator):
                         max_bars_to_confirm=max_bars_to_confirm, retest_tol_atr=p.retest_tol_atr,
                         atr_series=atr_series, score=0.6,
                         invalidation_check=_invalidation,
+                        max_bars_to_target=max_bars_to_target,
                         extra_payload={
                             "apex_idx": float(conv.apex_idx),  # type: ignore[arg-type]
                             "apex_price": conv.apex_price, "height": height,

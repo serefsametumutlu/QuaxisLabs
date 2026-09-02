@@ -174,6 +174,11 @@ class FlagPennantIndicator(BaseIndicator):
                 return close[t] < other_val if _dir == "long" else close[t] > other_val
 
             pattern_id = f"flagpennant_{pole.t0_idx}_{pole.t1_idx}"
+            # 2026-09-03: bkz. `PatternTrackingConfig.max_bars_to_target`
+            # docstring'i -- bayrak/flama kısa vadeli devam formasyonları
+            # olduğu için ölçek direğin (pole) kendi süresinden alınır.
+            pole_span = max(1, pole.t1_idx - pole.t0_idx)
+            max_bars_to_target = max(1, round(2.0 * (pole_span + p.flag_max_bars)))
             cfg = PatternTrackingConfig(
                 pattern_id=pattern_id, pattern_name=shape, direction=direction,
                 break_line=break_line, target=target, confirm_bars=p.confirm_bars,
@@ -181,6 +186,7 @@ class FlagPennantIndicator(BaseIndicator):
                 retest_tol_atr=p.retest_tol_atr, atr_series=atr_series, score=0.55,
                 invalidation_check=_invalidation,
                 extra_payload={"pole_range": pole_range_price},
+                max_bars_to_target=max_bars_to_target,
             )
             pattern_signals = track_breakout_pattern(df, born_idx, cfg)
 

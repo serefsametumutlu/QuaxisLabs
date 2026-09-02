@@ -374,7 +374,9 @@ class ResultsStore:
         latest_sql = f"SELECT * FROM ({ranked_sql}) WHERE rn = 1"
         filtered_sql = f"SELECT * FROM ({latest_sql}) {state_clause}"
 
-        count_cur = self._conn.execute(f"SELECT COUNT(*) FROM ({filtered_sql})", params + params_states)
+        count_cur = self._conn.execute(
+            f"SELECT COUNT(*) FROM ({filtered_sql})", params + params_states
+        )
         total = count_cur.fetchone()[0]
 
         cur = self._conn.execute(

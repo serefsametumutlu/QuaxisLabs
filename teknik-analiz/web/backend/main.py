@@ -12,7 +12,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from web.backend.routes import catalog, chart, guide, report, universe
+from web.backend.routes import catalog, chart, guide, report, scan, universe
 
 app = FastAPI(title="tlab web API")
 
@@ -28,6 +28,7 @@ app.include_router(universe.router, prefix="/api")
 app.include_router(chart.router, prefix="/api")
 app.include_router(report.router, prefix="/api")
 app.include_router(guide.router, prefix="/api")
+app.include_router(scan.router, prefix="/api")
 
 
 @app.get("/api/health")

@@ -313,6 +313,66 @@ class ResultsStore:
         cols = [d[0] for d in cur.description]
         return [dict(zip(cols, row, strict=True)) for row in cur.fetchall()]
 
+    def latest_signals(
+        self,
+        run_id: str,
+        *,
+        market: str | None = None,
+        timeframe: str | None = None,
+        indicator: str | None = None,
+        symbol: str | None = None,
+        states: tuple[str, ...] | None = ("confirmed", "completed"),
+        limit: int = 200,
+        offset: int = 0,
+    ) -> tuple[list[dict], int]:
+        """`query(run_id=...)`'un ham çıktısı HER durum geçişini ayrı satır
+        tutar (bkz. modül docstring'i) — bir `(symbol, timeframe, indicator,
+        pattern_id)` zincirinin yalnızca EN GÜNCEL (`detected_at` en büyük)
+        satırını döndürür (web/dashboard tüketiciler için "şu an ne
+        gösteriliyor" sorusunun doğru cevabı budur, tam geçmiş DEĞİL).
+        `states=None` tüm durumları döner; varsayılan yalnızca confirmed/
+        completed (dashboard.py'nin ZATEN kullandığı filtre). `(satırlar,
+        toplam_eslesme_sayisi)` döner — `toplam`, `limit/offset`'ten
+        BAĞIMSIZ, sayfalama için."""
+        clauses, params = ["run_id = ?"], [run_id]
+        for col, val in (
+            ("market", market), ("timeframe", timeframe),
+            ("indicator", indicator), ("symbol", symbol),
+        ):
+            if val is not None:
+                clauses.append(f"{col} = ?")
+                params.append(val)
+        where = " AND ".join(clauses)
+        state_clause = ""
+        if states is not None:
+            placeholders = ", ".join("?" for _ in states)
+            state_clause = f"WHERE state IN ({placeholders})"
+            params_states = list(states)
+        else:
+            params_states = []
+
+        ranked_sql = f"""
+            SELECT *, ROW_NUMBER() OVER (
+                PARTITION BY symbol, timeframe, indicator, pattern_id
+                ORDER BY detected_at DESC
+            ) AS rn
+            FROM signals
+            WHERE {where}
+        """
+        latest_sql = f"SELECT * FROM ({ranked_sql}) WHERE rn = 1"
+        filtered_sql = f"SELECT * FROM ({latest_sql}) {state_clause}"
+
+        count_cur = self._conn.execute(f"SELECT COUNT(*) FROM ({filtered_sql})", params + params_states)
+        total = count_cur.fetchone()[0]
+
+        cur = self._conn.execute(
+            f"{filtered_sql} ORDER BY detected_at DESC LIMIT ? OFFSET ?",
+            params + params_states + [limit, offset],
+        )
+        cols = [d[0] for d in cur.description]
+        rows = [dict(zip(cols, row, strict=True)) for row in cur.fetchall()]
+        return rows, total
+
     def latest_run(self, market: str) -> str | None:
         cur = self._conn.execute(
             "SELECT run_id FROM runs WHERE market = ? AND status = 'completed' "

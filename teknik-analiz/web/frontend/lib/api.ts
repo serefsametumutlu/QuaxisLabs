@@ -58,3 +58,57 @@ export function fetchChart(params: {
   const qs = new URLSearchParams(params).toString();
   return getJson<ChartResponse>(`/chart?${qs}`);
 }
+
+export interface ScanRun {
+  run_id: string;
+  started_at: string;
+  finished_at: string | null;
+  market: string;
+  timeframes: string[];
+  universe_size: number;
+  status: string;
+}
+
+export function fetchRuns(market: string): Promise<ScanRun[]> {
+  return getJson<ScanRun[]>(`/runs?market=${encodeURIComponent(market)}`);
+}
+
+export interface ScanSignal {
+  symbol: string;
+  timeframe: string;
+  indicator: string;
+  state: string;
+  direction: string;
+  score: number;
+  bar_time: string;
+  detected_at: string;
+  pattern_id: string;
+  payload: Record<string, unknown>;
+}
+
+export interface ScanSignalsResponse {
+  signals: ScanSignal[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export function fetchSignals(params: {
+  run_id: string;
+  market?: string;
+  tf?: string;
+  indicator?: string;
+  symbol?: string;
+  all_states?: boolean;
+  limit?: number;
+  offset?: number;
+}): Promise<ScanSignalsResponse> {
+  const qs = new URLSearchParams(
+    Object.fromEntries(
+      Object.entries(params)
+        .filter(([, v]) => v !== undefined && v !== "")
+        .map(([k, v]) => [k, String(v)])
+    )
+  ).toString();
+  return getJson<ScanSignalsResponse>(`/signals?${qs}`);
+}

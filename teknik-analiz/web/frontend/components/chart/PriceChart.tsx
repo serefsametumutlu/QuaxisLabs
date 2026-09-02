@@ -324,15 +324,31 @@ export function PriceChart({ data, theme: themeKey }: Props) {
       polygons.push({ d: `M ${coords.join(" L ")} Z`, color: styleColor(pg.style, theme) });
     }
 
+    // `trend.breakouts` (`MultiBreakout`) ~20 farklı kırılım türünü AYNI
+    // `kind="breakout"` altında yayınlar (renderer.py::_generic_marker_
+    // group_key ile AYNI sorun) — metnin "Kırılım: ... | {tür} | ..."
+    // ikinci bölümü GERÇEK kategoriyi taşır; onlarca aynı-kategori işaret
+    // yerine yalnızca EN GÜNCELİ gösterilir. **Yalnızca `kind==="breakout"`
+    // için** — diğer indikatörlerin marker'ları (ör. swing_fib_abcd'nin
+    // HH/HL/LH/LL'si, `kind="structure_label"`) HER biri AYRI/anlamlı bir
+    // pivotu temsil eder, aynı mantıkla filtrelemek bilgi kaybı olurdu.
+    const DECLUTTER_MARKER_KINDS = new Set(["breakout"]);
+    const markerGroupKey = (mk: Marker): string => mk.text.split(" | ")[1] ?? mk.kind;
+    const latestMarkerIdx = pickLatestPerGroup(
+      result.markers as Marker[],
+      markerGroupKey,
+      (mk) => isoToUnix(mk.t)
+    );
     const markers: Geometry["markers"] = [];
-    for (const mk of result.markers as Marker[]) {
+    (result.markers as Marker[]).forEach((mk, idx) => {
       const t = isoToUnix(mk.t);
-      if (!inRange(t)) continue;
+      if (!inRange(t)) return;
+      if (DECLUTTER_MARKER_KINDS.has(mk.kind) && !latestMarkerIdx.has(idx)) return;
       const x = X(mk.t);
       const y = Y(mk.price);
-      if (x === null || y === null) continue;
+      if (x === null || y === null) return;
       markers.push({ x, y, text: mk.text, color: styleColor(mk.kind, theme) });
-    }
+    });
 
     // Hacim profili (fiyat-indeksli vp_bins/vp_volumes/vp_hvn) — sağ kenara
     // sabit genişlikte bir sütun, gerçek `priceToCoordinate` ile hizalı.

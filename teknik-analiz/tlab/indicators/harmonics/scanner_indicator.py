@@ -241,9 +241,24 @@ class HarmonicIndicator(BaseIndicator):
                 last_sig = pattern_signals[-1]
                 state_label = _STATE_LABEL_TR[last_sig.state]
                 d_price = last_sig.payload.get("d_price", prz.center)
+                # 2026-09-03 GERÇEK bulgu (kullanıcının paylaştığı dış bir AI
+                # eleştirisiyle keşfedildi): `d_price` = dokunuş barının EN
+                # UÇ fitili (`state.py::track_pattern`, `low[t]`/`high[t]`)
+                # — PRZ'yi (Level olarak yukarıda zaten çizilen prz_low/
+                # prz_high) belirgin şekilde aşabiliyor (bir barın range'i
+                # PRZ'yle örtüşse bile ucu çok daha ileri gidebilir).
+                # İncelemede state.py'nin onay mantığının (close_reversal —
+                # sonraki bar(lar)ın KAPANIŞI gerçekten prz.high'ı geri
+                # aşması) SAĞLAM olduğu doğrulandı — bu "curve fitting" değil,
+                # gerçek bir dönüş. Sorun yalnızca "D" işaretleyicisinin
+                # kendi hedef kutusunun DIŞINDA çizilmesiydi (görsel karışıklık
+                # yaratıyordu). Metindeki sayı GERÇEK d_price'ı gösterir
+                # (veri değişmedi), yalnızca işaretleyicinin KONUMU PRZ
+                # sınırlarına kelepçelendi.
+                marker_price = min(max(d_price, prz.low), prz.high)
                 markers.append(
                     Marker(
-                        t=last_sig.detected_at, price=d_price,
+                        t=last_sig.detected_at, price=marker_price,
                         text=f"D: {d_price:.4f} [{state_label}]", kind=f"harmonic_{last_sig.state}",
                     )
                 )

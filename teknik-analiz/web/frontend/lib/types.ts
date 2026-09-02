@@ -85,6 +85,13 @@ export interface ChartResponse {
 export interface CatalogEntry {
   name: string;
   category: string;
+  category_label: string;
+  display_name: string;
   needs_context: boolean;
   needs_universe: boolean;
+}
+
+export interface CategoryEntry {
+  category: string;
+  category_label: string;
 }

@@ -44,6 +44,13 @@ STYLE_TR: dict[str, str] = {
     "ma_55": "MA (Orta-Yavaş)",
     "ma_200": "MA (Yavaş)",
     "pattern_hologram": "Formasyon Alanı",
+    # 2026-09-02: `trend.breakouts`in jenerik kırılım seviyeleri (Level) bu
+    # iki stili kullanıyordu ama sözlükte karşılığı yoktu — grafikte çıplak
+    # "broken_up"/"broken_down" metni olarak sızıyordu (gerçek ISCTR
+    # verisiyle bulunan bir durum).
+    "broken_up": "Kırılım (Yukarı)",
+    "broken_down": "Kırılım (Aşağı)",
+    "pending": "Beklemede",
 }
 
 DIRECTION_TR: dict[str, str] = {"long": "AL", "short": "SAT", "neutral": "NÖTR"}
@@ -56,6 +63,79 @@ INDICATOR_CATEGORY_TR: dict[str, str] = {
     "patterns": "Klasik Formasyon",
     "momentum": "Momentum/Alfa Sıralaması",
 }
+
+# 2026-09-01: dashboard'un sinyal tablosu eskiden `İndikatör` sütununda ham
+# katalog kimliğini (`structure.golden_zone`) gösteriyordu — kullanıcı bunu
+# "Tarama Reçeteleri" mockup turunda AÇIKÇA reddetti ("tam net ismi
+# yazmalı"), mockup'ta `INDICATOR_TR` sözlüğüyle çözüldü. Bu, o çözümün
+# gerçek CATALOG'a (bkz. `tlab/indicators/bootstrap.py`) karşılık gelen
+# birebir hâli — 8 harmonik ekolü, mockup'ın tek "Harmonik Formasyon"
+# genellemesinin AKSİNE, AYRI AYRI adlandırılır (gerçek dashboard'da 8 satır
+# yan yana görünebiliyor, ayırt edilebilir olmaları gerekiyor).
+INDICATOR_DISPLAY_TR: dict[str, str] = {
+    "harmonic.carney": "Gartley/Bat/Crab Taraması (Carney)",
+    "harmonic.cypher": "Cypher Formasyonu (Oglesbee)",
+    "harmonic.five_zero": "5-0 Formasyonu (Duddella)",
+    "harmonic.gilmore": "Gartley/Butterfly Taraması (Gilmore)",
+    "harmonic.navarro200": "200% Formasyonu (Navarro)",
+    "harmonic.nenstar": "Gartley/Butterfly + EMA Teyidi (Kerkez-Nenstar)",
+    "harmonic.pesavento": "Gartley/Butterfly Taraması (Pesavento)",
+    "harmonic.three_drives": "Three Drives Formasyonu",
+    "momentum.alpha_rank": "Alfa Sıralaması (Evren-Geneli)",
+    "momentum.momentum_rank": "Momentum Sıralaması (Evren-Geneli)",
+    "pair.relative_momentum": "Pair Trading — Rölatif Momentum",
+    "pair.vol_harvest": "Pair Trading — Oynaklık Hasadı",
+    "patterns.broadening": "Genişleyen Formasyon (Megafon)",
+    "patterns.double_top_bottom": "Çift Tepe / Çift Dip",
+    "patterns.flag_pennant": "Bayrak / Flama Formasyonu",
+    "patterns.head_shoulders": "Omuz-Baş-Omuz / TOBO",
+    "patterns.triangle": "Üçgen Formasyonu",
+    "patterns.wedge": "Daralan Takoz Formasyonu",
+    "structure.golden_zone": "Altın Bölge (Fibonacci 0.618–0.786)",
+    "structure.price_structure": "Fiyat Yapısı — Destek/Direnç, Hacim Profili",
+    "structure.supply_demand": "Arz/Talep Bölgeleri",
+    "structure.swing_fib_abcd": "Swing Yapısı + Fibonacci AB=CD",
+    "structure.report": "Birleşik Yapı Raporu",
+    "trend.breakouts": "Çoklu Kırılım Taraması",
+    "trend.ewmac": "EWMAC Trend Forecast",
+    "trend.ma_systems": "Hareketli Ortalama Sistemi",
+    "trend.weekly_channel": "Haftalık Regresyon Kanalı",
+    "confluence": "Dönüş Haritası (Confluence)",
+}
+
+
+# 2026-09-02: kullanıcı web arayüzünde harmonik sinyallerin ekol adına göre
+# (Carney/Pesavento/Gilmore...) değil, herkesin tanıdığı PATERN ŞEKLİNE göre
+# (Gartley/Bat/Crab/Kelebek...) etiketlenmesini istedi — "carney pesavento
+# diye ayırmak yerine abcd gartley crab butterfly bat gibi ayırsak daha
+# güzel olmaz mı". Alttaki motor mimarisi ekol-bazlı KALIYOR (bkz. CLAUDE.md
+# "Harmonik Formasyon Tarayıcı" — 8 ekol birbirinden bağımsız, "ekoller
+# birbirini import etmez") ama her `Signal.payload["pattern_name"]` zaten
+# ekolden BAĞIMSIZ, gerçek patern şeklini taşıyor (`TrackingConfig.
+# pattern_name`, bkz. `schools/*.py::name=`) — bu sözlük SADECE o değeri
+# okunabilir Türkçe'ye çeviren bir GÖRÜNTÜLEME katmanı, yeni bir hesap değil.
+PATTERN_NAME_TR: dict[str, str] = {
+    "gartley": "Gartley",
+    "bat": "Bat (Yarasa)",
+    "crab": "Crab (Yengeç)",
+    "deep_crab": "Deep Crab (Derin Yengeç)",
+    "butterfly": "Kelebek (Butterfly)",
+    "shark": "Shark (Köpekbalığı)",
+    "cypher": "Cypher",
+    "nenstar": "Gartley + EMA Teyidi",
+    "navarro200": "200% (Navarro)",
+    "five_zero": "5-0 Formasyonu",
+    "three_drives_1272": "Three Drives (1.272)",
+    "three_drives_1618": "Three Drives (1.618)",
+}
+
+
+def tr_pattern_name(pattern_name: str) -> str:
+    return PATTERN_NAME_TR.get(pattern_name, pattern_name)
+
+
+def tr_indicator(indicator: str) -> str:
+    return INDICATOR_DISPLAY_TR.get(indicator, indicator)
 
 
 def tr_state(state: str) -> str:

@@ -1,10 +1,17 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { fetchCatalog, fetchRuns, fetchScanStatus, fetchSignals, startScan } from "@/lib/api";
+import { useEffect, useState, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  fetchCatalog,
+  fetchCategories,
+  fetchRuns,
+  fetchScanStatus,
+  fetchSignals,
+  startScan,
+} from "@/lib/api";
 import type { ScanJob, ScanRun, ScanSignal } from "@/lib/api";
-import type { CatalogEntry } from "@/lib/types";
+import type { CatalogEntry, CategoryEntry } from "@/lib/types";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { useTheme } from "@/lib/useTheme";
 
@@ -33,19 +40,33 @@ function formatDate(iso: string): string {
  * çalıştırdığı `run_eod()`'u tetikleyip durumunu (`queued/running/completed/
  * failed`) periyodik sorgulayarak (polling) izler — tam evrende dakikalarca
  * sürebileceği için sayfa bu süre boyunca bloklanmaz, bittiğinde tarama
- * listesi otomatik yenilenir. */
-export default function ScanPage() {
+ * listesi otomatik yenilenir.
+ *
+ * 2026-09-02: kullanıcının "hem tüm tarama olsun hem de harmonikleri kendi
+ * arasında, arbitrajı kendi arasında ayrı ayrı tarayabilsem ... LONG SHORT
+ * filtreleyebilmem gerek" isteğine yanıt — Kategori (Sidebar'daki
+ * "Stratejiler"le AYNI kaynak) ve Yön (AL/SAT) filtreleri eklendi; Sidebar'dan
+ * `?category=` ile gelindiğinde bu sayfa onu okuyup baştan uygular. "Yeni
+ * Tarama Başlat" da seçili kategoriye göre YALNIZCA o kategorinin
+ * göstergelerini yeniden koşabiliyor (bkz. `web/backend/routes/
+ * scan_trigger.py` — bu UPSERT olduğu için diğer göstergelerin sonuçlarını
+ * SİLMİYOR). */
+function ScanPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [theme, setTheme] = useTheme();
   const [market, setMarket] = useState("bist");
   const [runs, setRuns] = useState<ScanRun[]>([]);
   const [runId, setRunId] = useState<string>("");
   const [tf, setTf] = useState("");
-  const [indicator, setIndicator] = useState("");
+  const [category, setCategory] = useState(() => searchParams.get("category") ?? "");
+  const [indicator, setIndicator] = useState(() => searchParams.get("indicator") ?? "");
+  const [direction, setDirection] = useState("");
   const [symbol, setSymbol] = useState("");
   const [allStates, setAllStates] = useState(false);
   const [offset, setOffset] = useState(0);
   const [catalog, setCatalog] = useState<CatalogEntry[]>([]);
+  const [categories, setCategories] = useState<CategoryEntry[]>([]);
   const [signals, setSignals] = useState<ScanSignal[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -55,6 +76,7 @@ export default function ScanPage() {
 
   useEffect(() => {
     fetchCatalog().then(setCatalog).catch(() => setCatalog([]));
+    fetchCategories().then(setCategories).catch(() => setCategories([]));
   }, []);
 
   const loadRuns = useCallback((selectLatest: boolean) => {
@@ -91,7 +113,7 @@ export default function ScanPage() {
 
   const triggerScan = () => {
     setScanError(null);
-    startScan(market)
+    startScan(market, false, category || undefined)
       .then(setScanJob)
       .catch((e: Error) => setScanError(e.message));
   };
@@ -104,6 +126,8 @@ export default function ScanPage() {
       run_id: runId,
       tf: tf || undefined,
       indicator: indicator || undefined,
+      category: indicator ? undefined : category || undefined,
+      direction: direction || undefined,
       symbol: symbol || undefined,
       all_states: allStates,
       limit: PAGE_SIZE,
@@ -115,7 +139,7 @@ export default function ScanPage() {
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [runId, tf, indicator, symbol, allStates, offset]);
+  }, [runId, tf, indicator, category, direction, symbol, allStates, offset]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -135,6 +159,8 @@ export default function ScanPage() {
   const selectedRun = runs.find((r) => r.run_id === runId);
   const page = Math.floor(offset / PAGE_SIZE) + 1;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const indicatorsInCategory = category ? catalog.filter((c) => c.category === category) : catalog;
+  const selectedCategoryLabel = categories.find((c) => c.category === category)?.category_label;
 
   return (
     <div className="flex min-h-screen bg-bg text-text-1">
@@ -191,6 +217,25 @@ export default function ScanPage() {
             </select>
           </label>
           <label className="flex flex-col gap-1 text-xs text-text-3">
+            Strateji Kategorisi
+            <select
+              value={category}
+              onChange={(e) => {
+                setCategory(e.target.value);
+                setIndicator("");
+                setOffset(0);
+              }}
+              className="min-w-40 rounded-md border border-border bg-surface-1 px-2.5 py-1.5 text-sm text-text-1 outline-none focus:border-accent"
+            >
+              <option value="">Tümü</option>
+              {categories.map((c) => (
+                <option key={c.category} value={c.category}>
+                  {c.category_label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-text-3">
             Gösterge
             <select
               value={indicator}
@@ -201,11 +246,26 @@ export default function ScanPage() {
               className="min-w-48 rounded-md border border-border bg-surface-1 px-2.5 py-1.5 text-sm text-text-1 outline-none focus:border-accent"
             >
               <option value="">Tümü</option>
-              {catalog.map((c) => (
+              {indicatorsInCategory.map((c) => (
                 <option key={c.name} value={c.name}>
-                  {c.name}
+                  {c.display_name}
                 </option>
               ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-text-3">
+            Yön
+            <select
+              value={direction}
+              onChange={(e) => {
+                setDirection(e.target.value);
+                setOffset(0);
+              }}
+              className="rounded-md border border-border bg-surface-1 px-2.5 py-1.5 text-sm text-text-1 outline-none focus:border-accent"
+            >
+              <option value="">Tümü</option>
+              <option value="long">AL</option>
+              <option value="short">SAT</option>
             </select>
           </label>
           <label className="flex flex-col gap-1 text-xs text-text-3">
@@ -253,7 +313,7 @@ export default function ScanPage() {
               disabled={scanJob?.status === "queued" || scanJob?.status === "running"}
               className="rounded-md bg-accent px-3.5 py-1.5 text-sm font-medium text-bg hover:opacity-90 disabled:opacity-50"
             >
-              Yeni Tarama Başlat
+              {category ? `${selectedCategoryLabel ?? category} Taraması Başlat` : "Yeni Tarama Başlat"}
             </button>
           </div>
         </header>
@@ -312,7 +372,7 @@ export default function ScanPage() {
                   >
                     <td className="px-3 py-2 font-medium">{s.symbol}</td>
                     <td className="px-3 py-2 font-mono text-xs text-text-2">{s.timeframe}</td>
-                    <td className="px-3 py-2 font-mono text-xs text-text-2">{s.indicator}</td>
+                    <td className="px-3 py-2 text-xs text-text-2">{s.display_name}</td>
                     <td className={`px-3 py-2 font-medium ${STATE_COLOR[s.state] ?? "text-text-2"}`}>
                       {s.state}
                     </td>
@@ -366,5 +426,28 @@ export default function ScanPage() {
         </main>
       </div>
     </div>
+  );
+}
+
+/** Sidebar'daki "Stratejiler" linkleri AYNI /scan rotasına farklı bir
+ * `?category=` ile Next `<Link>` üzerinden gelir — App Router aynı route'a
+ * client-side geçişte component'i YENİDEN MOUNT ETMEZ, bu yüzden
+ * `ScanPageInner`'ın mount-anı `useState(() => searchParams.get(...))`
+ * lazy initializer'ı ikinci bir Stratejiler tıklamasında GÜNCELLENMEZ
+ * (gerçek bulgu: tarayıcıda doğrulandı — URL değişti ama filtre
+ * uygulanmadı). Çözüm, `AiReportPanel`/`ChartImage`'ta zaten kullanılan
+ * AYNI "key değişince yeniden mount et" deseni — `searchParams.toString()`
+ * her Stratejiler tıklamasında değişir, `key` değişince React tüm state'i
+ * SIFIRLAYIP yeniden başlatır (effect-içi setState'e gerek KALMAZ). */
+function ScanPageKeyed() {
+  const searchParams = useSearchParams();
+  return <ScanPageInner key={searchParams.toString()} />;
+}
+
+export default function ScanPage() {
+  return (
+    <Suspense fallback={null}>
+      <ScanPageKeyed />
+    </Suspense>
   );
 }

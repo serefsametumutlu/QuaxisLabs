@@ -320,6 +320,8 @@ class ResultsStore:
         market: str | None = None,
         timeframe: str | None = None,
         indicator: str | None = None,
+        indicators: tuple[str, ...] | None = None,
+        direction: str | None = None,
         symbol: str | None = None,
         states: tuple[str, ...] | None = ("confirmed", "completed"),
         limit: int = 200,
@@ -333,15 +335,25 @@ class ResultsStore:
         `states=None` tüm durumları döner; varsayılan yalnızca confirmed/
         completed (dashboard.py'nin ZATEN kullandığı filtre). `(satırlar,
         toplam_eslesme_sayisi)` döner — `toplam`, `limit/offset`'ten
-        BAĞIMSIZ, sayfalama için."""
+        BAĞIMSIZ, sayfalama için.
+
+        `indicators` (2026-09-02, web arayüzünün "Stratejiler"
+        kategorilerine göre ayrı ayrı tarama sonucu görüntüleme isteğine
+        yanıt): `indicator` (tekil eşitlik) yerine/yanında bir KATEGORİdeki
+        TÜM gösterge adlarını (ör. tüm `harmonic.*`) tek seferde filtreler
+        (`indicator IN (...)`). `direction`: `long`/`short` filtresi."""
         clauses, params = ["run_id = ?"], [run_id]
         for col, val in (
             ("market", market), ("timeframe", timeframe),
-            ("indicator", indicator), ("symbol", symbol),
+            ("indicator", indicator), ("symbol", symbol), ("direction", direction),
         ):
             if val is not None:
                 clauses.append(f"{col} = ?")
                 params.append(val)
+        if indicators:
+            placeholders = ", ".join("?" for _ in indicators)
+            clauses.append(f"indicator IN ({placeholders})")
+            params.extend(indicators)
         where = " AND ".join(clauses)
         state_clause = ""
         if states is not None:

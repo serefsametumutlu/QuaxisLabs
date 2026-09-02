@@ -76,7 +76,13 @@ function ChartPageInner() {
   }, [market]);
 
   const singleIndicators = catalog.filter((c) => !c.needs_context && !c.needs_universe);
-  const indicatorOptions = ["structure.report", ...singleIndicators.map((c) => c.name)];
+  // Ham katalog adı (`patterns.head_shoulders`) yerine Türkçe görünen ad —
+  // backend `/api/catalog`'un `display_name` alanı (`tlab/viz/labels_tr.py`
+  // ile aynı kaynak). Değer (value) yine ham ad — API çağrıları bunu bekliyor.
+  const indicatorOptions = [
+    { name: "structure.report", display_name: "Birleşik Yapı Raporu" },
+    ...singleIndicators.map((c) => ({ name: c.name, display_name: c.display_name })),
+  ];
 
   return (
     <div className="flex min-h-screen bg-bg text-text-1">
@@ -107,8 +113,8 @@ function ChartPageInner() {
               className="min-w-56 rounded-md border border-border bg-surface-1 px-2.5 py-1.5 text-sm text-text-1 outline-none focus:border-accent"
             >
               {indicatorOptions.map((o) => (
-                <option key={o} value={o}>
-                  {o}
+                <option key={o.name} value={o.name}>
+                  {o.display_name}
                 </option>
               ))}
             </select>

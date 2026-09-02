@@ -19,6 +19,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
+from tlab.indicators.bootstrap import CATALOG
 from tlab.scanner.eod import run_eod
 
 router = APIRouter(tags=["scan_trigger"])
@@ -27,11 +28,11 @@ _JOBS: dict[str, dict[str, Any]] = {}
 _LOCK = threading.Lock()
 
 
-def _run_job(job_id: str, market: str, force: bool) -> None:
+def _run_job(job_id: str, market: str, force: bool, indicator_names: list[str] | None) -> None:
     with _LOCK:
         _JOBS[job_id]["status"] = "running"
     try:
-        result = run_eod(market, force=force)
+        result = run_eod(market, force=force, indicator_names=indicator_names)
         with _LOCK:
             _JOBS[job_id]["status"] = "completed"
             _JOBS[job_id]["result"] = {
@@ -48,7 +49,7 @@ def _run_job(job_id: str, market: str, force: bool) -> None:
 
 
 @router.post("/scan/start")
-def start_scan(market: str = "bist", force: bool = False) -> dict[str, str]:
+def start_scan(market: str = "bist", force: bool = False, category: str | None = None) -> dict[str, str]:
     # Aynı piyasa için ZATEN çalışan bir iş varsa yenisini başlatma —
     # `run_eod` kendi içinde de idempotent (force=False iken aynı gün
     # ikinci koşuyu atlar) ama gereksiz paralel iş yaratmayı burada
@@ -58,15 +59,31 @@ def start_scan(market: str = "bist", force: bool = False) -> dict[str, str]:
             if job["market"] == market and job["status"] == "running":
                 return {"job_id": job["job_id"], "status": "already_running"}
 
+    indicator_names: list[str] | None = None
+    if category:
+        indicator_names = [spec.name for spec in CATALOG.values() if spec.category == category]
+        if not indicator_names:
+            raise HTTPException(404, f"Bilinmeyen kategori: {category}")
+        # `ResultsStore.persist()` UPSERT'tir (bkz. `tlab/scanner/results.py`,
+        # DELETE yok) — bu yüzden bugün ZATEN tam bir tarama tamamlanmış olsa
+        # bile, yalnızca BU kategorinin göstergelerini yeniden koşup üzerine
+        # yazmak GÜVENLİ (diğer göstergelerin sinyalleri dokunulmadan kalır).
+        # `force=True` bu yüzden kategori-bazlı taramada HER ZAMAN zorlanır —
+        # aksi halde `run_eod` "bugün zaten tamamlanmış" deyip hiç çalışmaz.
+        force = True
+
     job_id = uuid.uuid4().hex[:12]
     with _LOCK:
         _JOBS[job_id] = {
             "job_id": job_id,
             "market": market,
+            "category": category,
             "status": "queued",
             "started_at": datetime.now(UTC).isoformat(),
         }
-    thread = threading.Thread(target=_run_job, args=(job_id, market, force), daemon=True)
+    thread = threading.Thread(
+        target=_run_job, args=(job_id, market, force, indicator_names), daemon=True
+    )
     thread.start()
     return {"job_id": job_id, "status": "queued"}
 

@@ -1,4 +1,4 @@
-import type { CatalogEntry } from "./types";
+import type { CatalogEntry, CategoryEntry } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000/api";
 
@@ -15,6 +15,10 @@ async function getJson<T>(path: string): Promise<T> {
 
 export function fetchCatalog(): Promise<CatalogEntry[]> {
   return getJson<CatalogEntry[]>("/catalog");
+}
+
+export function fetchCategories(): Promise<CategoryEntry[]> {
+  return getJson<CategoryEntry[]>("/categories");
 }
 
 export function fetchUniverse(market: string): Promise<string[]> {
@@ -67,6 +71,8 @@ export interface ScanSignal {
   symbol: string;
   timeframe: string;
   indicator: string;
+  display_name: string;
+  pattern_label: string | null;
   state: string;
   direction: string;
   score: number;
@@ -93,11 +99,10 @@ export interface ScanJob {
   result?: { run_id: string; status: string };
 }
 
-export async function startScan(market: string, force = false): Promise<ScanJob> {
-  const res = await fetch(
-    `${API_BASE}/scan/start?market=${encodeURIComponent(market)}&force=${force}`,
-    { method: "POST" }
-  );
+export async function startScan(market: string, force = false, category?: string): Promise<ScanJob> {
+  const qs = new URLSearchParams({ market, force: String(force) });
+  if (category) qs.set("category", category);
+  const res = await fetch(`${API_BASE}/scan/start?${qs.toString()}`, { method: "POST" });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error((body as { detail?: string }).detail ?? `İstek başarısız (${res.status})`);
@@ -114,6 +119,8 @@ export function fetchSignals(params: {
   market?: string;
   tf?: string;
   indicator?: string;
+  category?: string;
+  direction?: string;
   symbol?: string;
   all_states?: boolean;
   limit?: number;

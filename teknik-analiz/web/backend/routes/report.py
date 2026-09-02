@@ -19,7 +19,11 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 
 from tlab.viz.live import STRUCTURE_REPORT_NAME, compute_live, compute_structure_report
-from tlab.viz.quant_report import generate_indicator_report, generate_quant_report
+from tlab.viz.quant_report import (
+    generate_indicator_report,
+    generate_pair_report,
+    generate_quant_report,
+)
 
 router = APIRouter(tags=["report"])
 
@@ -52,10 +56,12 @@ def get_report(symbol: str, tf: str, indicator: str, market: str = "bist") -> di
         else:
             result, df = compute_live(indicator, symbol, tf, market)
             if df is None:
-                raise HTTPException(
-                    422, "Pair göstergeleri için yapay zeka raporu şimdilik desteklenmiyor."
-                )
-            report = generate_indicator_report(result, df, symbol=symbol, model=model)
+                # 2026-09-03: eskiden burada 422 "desteklenmiyor" dönüyordu --
+                # pair göstergeleri artık kendi AI rapor yoluna sahip (bkz.
+                # `generate_pair_report`), df'siz de çalışır.
+                report = generate_pair_report(result, symbol=symbol, model=model)
+            else:
+                report = generate_indicator_report(result, df, symbol=symbol, model=model)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     except FileNotFoundError as exc:

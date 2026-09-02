@@ -52,38 +52,60 @@ from typing import Literal
 import pandas as pd
 
 from tlab.core.types import IndicatorResult
-from tlab.viz.report_text import build_summary_lines
+from tlab.viz.report_text import (
+    build_generic_summary_lines,
+    build_pair_summary_lines,
+    build_summary_lines,
+)
 
 Provider = Literal["gemini", "anthropic"]
 
 DEFAULT_PROVIDER: Provider = "gemini"
 DEFAULT_GEMINI_MODEL = "gemini-flash-lite-latest"
 DEFAULT_ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
-_MAX_OUTPUT_TOKENS = 900
+# 2026-09-03: kullanıcı "şimdiye kadar olduğundan daha detaylı ve uzun rapor
+# yazsın" dedi -- eski 900 token ~250-300 Türkçe kelimeyle sınırlıyordu
+# (sistem promptunun eski 150-280 kelime hedefiyle tutarlıydı ama kullanıcı
+# artık BUNU yetersiz buluyor). 2200 token, aşağıdaki 450-750 kelimelik yeni
+# hedefe rahat yer bırakır.
+_MAX_OUTPUT_TOKENS = 2200
 
 _SYSTEM_PROMPT = """\
-Sen deneyimli bir kantitatif analist (quant) ve piyasa yorumcususun. Sana bir \
-hissenin teknik analiz çıktıları -- zaten hesaplanmış, sana OLGU olarak \
-verilen sayılar -- iletiliyor. Bu olgulardan, sosyal medyada (X/Twitter) \
-paylaşılabilecek, samimi ama profesyonel bir Türkçe rapor metni yaz.
+Sen borsada yıllarını geçirmiş, deneyimli bir kantitatif analistsin (quant) \
+-- hem sayılara hem de piyasanın "hissine" hakim, X/Twitter'da finans \
+çevresinde takip edilen, teknik konuları sıradan bir yatırımcının bile \
+anlayacağı dilde anlatabilen biri gibisin. Sana bir hissenin/stratejinin \
+teknik analiz çıktıları -- zaten hesaplanmış, sana OLGU olarak verilen \
+sayılar -- iletiliyor. Bu olgulardan, X'te paylaşılabilecek, samimi ama \
+otoriter bir Türkçe rapor metni yaz.
 
 Kesin kurallar:
 1. SANA VERİLEN olguların DIŞINDA hiçbir fiyat, seviye, yüzde veya tarih \
-UYDURMA -- yalnızca verilenleri kullan, yorumla, bağlamlandır.
+UYDURMA -- yalnızca verilenleri kullan, yorumla, bağlamlandır. Verilen HER \
+olguyu (özellikle sinyal geçmişi, z-skor, getiri/drawdown gibi istatistik \
+alanları varsa) metne dahil etmeye çalış, hiçbirini görmezden gelme.
 2. Bir yapay zeka gibi değil, gerçek bir insan-quant gibi yaz: doğal, akıcı, \
-kendine güvenen ama abartısız bir üslup. Kalıp/şablon cümlelerden kaçın.
-3. Teknik terimleri (POC, VAH/VAL, RSI, AB=CD, HVN, Fibonacci, MACD vb.) \
-kullanırken KISACA ne anlama geldiğini parantez içinde veya cümle içinde \
-açıkla -- konuya hakim olmayan biri de okuyunca anlamalı.
+kendine güvenen ama abartısız bir üslup. Kalıp/şablon cümlelerden ("gördüğümüz \
+üzere", "sonuç olarak" gibi klişelerden) kaçın; gerçek biri konuşuyormuş gibi, \
+akışı olan bir anlatı kur -- neden bu seviyenin/oranın önemli olduğunu, bir \
+sonraki adımda ne izleneceğini de kendi yorumunla açıkla.
+3. Teknik terimleri (POC, VAH/VAL, RSI, AB=CD, HVN, Fibonacci, z-skor, \
+kointegrasyon, halflife, MACD vb.) kullanırken KISACA ne anlama geldiğini \
+parantez içinde veya cümle içinde açıkla -- konuya hakim olmayan biri de \
+okuyunca anlamalı. Bunu her terimde otomatik/şablon gibi değil, doğal bir \
+açıklama cümlesi olarak yap.
 4. Kesinlikle "AL/SAT" tavsiyesi verme; yalnızca teknik görünümü anlat. \
 Metnin SONUNA "Yalnızca teknik analizdir, yatırım tavsiyesi değildir." \
 notunu ekle.
-5. Uzunluk: yaklaşık 150-280 kelime. Doğal, akan paragraflar hâlinde yaz.
+5. Uzunluk: yaklaşık 450-750 kelime -- önceki kısa özet metinlerden BELİRGİN \
+şekilde daha detaylı ve uzun olmalı. Tek bir kısa paragraf YETERSİZ; en az \
+3-5 doğal paragraf kullan (giriş/genel görünüm, detaylı teknik okuma, \
+istatistik/performans bağlamı varsa ayrı bir paragraf, kapanış/özet).
 6. DÜZ METİN yaz -- markdown biçimlendirmesi KULLANMA (**kalın**, *madde \
 işareti*, # başlık gibi işaretler YASAK). Bu metin X/Twitter'da OLDUĞU GİBİ \
 paylaşılacak; markdown işaretleri orada düz yıldız/diyez karakteri olarak \
 görünür, biçimlendirme OLARAK görünmez. Vurgu için kelime seçimini kullan, \
-işaretleme değil.
+işaretleme değil. Paragrafları BOŞ SATIRLA ayır.
 7. Türkçe yaz."""
 
 
@@ -161,29 +183,16 @@ _PROVIDERS: dict[Provider, tuple[tuple[str, ...], str, object]] = {
 }
 
 
-def generate_quant_report(
-    ps_result: IndicatorResult,
-    sf_result: IndicatorResult,
-    df: pd.DataFrame,
-    *,
-    symbol: str | None = None,
-    provider: Provider = DEFAULT_PROVIDER,
-    api_key: str | None = None,
-    model: str | None = None,
+def _generate_from_facts(
+    facts: list[str], sym: str, date_str: str, provider: Provider,
+    api_key: str | None, model: str | None,
 ) -> QuantReport:
-    """`ps_result`/`sf_result`: `structure.price_structure`/`structure.
-    swing_fib_abcd`'in HAZIR çıktısı (bu fonksiyon hiçbir yeni hesap
-    yapmaz). `api_key`: verilmezse sağlayıcının kendi ortam değişkeninden
-    (Gemini için `GEMINI_API_KEY`/`GOOGLE_API_KEY`, Anthropic için
-    `ANTHROPIC_API_KEY`) okunur. Anahtar yoksa ya da API çağrısı başarısız
-    olursa deterministik madde listesine düşer (bkz. modül docstring'i)."""
+    """`generate_quant_report`/`generate_indicator_report`'un PAYLAŞTIĞI
+    LLM-çağrısı çekirdeği -- ikisi de yalnızca farklı bir `build_*_summary_
+    lines()` ile olgu listesi ürettikten sonra buraya düşer."""
     if provider not in _PROVIDERS:
         raise ValueError(f"Bilinmeyen provider: {provider!r} (gemini|anthropic bekleniyor)")
     env_names, default_model, call = _PROVIDERS[provider]
-
-    sym = symbol or ps_result.symbol or "?"
-    facts = build_summary_lines(ps_result, sf_result, df)
-    date_str = pd.Timestamp(df.index[-1]).strftime("%d.%m.%Y")
     user_message = _build_user_message(sym, date_str, facts)
 
     key = api_key or next((os.environ[n] for n in env_names if os.environ.get(n)), None)
@@ -200,3 +209,77 @@ def generate_quant_report(
         return QuantReport(text=text, used_ai=True, provider=provider)
     except Exception as exc:
         return _fallback(facts, f"LLM çağrısı başarısız ({exc}) -- deterministik özete düşüldü.")
+
+
+def generate_quant_report(
+    ps_result: IndicatorResult,
+    sf_result: IndicatorResult,
+    df: pd.DataFrame,
+    *,
+    symbol: str | None = None,
+    provider: Provider = DEFAULT_PROVIDER,
+    api_key: str | None = None,
+    model: str | None = None,
+) -> QuantReport:
+    """`ps_result`/`sf_result`: `structure.price_structure`/`structure.
+    swing_fib_abcd`'in HAZIR çıktısı (bu fonksiyon hiçbir yeni hesap
+    yapmaz). `api_key`: verilmezse sağlayıcının kendi ortam değişkeninden
+    (Gemini için `GEMINI_API_KEY`/`GOOGLE_API_KEY`, Anthropic için
+    `ANTHROPIC_API_KEY`) okunur. Anahtar yoksa ya da API çağrısı başarısız
+    olursa deterministik madde listesine düşer (bkz. modül docstring'i)."""
+    sym = symbol or ps_result.symbol or "?"
+    facts = build_summary_lines(ps_result, sf_result, df)
+    date_str = pd.Timestamp(df.index[-1]).strftime("%d.%m.%Y")
+    return _generate_from_facts(facts, sym, date_str, provider, api_key, model)
+
+
+def generate_indicator_report(
+    result: IndicatorResult,
+    df: pd.DataFrame,
+    *,
+    symbol: str | None = None,
+    provider: Provider = DEFAULT_PROVIDER,
+    api_key: str | None = None,
+    model: str | None = None,
+) -> QuantReport:
+    """2026-09-02: `structure.report` DIŞINDAKİ herhangi bir gösterge için
+    genel amaçlı AI rapor yolu -- `report_text.build_generic_summary_lines()`
+    (o göstergeye özel bir olgu-çıkarıcı YAZMADAN, her `IndicatorResult`'ın
+    ortak alanlarından üretilen dürüst/genel olgular) + AYNI LLM çekirdeği
+    (`_generate_from_facts`). `generate_quant_report`'un `structure.report`e
+    özel zengin yolu bu fonksiyonla DEĞİŞTİRİLMEDİ, ayrı kalmaya devam
+    ediyor -- dashboard hangi göstergenin seçili olduğuna göre ikisinden
+    birini çağırır (bkz. `tlab/dashboard.py::_render_ai_report_button`)."""
+    sym = symbol or result.symbol or "?"
+    facts = build_generic_summary_lines(result, df)
+    date_str = pd.Timestamp(df.index[-1]).strftime("%d.%m.%Y")
+    return _generate_from_facts(facts, sym, date_str, provider, api_key, model)
+
+
+def generate_pair_report(
+    result: IndicatorResult,
+    *,
+    symbol: str | None = None,
+    provider: Provider = DEFAULT_PROVIDER,
+    api_key: str | None = None,
+    model: str | None = None,
+) -> QuantReport:
+    """2026-09-03: `pair.relative_momentum`/`pair.vol_harvest` için AI rapor
+    yolu -- kullanıcı "pair göstergeleri için yapay zeka desteklenmiyor"
+    bildirdi. Kök neden: bu ikisi `compute_live()`'da tekil bir OHLCV `df`
+    DÖNDÜRMÜYOR (pair modunda anlamı yok, bkz. `live.py`), `generate_
+    indicator_report`'un `df["close"]` bağımlılığına uymuyordu. Burada `df`
+    YOK -- tarih referansı olarak `result.series['z']`'nin (varsa) ya da
+    son sinyalin `bar_time`'ı kullanılır."""
+    sym = symbol or result.symbol or "?"
+    facts = build_pair_summary_lines(result)
+    date_source = result.series.get("z")
+    if date_source is not None and len(date_source):
+        date_str = pd.Timestamp(date_source.index[-1]).strftime("%d.%m.%Y")
+    elif result.signals:
+        date_str = pd.Timestamp(
+            max(result.signals, key=lambda s: s.detected_at).bar_time
+        ).strftime("%d.%m.%Y")
+    else:
+        date_str = "bugün"
+    return _generate_from_facts(facts, sym, date_str, provider, api_key, model)

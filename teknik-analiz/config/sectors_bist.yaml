@@ -1,43 +1,694 @@
 # BIST sektör eşlemesi — discovery.py::load_sector_map() tarafından okunur.
 #
-# ÖNEMLİ: Bu KASITLI OLARAK KÜÇÜK ve KISMİ bir liste. Yalnızca sektör
-# sınıflandırmasından EMİN olduğum, iyi bilinen BIST büyük-sermaye şirketleri
-# eklendi (~648 sembollük tam universe'ün küçük bir alt kümesi). Emin
-# olmadığım hiçbir sembol/sektör eşlemesi UYDURULMADI — bir sembol burada
-# yoksa discover_pairs() onu "bilinmeyen sektör" sayıp same_sector_only=True
-# iken taramadan otomatik olarak DIŞLAR (bkz. discovery.py docstring'i).
-#
-# Genişletme: Bu liste resmi bir kaynaktan (KAP, BIST'in kendi sektör
-# endeksleri) doğrulanarak büyütülmeli — burada elle, tek seferde eklendi.
+# 2026-09-03: Kaynak Fintables Sektörler sayfası (fintables.com/sektorler,
+# 13 Ağustos 2026 itibarıyla) — kullanıcının kendi eklediği
+# bist-sektorler-ve-hisseler.md dosyasından üretildi (tlab/../../ üretim
+# script'i, elle YAZILMADI). 648 BIST hissesinin 637'si (44 sektör) burada;
+# 11'i (Fintables'ta da) sektörü tanımsız olduğu için BİLİNÇLİ OLARAK
+# dışarıda bırakıldı (discover_pairs() bunları "bilinmeyen sektör" sayıp
+# same_sector_only=True iken otomatik dışlar — "bilmediğin sektörü uydurma"
+# ilkesi, bkz. discovery.py docstring'i). Önceki sürüm yalnızca ~23 sembol
+# (8 sektör) içeren KASITLI kısmi bir başlangıç listesiydi; bu güncelleme
+# onu TAM/doğrulanmış kaynakla değiştiriyor.
 sectors:
+  Ambalaj:
+    - BAKAB
+    - BARMA
+    - BNTAS
+    - DURDO
+    - EMNIS
+    - GEDZA
+    - KAPLM
+    - KARTN
+    - KRPLS
+    - MNDTR
+    - SEKUR
+  Ana Metal:
+    - BMSCH
+    - BMSTL
+    - BRSAN
+    - BURCE
+    - BURVA
+    - CELHA
+    - CEMAS
+    - CEMTS
+    - CUSAN
+    - DMSAS
+    - EKDMR
+    - ERBOS
+    - ERCB
+    - EREGL
+    - ISDMR
+    - IZMDC
+    - KARCL
+    - KBORU
+    - KCAER
+    - KOCMT
+    - KRDMA
+    - KRDMB
+    - KRDMD
+    - MEGMT
+    - OZYSR
+    - POLTK
+    - SARKY
+    - TUCLK
+    - YKSLN
+  Aracı Kurum:
+    - A1CAP
+    - GEDIK
+    - GLBMD
+    - INFO
+    - ISMEN
+    - OSMEN
+    - OYYAT
+    - SKYMD
+    - TERA
   Bankacılık:
     - AKBNK
+    - ALBRK
     - GARAN
-    - ISCTR
-    - YKBNK
-    - VAKBN
     - HALKB
+    - ICBCT
+    - ISATR
+    - ISBTR
+    - ISCTR
+    - ISKUR
+    - KLNMA
+    - QNBTR
+    - SKBNK
     - TSKB
-  Telekomünikasyon:
+    - VAKBN
+    - YKBNK
+  Bilişim ve Yazılım:
+    - ARDYZ
+    - ATATP
+    - EDATA
+    - ESCOM
+    - FONET
+    - FORTE
+    - HTTBT
+    - INTEK
+    - KFEIN
+    - LINK
+    - LOGO
+    - MIATK
+    - MTRKS
+    - NETCD
+    - OBASE
+    - ODINE
+    - ONRYT
+    - PAPIL
+    - PATEK
+    - PKART
+    - REEDR
+    - SKYLP
+    - SMART
+    - VBTYZ
+  Cam, Seramik, Porselen:
+    - BIENY
+    - CGCAM
+    - EGSER
+    - ISVEA
+    - KLSER
+    - KUTPO
+    - QUAGR
+    - SERNT
+    - SISE
+    - USAK
+  Dayanıklı Tüketim Ürünleri:
+    - ALCAR
+    - ARCLK
+    - ARZUM
+    - IHEVA
+    - KLMSN
+    - SILVR
+    - VESBE
+    - VESTL
+  Destek ve Hizmet:
+    - AKYHO
+    - BEYAZ
+    - BIGTK
+    - CEOEM
+    - DOCO
+    - FLAP
+    - GATEG
+    - HRKET
+    - MACKO
+    - MCARD
+    - PCILT
+    - SNKRN
+  Emeklilik:
+    - AGESA
+    - ANHYT
+  Enerji Teknolojileri:
+    - ALFAS
+    - ASTOR
+    - BETAE
+    - BRLSM
+    - CWENE
+    - EKOS
+    - EUPWR
+    - GESAN
+    - KLYPV
+    - KONTR
+    - MASFN
+    - ORGE
+    - SARAE
+    - SAYAS
+    - SMRTG
+    - YEOTK
+  Enerji Üretim ve Dağıtım:
+    - A1YEN
+    - AHGAZ
+    - AKENR
+    - AKFYE
+    - AKSEN
+    - AKSUE
+    - ARASE
+    - ARFYE
+    - AYDEM
+    - AYEN
+    - BASGZ
+    - BESTE
+    - BIGEN
+    - BIOEN
+    - CANTE
+    - CATES
+    - CONSE
+    - ECOGR
+    - ENDAE
+    - ENERY
+    - ENJSA
+    - ENTRA
+    - ESEN
+    - EUREN
+    - GWIND
+    - HUNER
+    - IZENR
+    - LYDYE
+    - MAGEN
+    - MANAS
+    - METEN
+    - MOGAN
+    - NATEN
+    - NTGAZ
+    - ODAS
+    - PAMEL
+    - PRKME
+    - SOHOE
+    - TATEN
+    - YAYLA
+    - ZEDUR
+    - ZOREN
+  Faktoring:
+    - CRDFA
+    - DSTKF
+    - GARFA
+    - LIDFA
+    - ULUFA
+    - VAKFA
+  Finansal Kiralama:
+    - ISFIN
+    - QNBFK
+    - QNBFL
+    - SEKFK
+    - VAKFN
+  Gayrimenkul:
+    - AAGYO
+    - ADESE
+    - ADGYO
+    - AGYO
+    - AHSGY
+    - AKFGY
+    - AKMGY
+    - AKSGY
+    - ALGYO
+    - ASGYO
+    - ATAGY
+    - AVGYO
+    - AVPGY
+    - BEGYO
+    - DAPGM
+    - DGGYO
+    - DZGYO
+    - EDIP
+    - EGEGY
+    - EKGYO
+    - EYGYO
+    - FZLGY
+    - HLGYO
+    - IDGYO
+    - IHLGM
+    - ISGYO
+    - KGYO
+    - KLGYO
+    - KRGYO
+    - KUYAS
+    - KZBGY
+    - KZGYO
+    - LXGYO
+    - MHRGY
+    - MRGYO
+    - MSGYO
+    - NUGYO
+    - OZGYO
+    - OZKGY
+    - PAGYO
+    - PEHOL
+    - PEKGY
+    - PSGYO
+    - RGYAS
+    - RYGYO
+    - SEGYO
+    - SNGYO
+    - SRVGY
+    - SURGY
+    - SVGYO
+    - TDGYO
+    - TRGYO
+    - TSGYO
+    - VKGYO
+    - VRGYO
+    - YGGYO
+    - YGYO
+    - ZERGY
+    - ZGYO
+    - ZRGYO
+  Girişim Sermayesi Yat. Ort.:
+    - BULGS
+    - GOZDE
+    - HDFGS
+    - HUBVC
+    - ICUGS
+    - ISGSY
+    - PRDGS
+    - VERTU
+  Giyim, Tekstil ve Deri Ürünleri Perakendeciliği:
+    - KOTON
+  Gıda Perakendeciliği:
+    - BIMAS
+    - BIZIM
+    - CRFSA
+    - KIMMR
+    - MGROS
+    - MOPAS
+    - SOKM
+  Gıda ve İçecek:
+    - AEFES
+    - AGROT
+    - AKHAN
+    - ALKLC
+    - ARMGD
+    - ATAKP
+    - AVOD
+    - BALSU
+    - BANVT
+    - BESLR
+    - BIGCH
+    - BORSK
+    - BYDNR
+    - CCOLA
+    - CITAS
+    - DARDL
+    - DMRGD
+    - DUNYH
+    - DURKN
+    - EFOR
+    - EFORC
+    - EKSUN
+    - ELITE
+    - ERSU
+    - FADE
+    - FRIGO
+    - GOKNR
+    - GOLDA
+    - GRTHO
+    - GUNDG
+    - KAYSE
+    - KENT
+    - KNFRT
+    - KRSTL
+    - KRVGD
+    - KTSKR
+    - KUVVA
+    - MERKO
+    - MEYSU
+    - OBAMS
+    - OFSYM
+    - ORCAY
+    - OYLUM
+    - PENGD
+    - PETUN
+    - PINSU
+    - PNSUT
+    - SEGMN
+    - SELGD
+    - SELVA
+    - SOKE
+    - TABGD
+    - TATGD
+    - TBORG
+    - TUKAS
+    - ULKER
+    - ULUUN
+    - VANGD
+    - YYLGD
+  Haberleşme:
+    - ALCTL
+    - IHAAS
+    - KAREL
+    - KRONT
+    - NETAS
     - TCELL
     - TTKOM
   Holding:
-    - SAHOL
-    - KCHOL
+    - AGHOL
+    - ALARK
+    - ATSYH
+    - AVHOL
+    - BERA
+    - BINHO
+    - BLCYT
+    - BRYAT
+    - COSMO
+    - DAGHL
+    - DENGE
     - DOHOL
-  Havacılık:
-    - THYAO
-    - PGSUS
+    - ECZYT
+    - EUHOL
+    - GLRYH
+    - GLYHO
+    - HEDEF
+    - IEYHO
+    - IHLAS
+    - IHYAY
+    - INVEO
+    - INVES
+    - ISBIR
+    - IZINV
+    - KCHOL
+    - KERVN
+    - KLRHO
+    - LRSHO
+    - MARKA
+    - MARMR
+    - METRO
+    - MMCAS
+    - MZHLD
+    - NTHOL
+    - OSTIM
+    - OTTO
+    - PAHOL
+    - POLHO
+    - RALYH
+    - SAHOL
+    - TEHOL
+    - TKFEN
+    - TRHOL
+    - UFUK
+    - UMPAS
+    - UNLU
+    - VERUS
+    - YESIL
+  İlaç ve Sağlık:
+    - ANGEN
+    - DEVA
+    - ECILC
+    - EGEPO
+    - GENIL
+    - LKMNH
+    - MEDTR
+    - MPARK
+    - ONCSM
+    - ORZAX
+    - RTALB
+    - SELEC
+    - TNZTP
+    - TRILC
+  İmalat:
+    - ADEL
+    - ALVES
+    - AYES
+    - BVSAN
+    - DOFER
+    - DOFRB
+    - DOGUB
+    - EMKEL
+    - GIPTA
+    - HATSN
+    - MEKAG
+    - OZATD
+    - TCKRC
+  İnşaat:
+    - AKFIS
+    - ANELE
+    - BRKSN
+    - ENKAI
+    - GLRMK
+    - PNLSN
+    - SANEL
+    - TURGG
+    - UCAYM
+    - YBTAS
+    - YYAPI
+  Kağıt ve Kağıt Ürünleri:
+    - ALKA
+    - DOBUR
+    - HURGZ
+    - IHGZT
+    - KONKA
+    - LILAK
+    - PRZMA
+    - SAMAT
+    - TEZOL
+    - VKING
+  Kimya ve Plastik:
+    - ACSEL
+    - AKSA
+    - ALKIM
+    - AYGAZ
+    - BAGFS
+    - BAHKM
+    - CASA
+    - DNISI
+    - DYOBY
+    - EGGUB
+    - EGPRO
+    - EKIZ
+    - EPLAS
+    - FRMPL
+    - GENKM
+    - GUBRF
+    - HEKTS
+    - ISKPL
+    - ISSEN
+    - IZFAS
+    - KLKIM
+    - KMPUR
+    - KOPOL
+    - KORDS
+    - MEGAP
+    - MEPET
+    - MERCN
+    - MRSHL
+    - OZRDN
+    - PETKM
+    - RNPOL
+    - SANFM
+    - SASA
+    - SEYKM
+    - SODSN
+    - TARKM
+    - TMPOL
+    - TRCAS
+    - TUPRS
+  Madencilik ve Taş Ocakçılığı:
+    - CVKMD
+    - IPEKE
+    - KOZAA
+    - KOZAL
+    - RUZYE
+    - TRALT
+    - TRENJ
+    - TRMET
+    - VSNMD
+  Menkul Kıymet Yat. Ort.:
+    - ATLAS
+    - ETYAT
+    - EUKYO
+    - EUYO
+    - GRNYO
+    - ISYAT
+    - MTRYO
+    - OYAYO
+    - VKFYO
+  Metal Eşya ve Makine:
+    - FORMT
+    - GEREL
+    - HKTM
+    - IMASM
+    - KATMR
+    - MAKIM
+    - MAKTK
+    - PRKAB
+    - SAFKR
+    - SNICA
+    - ULUSE
+  Mobilya ve Dekorasyon:
+    - DGNMO
+    - GENTS
+    - KLSYN
+    - ORMA
+    - SUMAS
+    - YATAS
+    - YONGA
   Otomotiv:
+    - ASUZU
+    - DOAS
     - FROTO
-    - TOASO
+    - KARSN
     - OTKAR
-  DemirÇelik:
-    - EREGL
-    - KRDMD
-  Perakende:
-    - BIMAS
-    - MGROS
-    - SOKM
+    - TMSN
+    - TOASO
+    - TTRAK
+  Otomotiv Yan Sanayi:
+    - BALAT
+    - BFREN
+    - BRISA
+    - DITAS
+    - DOKTA
+    - EGEEN
+    - FMIZP
+    - GOODY
+    - JANTS
+    - PARSN
+    - YIGIT
   Savunma:
+    - ALTNY
     - ASELS
+    - SDTTR
+  Servis Taşımacılığı ve Araç Kiralama:
+    - BORLS
+    - EKIM
+    - ESCAR
+    - GRSEL
+    - LIDER
+    - PLTUR
+    - TUREX
+  Sigorta:
+    - AKGRT
+    - ANSGR
+    - QUICK
+    - RAYSG
+    - TURSG
+  Spor:
+    - BJKAS
+    - FENER
+    - GSRAY
+    - TSPOR
+  Tarım, Hayvancılık, Balıkçılık:
+    - CEMZY
+    - DCTTR
+    - OZSUB
+    - YAPRK
+  Tasarruf Finansman:
+    - KTLEV
+  Taş, Toprak, Çimento:
+    - AFYON
+    - AKCNS
+    - ALBTN
+    - BASCM
+    - BOBET
+    - BSOKE
+    - BTCIM
+    - BUCIM
+    - CIMSA
+    - CMBTN
+    - CMENT
+    - GOLTS
+    - KONYA
+    - LMKDC
+    - MARBL
+    - NIBAS
+    - NUHCM
+    - OYAKC
+  Teknolojik Ürün Ticareti:
+    - ARENA
+    - AZTEK
+    - DESPC
+    - DGATE
+    - INDES
+    - INGRM
+    - MOBTL
+    - PENTA
+    - TKNSA
+  Tekstil, Giyim ve Deri:
+    - ARSAN
+    - ARTMS
+    - ATEKS
+    - BAYRK
+    - BOSSA
+    - BRKO
+    - BRMEN
+    - DAGI
+    - DERHL
+    - DERIM
+    - DESA
+    - DIRIT
+    - ENSRI
+    - HATEK
+    - KRTEK
+    - LUKSK
+    - MAVI
+    - MNDRS
+    - RODRG
+    - ROYAL
+    - RUBNS
+    - SANKO
+    - SKTAS
+    - SNPAM
+    - SONME
+    - SUNTK
+    - SUWEN
+    - VAKKO
+    - YUNSA
+  Toptan ve Perakende Ticaret:
+    - AVTUR
+    - EBEBK
+    - EMPAE
+    - ETILR
+    - GMTAS
+    - INTEM
+    - LYDHO
+    - PSDTC
+    - SSAAT
+    - TGSAS
+  Turizm:
+    - ATATR
+    - AYCES
+    - BLUME
+    - GZNMI
+    - KSTUR
+    - MAALT
+    - MARTI
+    - MERIT
+    - METUR
+    - PKENT
+    - TEKTU
+    - ULAS
+  Ulaştırma:
+    - BINBN
+    - CLEBI
+    - GSDDE
+    - GSDHO
+    - HOROZ
+    - PASEU
+    - PGSUS
+    - RYSAS
+    - TAVHL
+    - THYAO
+    - TLMAN
+  Varlık Yönetimi:
+    - BRKVY
+    - GLCVY
+    - SMRVA

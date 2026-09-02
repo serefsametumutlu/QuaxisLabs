@@ -377,6 +377,8 @@ def _resolve_window_start(result: IndicatorResult, df: pd.DataFrame, last_n: int
         return max(0, n - last_n)
     if result.indicator.startswith("harmonic."):
         return _harmonic_auto_window_start(result, df)
+    if result.indicator.startswith("patterns."):
+        return _pattern_auto_window_start(result, df)
     return max(0, n - _DEFAULT_LAST_N)
 
 
@@ -411,15 +413,59 @@ def _harmonic_auto_window_start(result: IndicatorResult, df: pd.DataFrame) -> in
     return max(0, idx - _HARMONIC_ZOOM_PAD_BARS)
 
 
+def _recent_pattern_time_range(result: IndicatorResult) -> tuple[object, object] | None:
+    """`patterns.*` için `_recent_harmonic_time_range`'in eşdeğeri (2026-09-03,
+    gerçek ODAS/TRHOL verisiyle bulundu: en güncel geçerli örüntü aylarca
+    eski olduğunda, sabit `_DEFAULT_LAST_N` (90 bar) penceresi onu TAMAMEN
+    dışarıda bırakıyordu — grafik "hiçbir şey yok" gibi BOMBOŞ görünüyordu,
+    oysa `_filter_confirmed_patterns` aslında doğru örüntüyü seçmişti).
+    `_filter_confirmed_patterns` zaten yalnızca şekil türü başına EN GÜNCEL
+    örneği bıraktığı için, kalan TÜM vertex/durum Marker'larının en erken/
+    en geç zaman damgasını döner (birden fazla şekil türü — ör. hem bir
+    TOBO hem bir OBO — aynı anda "en güncel" olabilir, pencere ikisini de
+    kapsamalı)."""
+    times = [
+        m.t for m in result.markers
+        if m.kind.startswith("pattern_vertex:")
+        or m.kind.startswith("pattern_confirmed:")
+        or m.kind.startswith("pattern_completed:")
+    ]
+    if not times:
+        return None
+    return min(times), max(times)
+
+
+def _pattern_auto_window_start(result: IndicatorResult, df: pd.DataFrame) -> int:
+    """Varsayılan pencereden (`_DEFAULT_LAST_N`) DAHA DAR bir aralığa asla
+    zoom yapmaz — yalnızca en güncel geçerli örüntü o pencerenin DIŞINDA
+    kaldığında devreye girip geriye doğru genişler (harmonik'in AYNI
+    felsefesi, bkz. `_harmonic_auto_window_start`)."""
+    default_start = max(0, len(df) - _DEFAULT_LAST_N)
+    time_range = _recent_pattern_time_range(result)
+    if time_range is None:
+        return default_start
+    earliest_t, _latest_t = time_range
+    try:
+        idx = df.index.get_loc(earliest_t)
+    except KeyError:
+        return default_start
+    if not isinstance(idx, int):
+        return default_start
+    return min(default_start, max(0, idx - _HARMONIC_ZOOM_PAD_BARS))
+
+
 def _resolve_window_end(result: IndicatorResult, df: pd.DataFrame) -> int:
     """Görünür pencerenin BİTİŞ bar indeksini belirler — bkz. `_HARMONIC_END_
-    PAD_BARS` docstring'i. Yalnızca `harmonic.*` için (VE bir aday varsa)
-    adayın kendi ufkuna (`born_time` + pay) kısıtlar; diğer tüm durumlarda
-    HER ZAMAN gerçek son bar (`n-1`) döner — davranış DEĞİŞMEZ."""
+    PAD_BARS` docstring'i. `harmonic.*`/`patterns.*` için (VE bir aday/örüntü
+    varsa) o adayın/örüntünün kendi ufkuna (+ pay) kısıtlar; diğer tüm
+    durumlarda HER ZAMAN gerçek son bar (`n-1`) döner — davranış DEĞİŞMEZ."""
     n = len(df)
-    if not result.indicator.startswith("harmonic."):
+    if result.indicator.startswith("harmonic."):
+        time_range = _recent_harmonic_time_range(result)
+    elif result.indicator.startswith("patterns."):
+        time_range = _recent_pattern_time_range(result)
+    else:
         return n - 1
-    time_range = _recent_harmonic_time_range(result)
     if time_range is None:
         return n - 1
     earliest_t, latest_t = time_range
@@ -691,11 +737,22 @@ def _render_price_based(
         range=[_x(df.index[window_start_idx]), _right_padded_x(df, window_end_idx)],
         rangebreaks=_rangebreaks_for(df, result.timeframe),
     )
-    harmonic_bounds = (
+    # 2026-09-03 GERÇEK HATA (TRHOL/genişleyen formasyon örneğinde bulundu):
+    # `patterns.*` için pencere BİTİŞİ artık (yukarıdaki `_resolve_window_
+    # end` değişikliğiyle) eski örüntülerde `n-1`'den (bugün) ÇOK daha erken
+    # olabiliyor, ama Y-ekseni hâlâ `_visible_price_bounds` üzerinden
+    # `window_start_idx:` (BİTİŞ SINIRI OLMADAN, df'nin SONUNA kadar)
+    # hesaplanıyordu — X ekseni 2025'e zoom yaparken Y ekseni hâlâ BUGÜNÜN
+    # (çok daha yüksek/düşük) fiyatını da işin içine katıp mumları ekranın
+    # dibine sıkıştırıyordu. `_harmonic_price_bounds` (adına rağmen
+    # harmonik'e özgü bir mantık TAŞIMIYOR — yalnızca `window_start_idx`/
+    # `window_end_idx` ile sınırlı mum+Polygon+Level fiyatlarını kullanıyor)
+    # bu yüzden `patterns.*` için de kullanılıyor.
+    custom_price_bounds = (
         _harmonic_price_bounds(result, df, window_start_idx, window_end_idx)
-        if result.indicator.startswith("harmonic.") else None
+        if result.indicator.startswith(("harmonic.", "patterns.")) else None
     )
-    _sync_price_yaxis(fig, df, window_start_idx, has_vp, bounds=harmonic_bounds)
+    _sync_price_yaxis(fig, df, window_start_idx, has_vp, bounds=custom_price_bounds)
 
     header = _price_header(result)
     _apply_layout(fig, theme, header, height=600 + 180 * n_sub)

@@ -217,7 +217,7 @@ class BroadeningIndicator(BaseIndicator):
                     markers.append(
                         Marker(
                             t=last_sig.bar_time, price=marker_price, text=marker_label,
-                            kind=f"pattern_{last_sig.state}",
+                            kind=f"pattern_{last_sig.state}:{pattern_id}",
                         )
                     )
                     last_state[pattern_id] = {

@@ -229,7 +229,7 @@ class FlagPennantIndicator(BaseIndicator):
                 Marker(
                     t=last_sig.bar_time, price=close[df.index.get_loc(last_sig.bar_time)],
                     text=marker_text(_LABEL_TR[shape], last_sig.payload["event"], shape),
-                    kind=f"pattern_{last_sig.state}",
+                    kind=f"pattern_{last_sig.state}:{pattern_id}",
                 )
             )
             last_state[pattern_id] = {

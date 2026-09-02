@@ -861,6 +861,46 @@ def _filter_confirmed_patterns(result: IndicatorResult) -> IndicatorResult:
     if not valid_ids:
         return replace(result, boxes=[], lines=[], levels=[], markers=[], polygons=[])
 
+    # 2026-09-03 GERÇEK bulgu (kullanıcının paylaştığı ATATP grafiğiyle
+    # bulundu): state filtresi TEK BAŞINA yetmiyordu -- aynı şekil türü
+    # (ör. TOBO) için birden fazla GEÇMİŞ onaylanmış örnek aynı anda
+    # görünür kalabiliyor, üst üste binen SOL OMUZ/BAŞ/SAĞ OMUZ etiketleri
+    # ve yakın tarihli AYRI formasyonların (ör. bir TOBO'nun "HEDEFE
+    # ULAŞTI" etiketiyle hemen yanındaki tamamen ayrı bir OBO'nun üçgeni)
+    # görsel olarak çakışması "saçma" bir grafiğe yol açıyordu. Bu,
+    # harmoniklerin `_filter_harmonic_result`/`_MAX_HARMONIC_MARKERS` ile
+    # çözdüğü AYNI kategori sorun -- burada da şekil türüne (TOBO/OBO,
+    # yükselen/alçalan takoz, çift tepe/dip, boğa/ayı bayrağı vb., bkz.
+    # `_shape_key`) göre gruplanıp yalnızca EN GÜNCEL örnek bırakılıyor.
+    # `pattern_{state}:{pattern_id}` Marker kind'ı (5 formasyon dosyasına
+    # da eklendi) recency kaynağı; bir sebeple bulunamazsa (beklenmedik
+    # şekil uyuşmazlığı) o patern GÜVENLİ TARAFTA kalır, gizlenmez.
+    def _shape_key(pid: str) -> str:
+        info = result.last_state[pid]
+        return str(info.get("kind") or info.get("pattern") or info.get("shape") or pid)
+
+    marker_time: dict[str, datetime] = {}
+    for m in result.markers:
+        if m.kind.startswith("pattern_confirmed:") or m.kind.startswith("pattern_completed:"):
+            pid = m.kind.split(":", 1)[1]
+            if pid in valid_ids:
+                marker_time[pid] = m.t
+
+    latest_per_shape: dict[str, str] = {}
+    latest_time: dict[str, datetime] = {}
+    unresolved: set[str] = set()
+    for pid in valid_ids:
+        t = marker_time.get(pid)
+        if t is None:
+            unresolved.add(pid)
+            continue
+        key = _shape_key(pid)
+        if key not in latest_time or t >= latest_time[key]:
+            latest_time[key] = t
+            latest_per_shape[key] = pid
+    if latest_per_shape or unresolved:
+        valid_ids = set(latest_per_shape.values()) | unresolved
+
     valid_base_keys: set[str] = set()
     for pid in valid_ids:
         valid_base_keys.add(pid)
@@ -872,8 +912,8 @@ def _filter_confirmed_patterns(result: IndicatorResult) -> IndicatorResult:
         return any(label == base or label.startswith(base + "_") for base in valid_base_keys)
 
     def _keep_marker(m: Marker) -> bool:
-        if m.kind in ("pattern_confirmed", "pattern_completed"):
-            return True
+        if m.kind.startswith("pattern_confirmed:") or m.kind.startswith("pattern_completed:"):
+            return m.kind.split(":", 1)[1] in valid_ids
         if m.kind.startswith("pattern_vertex:"):
             return _matches(m.kind.removeprefix("pattern_vertex:"))
         return False
@@ -1679,13 +1719,17 @@ def _draw_markers(
             )
         elif m.kind == "pair_signal":
             continue  # yalnızca pair modunda, _render_pair kendi çizer
-        elif m.kind in ("pattern_confirmed", "pattern_completed"):
+        elif m.kind.startswith("pattern_confirmed:") or m.kind.startswith("pattern_completed:"):
             # 2026-09-02: harmonik D rozetinin "confirmed = tam dolgulu pill"
             # düzeltmesiyle AYNI — mockup'ın "TOBO · ONAY"/"BAYRAK · DEVAM"
             # rozetleri de HER ZAMAN solid dolgu (bu iki durum zaten "sinyal
             # arrived" anlamına geliyor, harmonikteki pending/active gibi ayrı
             # bir "henüz gelmedi" hâli YOK).
-            state = m.kind.removeprefix("pattern_")
+            # 2026-09-03: kind artık `pattern_{state}:{pattern_id}` (aynı
+            # şekildeki eski/çakışan örnekleri ayırt edip declutter etmek
+            # için `_filter_confirmed_patterns`'a eklendi) — `:` öncesi kısım
+            # state'i taşır.
+            state = m.kind.split(":", 1)[0].removeprefix("pattern_")
             color = getattr(theme, _PATTERN_OUTCOME_COLOR[state])
             confirmed_text = "#0a0c10" if theme.name == "dark_terminal" else "#ffffff"
             fig.add_annotation(

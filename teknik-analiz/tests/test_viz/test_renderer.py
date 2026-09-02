@@ -30,6 +30,7 @@ from tlab.viz.renderer import (
     _latest_per_group,
     _resolve_window_end,
     _stagger_yshifts,
+    _x,
     render,
     render_structure_report,
 )
@@ -185,18 +186,23 @@ def test_generic_breakout_markers_declutter_per_category_not_globally() -> None:
         symbol="TEST", timeframe=Timeframe.D1, markers=markers,
     )
     fig = render(result, df, theme="light")
-    breakout_anns = [a for a in fig.layout.annotations if "Kırılım" in str(a.text)]
-    # 10 "channel_break_up" + 10 "donchian_break_down" -> declutter yalnızca
-    # 2 (kategori başına birer en güncel) bırakmalı.
+    # 2026-09-02: görünen metin artık `_short_generic_text` ile kısaltılıyor
+    # ("▲ channel_break_up" gibi) — ham "Kırılım: ..." cümlesi artık yalnızca
+    # `hovertext`'te. 10 "channel_break_up" + 10 "donchian_break_down" ->
+    # declutter yalnızca 2 (kategori başına birer en güncel) bırakmalı.
+    breakout_anns = [a for a in fig.layout.annotations if "channel_break_up" in str(a.hovertext)
+                      or "donchian_break_down" in str(a.hovertext)]
     assert len(breakout_anns) == 2
 
 
-def test_generic_non_breakout_markers_are_not_declutered() -> None:
-    """`structure.golden_zone`/`structure.supply_demand` gibi indikatörlerin
-    "REAKSİYON"/"BAŞARILI" marker'ları HER biri farklı bir swing/bölgeye ait
-    bilgi taşır — breakout'un aksine TÜMÜ gösterilmeye devam etmeli
-    (declutter yalnızca `trend.breakouts`'un `kind="breakout"` marker'larına
-    özgüdür, `_DECLUTTER_GENERIC_KINDS`)."""
+def test_golden_zone_success_markers_declutter_to_most_recent() -> None:
+    """Regresyon (2026-09-02, kullanıcı geri bildirimi — "hala karışık"):
+    önceki tasarım kararı `structure.golden_zone`/`structure.supply_demand`
+    marker'larının ("REAKSİYON"/"BAŞARILI"/"BAŞARISIZ"/"KIRILDI") AZ SAYIDA
+    olacağını varsayıp declutter'dan MUAF tutuyordu — gerçek ALARK/ASELS
+    verisiyle bu varsayım YANLIŞ çıktı (düzinelerce swing'in her biri kendi
+    marker'ını üretip üst üste bindi). Artık bu kind'lar da
+    `_DECLUTTER_GENERIC_KINDS`'a dahil — yalnızca EN GÜNCEL örnek kalır."""
     df = make_trend(n=100, slope=0.0, noise=0.5, start_price=100.0)
     times = df.index
     markers = [
@@ -209,17 +215,33 @@ def test_generic_non_breakout_markers_are_not_declutered() -> None:
     )
     fig = render(result, df, theme="light")
     success_anns = [a for a in fig.layout.annotations if a.text == "BAŞARILI"]
-    assert len(success_anns) == 10
+    assert len(success_anns) == 1
+    assert success_anns[0].x == _x(times[36])
 
 
 def test_latest_per_group_returns_max_time_per_group() -> None:
     t1, t2, t3 = pd.Timestamp("2024-01-01"), pd.Timestamp("2024-01-05"), pd.Timestamp("2024-01-10")
-    boxes = [
-        Box(t0=t1, t1=t2, low=1.0, high=2.0, label="a", style="x"),
-        Box(t0=t3, t1=t2, low=1.0, high=2.0, label="b", style="x"),
-        Box(t0=t2, t1=t2, low=1.0, high=2.0, label="c", style="y"),
-    ]
-    assert _latest_per_group(boxes, lambda b: b.style, lambda b: b.t0) == {"x": t3, "y": t2}
+    box_a = Box(t0=t1, t1=t2, low=1.0, high=2.0, label="a", style="x")
+    box_b = Box(t0=t3, t1=t2, low=1.0, high=2.0, label="b", style="x")
+    box_c = Box(t0=t2, t1=t2, low=1.0, high=2.0, label="c", style="y")
+    result = _latest_per_group([box_a, box_b, box_c], lambda b: b.style, lambda b: b.t0)
+    assert result == {"x": box_b, "y": box_c}
+
+
+def test_latest_per_group_picks_exactly_one_item_on_tied_time() -> None:
+    """Regresyon (2026-09-02, gerçek ISCTR verisiyle bulundu): `trend.
+    breakouts`'ta birçok trendline adayı `extend_right=True` ile AYNI son
+    bara uzatıldığı için `points[-1][0]` (dolayısıyla eski sürümde `b.t0`
+    ile karşılaştırılan DEĞER) çakışıyordu — eskiden ('değer eşitliği')
+    ikisi de "en güncel" sayılıp İKİSİ de etiketleniyordu ("uptrend_break
+    adayı" iki kez görünüyordu). Artık dönen ÖĞENİN KENDİSİ (kimlik) tek bir
+    kazanan seçer."""
+    t = pd.Timestamp("2024-01-10")
+    box_a = Box(t0=t, t1=t, low=1.0, high=2.0, label="a", style="x")
+    box_b = Box(t0=t, t1=t, low=1.0, high=2.1, label="b", style="x")  # label/high FARKLI: != box_a
+    result = _latest_per_group([box_a, box_b], lambda b: b.style, lambda b: b.t0)
+    assert len(result) == 1
+    assert result["x"] is box_b  # liste sırasına göre SONUNCU (>=) kazanır, box_a DEĞİL
 
 
 def test_declutter_levels_keeps_only_latest_start_per_style() -> None:
@@ -417,6 +439,44 @@ def test_harmonic_confirmed_marker_uses_accent_not_generic_bullish() -> None:
     assert not any(a.arrowcolor == LIGHT_ANALYSIS.green for a in harmonic_anns)
 
 
+def test_prz_band_drawn_as_single_shaded_rect_not_two_lines() -> None:
+    """Regresyon (2026-09-01, "Grafik Stil Vitrini" mockup'ıyla birebir
+    eşitleme): eskiden PRZ alt/üst iki AYRI kesikli `Level` çizgisi + iki
+    ayrı "PRZ Alt"/"PRZ Üst" etiketi olarak çiziliyordu. `_draw_prz_bands`
+    artık `_prz_low`/`_prz_high` çiftini TEK bir yarı saydam dolgulu
+    dikdörtgen + TEK "Hedef Bölge (PRZ): ..." etiketine indirger."""
+    result, df = _render_gartley()
+    assert any(lv.label.endswith("_prz_low") for lv in result.levels)
+    fig = render(result, df, theme="light")
+    prz_shapes = [
+        s for s in fig.layout.shapes
+        if s.type == "rect" and s.fillcolor is not None and "rgba" in str(s.fillcolor)
+        and s.line.color == LIGHT_ANALYSIS.accent
+    ]
+    assert len(prz_shapes) == 1
+    prz_anns = [a for a in fig.layout.annotations if "Hedef Bölge (PRZ)" in str(a.text)]
+    assert len(prz_anns) == 1
+    assert not any(str(a.text) in ("PRZ Alt", "PRZ Üst") for a in fig.layout.annotations)
+
+
+def test_harmonic_confirmed_badge_is_solid_filled_not_outline() -> None:
+    """Regresyon (2026-09-01, mockup'ın `badgeStyle`'ıyla birebir eşitleme):
+    eskiden `confirmed` durumdaki D rozeti bile yalnızca %15 opaklıkta
+    dolgu kullanıyordu (ince kenarlıklı, "outline" görünüm). Artık TAM opak
+    dolgu (`bgcolor == theme.accent`, `rgba(...)` DEĞİL) + beyaz metin alır
+    (light/kagit_raporu temalarında — dark_terminal'da koyu metin, ayrı bir
+    kural)."""
+    result, df = _render_gartley()
+    fig = render(result, df, theme="light")
+    d_badges = [
+        a for a in fig.layout.annotations
+        if a.arrowcolor == LIGHT_ANALYSIS.accent and str(a.text).startswith("<b>D:")
+    ]
+    assert len(d_badges) == 1
+    assert d_badges[0].bgcolor == LIGHT_ANALYSIS.accent
+    assert d_badges[0].font.color == "#ffffff"
+
+
 def test_no_raw_internal_id_in_rendered_annotation_text() -> None:
     """Regresyon (2026-08-29 görsel-kalite düzeltmesi, bkz. CLAUDE.md):
     `_draw_lines`/`_draw_levels` eskiden `Line.label`/`Level.label`'ı
@@ -518,7 +578,7 @@ def test_filter_confirmed_patterns_drops_invalidated_keeps_confirmed() -> None:
         markers=[
             Marker(t=ts, price=100.0, text="SAĞ OMUZ", kind="pattern_vertex:tobo_ok"),
             Marker(t=ts, price=90.0, text="SAĞ OMUZ", kind="pattern_vertex:tobo_bad"),
-            Marker(t=ts, price=102.0, text="TOBO [ONAY]", kind="pattern_confirmed"),
+            Marker(t=ts, price=102.0, text="TOBO [ONAY]", kind="pattern_confirmed:tobo_ok"),
             Marker(t=ts, price=79.0, text="TOBO [GEÇERSİZ]", kind="pattern_invalidated"),
         ],
         last_state={
@@ -529,7 +589,7 @@ def test_filter_confirmed_patterns_drops_invalidated_keeps_confirmed() -> None:
     filtered = _filter_confirmed_patterns(result)
     assert [ln.label for ln in filtered.lines] == ["tobo_ok_neckline"]
     assert [lv.label for lv in filtered.levels] == ["tobo_ok_target"]
-    assert {m.kind for m in filtered.markers} == {"pattern_vertex:tobo_ok", "pattern_confirmed"}
+    assert {m.kind for m in filtered.markers} == {"pattern_vertex:tobo_ok", "pattern_confirmed:tobo_ok"}
 
 
 def test_filter_confirmed_patterns_matches_either_direction_for_wedge_style_ids() -> None:

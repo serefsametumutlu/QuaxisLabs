@@ -28,8 +28,14 @@ def _run():
 
 
 def test_signals_at_expected_bars_and_sides() -> None:
+    """`result.signals` artık her geçişin kendi "hâlâ taze mi" takip
+    sinyalini de içerir (state="active", 2026-09-03) -- bu test yalnızca
+    GERÇEK geçiş olaylarını (state="confirmed") kontrol eder."""
     df_y, result = _run()
-    actual = [(list(df_y.index).index(s.bar_time), s.payload["side"]) for s in result.signals]
+    actual = [
+        (list(df_y.index).index(s.bar_time), s.payload["side"])
+        for s in result.signals if s.state == "confirmed"
+    ]
     assert actual == _EXPECTED_SIGNALS
 
 

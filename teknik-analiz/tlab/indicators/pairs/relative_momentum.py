@@ -76,6 +76,21 @@ class RelativeMomentumParams(BaseParams):
     initial_holding: InitialHolding = "none_until_signal"
     y_symbol: str = "Y"
     x_symbol: str = "X"
+    # 2026-09-03: kullanıcı "arbitraj nadir sinyal veren bir strateji değil
+    # mi, günlük onlarca sinyal geliyor" dedi -- kök neden, bu stratejinin
+    # ROTASYONEL olması (her an ya Y ya da X'i tutuyor, "pozisyon dışı"
+    # diye bir hâli yok). Bir geçiş (regime_switch) gerçekten NADİR (gerçek
+    # veride ör. ~1/ay) ama `latest_signals()` o çiftin EN SON geçişini,
+    # ne kadar eski olursa olsun, hep "confirmed" (= "AL sinyali geldi")
+    # gösteriyordu -- taze bir olayla "hâlâ aynı tarafı tutuyoruz" bilgisini
+    # ayırt etmiyordu. `freshness_bars` kadar bar geçtikten sonra AYNI
+    # zincire (aynı `payload["event"]`, dedup için) "active" durumunda bir
+    # takip sinyali eklenir -- bu, `latest_signals()`'ın varsayılan
+    # confirmed/completed filtresinden düşer (BEKLENİYOR/arka plan bilgisi
+    # olarak "Tüm durumları göster"de hâlâ görülebilir), zincirin KENDİSİ
+    # SİLİNMEZ. Sabit bir bar (`switch_idx + freshness_bars`) kullanılır --
+    # tarama HANGİ günü çalışırsa çalışsın AYNI sonucu verir (non-repaint).
+    freshness_bars: int = 3
 
 
 def _beta_series(y_log: pd.Series, x_log: pd.Series, p: RelativeMomentumParams) -> pd.Series:
@@ -138,6 +153,7 @@ class RelativeMomentumPair(BaseIndicator):
         holding = _initial_holding_series(common_idx, p.initial_holding)
         signals: list[Signal] = []
         markers: list[Marker] = []
+        switch_idxs: list[int] = []
 
         for t in range(1, n):
             if t < first_signal_ok:
@@ -185,6 +201,29 @@ class RelativeMomentumPair(BaseIndicator):
             markers.append(
                 Marker(t=common_idx[t], price=float(z_now), text=f"{symbol} AL", kind="pair_signal")
             )
+            switch_idxs.append(t)
+
+        # Her geçişin (yalnızca SONUNCUsunun DEĞİL — bkz. yukarıdaki not,
+        # aksi hâlde eski bir geçişin bayatlama sinyali bir SONRAKİ geçiş
+        # olduğunda kesikte kaybolur, bu REPAINT sayılır) kendi bayatlama
+        # işareti — sabit `switch_idx + freshness_bars` barında, bir daha
+        # geri alınmaz (extend-only).
+        for i, switch_idx in enumerate(switch_idxs):
+            stale_idx = switch_idx + p.freshness_bars
+            # Bir SONRAKİ geçiş zaten bu bardan önce olduysa bayatlama
+            # işareti eklenmez -- yoksa eski geçişin (daha geç barlı)
+            # "active" işareti yeni geçişin "confirmed"ini yanlışlıkla
+            # geçersiz kılar (detected_at karşılaştırmasında kazanır).
+            next_switch_idx = switch_idxs[i + 1] if i + 1 < len(switch_idxs) else n
+            if stale_idx < next_switch_idx and stale_idx < n:
+                switch_signal = signals[i]
+                signals.append(
+                    Signal(
+                        bar_time=common_idx[stale_idx], detected_at=common_idx[stale_idx],
+                        direction=switch_signal.direction, state="active", score=1.0,
+                        payload=switch_signal.payload,
+                    )
+                )
 
         result = run_pair_backtest(
             y, x, holding, p.start_capital, p.commission_bps, p.execution, y_open, x_open,

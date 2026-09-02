@@ -73,6 +73,10 @@ class VolHarvestParams(BaseParams):
     execution: Execution = "close"
     y_symbol: str = "Y"
     x_symbol: str = "X"
+    # 2026-09-03: `relative_momentum.py::RelativeMomentumParams.freshness_
+    # bars` ile AYNI gerekçe -- bir çiftin EN SON duraklama/devam olayı, ne
+    # kadar eski olursa olsun, hep "confirmed" (taze sinyal) gösteriliyordu.
+    freshness_bars: int = 3
 
 
 def _target_weight_from_z(z: float, p: VolHarvestParams) -> float:
@@ -214,6 +218,7 @@ class VolHarvestPair(BaseIndicator):
 
         signals: list[Signal] = []
         markers: list[Marker] = []
+        event_idxs: dict[str, list[int]] = {"harvest_paused": [], "harvest_resumed": []}
         for t, (reason, adf_at_t, hl_at_t) in sorted(pause_reason.items()):
             event = "harvest_paused" if reason != "resumed" else "harvest_resumed"
             direction: Direction = "neutral"
@@ -228,6 +233,32 @@ class VolHarvestPair(BaseIndicator):
                     },
                 )
             )
+            event_idxs[event].append(len(signals) - 1)
+
+        # 2026-09-03: `relative_momentum.py`'deki AYNI bayatlama düzeltmesi
+        # -- her olay türü (paused/resumed) KENDİ zincirinde ayrı ayrı
+        # izlenir; bir olayın bayatlama işareti yalnızca AYNI türden bir
+        # SONRAKİ olay o bara kadar gelmediyse eklenir (aksi hâlde eski
+        # olayın "active" işareti yeni olayın "confirmed"ini yanlışlıkla
+        # geçersiz kılar -- detected_at karşılaştırmasında kazanır).
+        for sig_idxs in event_idxs.values():
+            for i, sig_idx in enumerate(sig_idxs):
+                switch_signal = signals[sig_idx]
+                switch_bar_idx = common_idx.get_loc(switch_signal.bar_time)
+                stale_idx = switch_bar_idx + p.freshness_bars
+                next_sig_idx = sig_idxs[i + 1] if i + 1 < len(sig_idxs) else None
+                next_bar_idx = (
+                    common_idx.get_loc(signals[next_sig_idx].bar_time)
+                    if next_sig_idx is not None else n
+                )
+                if stale_idx < next_bar_idx and stale_idx < n:
+                    signals.append(
+                        Signal(
+                            bar_time=common_idx[stale_idx], detected_at=common_idx[stale_idx],
+                            direction=switch_signal.direction, state="active", score=1.0,
+                            payload=switch_signal.payload,
+                        )
+                    )
         for rb_idx in np.flatnonzero(result.rebalanced.to_numpy()):
             rb_i = int(rb_idx)
             w_now = float(result.actual_weight.iloc[rb_i])

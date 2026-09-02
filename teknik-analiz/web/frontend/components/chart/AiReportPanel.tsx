@@ -7,13 +7,23 @@ interface Props {
   symbol: string;
   tf: string;
   market: string;
+  indicator: string;
 }
 
-/** `tlab/viz/quant_report.py::generate_quant_report()`'un (Gemini, aynı
- * anahtar `bilanco-radar`'dan okunuyor — bkz. `web/backend/routes/report.py`)
- * ürettiği doğal-dil raporu gösterir. Otomatik TETİKLENMEZ (API çağrısı
- * ücretli/hız sınırlı, ~30-40sn sürüyor) — kullanıcı butona basınca çalışır. */
-export function AiReportPanel({ symbol, tf, market }: Props) {
+/** `tlab/viz/quant_report.py`'nin (Gemini, aynı anahtar `bilanco-radar`'dan
+ * okunuyor — bkz. `web/backend/routes/report.py`) ürettiği doğal-dil raporu
+ * gösterir. `structure.report` için zengin/özel yol, diğer HERHANGİ bir
+ * gösterge için o göstergenin KENDİ sonucundan (last_state/sinyaller)
+ * türetilmiş genel yol kullanılır — yani rapor GRAFİKTE SEÇİLİ göstergeye
+ * göre üretilir, her zaman aynı sabit strateji DEĞİL. Otomatik TETİKLENMEZ
+ * (API çağrısı ücretli/hız sınırlı, ~30-40sn sürüyor) — kullanıcı butona
+ * basınca çalışır; seçim (sembol/tf/gösterge) değişince eski rapor
+ * temizlenmeli — bu effect içinde setState İLE DEĞİL, çağıran tarafın
+ * (`app/chart/page.tsx`) bu component'e `key={symbol-tf-market-indicator}`
+ * vermesiyle sağlanır: React key değişince component'i SIFIRDAN yeniden
+ * monte eder, tüm local state (report/loading/error) doğal olarak
+ * temizlenir. */
+export function AiReportPanel({ symbol, tf, market, indicator }: Props) {
   const [report, setReport] = useState<QuantReportResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +31,7 @@ export function AiReportPanel({ symbol, tf, market }: Props) {
   const generate = () => {
     setLoading(true);
     setError(null);
-    fetchReport({ symbol, tf, market })
+    fetchReport({ symbol, tf, indicator, market })
       .then(setReport)
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
@@ -57,8 +67,9 @@ export function AiReportPanel({ symbol, tf, market }: Props) {
       )}
       {!report && !loading && !error && (
         <p className="text-xs text-text-3">
-          Bu sembol için POC/RSI/trend/hedef gibi zaten hesaplanmış olgulardan, Gemini ile
-          samimi bir Türkçe özet üretir — hiçbir sayı uydurulmaz.
+          Ekrandaki <span className="font-mono text-text-2">{indicator}</span> göstergesinin zaten
+          hesaplanmış sonuçlarından, Gemini ile samimi bir Türkçe özet üretir — hiçbir sayı
+          uydurulmaz.
         </p>
       )}
     </div>

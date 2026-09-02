@@ -6,8 +6,8 @@ const inter = Inter({ variable: "--font-body", subsets: ["latin"] });
 const jetbrainsMono = JetBrains_Mono({ variable: "--font-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "tlab",
-  description: "Teknik Lab — non-repainting çoklu zaman dilimi indikatör tarama laboratuvarı",
+  title: "QuaxisLabs",
+  description: "QuaxisLabs — non-repainting çoklu zaman dilimi indikatör tarama laboratuvarı",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

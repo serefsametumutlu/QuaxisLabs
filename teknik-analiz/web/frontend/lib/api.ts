@@ -28,9 +28,25 @@ export interface QuantReportResponse {
   note: string | null;
 }
 
-export function fetchReport(params: { symbol: string; tf: string; market: string }): Promise<QuantReportResponse> {
+export function fetchReport(params: {
+  symbol: string;
+  tf: string;
+  indicator: string;
+  market: string;
+}): Promise<QuantReportResponse> {
   const qs = new URLSearchParams(params).toString();
   return getJson<QuantReportResponse>(`/report?${qs}`);
+}
+
+export interface GuideEntry {
+  watch: string;
+  measures: string;
+  values: string;
+  signal: string;
+}
+
+export function fetchGuide(indicator: string): Promise<GuideEntry | null> {
+  return getJson<GuideEntry | null>(`/guide?indicator=${encodeURIComponent(indicator)}`);
 }
 
 export function fetchChart(params: {

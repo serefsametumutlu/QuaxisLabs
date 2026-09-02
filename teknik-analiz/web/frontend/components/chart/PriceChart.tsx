@@ -15,6 +15,7 @@ import type { Box, ChartResponse, Level, Line, Marker, Polygon } from "@/lib/typ
 
 interface Props {
   data: ChartResponse;
+  theme: string;
 }
 
 /** `style` metnine göre kaba bir renk sınıflandırması — Calm-Trading-UI'nin
@@ -66,6 +67,8 @@ function readThemeColors(): Record<string, string> {
     text3: get("--clr-text-3"),
     up: get("--clr-up") || get("--clr-accent"),
     down: get("--clr-down") || get("--clr-danger"),
+    grid: get("--clr-grid") || get("--clr-border"),
+    axis: get("--clr-axis") || get("--clr-border"),
   };
 }
 
@@ -101,6 +104,7 @@ interface VpBarGeom {
   w: number;
   h: number;
   color: string;
+  opacity: number;
 }
 
 interface Geometry {
@@ -148,7 +152,10 @@ function pickLatestPerGroup<T>(items: T[], groupKey: (t: T) => string, time: (t:
  * karşılığı — genel bir yerleşim çözücü değil, tek geçişli açgözlü. */
 function staggerLabelY(items: { y: number }[], minGap = 15): number[] {
   const order = items.map((_, i) => i).sort((a, b) => items[a].y - items[b].y);
-  const labelY = items.map((it) => it.y);
+  // Taban değer `y - 6` (satırın birazcık ÜSTÜ) — aksi halde merdivende
+  // hiç itilmeyen (zaten en üstteki) öğenin metni tam kendi çizgisinin
+  // üzerine biner, "üstü çizili" gibi okunaksız görünürdü.
+  const labelY = items.map((it) => it.y - 6);
   for (let k = 1; k < order.length; k++) {
     const prevIdx = order[k - 1];
     const curIdx = order[k];
@@ -159,7 +166,7 @@ function staggerLabelY(items: { y: number }[], minGap = 15): number[] {
   return labelY;
 }
 
-export function PriceChart({ data }: Props) {
+export function PriceChart({ data, theme: themeKey }: Props) {
   const { ohlcv, result } = data;
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -168,6 +175,7 @@ export function PriceChart({ data }: Props) {
   const [geometry, setGeometry] = useState<Geometry>(EMPTY_GEOMETRY);
   const [size, setSize] = useState({ width: 900 });
   const [chartHeight, setChartHeight] = useState(480);
+  const [panelLabels, setPanelLabels] = useState<{ y: number; text: string }[]>([]);
 
   const recompute = useCallback(() => {
     const chart = chartRef.current;
@@ -352,6 +360,7 @@ export function PriceChart({ data }: Props) {
           w,
           h,
           color: isHvn ? theme.up : theme.info,
+          opacity: isHvn ? 0.85 : 0.35,
         });
       }
       const gaussEntries = Object.entries(result.series.vp_gauss ?? {});
@@ -383,19 +392,33 @@ export function PriceChart({ data }: Props) {
         background: { type: ColorType.Solid, color: "transparent" },
         textColor: theme.text2,
         fontFamily: "var(--font-body)",
-        panes: { separatorColor: theme.border },
+        panes: { separatorColor: theme.axis },
       },
+      // GERÇEK HATA (bulunup düzeltildi): dikey+yatay TAM ızgara, `theme.
+      // border` (tema kartlarının kenarlık rengi — koyu/belirgin) ile
+      // çiziliyordu; açık/kağıt temalarda bu "siyah kareli kağıt" gibi
+      // görünüyordu VE tema değişince güncellenmiyordu (bkz. aşağıdaki
+      // reaktif useEffect). Referans artifact yalnızca YATAY, ince/soluk
+      // (`theme.grid` — kartın kendi kenarlığından belirgin şekilde daha
+      // açık bir ayrı ton) çizgiler kullanıyor — dikey çizgi HİÇ yok.
       grid: {
-        vertLines: { color: theme.border },
-        horzLines: { color: theme.border },
+        vertLines: { visible: false },
+        horzLines: { color: theme.grid },
       },
-      rightPriceScale: { borderColor: theme.border },
+      rightPriceScale: { borderColor: theme.axis },
       timeScale: {
-        borderColor: theme.border,
+        borderColor: theme.axis,
         rightOffset: 12, // son mumdan sonra boşluk — "mumlar sağa yapışık" şikayetinin doğrudan çözümü
         barSpacing: 8,
       },
       crosshair: { mode: 0 },
+      // Kullanıcı isteği: grafik üzerine çizilen hedef/fibo/kutu overlay'leri
+      // pan/zoom ile senkron kalmakta zaman zaman gecikip yerinden oynuyordu
+      // ("glitch") — referans görseller (ornek1/ornek2.png) zaten SABİT/
+      // statik. Etkileşimi tamamen kapatmak hem bu sınıf hatayı KÖKTEN
+      // ortadan kaldırıyor hem de istenen sabit görünümü veriyor.
+      handleScroll: false,
+      handleScale: false,
     });
     const series = chart.addSeries(CandlestickSeries, {
       upColor: theme.up,
@@ -432,6 +455,35 @@ export function PriceChart({ data }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // GERÇEK HATA (bulunup düzeltildi): grid/eksen/mum renkleri yalnızca
+  // chart'ın İLK oluşturulduğu anda (`readThemeColors()`, mount effect)
+  // okunuyordu — kullanıcı sağ üstten temayı değiştirdiğinde sayfanın
+  // GERİ KALANI (CSS custom property'ler üzerinden) anında güncellenirken,
+  // chart'ın kendi canvas'ı YARATILDIĞI andaki (varsayılan: koyu tema)
+  // renklerde DONUP kalıyordu — açık/kağıt temaya geçince koyu (neredeyse
+  // siyah)ızgara çizgileri aynen kalıp beyaz zemin üzerinde çok belirgin
+  // görünüyordu. Bu effect, `themeKey` her değiştiğinde chart'ı VE mum
+  // serisini YENİ renklerle `applyOptions` ile günceller.
+  useEffect(() => {
+    const chart = chartRef.current;
+    const series = seriesRef.current;
+    if (!chart || !series) return;
+    const theme = readThemeColors();
+    chart.applyOptions({
+      layout: { textColor: theme.text2, panes: { separatorColor: theme.axis } },
+      grid: { horzLines: { color: theme.grid } },
+      rightPriceScale: { borderColor: theme.axis },
+      timeScale: { borderColor: theme.axis },
+    });
+    series.applyOptions({
+      upColor: theme.up,
+      downColor: theme.down,
+      wickUpColor: theme.up,
+      wickDownColor: theme.down,
+    });
+    recompute();
+  }, [themeKey, recompute]);
+
   // Veri/gösterge değişince: mum + alt panelleri (hacim/MACD/RSI) baştan kurar.
   useEffect(() => {
     const series = seriesRef.current;
@@ -454,6 +506,15 @@ export function PriceChart({ data }: Props) {
     while (chart.panes().length > 1) chart.removePane(chart.panes().length - 1);
 
     const panelKeys = Object.keys(result.series_layout ?? {});
+    const PANEL_LABEL_TR: Record<string, string> = { hacim: "Hacim", macd: "MACD", rsi: "RSI" };
+    const PRICE_PANE_HEIGHT = 480;
+    const SUBPANEL_HEIGHT = 120;
+    setPanelLabels(
+      panelKeys.map((key, i) => ({
+        y: PRICE_PANE_HEIGHT + i * SUBPANEL_HEIGHT + 14,
+        text: PANEL_LABEL_TR[key] ?? key,
+      }))
+    );
     const lineColors = [theme.info, theme.accent, theme.warning];
     panelKeys.forEach((panelKey, paneOffset) => {
       const paneIndex = paneOffset + 1;
@@ -529,8 +590,12 @@ export function PriceChart({ data }: Props) {
       to: ohlcv.length - 1,
     });
     requestAnimationFrame(recompute);
+    // `themeKey` de bağımlılıkta: alt panel serileri (hacim/MACD/RSI) de
+    // OLUŞTURULDUKLARI andaki renklerde donuyordu, tema değişince BUNLARI
+    // da baştan kurmak gerekiyor (yukarıdaki tema-reaktif effect yalnızca
+    // ana mum serisini günceller, pane serilerini DEĞİL).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data]);
+  }, [data, themeKey]);
 
   const exportPng = useCallback(() => {
     const chart = chartRef.current;
@@ -633,13 +698,24 @@ export function PriceChart({ data }: Props) {
           {geometry.vpBars.length > 0 && (
             <g transform={`translate(${size.width - VP_COLUMN_WIDTH},0)`}>
               {geometry.vpBars.map((v, i) => (
-                <rect key={`vp-${i}`} x={0} y={v.y} width={v.w} height={v.h} fill={v.color} fillOpacity={0.55} />
+                <rect key={`vp-${i}`} x={0} y={v.y} width={v.w} height={v.h} fill={v.color} fillOpacity={v.opacity} rx={2} />
               ))}
+              <text x={0} y={12} fill="var(--clr-text-2)" fontSize={9.5} fontFamily="var(--font-body)" fontWeight={600}>
+                Hacim Profili
+              </text>
             </g>
           )}
           {geometry.vpGaussPath && (
-            <path d={geometry.vpGaussPath} fill="none" stroke="currentColor" className="text-accent" strokeWidth={1.3} opacity={0.85} />
+            <path d={geometry.vpGaussPath} fill="none" stroke="currentColor" className="text-accent" strokeWidth={1.3} opacity={0.9} />
           )}
+          {panelLabels.map((p, i) => (
+            <g key={`panel-${i}`}>
+              <line x1={0} y1={p.y - 14} x2={geometry.vpBars.length ? size.width - VP_COLUMN_WIDTH : size.width} y2={p.y - 14} stroke="var(--clr-axis)" strokeWidth={1} />
+              <text x={6} y={p.y} fill="var(--clr-text-2)" fontSize={9.5} fontFamily="var(--font-body)" fontWeight={600}>
+                {p.text}
+              </text>
+            </g>
+          ))}
         </svg>
       </div>
     </div>

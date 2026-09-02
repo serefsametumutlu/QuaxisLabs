@@ -1,13 +1,15 @@
-"""GET /api/report — bir sembol için `tlab/viz/quant_report.py`'nin ürettiği
-Gemini tabanlı doğal-dil "quant raporu" (bkz. `tlab quant-report` CLI'sı ile
-AYNI motor). Yeniden hesap/prompt YOK — mevcut `generate_quant_report()`
-DOĞRUDAN çağrılır.
+"""GET /api/report — seçili göstergeye göre Gemini tabanlı doğal-dil "quant
+raporu". `structure.report` seçiliyken ZENGİN özel yola (`generate_quant_
+report`, ps+sf sonucu), diğer HERHANGİ bir gösterge için genel yedek yola
+(`generate_indicator_report`, `build_generic_summary_lines`) düşer — AYNI
+dispatch `tlab/dashboard.py::_render_ai_report_button`'da da kullanılıyor,
+burada TEKRAR YAZILMADI, yalnızca web için tekrarlandı (Streamlit'e bağımlı
+olmadan). Yeniden hesap YOK.
 
 API anahtarı ortamda `GEMINI_API_KEY` olarak YOKSA, kullanıcının AYRI bir
 projesindeki (`bilanco-radar`) `.env` dosyasından okunur — bu proje daha
 önce AYNI anahtarı AYNI şekilde (yalnızca ortam değişkeni olarak, hiçbir
-dosyaya/commit'e yazılmadan) kullanmıştı (bkz. CLAUDE.md, "LLM sağlayıcısı
-Gemini'ye geçirildi" bölümü)."""
+dosyaya/commit'e yazılmadan) kullanmıştı."""
 
 from __future__ import annotations
 
@@ -16,8 +18,8 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 
-from tlab.viz.live import compute_structure_report
-from tlab.viz.quant_report import generate_quant_report
+from tlab.viz.live import STRUCTURE_REPORT_NAME, compute_live, compute_structure_report
+from tlab.viz.quant_report import generate_indicator_report, generate_quant_report
 
 router = APIRouter(tags=["report"])
 
@@ -40,17 +42,25 @@ def _ensure_gemini_key() -> None:
 
 
 @router.get("/report")
-def get_report(symbol: str, tf: str, market: str = "bist") -> dict[str, object]:
+def get_report(symbol: str, tf: str, indicator: str, market: str = "bist") -> dict[str, object]:
     _ensure_gemini_key()
+    model = os.environ.get("GEMINI_MODEL") or None
     try:
-        ps_result, sf_result, df = compute_structure_report(symbol, tf, market)
+        if indicator == STRUCTURE_REPORT_NAME:
+            ps_result, sf_result, df = compute_structure_report(symbol, tf, market)
+            report = generate_quant_report(ps_result, sf_result, df, symbol=symbol, model=model)
+        else:
+            result, df = compute_live(indicator, symbol, tf, market)
+            if df is None:
+                raise HTTPException(
+                    422, "Pair göstergeleri için yapay zeka raporu şimdilik desteklenmiyor."
+                )
+            report = generate_indicator_report(result, df, symbol=symbol, model=model)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     except FileNotFoundError as exc:
         raise HTTPException(404, f"Veri bulunamadı: {exc}") from exc
 
-    model = os.environ.get("GEMINI_MODEL") or None
-    report = generate_quant_report(ps_result, sf_result, df, symbol=symbol, model=model)
     return {
         "text": report.text,
         "used_ai": report.used_ai,

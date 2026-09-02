@@ -7,6 +7,7 @@ import { PriceChart } from "@/components/chart/PriceChart";
 import { ChartGuide } from "@/components/chart/ChartGuide";
 import { AiReportPanel } from "@/components/chart/AiReportPanel";
 import { THEMES, THEME_KEYS, applyTheme } from "@/lib/themes";
+import { Brand } from "@/components/layout/Brand";
 
 const TIMEFRAMES = ["1h", "4h", "1d", "w1"];
 const MARKETS = ["bist", "nasdaq"];
@@ -86,7 +87,7 @@ export default function ChartPage() {
   return (
     <div className="min-h-screen bg-bg text-text-1">
       <header className="flex flex-wrap items-end gap-4 border-b border-border px-6 py-4">
-        <div className="mr-2 font-mono text-sm tracking-wide text-text-3">tlab</div>
+        <Brand />
         <Select label="Piyasa" value={market} onChange={setMarket} options={MARKETS} />
         <label className="flex flex-col gap-1 text-xs text-text-3">
           Sembol
@@ -155,10 +156,16 @@ export default function ChartPage() {
                   {data.result.indicator} · {data.tf.toUpperCase()}
                 </span>
               </div>
-              <PriceChart data={data} />
+              <PriceChart data={data} theme={theme} />
             </div>
             <ChartGuide indicator={data.result.indicator} />
-            <AiReportPanel symbol={symbol} tf={tf} market={market} />
+            <AiReportPanel
+              key={`${symbol}-${tf}-${market}-${indicator}`}
+              symbol={symbol}
+              tf={tf}
+              market={market}
+              indicator={indicator}
+            />
           </>
         )}
       </main>

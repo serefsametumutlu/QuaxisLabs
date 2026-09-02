@@ -22,6 +22,8 @@ dependencies = [
     "anthropic",
     "streamlit",
     "arch",
+    "fastapi",
+    "uvicorn[standard]",
 ]
 
 [project.optional-dependencies]

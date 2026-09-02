@@ -69,12 +69,58 @@ def test_dashboard_runs_without_exception(isolated_results_db: Path) -> None:
 
 
 def test_dashboard_lists_seeded_signal(isolated_results_db: Path) -> None:
+    """2026-09-01: sidebar'a bir "Taramalar" tablosu eklendiği için artık
+    sayfada BİRDEN FAZLA `st.dataframe` var — `AppTest`'in dataframe
+    proxy'si `key=` parametresini yansıtmıyor (denendi, hep `None` döner),
+    bu yüzden doğru tablo KOLON ADLARINA göre bulunur, sabit bir index'e
+    göre DEĞİL (kaç dataframe önce geldiği ileride tekrar değişebilir)."""
     at = AppTest.from_file(str(_DASHBOARD_PATH), default_timeout=60)
     at.run()
-    assert len(at.dataframe) == 1
-    df = at.dataframe[0].value
+    signal_tables = [d for d in at.dataframe if "Olay" in d.value.columns]
+    assert len(signal_tables) == 1
+    df = signal_tables[0].value
     assert list(df["Sembol"]) == ["BAKAB"]
     assert list(df["Olay"]) == ["tobo_confirmed"]
+    run_tables = [d for d in at.dataframe if "Tarih" in d.value.columns]
+    assert len(run_tables) == 1
+    assert list(run_tables[0].value["Tarih"]) == ["2026-08-30"]
+
+
+def test_dashboard_has_theme_selector_with_three_options(isolated_results_db: Path) -> None:
+    """2026-09-01: 3 tasarım dili ("Grafik Stil Vitrini" mockup'ının gerçek
+    koda aktarımı) — sidebar'da bir tema seçici olmalı, hiçbiri
+    `render_live`'a geçmeden ÖNCEKİ hâlde YOKTU."""
+    at = AppTest.from_file(str(_DASHBOARD_PATH), default_timeout=60)
+    at.run()
+    theme_radios = [r for r in at.radio if r.label == "Tasarım"]
+    assert len(theme_radios) == 1
+    assert theme_radios[0].options == ["Klasik Beyaz Rapor", "Terminal Koyu", "Kağıt Rapor"]
+
+
+def test_dashboard_scan_preset_selector_present(isolated_results_db: Path) -> None:
+    """2026-09-01: `config/scans.yaml` preset'lerinden biriyle SINIRLI bir
+    tarama çalıştırma seçeneği (kullanıcı isteği: "taramaları ayrı ayrı
+    yapabilmeliyim") — preset açıklamaları yüklenip bir selectbox olarak
+    sunulmalı."""
+    at = AppTest.from_file(str(_DASHBOARD_PATH), default_timeout=60)
+    at.run()
+    assert not at.exception, [str(e) for e in at.exception]
+    preset_boxes = [s for s in at.selectbox if s.label == "Tarama Türü"]
+    assert len(preset_boxes) == 1
+    assert len(preset_boxes[0].options) > 0
+
+
+def test_symbol_entry_without_cached_data_shows_graceful_error(
+    isolated_results_db: Path,
+) -> None:
+    """Grafik bölümü sinyal listesinden BAĞIMSIZ çalışır: bir sembol
+    girildiğinde (yerel parquet önbelleği olmasa bile) sayfa ÇÖKMEMELİ,
+    anlaşılır bir `st.error` göstermeli."""
+    at = AppTest.from_file(str(_DASHBOARD_PATH), default_timeout=60)
+    at.run()
+    at.text_input[0].set_value("BAKAB").run()
+    assert not at.exception, [str(e) for e in at.exception]
+    assert any("Grafik oluşturulamadı" in e.value for e in at.error)
 
 
 def test_dashboard_shows_empty_state_without_any_run(

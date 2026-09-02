@@ -117,6 +117,19 @@ def test_kind_both_also_scans_obo_independently() -> None:
     assert any(s.payload["pattern_name"] == "tobo" for s in result.signals)
 
 
+def test_hologram_polygon_covers_l1_h1_head_h2_l3() -> None:
+    """2026-09-01: hologram dolgusu marker'lar için kullanılan AYNI 5 pivotu
+    (L1-H1-Baş-H2-L3) çevrelemeli — yeni bir hesap değil, mevcut geometrinin
+    Polygon olarak da yayınlanması."""
+    df = _tobo_ohlcv()
+    result = HeadShouldersIndicator(_params()).compute(df)
+    hologram = next(p for p in result.polygons if p.style == "pattern_hologram")
+    prices = [price for _t, price in hologram.points]
+    assert prices == pytest.approx([97, 117, 88, 117, 95])
+    assert hologram.points[0][0] == df.index[2]  # l1
+    assert hologram.points[-1][0] == df.index[20]  # l3
+
+
 def test_registers_in_registry() -> None:
     df = build_registry_smoke_ohlcv()
     try:

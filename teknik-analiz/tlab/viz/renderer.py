@@ -748,19 +748,20 @@ def _filter_confirmed_patterns(result: IndicatorResult) -> IndicatorResult:
     Eşleştirme iki yolla yapılır: (1) Marker'lar `kind="pattern_{state}"`
     taşır (5 modülün ORTAK sözleşmesi, bkz. `pattern_state.py`) — state
     doğrudan kind'tan okunur, last_state'e bakmaya gerek YOK. (2) Line/Box/
-    Level'lar `label="{pattern_id}_{ek}"` taşır; `pattern_id` `wedge.py`/
-    `broadening.py`'de yön soneki içerir (`{...}_long`/`{...}_short`) ama
-    Line/Box etiketleri YÖNSÜZ bir `pattern_key` kullanır (aynı takoz/
-    genişleyen-formasyon şekli her iki yöne de aday olabildiği için) — bu
-    yüzden `valid_base_keys`, hem tam `pattern_id`'yi hem yön soneki
-    kırpılmış hâlini içerir; bir label ikisinden BİRİYLE eşleşirse (herhangi
-    bir yönü onaylanmışsa) şekil gösterilir."""
+    Level/Polygon'lar `label="{pattern_id}_{ek}"` taşır (hologram Polygon'u
+    da `_hologram` ekiyle AYNI sözleşmeyi paylaşır, 2026-09-01); `pattern_id`
+    `wedge.py`/`broadening.py`'de yön soneki içerir (`{...}_long`/
+    `{...}_short`) ama Line/Box/Polygon etiketleri YÖNSÜZ bir `pattern_key`
+    kullanır (aynı takoz/genişleyen-formasyon şekli her iki yöne de aday
+    olabildiği için) — bu yüzden `valid_base_keys`, hem tam `pattern_id`'yi
+    hem yön soneki kırpılmış hâlini içerir; bir label ikisinden BİRİYLE
+    eşleşirse (herhangi bir yönü onaylanmışsa) şekil gösterilir."""
     valid_ids = {
         pid for pid, info in result.last_state.items()
         if info.get("state") in _VALID_PATTERN_STATES
     }
     if not valid_ids:
-        return replace(result, boxes=[], lines=[], levels=[], markers=[])
+        return replace(result, boxes=[], lines=[], levels=[], markers=[], polygons=[])
 
     valid_base_keys: set[str] = set()
     for pid in valid_ids:
@@ -783,7 +784,10 @@ def _filter_confirmed_patterns(result: IndicatorResult) -> IndicatorResult:
     levels = [lv for lv in result.levels if _matches(lv.label)]
     lines = [ln for ln in result.lines if _matches(ln.label)]
     boxes = [b for b in result.boxes if _matches(b.label)]
-    return replace(result, boxes=boxes, lines=lines, levels=levels, markers=markers)
+    polygons = [pg for pg in result.polygons if _matches(pg.label)]
+    return replace(
+        result, boxes=boxes, lines=lines, levels=levels, markers=markers, polygons=polygons,
+    )
 
 
 _STAGGER_TRIGGER_PX = 18.0  # ~ tek satır 11px yazı için "görsel olarak değecek" eşik

@@ -144,6 +144,38 @@ def test_indicator_runs_and_produces_valid_signal_contract(mode: str) -> None:
         assert sig.detected_at == sig.bar_time
 
 
+def test_hologram_polygon_matches_boundary_line_corners(monkeypatch: pytest.MonkeyPatch) -> None:
+    """2026-09-01: hologram dolgusu, `_upper`/`_lower` sınır çizgileri için
+    ZATEN üretilen aynı 4 ankor noktasını (yeni bir hesap değil) çevre
+    sırasıyla birleştirmeli. `build_trendlines` (test dosyasının kendi
+    `test_passes_shape_filters_accepts_valid_falling_wedge_geometry`
+    senaryosuyla AYNI, doğrulanmış geçerli takoz geometrisini döndürecek
+    şekilde) sahtelenir — gürültülü fixture'ların bir wedge/triangle
+    GARANTİ etmediği (bkz. dosyanın üst yorumu) sorunundan bağımsız,
+    deterministik bir test."""
+    up1, up2 = _pivot(0, 130.0, "high"), _pivot(20, 110.0, "high")
+    lo1, lo2 = _pivot(5, 100.0, "low"), _pivot(25, 95.0, "low")
+    upper = _line(-1.0, 130.0, "resistance", up1, up2)
+    lower = _line(-0.25, 101.25, "support", lo1, lo2)
+
+    def _fake_build_trendlines(df, pivots, kind, **kwargs):
+        return [upper] if kind == "resistance" else [lower]
+
+    monkeypatch.setattr(
+        "tlab.indicators.patterns.wedge.build_trendlines", _fake_build_trendlines,
+    )
+    df = make_trend(n=200, slope=0.0, noise=1.0, seed=1)
+    params = WedgeParams(min_pivots=4, min_bars=5, max_apex_bars=200, slope_ratio_range=(0.1, 1.0))
+    result = WedgeIndicator("wedge", params).compute(df)
+
+    hologram = next(p for p in result.polygons if p.style == "pattern_hologram")
+    upper_line = next(line for line in result.lines if line.label.endswith("_upper"))
+    lower_line = next(line for line in result.lines if line.label.endswith("_lower"))
+    assert hologram.points == (
+        upper_line.points[0], upper_line.points[1], lower_line.points[1], lower_line.points[0],
+    )
+
+
 def test_registers_via_verified_elsewhere() -> None:
     df = build_registry_smoke_ohlcv()
     try:

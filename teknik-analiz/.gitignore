@@ -18,3 +18,9 @@ dist/
 # IDE
 .vscode/
 .idea/
+
+# web/frontend (Next.js)
+web/frontend/node_modules/
+web/frontend/.next/
+web/frontend/next-env.d.ts
+web/frontend/*.tsbuildinfo

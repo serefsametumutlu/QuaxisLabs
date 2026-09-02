@@ -38,6 +38,7 @@ from tlab.core.types import (
     IndicatorResult,
     Level,
     Marker,
+    Polygon,
     Signal,
     Timeframe,
 )
@@ -102,6 +103,7 @@ class DoubleTopBottomIndicator(BaseIndicator):
         signals: list[Signal] = []
         levels: list[Level] = []
         markers: list[Marker] = []
+        polygons: list[Polygon] = []
         last_state: dict[str, dict] = {}
 
         for kind, pattern_name in (("high", "double_top"), ("low", "double_bottom")):
@@ -172,6 +174,18 @@ class DoubleTopBottomIndicator(BaseIndicator):
                         start=p2.bar_time, end=level_end_from_signals(pattern_signals),
                     )
                 )
+                # Hologram dolgusu: 1-boyun-2 zigzag'inin çevrelediği alan
+                # (marker'lar için kullanılan AYNI 3 pivot).
+                polygons.append(
+                    Polygon(
+                        points=(
+                            (p1.bar_time, p1.price),
+                            (neckline_pivot.bar_time, neckline_pivot.price),
+                            (p2.bar_time, p2.price),
+                        ),
+                        label=f"{pattern_id}_hologram", style="pattern_hologram",
+                    )
+                )
                 vertex_kind = f"pattern_vertex:{pattern_id}"
                 markers.append(Marker(t=p1.bar_time, price=p1.price, text="1", kind=vertex_kind))
                 markers.append(Marker(t=p2.bar_time, price=p2.price, text="2", kind=vertex_kind))
@@ -195,5 +209,6 @@ class DoubleTopBottomIndicator(BaseIndicator):
         return IndicatorResult(
             indicator=self.meta.name, version=self.meta.version, params_hash=params_hash(p),
             symbol="", timeframe=Timeframe.D1,
-            signals=signals, levels=levels, markers=markers, last_state=last_state,
+            signals=signals, levels=levels, markers=markers, polygons=polygons,
+            last_state=last_state,
         )

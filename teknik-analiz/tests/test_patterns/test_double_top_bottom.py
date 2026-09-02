@@ -105,6 +105,16 @@ def test_eq_tol_too_strict_filters_out_pair() -> None:
     assert result.signals == []
 
 
+def test_hologram_polygon_covers_p1_neckline_p2() -> None:
+    df = _double_bottom_ohlcv()
+    result = DoubleTopBottomIndicator(_params()).compute(df)
+    hologram = next(p for p in result.polygons if p.style == "pattern_hologram")
+    prices = [price for _t, price in hologram.points]
+    assert prices == pytest.approx([97, 117, 96])
+    assert hologram.points[0][0] == df.index[2]
+    assert hologram.points[-1][0] == df.index[12]
+
+
 def test_registers_in_registry() -> None:
     df = build_registry_smoke_ohlcv()
     try:

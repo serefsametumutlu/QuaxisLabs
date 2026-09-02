@@ -33,6 +33,22 @@ def test_both_directions_tracked_when_pattern_found() -> None:
         assert dirs <= {"long", "short"}
 
 
+def test_hologram_polygon_matches_boundary_line_corners() -> None:
+    """2026-09-01: hologram dolgusu `_upper`/`_lower` sınır çizgileri için
+    ZATEN üretilen aynı 4 ankor noktasını çevre sırasıyla birleştirmeli."""
+    df = make_trend(n=250, slope=0.0, noise=2.0, seed=5)
+    result = BroadeningIndicator(BroadeningParams(min_bars=5, max_lines_per_side=8))(df)
+    assert result.polygons, "bu fixture en az bir aday üretmeli (bkz. yorum)"
+    for poly in result.polygons:
+        assert poly.style == "pattern_hologram"
+        key = poly.label.removesuffix("_hologram")
+        upper = next(line for line in result.lines if line.label == f"{key}_upper")
+        lower = next(line for line in result.lines if line.label == f"{key}_lower")
+        assert poly.points == (
+            upper.points[0], upper.points[1], lower.points[1], lower.points[0],
+        )
+
+
 def test_registers_via_verified_elsewhere() -> None:
     df = build_registry_smoke_ohlcv()
     try:

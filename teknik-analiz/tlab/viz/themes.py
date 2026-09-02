@@ -52,60 +52,96 @@ class Theme:
     # altın bölgesi, başlık vurgusu); her yerde kullanılmaz, bilinçli kıtlık.
     accent: str = "#b8860b"
     font: str = "Consolas, 'Courier New', monospace"
+    # 2026-09-01 (Kağıt Rapor teması): yalnızca ayrı bir "başlık" kimliği
+    # isteyen temalar için opsiyonel serif/display font. Boş string ("") =
+    # kullanılmıyor, çağıran taraf `font_display or font` deseniyle `font`'a
+    # düşer — mevcut iki tema (dark_terminal/light_analysis) bu alanı hiç
+    # doldurmuyor, tek fontlu kalmaya devam ediyor, geriye dönük uyumlu.
+    font_display: str = ""
 
 
 DARK_TERMINAL = Theme(
     name="dark_terminal",
-    # 2026-08-29 pair-modu düzeltmesi (bkz. renderer.py `_render_pair` +
-    # CLAUDE.md kaydı): kullanıcı paylaşılan "aracı kurum raporu" tasarım
-    # geçişini bu TEK grafik için reddetti, referans ekran görüntüsündeki
-    # (images/Ekran görüntüsü 2026-08-26 203751.png) neredeyse SAF SİYAH
-    # zemine geri dönüldü — eskiden `bg="#0e1116"` (page_bg'den belirgin
-    # şekilde daha açık bir "kart" hissi veriyordu, referansta öyle bir
-    # ayrım yok). `grid` de aynı gerekçeyle biraz karartıldı. Bu tema
-    # YALNIZCA pair modunda kullanılıyor (bkz. modül docstring'i) + Görsel 4
-    # metrik tablosunda (`table.py`) — ikisi de bu revizyondan aynı yönde
-    # (daha koyu/sade) etkilenmesi istenen yerler.
-    bg="#000000",
-    grid="#161a1f",
-    text="#d7dde3",
-    muted="#8b98a5",
-    up="#2ecc71",
-    down="#e74c3c",
-    green="#2ecc71",
-    red="#e74c3c",
+    # 2026-09-01: kullanıcının "Grafik Stil Vitrini" mockup'ında (Artifact,
+    # tema B "Terminal Koyu") onayladığı hex değerleriyle birebir eşitlendi
+    # — bu tema artık YALNIZCA pair modunda değil, TÜM gösterge türlerinde
+    # kullanılabilecek birincil temalardan biri. Önceki "saf siyah" kararı
+    # (2026-08-29, yalnızca pair için) yerini bu daha yeni, daha geniş
+    # kapsamlı karara bırakıyor — kullanıcı "farklılık istemiyorum, mockup
+    # ile birebir aynı olmalı" dedi.
+    bg="#0d1015",
+    grid="#161a21",
+    text="#e7eaf0",
+    muted="#6d7480",
+    up="#22d67f",
+    down="#ff5c5c",
+    green="#22d67f",
+    red="#ff5c5c",
     orange="#e08b2f",
-    blue="#4c8ef7",
+    blue="#35b8ff",
     yellow="#e0c72f",
     purple="#9b6fe0",
-    gray="#5a6773",
-    page_bg="#000000",
-    border="#2a323c",
-    accent="#d4af37",
+    gray="#454b56",
+    page_bg="#090b0f",
+    border="#1b2028",
+    accent="#f5b400",
 )
 
 LIGHT_ANALYSIS = Theme(
     name="light_analysis",
+    # 2026-09-01: "Grafik Stil Vitrini" mockup'ında (tema A "Klasik Beyaz
+    # Rapor") onaylanan hex değerleriyle birebir eşitlendi.
     bg="#ffffff",
-    grid="#e6e9ec",
-    text="#1c2530",
-    muted="#6b7684",
-    up="#1f9d55",
-    down="#d64545",
-    green="#1f9d55",
-    red="#d64545",
+    grid="#eef1f4",
+    text="#161a20",
+    muted="#838b98",
+    up="#1f9d5c",
+    down="#cf4a3e",
+    green="#1f9d5c",
+    red="#cf4a3e",
     orange="#d98a1f",
-    blue="#2f6fd6",
+    blue="#35618c",
     yellow="#c9a416",
     purple="#7b4fc9",
-    gray="#8b95a1",
+    gray="#aeb4bf",
     page_bg="#eef0f3",
-    border="#d8dce1",
-    accent="#9c6b0b",
+    border="#e3e6ea",
+    accent="#b8892f",
     font="Segoe UI, Arial, sans-serif",
 )
 
-_THEMES: dict[str, Theme] = {"dark_terminal": DARK_TERMINAL, "light_analysis": LIGHT_ANALYSIS}
+KAGIT_RAPORU = Theme(
+    # 2026-09-01: kullanıcının "Grafik Stil Vitrini" mockup'ında onayladığı
+    # üçüncü (opsiyonel) tema — sıcak kağıt tonu + serif başlık, gazete/
+    # analiz notu havası. `_LINE_STYLE_COLOR`/`_FILL_STYLE_COLOR`/
+    # `_FIB_NEAREST` diğer iki temayla AYNI (yalnızca Theme alan adı
+    # üzerinden çalışıyorlar) — burada yeni bir stil eşlemesi GEREKMİYOR.
+    name="kagit_raporu",
+    bg="#faf6ec",
+    grid="#eadfc4",
+    text="#2c2418",
+    muted="#8c7d5f",
+    up="#3c6b4c",
+    down="#a3402c",
+    green="#3c6b4c",
+    red="#a3402c",
+    orange="#b8802a",
+    blue="#4d5c73",
+    yellow="#c9a416",
+    purple="#7b4fc9",
+    gray="#c3b696",
+    page_bg="#efe7d4",
+    border="#e1d5b7",
+    accent="#b8802a",
+    font="Georgia, 'Times New Roman', serif",
+    font_display="'Playfair Display', Georgia, serif",
+)
+
+_THEMES: dict[str, Theme] = {
+    "dark_terminal": DARK_TERMINAL,
+    "light_analysis": LIGHT_ANALYSIS,
+    "kagit_raporu": KAGIT_RAPORU,
+}
 
 _FIB_NEAREST: dict[float, str] = {
     # 2026-08-30 geri dönüş: kullanıcı, referans ekran görüntülerindeki
@@ -166,6 +202,11 @@ _LINE_STYLE_COLOR: dict[str, str] = {
     "ma_21": "orange",
     "ma_55": "purple",
     "ma_200": "accent",
+    # 2026-09-01 — klasik formasyon hologramı: harmonik motorun `bullish`/
+    # `bearish` (dolgu VE ana hat AYNI temel renk, farklı opasiteler)
+    # deseniyle AYNI ilke, ama bu 5 formasyondan ikisinin (wedge/broadening)
+    # dolgusu HER İKİ yöne aday olabildiği için yön-nötr `blue`.
+    "pattern_hologram": "blue",
 }
 
 _FILL_STYLE_COLOR: dict[str, str] = {
@@ -195,6 +236,15 @@ _FILL_STYLE_COLOR: dict[str, str] = {
     "supply": "red",
     "demand_broken": "gray",
     "supply_broken": "gray",
+    # 2026-09-01 — klasik formasyonların (patterns.*) hologram dolgusu:
+    # harmonik motorun XABCD üçgen dolgusuyla AYNI görsel dil, ama marka
+    # rengi (`accent`) DEĞİL — yapısal/nötr `blue` (harmonik motorda da
+    # dolgu `accent2`/ikincil marka rengiydi, gerçek Theme'de karşılığı
+    # `blue`). `pattern_consolidation` (flag_pennant.py'nin ZATEN çizdiği
+    # Box) aynı görsel dille hizalanması için AYNI renge bağlandı — eskiden
+    # eşlemesi yoktu, `fill_color()`'ın "gray" varsayılanına düşüyordu.
+    "pattern_hologram": "blue",
+    "pattern_consolidation": "blue",
 }
 
 
@@ -206,6 +256,7 @@ def resolve_theme(theme: Theme | str | None, *, default: Theme) -> Theme:
     key = theme if theme in _THEMES else f"{theme}_terminal" if theme == "dark" else theme
     key = "light_analysis" if theme == "light" else key
     key = "dark_terminal" if theme == "dark" else key
+    key = "kagit_raporu" if theme == "paper" else key
     if key not in _THEMES:
         raise ValueError(f"Bilinmeyen tema: {theme} (bekleniyor: dark|light|{sorted(_THEMES)})")
     return _THEMES[key]

@@ -48,6 +48,7 @@ from tlab.core.types import (
     Level,
     Line,
     Marker,
+    Polygon,
     Signal,
     Timeframe,
 )
@@ -100,6 +101,7 @@ class HeadShouldersIndicator(BaseIndicator):
         levels: list[Level] = []
         lines: list[Line] = []
         markers: list[Marker] = []
+        polygons: list[Polygon] = []
         last_state: dict[str, dict] = {}
 
         for kind in kinds:
@@ -182,6 +184,22 @@ class HeadShouldersIndicator(BaseIndicator):
                         start=hs.l3.bar_time, end=level_end_from_signals(pattern_signals),
                     )
                 )
+                # Hologram dolgusu: L1-H1-Baş-H2-L3 zigzag'inin çevrelediği
+                # alan — marker'lar için KULLANILAN AYNI 5 pivot (yeni bir
+                # hesap/repaint riski yok, harmonik motorun XABCD üçgen
+                # dolgusuyla AYNI görsel dil).
+                polygons.append(
+                    Polygon(
+                        points=(
+                            (hs.l1.bar_time, hs.l1.price),
+                            (hs.h1.bar_time, hs.h1.price),
+                            (hs.head.bar_time, hs.head.price),
+                            (hs.h2.bar_time, hs.h2.price),
+                            (hs.l3.bar_time, hs.l3.price),
+                        ),
+                        label=f"{pattern_id}_hologram", style="pattern_hologram",
+                    )
+                )
                 vertex_kind = f"pattern_vertex:{pattern_id}"
                 markers.append(
                     Marker(t=hs.l1.bar_time, price=hs.l1.price, text="SOL OMUZ", kind=vertex_kind)
@@ -209,7 +227,7 @@ class HeadShouldersIndicator(BaseIndicator):
         return IndicatorResult(
             indicator=self.meta.name, version=self.meta.version, params_hash=params_hash(p),
             symbol="", timeframe=Timeframe.D1,
-            signals=signals, levels=levels, lines=lines, markers=markers,
+            signals=signals, levels=levels, lines=lines, markers=markers, polygons=polygons,
             series={"volume": df["volume"]}, series_layout={"hacim": ["volume"]},
             last_state=last_state,
         )

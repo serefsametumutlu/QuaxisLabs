@@ -43,6 +43,7 @@ from tlab.core.types import (
     Level,
     Line,
     Marker,
+    Polygon,
     Signal,
     Timeframe,
 )
@@ -107,6 +108,7 @@ class BroadeningIndicator(BaseIndicator):
         levels: list[Level] = []
         lines: list[Line] = []
         markers: list[Marker] = []
+        polygons: list[Polygon] = []
         last_state: dict[str, dict] = {}
 
         for upper in upper_lines:
@@ -147,6 +149,12 @@ class BroadeningIndicator(BaseIndicator):
                     Line(
                         points=lower_points,
                         label=f"{pattern_key}_lower", style="pattern_boundary", extend_right=True,
+                    )
+                )
+                polygons.append(
+                    Polygon(
+                        points=(upper_points[0], upper_points[1], lower_points[1], lower_points[0]),
+                        label=f"{pattern_key}_hologram", style="pattern_hologram",
                     )
                 )
 
@@ -215,5 +223,6 @@ class BroadeningIndicator(BaseIndicator):
         return IndicatorResult(
             indicator=self.meta.name, version=self.meta.version, params_hash=params_hash(p),
             symbol="", timeframe=Timeframe.D1,
-            signals=signals, levels=levels, lines=lines, markers=markers, last_state=last_state,
+            signals=signals, levels=levels, lines=lines, markers=markers, polygons=polygons,
+            last_state=last_state,
         )

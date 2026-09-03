@@ -38,7 +38,13 @@ STYLE_TR: dict[str, str] = {
     "pattern_boundary": "Sınır/Boyun",
     "pattern_target": "Hedef",
     "pattern_pole": "Direk",
-    "pattern_consolidation": "Konsolidasyon",
+    # 2026-09-04: "Konsolidasyon" TEK kullanıcısı `flag_pennant.py` --
+    # kullanıcı mockup'taki "BAYRAK" etiketiyle karşılaştırınca gerçek
+    # sistemin jenerik ismini fark etti ("alakası yok" geri bildiriminin
+    # bir parçası). Bayrak/flama ayrımı ÇALIŞMA ZAMANINDA belli olduğu
+    # (Box'ın kendisi tek bir stil taşıyor, hangi şekil olduğunu bilmiyor)
+    # için ikisini birden kapsayan tek bir etiket kullanılıyor.
+    "pattern_consolidation": "Bayrak/Flama",
     "ma_8": "MA (Hızlı)",
     "ma_21": "MA (Orta-Hızlı)",
     "ma_55": "MA (Orta-Yavaş)",

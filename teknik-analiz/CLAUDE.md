@@ -119,8 +119,34 @@ bekliyor.**
 
 ### Kaldığı yer / hâlâ açık noktalar
 
-- **Roadmap**: Faz 0-8E, K0-K3, Faz 10 TAMAMLANDI. **Sırada Faz 9** (henüz
-  başlanmadı, kapsamı bu dosyada tanımlı değil — başlamadan önce netleştirilmeli).
+- **Roadmap (ESKİ, 2026-08-31 döneminden — YENİ roadmap için aşağıya bak):**
+  Faz 0-8E, K0-K3, Faz 10 TAMAMLANDI. "Sırada Faz 9" notu bu eski sıraya
+  aitti; proje 2026-09-03'ten beri `docs/00_BASLANGIC_SIRASI.md`'deki YENİ
+  16-adımlık denetim/yol haritasını izliyor (bkz. dosyanın en üstündeki
+  "Durum" satırı) — Faz 9 bu yeni sırada YOK, eski roadmap'in bir parçası
+  olarak askıda kaldı, yeniden ele alınmadan önce netleştirilmeli.
+- **Faz 0.5'te (Adım 2) bulunan, HENÜZ KAPATILMAMIŞ 3 gerçek hata**
+  (`docs/spec/SISTEMIK_DENETIM_v1.md`'de tam detay, `docs/PROGRESS_LOG.md`'nin
+  2026-09-03/04 girdilerinde bulunma anı) — kasıtlı olarak o fazın kapsamı
+  dışında bırakıldı, AMA unutulmasın diye burada da işaretli:
+  - **BULUNAN HATA 1** — bazı formasyon sinyalleri (`retest_hold` durumu,
+    3 bağımsız örnekte doğrulandı: VESBE/broadening, KRPLS/head_shoulders,
+    SKBNK/triangle) grafikte HİÇ görünmüyor (renderer/declutter şüphesi).
+    **Hedef: Faz 3/4 (SVG çizim motoru) — o faza başlarken ÖNCE bu bulguyu
+    tekrar oku.**
+  - **BULUNAN HATA 2** — `tlab plot`'un varsayılan pencereleme mantığı eski/
+    expired sinyalleri gösteremiyor (sinyal tarihi pencerenin dışında
+    kalıyor ya da sonraki büyük bir fiyat hareketi y-eksenini genişletip
+    eski formasyonu görsel olarak sıkıştırıyor). **Hedef: Faz 3/4/S4
+    (grafik yüzeyi) — "sinyal tarihine yakınlaştır" gibi bir çözüm
+    değerlendirilmeli.**
+  - **BULUNAN HATA 3** — `wedge`/`triangle`/`broadening` formasyonlarının
+    süresine (P1-P2 pivot mesafesine) hiç üst sınır yok; `max_apex_bars`
+    yalnızca doğum-apex mesafesini sınırlıyor. Gerçek veride (TUCLK) ~18 ay
+    süren gerçekçi olmayan bir "formasyon" üretti. **Hedef: Adım 3 / Faz 1
+    (klasik formasyon motoru v2) — bu fazın KAPSAMINA DAHİL EDİLDİ (aynı
+    fazın `double_top_bottom.min_bars_between` gibi literatür-temelli
+    süre/derinlik kısıtlarıyla AYNI iş, ayrı bir faz gerektirmiyor).**
 - **`harmonic.five_zero`**: 622 sembollük tam BIST evreninde HİÇBİR aday bulamadı
   (iki farklı parametre setiyle de) — kök neden araştırılmadı, ayrı bir takip işi.
 - **Dashboard**: "Bugünü Tara" `run_eod()`'u SENKRON çağırıyor (büyük evrende

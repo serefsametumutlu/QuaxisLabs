@@ -341,6 +341,17 @@ _HARMONIC_END_PAD_MIN_BARS = 15
 _HARMONIC_END_PAD_MAX_BARS = 60
 _HARMONIC_END_PAD_FRACTION = 0.5
 
+# 2026-09-03 GERÇEK bulgu (TRHOL `patterns.broadening` render'ıyla bulundu):
+# yukarıdaki bar-SAYISI tabanlı pad tek başına yetmiyordu -- eski (hedefe
+# çoktan ulaşmış) bir örüntünün pad penceresi içine, örüntüyle TAMAMEN
+# alakasız devasa bir rallı (fiyatın birkaç katına çıkması) girince Y-ekseni
+# bu hareketle eziliyor, örüntünün kendisi ekranın dibinde görünmez bir
+# çizgiye dönüşüyordu. Yalnızca `patterns.*` için (harmonik'e dokunulmadı,
+# zaten ayrı doğrulanmış bir pad mantığı var): pad penceresi fiyatça da
+# sınırlanır -- örüntünün KENDİ (start_idx..idx) fiyat aralığının birkaç
+# katını aşan bir bara ulaşınca genişleme ORADA durur.
+_PATTERN_END_PAD_PRICE_MULT = 2.0
+
 # Annotation kaynakları (box/line-uzatma/level) aynı fiyat civarında (ör. bir
 # direnç bölgesinin tepesi = POC'a yakın = trendline izdüşümüyle aynı seviye
 # — "confluence" bölgesi) sık sık çakışıyordu. Her kaynağa AYRI bir taban
@@ -486,7 +497,26 @@ def _resolve_window_end(result: IndicatorResult, df: pd.DataFrame) -> int:
             _HARMONIC_END_PAD_MAX_BARS,
             max(_HARMONIC_END_PAD_MIN_BARS, int(span * _HARMONIC_END_PAD_FRACTION)),
         )
-    return min(n - 1, idx + pad)
+    max_end = min(n - 1, idx + pad)
+    if (
+        result.indicator.startswith("patterns.")
+        and isinstance(start_idx, int)
+        and max_end > idx
+    ):
+        own_low = float(df["low"].iloc[start_idx : idx + 1].min())
+        own_high = float(df["high"].iloc[start_idx : idx + 1].max())
+        own_span = max(own_high - own_low, own_high * 0.02, 1e-9)
+        limit_low = own_low - own_span * _PATTERN_END_PAD_PRICE_MULT
+        limit_high = own_high + own_span * _PATTERN_END_PAD_PRICE_MULT
+        low_arr = df["low"].to_numpy()
+        high_arr = df["high"].to_numpy()
+        capped_end = idx
+        for t in range(idx + 1, max_end + 1):
+            if low_arr[t] < limit_low or high_arr[t] > limit_high:
+                break
+            capped_end = t
+        max_end = capped_end
+    return max_end
 
 
 def _harmonic_price_bounds(

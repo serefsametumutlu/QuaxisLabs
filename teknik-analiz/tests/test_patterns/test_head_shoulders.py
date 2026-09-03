@@ -117,15 +117,19 @@ def test_kind_both_also_scans_obo_independently() -> None:
     assert any(s.payload["pattern_name"] == "tobo" for s in result.signals)
 
 
-def test_hologram_polygon_covers_l1_h1_head_h2_l3() -> None:
-    """2026-09-01: hologram dolgusu marker'lar için kullanılan AYNI 5 pivotu
-    (L1-H1-Baş-H2-L3) çevrelemeli — yeni bir hesap değil, mevcut geometrinin
-    Polygon olarak da yayınlanması."""
+def test_hologram_polygon_traces_close_path_l1_to_l3() -> None:
+    """2026-09-03: hologram artık yalnızca 5 zigzag köşesini (L1-H1-Baş-H2-L3)
+    DÜZ ÇİZGİLERLE birleştirip L3'ten L1'e kapatan bir çokgen DEĞİL — bu,
+    omuz tepeleri (L1/L3) boyun çukurlarının (H1/H2) ÜSTÜNDE ama Baş'ın
+    ALTINDA olduğu için kendi kendini kesen ("bowtie") bir şekil üretiyordu
+    (kullanıcı: hologram "yarım"/ters görünüyor). Artık L1->L3 arası GERÇEK
+    kapanış fiyatı yolunu izliyor (`double_top_bottom.py`'deki aynı düzeltme)."""
     df = _tobo_ohlcv()
     result = HeadShouldersIndicator(_params()).compute(df)
     hologram = next(p for p in result.polygons if p.style == "pattern_hologram")
     prices = [price for _t, price in hologram.points]
-    assert prices == pytest.approx([97, 117, 88, 117, 95])
+    close = df["close"].to_numpy()
+    assert prices == pytest.approx(list(close[2:21]))
     assert hologram.points[0][0] == df.index[2]  # l1
     assert hologram.points[-1][0] == df.index[20]  # l3
 

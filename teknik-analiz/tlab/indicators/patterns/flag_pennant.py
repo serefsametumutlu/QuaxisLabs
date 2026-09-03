@@ -211,10 +211,24 @@ class FlagPennantIndicator(BaseIndicator):
                     label=f"{pattern_id}_pole", style="pattern_pole",
                 )
             )
+            # 2026-09-03: kutu eskiden yalnızca `flag_min_bars`lık DOĞUM
+            # penceresini (born_idx'e kadar) kapsıyordu -- kanalın kendisi
+            # (kırılım hesabında kullanılan üst/alt OLS fiti) bilinçli
+            # olarak doğumda DONDURULUYOR (bkz. modül docstring'i), ama
+            # görsel kutunun kırılım ONAYINA kadar UZAMAMASI kullanıcı
+            # geri bildirimiyle "çok kısa" görünüyordu. Kutu artık --
+            # yalnızca GÖRSEL, kırılım/geçersizlik matematiğini etkilemez
+            # -- kırılım onaylanana kadar (veya hâlâ pending ise doğum
+            # barına kadar) uzuyor, yüksek/alçak sınırları da o genişletilmiş
+            # aralığın gerçek high/low'una göre yeniden hesaplanıyor.
+            box_end_idx = born_idx
+            if confirm_sig is not None:
+                box_end_idx = max(born_idx, df.index.get_loc(confirm_sig.bar_time))
             boxes.append(
                 Box(
-                    t0=df.index[window_start], t1=df.index[born_idx],
-                    low=float(win_low.min()), high=float(win_high.max()),
+                    t0=df.index[window_start], t1=df.index[box_end_idx],
+                    low=float(low[window_start : box_end_idx + 1].min()),
+                    high=float(high[window_start : box_end_idx + 1].max()),
                     label=f"{pattern_id}_consolidation", style="pattern_consolidation",
                 )
             )

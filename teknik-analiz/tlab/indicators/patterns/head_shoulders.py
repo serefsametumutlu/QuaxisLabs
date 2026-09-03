@@ -189,19 +189,19 @@ class HeadShouldersIndicator(BaseIndicator):
                         start=hs.l3.bar_time, end=level_end_from_signals(pattern_signals),
                     )
                 )
-                # Hologram dolgusu: L1-H1-Baş-H2-L3 zigzag'inin çevrelediği
-                # alan — marker'lar için KULLANILAN AYNI 5 pivot (yeni bir
-                # hesap/repaint riski yok, harmonik motorun XABCD üçgen
-                # dolgusuyla AYNI görsel dil).
+                # Hologram dolgusu: L1->L3 arası GERÇEK kapanış fiyatı yolunu
+                # izler (yalnızca 5 zigzag köşesi değil). 2026-09-03 GERÇEK
+                # bulgu: yalnızca 5 köşeyi (L1-H1-Baş-H2-L3) birleştirip
+                # L3'ten L1'e DÜZ bir çizgiyle kapatmak -- L1/L3 omuz
+                # tepeleri H1/H2 boyun çukurlarının ÜSTÜNDE ama Baş'ın
+                # ALTINDA olduğu için -- kendi kendini kesen ("bowtie")
+                # bir çokgen üretiyordu (kullanıcı: "hologramı yarım
+                # yaptığın için ters/karışık görünüyor" — kök neden buydu).
+                # `double_top_bottom.py`'deki AYNI düzeltme (2026-09-03).
+                path_idxs = range(hs.l1.bar_idx, hs.l3.bar_idx + 1)
                 polygons.append(
                     Polygon(
-                        points=(
-                            (hs.l1.bar_time, hs.l1.price),
-                            (hs.h1.bar_time, hs.h1.price),
-                            (hs.head.bar_time, hs.head.price),
-                            (hs.h2.bar_time, hs.h2.price),
-                            (hs.l3.bar_time, hs.l3.price),
-                        ),
+                        points=tuple((df.index[i], float(close[i])) for i in path_idxs),
                         label=f"{pattern_id}_hologram", style="pattern_hologram",
                     )
                 )

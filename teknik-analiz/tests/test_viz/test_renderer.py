@@ -399,6 +399,28 @@ def test_resolve_window_end_uses_last_bar_for_non_harmonic() -> None:
     assert _resolve_window_end(result, df) == len(df) - 1
 
 
+def test_resolve_window_end_price_caps_for_unrelated_later_rally() -> None:
+    """Regresyon (2026-09-03, TRHOL `patterns.broadening`de bulunan bir
+    davranış): eski (hedefe çoktan ulaşmış) bir örüntünün bar-sayısı tabanlı
+    pad penceresi, örüntüyle TAMAMEN alakasız devasa bir sonraki rallıyı da
+    kapsayabiliyordu -- Y-ekseni bu hareketle eziliyor, örüntünün kendisi
+    ekranın dibinde görünmez bir çizgiye dönüşüyordu. Pad artık fiyatça da
+    sınırlı: örüntünün KENDİ fiyat aralığının birkaç katını aşan bir bara
+    ulaşınca genişleme ORADA durur."""
+    df = make_trend(n=200, slope=0.0, noise=0.5, start_price=100.0).copy()
+    df.loc[df.index[25:], ["open", "high", "low", "close"]] *= 4.0
+    result = IndicatorResult(
+        indicator="patterns.fake_test", version="0.1.0", params_hash="h",
+        symbol="TEST", timeframe=Timeframe.D1,
+        markers=[
+            Marker(t=df.index[10], price=100.0, text="1", kind="pattern_vertex:pid1"),
+            Marker(t=df.index[20], price=100.0, text="OK", kind="pattern_confirmed:pid1"),
+        ],
+    )
+    end_idx = _resolve_window_end(result, df)
+    assert end_idx < 25
+
+
 def test_harmonic_price_bounds_includes_offscreen_polygon_points() -> None:
     """Regresyon (2026-08-30, ACSEL'de bulunan GERÇEK bir hata): D hedefi/PRZ
     görünür mum aralığının ÇOK dışında (ör. çok daha aşağıda) kalınca eskiden

@@ -28,6 +28,7 @@ from tlab.viz.renderer import (
     _filter_confirmed_patterns,
     _harmonic_price_bounds,
     _latest_per_group,
+    _recent_pattern_time_range,
     _resolve_window_end,
     _stagger_yshifts,
     _x,
@@ -451,6 +452,37 @@ def test_resolve_window_end_price_caps_for_unrelated_later_rally() -> None:
     )
     end_idx = _resolve_window_end(result, df)
     assert end_idx < 25
+
+
+def test_recent_pattern_time_range_ignores_older_different_shape() -> None:
+    """Regresyon (2026-09-04, PGSUS `patterns.head_shoulders`de bulunan bir
+    davranış — kullanıcı: "AL sinyalini kontrol ettim hiç düzelme
+    göremedim"): eski sürüm, farklı şekil türünden (ör. Şubat'taki bir
+    OBO) hâlâ geçerli AMA çok eski bir örüntüyü de pencereye dahil etmek
+    için min/max alıyordu -- 7 aylık bir pencere Eylül'deki GÜNCEL TOBO'yu
+    okunaksız bir şeride sıkıştırıyordu (üçgenler teknik olarak doğruydu,
+    görsel olarak fark edilemeyecek kadar küçüktü). Artık yalnızca EN SON
+    onaylanan/tamamlanan TEK örüntünün kendi zaman aralığı kullanılıyor."""
+    df = make_trend(n=200, slope=0.0, noise=0.5, start_price=100.0)
+    result = IndicatorResult(
+        indicator="patterns.head_shoulders", version="0.1.0", params_hash="h",
+        symbol="TEST", timeframe=Timeframe.D1,
+        markers=[
+            # Eski OBO (Şubat benzeri) -- hâlâ "geçerli" ama çok eski.
+            Marker(t=df.index[5], price=100.0, text="SOL OMUZ", kind="pattern_vertex:obo_old"),
+            Marker(t=df.index[15], price=100.0, text="SAĞ OMUZ", kind="pattern_vertex:obo_old"),
+            Marker(t=df.index[20], price=100.0, text="OBO", kind="pattern_completed:obo_old"),
+            # Yeni TOBO (Eylül benzeri) -- GÜNCEL, pencere buna göre kurulmalı.
+            Marker(t=df.index[180], price=100.0, text="SOL OMUZ", kind="pattern_vertex:tobo_new"),
+            Marker(t=df.index[190], price=100.0, text="SAĞ OMUZ", kind="pattern_vertex:tobo_new"),
+            Marker(t=df.index[195], price=100.0, text="TOBO", kind="pattern_confirmed:tobo_new"),
+        ],
+    )
+    time_range = _recent_pattern_time_range(result)
+    assert time_range is not None
+    earliest_t, latest_t = time_range
+    assert earliest_t == df.index[180]
+    assert latest_t == df.index[195]
 
 
 def test_harmonic_price_bounds_includes_offscreen_polygon_points() -> None:

@@ -428,21 +428,33 @@ def _recent_pattern_time_range(result: IndicatorResult) -> tuple[object, object]
     """`patterns.*` için `_recent_harmonic_time_range`'in eşdeğeri (2026-09-03,
     gerçek ODAS/TRHOL verisiyle bulundu: en güncel geçerli örüntü aylarca
     eski olduğunda, sabit `_DEFAULT_LAST_N` (90 bar) penceresi onu TAMAMEN
-    dışarıda bırakıyordu — grafik "hiçbir şey yok" gibi BOMBOŞ görünüyordu,
-    oysa `_filter_confirmed_patterns` aslında doğru örüntüyü seçmişti).
-    `_filter_confirmed_patterns` zaten yalnızca şekil türü başına EN GÜNCEL
-    örneği bıraktığı için, kalan TÜM vertex/durum Marker'larının en erken/
-    en geç zaman damgasını döner (birden fazla şekil türü — ör. hem bir
-    TOBO hem bir OBO — aynı anda "en güncel" olabilir, pencere ikisini de
-    kapsamalı)."""
-    times = [
-        m.t for m in result.markers
-        if m.kind.startswith("pattern_vertex:")
-        or m.kind.startswith("pattern_confirmed:")
-        or m.kind.startswith("pattern_completed:")
-    ]
-    if not times:
+    dışarıda bırakıyordu — grafik "hiçbir şey yok" gibi BOMBOŞ görünüyordu).
+
+    2026-09-04 GERÇEK bulgu (PGSUS `patterns.head_shoulders`'da bulundu,
+    kullanıcı: "AL sinyalini kontrol ettim hiç düzelme göremedim"): eski
+    sürüm birden fazla şekil türü (ör. hem Şubat'taki bir OBO hem
+    Eylül'deki bir TOBO) aynı anda geçerliyse İKİSİNİN de zaman aralığını
+    kapsayacak şekilde min/max alıyordu — 7 aylık bir pencere GÜNCEL
+    TOBO'yu birkaç fiyat biriminden ibaret, üst üste binen etiketli
+    okunaksız bir şeride sıkıştırıyordu (üçgenler TEKNİK OLARAK doğruydu,
+    görsel olarak fark edilemeyecek kadar küçüktü). Artık yalnızca EN SON
+    onaylanan/tamamlanan TEK örüntünün kendi zaman aralığı kullanılıyor
+    — daha eski ama hâlâ "geçerli" farklı şekilli örüntüler pencere
+    boyutuna KATILMIYOR (yine de son pencereye denk gelirse çizilmeye
+    devam eder, yalnızca pencereyi ONLARA göre GENİŞLETMİYORUZ)."""
+    outcome_times: dict[str, datetime] = {}
+    for m in result.markers:
+        if m.kind.startswith("pattern_confirmed:") or m.kind.startswith("pattern_completed:"):
+            outcome_times[m.kind.split(":", 1)[1]] = m.t
+    if not outcome_times:
         return None
+    latest_pid = max(outcome_times, key=lambda p: outcome_times[p])
+    times = [outcome_times[latest_pid]]
+    for m in result.markers:
+        if not m.kind.startswith("pattern_vertex:"):
+            continue
+        if m.kind.removeprefix("pattern_vertex:") == latest_pid:
+            times.append(m.t)
     return min(times), max(times)
 
 

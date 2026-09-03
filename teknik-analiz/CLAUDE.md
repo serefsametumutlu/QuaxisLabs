@@ -37,7 +37,7 @@ kararları) artık `docs/PROGRESS_LOG.md`'de** — bu dosya CLAUDE.md'nin 150k k
 sınırını aştığı için oraya taşındı (2026-09-02). Aşağıdaki liste yalnızca ÖZET; bir
 fazın TAM detayına ihtiyaç varsa `docs/PROGRESS_LOG.md`'ye bak.
 
-**Durum (2026-09-04): 619 test yeşil (`pytest -q -m "not network"`), ruff/mypy/
+**Durum (2026-09-04): 651 test yeşil (`pytest -q -m "not network"`), ruff/mypy/
 lint_lookahead temiz (baseline: 19 ruff / 1 mypy / 3 lint_lookahead — hepsi önceden
 var olan/bilinen false-positive, ilgisiz satırlar). Faz 0-10 + K0-K3 (aşağıdaki liste)
 TAMAMLANDI; proje artık YENİ, daha büyük bir denetim/yol haritası altında ilerliyor —
@@ -55,8 +55,14 @@ sırasında GERÇEK bir regresyon bulunup düzeltildi: wedge/triangle/broadening
 ATR-seyrek pivotlar trendline aday havuzunu bozuyordu, `zigzag_method`
 varsayılanı bu 3 gösterge + `price_structure`'ın trendline tarafı için
 "fixed"e geri çevrildi) — detay `docs/PROGRESS_LOG.md`'nin 2026-09-03 ve
-2026-09-03/04 girdilerinde. Adım 3 (Faz 1 — klasik formasyon motoru v2) onay
-bekliyor.**
+2026-09-03/04 girdilerinde. **Adım 3 / Faz 1 (klasik formasyon motoru v2)
+DEVAM EDİYOR — onaylandı, alt-adımlar 1A (`pattern_context.py` paylaşılan
+bağlam kontrolleri) + 1B (`double_top_bottom.py` literatür düzeltmeleri) + 1C
+(`head_shoulders.py`/`hs_pattern.py`, GERÇEK ikinci bug: yukarı eğimli boyunlu
+OBO/TOBO hiç tetiklenemiyordu — `break_rule="right_armpit"` düzeltmesi) +
+BULUNAN HATA 3'ün wedge/triangle/broadening tarafının kapatılması
+(`max_bars` opt-in üst sınır) TAMAMLANDI, detay `docs/PROGRESS_LOG.md`'nin
+"Faz 1" bölümünde. Sırada: 1D (doğrulama — Faz 1'in kabul testi).**
 
 ### Tamamlanan fazlar (özet)
 
@@ -147,6 +153,18 @@ bekliyor.**
     (klasik formasyon motoru v2) — bu fazın KAPSAMINA DAHİL EDİLDİ (aynı
     fazın `double_top_bottom.min_bars_between` gibi literatür-temelli
     süre/derinlik kısıtlarıyla AYNI iş, ayrı bir faz gerektirmiyor).**
+    **KAPATILDI (1B/1C-sonrası, 2026-09-04):** `double_top_bottom.py`'ye
+    `max_bars_between`, `wedge.py`'ye (`WedgeParams.max_bars`, hem wedge hem
+    triangle modu kapsar) ve `broadening.py`'ye (`BroadeningParams.max_bars`)
+    AYNI mekanizma eklendi — HEPSİ 0=sınırsız (varsayılan davranış
+    DEĞİŞMEDİ, yalnızca opt-in bir üst sınır knob'u açıldı; `min_bars_
+    between=22` gibi bir literatür-temelli varsayılan DEĞİL, çünkü TUCLK
+    tipi aşırı-uzun formasyonlara karşı doğru eşik değeri henüz ölçülmedi).
+    1D'nin önce/sonra ölçümü bu knob'un GERÇEK bir varsayılana ihtiyacı
+    olup olmadığına karar verecek. Testler: `test_wedge.py::test_passes_
+    shape_filters_rejects_span_too_long`/`..._max_bars_zero_means_
+    unlimited`, `test_broadening.py::test_max_bars_filters_out_too_long_
+    spans`/`..._max_bars_zero_means_unlimited`.
 - **`harmonic.five_zero`**: 622 sembollük tam BIST evreninde HİÇBİR aday bulamadı
   (iki farklı parametre setiyle de) — kök neden araştırılmadı, ayrı bir takip işi.
 - **Dashboard**: "Bugünü Tara" `run_eod()`'u SENKRON çağırıyor (büyük evrende

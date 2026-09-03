@@ -72,7 +72,16 @@ def _tobo_ohlcv() -> pd.DataFrame:
 
 
 def _params() -> HeadShouldersParams:
-    return HeadShouldersParams(left=2, right=2, zigzag_method="fixed", kind="tobo")
+    # prior_trend_lookback=3: l1.bar_idx=2 -- lookback'in daha büyük her
+    # değeri pencereyi sığdıramaz (bkz. prior_trend docstring'i,
+    # window_start=start_idx-lookback+1<0 -> her zaman False). Ampirik
+    # doğrulama: lookback=3 -> (True, t=-116.6) (fixture'ın idx0-2 kapanışı
+    # zaten net düşüyor); min_depth_pct/min_depth_atr varsayılanları
+    # (0.04/2.5) fixture'ın depth=29 / atr[23]=6.51 değerleriyle zaten
+    # rahatça geçiyor, gevşetmeye gerek yok.
+    return HeadShouldersParams(
+        left=2, right=2, zigzag_method="fixed", kind="tobo", prior_trend_lookback=3
+    )
 
 
 def test_pending_born_at_l3_finalized_idx_not_confirmed_idx() -> None:
@@ -101,7 +110,7 @@ def test_require_volume_confirm_suppresses_confirmed_when_volume_fails() -> None
     ÜRETİLMEMELİ."""
     df = _tobo_ohlcv()
     params = HeadShouldersParams(left=2, right=2, zigzag_method="fixed", kind="tobo",
-                                  require_volume_confirm=True)
+                                  prior_trend_lookback=3, require_volume_confirm=True)
     result = HeadShouldersIndicator(params).compute(df)
     assert not any(s.payload["event"] == "tobo_confirmed" for s in result.signals)
 
@@ -140,7 +149,8 @@ def test_asymmetric_shoulder_time_ratio_filters_pattern_out() -> None:
     beklenir (10/8=1.25 > 1.1)."""
     df = _tobo_ohlcv()
     params = HeadShouldersParams(
-        left=2, right=2, zigzag_method="fixed", shoulder_time_ratio=(0.9, 1.1)
+        left=2, right=2, zigzag_method="fixed", prior_trend_lookback=3,
+        shoulder_time_ratio=(0.9, 1.1),
     )
     result = HeadShouldersIndicator(params).compute(df)
     assert result.signals == []
@@ -148,7 +158,9 @@ def test_asymmetric_shoulder_time_ratio_filters_pattern_out() -> None:
 
 def test_kind_both_also_scans_obo_independently() -> None:
     df = _tobo_ohlcv()
-    params = HeadShouldersParams(left=2, right=2, zigzag_method="fixed", kind="both")
+    params = HeadShouldersParams(
+        left=2, right=2, zigzag_method="fixed", kind="both", prior_trend_lookback=3
+    )
     result = HeadShouldersIndicator(params).compute(df)
     assert any(s.payload["pattern_name"] == "tobo" for s in result.signals)
 
@@ -182,6 +194,135 @@ def test_hologram_is_three_separate_inverted_triangles() -> None:
     assert tri3.points[0] == tri2.points[2]  # H2 paylaşılıyor
     assert tri3.points[1][0] == df.index[20] and tri3.points[1][1] == pytest.approx(95)  # l3
     assert tri3.points[2][1] == pytest.approx(117)  # dış kenar h2 fiyatında düz
+
+
+# --- Faz 1, 1C — YENİ literatür filtrelerinin her biri GERÇEKTEN eliyor mu ---
+# (fixture'ın gerçek ön trendi idx0-2'de düşüyor (lookback=3 ile t=-116.6),
+# depth=29 / neckline_avg_price=117 / atr[23]=6.51 -- `_params()`'ın
+# gevşetilmiş temel değerlerinden yalnızca TEK BİR parametre sıkılaştırılıp
+# diğerleri sabit tutuluyor, `double_top_bottom.py`'nin test dosyasındaki
+# AYNI desen.)
+
+
+def _base_kwargs() -> dict:
+    return {
+        "left": 2, "right": 2, "zigzag_method": "fixed", "kind": "tobo",
+        "prior_trend_lookback": 3,
+    }
+
+
+def test_prior_trend_default_lookback_20_filters_out_fixture() -> None:
+    """Varsayılan prior_trend_lookback=20: l1.bar_idx=2 için pencere hiç
+    SIĞMAZ (window_start=2-20+1=-17<0) -- `prior_trend` bu durumda HER ZAMAN
+    (False, 0.0) döner, eski değer (yok/uygulanmıyordu) bunu hiç ELEMEZDİ."""
+    kwargs = _base_kwargs()
+    del kwargs["prior_trend_lookback"]  # varsayılan (20) devrede kalsın
+    df = _tobo_ohlcv()
+    result = HeadShouldersIndicator(HeadShouldersParams(**kwargs)).compute(df)
+    assert result.signals == []
+
+
+def test_prior_trend_filters_out_when_min_tstat_too_strict() -> None:
+    """Fixture'ın ön trendi GERÇEK ama küçük (3 barlık) bir pencerede -- t
+    büyük olsa da (-116.6) imkânsız derecede yüksek bir eşik ELEMELİ."""
+    kwargs = _base_kwargs()
+    kwargs["prior_trend_min_tstat"] = 1000.0
+    df = _tobo_ohlcv()
+    result = HeadShouldersIndicator(HeadShouldersParams(**kwargs)).compute(df)
+    assert result.signals == []
+
+
+def test_min_depth_pct_filters_out_shallow_pattern() -> None:
+    kwargs = _base_kwargs()
+    kwargs["min_depth_pct"] = 0.99  # depth=29/neckline_avg=117 (~%25), %99 asla geçmez
+    df = _tobo_ohlcv()
+    result = HeadShouldersIndicator(HeadShouldersParams(**kwargs)).compute(df)
+    assert result.signals == []
+
+
+def test_min_depth_atr_filters_out_when_atr_multiple_too_high() -> None:
+    kwargs = _base_kwargs()
+    kwargs["min_depth_atr"] = 1000.0
+    df = _tobo_ohlcv()
+    result = HeadShouldersIndicator(HeadShouldersParams(**kwargs)).compute(df)
+    assert result.signals == []
+
+
+def test_all_faz1_filters_relaxed_still_produces_confirmed_signal() -> None:
+    """Sağlık kontrolü: `_base_kwargs()`'ın (fixture'a kalibre edilmiş, aşırı
+    sıkı olmayan) hâliyle formasyon HÂLÂ confirmed'a ulaşmalı -- yukarıdaki
+    negatif testlerin "elenme" iddiası gerçekten yalnızca sıkılaştırılan TEK
+    parametreden kaynaklanıyor."""
+    df = _tobo_ohlcv()
+    result = HeadShouldersIndicator(HeadShouldersParams(**_base_kwargs())).compute(df)
+    assert any(s.state == "confirmed" for s in result.signals)
+
+
+def _up_sloping_neckline_rows() -> list[tuple[float, float, float, float]]:
+    """`_ROWS`'un h2'si (idx16) 117->130'a YÜKSELTİLMİŞ hâli -- boyun çizgisi
+    artık YUKARI eğimli (neckline_slope=1.444, total_rise=~%10.5, varsayılan
+    neck_total_slope_max=0.15 içinde kalır). idx24'teki kapanış (133) h2.price
+    (130)'u AŞAR ama boyun çizgisinin o bardaki EKSTRAPOLE değerini (141.56)
+    AŞMAZ -- bu, `break_rule="right_armpit"` düzeltmesinin (bkz. head_
+    shoulders.py docstring'i) GERÇEKTEN devrede olduğunu kanıtlayan senaryo:
+    eski (buggy) mantık hep `neckline_value_at(t)`'yi kullansaydı idx24'te
+    HİÇ onaylanmazdı."""
+    return [
+        (105, 104, 106, 103),
+        (104, 101, 105, 100),
+        (101, 98, 102, 97),      # l1 low=97 (idx2)
+        (98, 100, 101, 98.5),
+        (100, 103, 104, 99.5),
+        (103, 108, 109, 102),
+        (108, 113, 114, 107),
+        (113, 116, 117, 112),    # h1 high=117 (idx7)
+        (116, 113, 117, 112),
+        (113, 108, 114, 107),
+        (108, 102, 109, 101),
+        (102, 95, 103, 94),
+        (95, 90, 96, 88),        # head low=88 (idx12)
+        (90, 93, 94, 89),
+        (93, 100, 101, 92),
+        (100, 110, 111, 99),
+        (110, 129, 130, 108),    # h2 high=130 (idx16) -- YUKARI eğimli boyun
+        (129, 112, 130, 110),
+        (112, 105, 113, 104),
+        (105, 99, 106, 97),
+        (99, 96, 100, 95),       # l3 low=95 (idx20)
+        (96, 101, 108, 95.5),    # l3'ü finalize eden küçük tepe (idx21)
+        (101, 99, 101.5, 98),
+        (99, 103, 104, 98.5),    # born (idx23): l3.finalized_idx
+        (103, 133, 134, 102),    # sağ koltukaltı kırılımı: kapanış 133 (idx24)
+        (133, 138, 139, 132),
+        (138, 144, 145, 137),
+        (144, 150, 151, 143),
+        (150, 156, 157, 149),
+        (156, 162, 163, 155),
+    ]
+
+
+def _up_sloping_neckline_ohlcv() -> pd.DataFrame:
+    idx = pd.date_range("2024-01-02", periods=len(_up_sloping_neckline_rows()), freq="1D", tz=_TZ)
+    return pd.DataFrame(
+        [
+            {"open": c, "close": c, "high": h, "low": lo, "volume": 1000.0}
+            for _o, c, h, lo in _up_sloping_neckline_rows()
+        ],
+        index=idx,
+    )
+
+
+def test_right_armpit_break_rule_used_when_neckline_slopes_upward() -> None:
+    df = _up_sloping_neckline_ohlcv()
+    result = HeadShouldersIndicator(_params()).compute(df)
+    confirmed = next(s for s in result.signals if s.payload["event"] == "tobo_confirmed")
+    assert confirmed.bar_time == df.index[24]
+    assert confirmed.payload["break_rule"] == "right_armpit"
+    assert confirmed.payload["break_price"] == pytest.approx(133.0)
+    # Boyun çizgisinin o bardaki (idx24) ekstrapole değeri ~141.56 -- kırılım
+    # fiyatı (133) bunun ALTINDA kalıyor, yani eski "hep neckline_value_at"
+    # mantığı bu barda ONAY ÜRETMEZDİ (aşağıdaki assert bunu kilitler).
+    assert confirmed.payload["break_price"] < 141.56
 
 
 def test_registers_in_registry() -> None:

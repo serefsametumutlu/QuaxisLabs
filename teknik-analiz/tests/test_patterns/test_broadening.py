@@ -59,6 +59,25 @@ def test_hologram_polygon_matches_boundary_line_corners() -> None:
         )
 
 
+def test_max_bars_filters_out_too_long_spans() -> None:
+    """Faz 1, 1C sonrası (BULUNAN HATA 3): `test_both_directions_tracked_
+    when_pattern_found` ile AYNI fixture/params GERÇEK adaylar üretiyor
+    (max_bars=0/varsayılan -- 64 hologram); `max_bars=1` gibi imkânsız
+    derecede düşük bir üst sınır HEPSİNİ elemeli."""
+    df = make_trend(n=250, slope=0.0, noise=2.0, seed=5)
+    params = BroadeningParams(min_bars=5, max_lines_per_side=8, zigzag_method="fixed", max_bars=1)
+    result = BroadeningIndicator(params)(df)
+    assert result.polygons == []
+    assert result.signals == []
+
+
+def test_max_bars_zero_means_unlimited() -> None:
+    df = make_trend(n=250, slope=0.0, noise=2.0, seed=5)
+    params = BroadeningParams(min_bars=5, max_lines_per_side=8, zigzag_method="fixed", max_bars=0)
+    result = BroadeningIndicator(params)(df)
+    assert result.polygons != []
+
+
 def test_registers_via_verified_elsewhere() -> None:
     df = build_registry_smoke_ohlcv()
     try:

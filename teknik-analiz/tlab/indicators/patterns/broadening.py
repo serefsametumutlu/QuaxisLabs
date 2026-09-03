@@ -65,6 +65,10 @@ class BroadeningParams(BaseParams):
     right: int = 3
     min_pivots: int = 4
     min_bars: int = 15
+    # Faz 1, 1C sonrası (BULUNAN HATA 3) -- `wedge.py::WedgeParams.max_bars`
+    # ile AYNI mekanizma/gerekçe. 0=sınırsız, KASITLI OLARAK `_BAR_FIELDS`
+    # DIŞINDA.
+    max_bars: int = 0
     tol_atr: float = 0.3
     confirm_bars: int = 1
     vol_k: float = 1.2
@@ -148,7 +152,10 @@ class BroadeningIndicator(BaseIndicator):
                 if len(distinct_pivots) < p.min_pivots:
                     continue
                 start_idx = min(upper.p1.bar_idx, lower.p1.bar_idx)
-                if dv.created_idx - start_idx < p.min_bars:
+                span = dv.created_idx - start_idx
+                if span < p.min_bars:
+                    continue
+                if p.max_bars > 0 and span > p.max_bars:
                     continue
 
                 prior_ref_idx = max(0, start_idx - p.prior_trend_lookback)

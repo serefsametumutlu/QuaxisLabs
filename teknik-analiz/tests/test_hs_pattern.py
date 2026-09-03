@@ -85,6 +85,26 @@ def test_find_hs_asymmetric_shoulders_rejected() -> None:
     assert find_hs(pivots, kind="tobo", sym_tol=0.1) == []
 
 
+def test_find_hs_neck_total_slope_max_accepts_gentle_upward_slope() -> None:
+    """Faz 1, 1C: h2(105) > h1(100) -- boyun YUKARI eğimli ama TOPLAM eğim
+    küçük (5/102.5=%4.9), varsayılan neck_total_slope_max=0.15 içinde
+    kalmalı -- eski (bar-başına, DEPRECATED) `neck_slope_max` normalizasyonu
+    böyle bir formasyonu YANLIŞLIKLA elerdi (bkz. find_hs docstring'i)."""
+    pivots = _tobo_pivots()
+    pivots[3] = _pivot(15, 105.0, "high")
+    patterns = find_hs(pivots, kind="tobo")
+    assert len(patterns) == 1
+    assert patterns[0].neckline_slope > 0
+
+
+def test_find_hs_neck_total_slope_max_rejects_when_threshold_tightened() -> None:
+    """AYNI (kabul edilen) yukarı eğimli boyun, eşik sıkılaştırılınca
+    (0.01 < gerçek toplam eğim %4.9) reddedilmeli."""
+    pivots = _tobo_pivots()
+    pivots[3] = _pivot(15, 105.0, "high")
+    assert find_hs(pivots, kind="tobo", neck_total_slope_max=0.01) == []
+
+
 def test_find_hs_wrong_kind_sequence_no_match() -> None:
     """obo pivotları tobo aranınca bulunamaz."""
     assert find_hs(_obo_pivots(), kind="tobo") == []

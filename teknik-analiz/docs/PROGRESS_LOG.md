@@ -1986,3 +1986,88 @@ tekrarı, artık "yaygın" olarak işaretlendi. `docs/spec/SISTEMIK_DENETIM_
 v1.md` bu doğrulanmış sayılar ve yeni bulgularla güncellendi (kod
 DEĞİŞMEDİ, yalnızca rapor genişletildi + 2 yeni "kapsam dışı" not).
 
+## Faz 1 — Klasik formasyon motoru v2 (Adım 3, `docs/TANI_VE_YOL_HARITASI_v2.md`)
+
+Kullanıcı onayıyla başladı (2026-09-04). Amaç: `docs/STRATEJI_DENETIM_TAM.md`'nin
+tespit ettiği literatür-uyumsuzluklarını (Bulkowski/klasik formasyon kaynaklarına göre)
+`patterns/*.py` modüllerine işlemek — eski değerler ya çok gevşekti (hiçbir şeyi
+elemiyordu) ya da hiç yoktu.
+
+**1A — `tlab/features/pattern_context.py` (YENİ, paylaşılan bağlam kontrolleri):**
+TAMAMLANDI. Üç saf/non-repaint fonksiyon: `rolling_trend_tstat` (kapalı-form rolling
+OLS eğim+t; `momentum_rank.py`'nin ZATEN sahip olduğu aynı formülün TAŞINMIŞ hâli —
+kod tekrarı giderildi), `prior_trend` (formasyon başlangıcından geriye `lookback` bar
+bakıp yön+anlamlılık kontrolü — Bulkowski: çift dip/OBO/TOBO düşen bir trendden,
+çift tepe/OBO yükselen bir trendden SONRA gelmeli), `pattern_depth_ok` (derinlik HEM
+fiyat-yüzdesi HEM ATR-katı eşiğini AYNI ANDA geçmeli — ZOREN 4H örneğinde yalnızca
+yüzde ölçütü kullanılsaydı gürültüden ayırt edilemezdi). 15 birim testi
+(`tests/test_pattern_context.py`).
+
+**1B — `patterns/double_top_bottom.py`:** TAMAMLANDI. `eq_tol` 0.02→0.015,
+`min_bars_between` 5→22 (Bulkowski: en az ~1 ay), YENİ `max_bars_between` (0=sınırsız,
+kasıtlı `_BAR_FIELDS` DIŞINDA — sentinel değer zaman dilimi ölçeklemesiyle 0→1'e
+dönüşmesin diye), YENİ `min_rise_between_pct` (iki dip arası boyun yüksekliği),
+`prior_trend`/`pattern_depth_ok` entegrasyonu, hacim kontrolü `breakout_volume_ok`'a
+taşındı. Hologram, gerçek kapanış-yolu (11 nokta, amorf leke) yerine 5 köşeli M/W
+silueti oldu. Test dosyası: küçük el-yapımı fixture (24 bar) yeni sıkı filtrelerle
+sıfır aday üretiyordu — `_params()` fixture-kalibreli gevşek değerlere çekildi
+(mekanik testler için), YENİ filtrelerin GERÇEKTEN elediğini kanıtlayan 8 ayrı negatif
+test eklendi (`_base_kwargs()` + tek-parametre-sıkılaştırma deseni). 19/19 yeşil.
+
+**1C — `patterns/head_shoulders.py` + `features/hs_pattern.py`:** TAMAMLANDI
+(2026-09-04). `hs_pattern.py::find_hs`: eski `neck_slope_max` (BAR BAŞINA eğim, SABİT
+eşik) YANLIŞ normalizeydi — 40 barlık bir formasyonda boyun TOPLAMDA %40 eğilebiliyordu,
+fiilen hiçbir şeyi elemiyordu (bkz. STRATEJI_DENETIM_TAM.md). Yeni `neck_total_slope_max`
+(varsayılan 0.15, TOPLAM/normalize eğim) ile değiştirildi; eski parametre isim uyumluluğu
+için imzada duruyor ama `del`'leniyor (DEPRECATED). `head_shoulders.py`: `prior_trend`
+(TOBO düşüşten, OBO yükselişten sonra) + `pattern_depth_ok` (min_depth_pct=0.04,
+min_depth_atr=2.5 — çift dipten yüksek, OBO/TOBO daha büyük bir yapı olduğu için)
+eklendi. **GERÇEK bir ikinci bug bulunup düzeltildi:** boyun çizgisi YUKARI eğimli
+olduğunda (neckline_slope>0) eski kod hep `neckline_value_at(t)`'yi (zamanla SÜREKLİ
+büyüyen bir eşik) kırılım tetikleyicisi olarak kullanıyordu — böyle formasyonlar
+fiilen HİÇ tetiklenemiyordu (klasik kural: yukarı eğimli boyunda kırılım SAĞ
+KOLTUKALTI/h2 seviyesinin aşılmasıdır, sabit bir seviye). Düzeltme: `break_rule =
+"right_armpit" if neckline_slope>0 else "neckline"`, `_break_line` buna göre `h2.price`
+(sabit) ya da `neckline_value_at(t)` (eğik) döner. Ayrıca hacim kuralı TAMAMLANDI:
+eskiden yalnızca "kırılım hacmi sağ omuzdan büyük mü" (`breakout_volume_ok`)
+bakılıyordu, şimdi Bulkowski'nin "hacim sol omuz/baş'ta en yüksek, sağ omuzda AZALMIŞ
+olmalı" deseni de (`volume_declining_pattern`) ayrı ölçülüp `volume_profile_ok =
+breakout_volume_ok and volume_declining_pattern` olarak birleştiriliyor (yalnızca
+`require_volume_confirm=True` iken filtre olarak kullanılıyor, A4 deseniyle AYNI).
+Test dosyası AYNI "sıkı filtreler küçük fixture'ı sıfırlıyor" deseniyle kırıldı (7/11
+FAILED) — `_params()`'a `prior_trend_lookback=3` eklenerek düzeltildi (l1.bar_idx=2
+olduğu için `prior_trend`'in penceresi `lookback<=3` olmadan hiç SIĞMIYOR — ampirik
+doğrulama: lookback=3 → t=-116.6, defaults min_depth_pct/atr fixture'ın depth=29'unu
+zaten rahatça geçiyor, gevşetmeye gerek kalmadı). 6 YENİ negatif filtre testi
+(`_base_kwargs()` deseni) + `hs_pattern.py`'nin kendi test dosyasına 2 YENİ
+`neck_total_slope_max` testi + **1 YENİ bilinçli-inşa edilmiş regresyon testi**
+(`test_right_armpit_break_rule_used_when_neckline_slopes_upward`): h2'yi 117→130'a
+çıkaran (yukarı eğimli boyun) özel bir fixture, kırılım barında kapanış (133) `h2.price`
+(130)'u AŞIYOR ama o bardaki EKSTRAPOLE boyun değerini (141.56) AŞMIYOR — yani eski
+(buggy) "hep neckline_value_at" mantığı bu formasyonu O BARDA hiç onaylamazdı, test bunu
+sayısal olarak kilitliyor. `tests/test_patterns/test_head_shoulders.py` 11→29,
+`tests/test_hs_pattern.py` +2. Tüm yeni/değişen dosyalar ruff+mypy temiz.
+
+**BULUNAN HATA 3'ün kapanışı (2026-09-04, 1C'nin hemen ardından):** wedge/triangle/
+broadening'in kendi `max_apex_bars`'ı yalnızca doğum-apex mesafesini sınırlıyordu,
+P1-P2 pivot mesafesini DEĞİL — `double_top_bottom.py`'nin `max_bars_between`'iyle AYNI
+mekanizma (`WedgeParams.max_bars` — hem wedge hem triangle modu kapsar,
+`BroadeningParams.max_bars`) eklendi, `_passes_shape_filters`/`compute()`'a
+`span > max_bars` kontrolü olarak bağlandı. **KASITLI OLARAK 0=sınırsız** (double_
+top_bottom'un `max_bars_between`'iyle AYNI karar — `min_bars_between=22` gibi
+literatür-doğrulanmış bir varsayılan DEĞİL, çünkü doğru eşik henüz ÖLÇÜLMEDİ; bu
+1D'nin işi). 4 yeni test: `test_wedge.py::test_passes_shape_filters_rejects_span_
+too_long`/`..._max_bars_zero_means_unlimited` (whitebox, `_passes_shape_filters`
+doğrudan çağrılıyor — mevcut "kabul edilen" geometri fixture'ı, span=28, `max_bars=10`
+ile reddediliyor), `test_broadening.py::test_max_bars_filters_out_too_long_spans`
+(mevcut `test_both_directions_tracked_when_pattern_found` fixture'ı — 64 hologramın
+`max_bars=1` ile SIFIRA indiği ampirik olarak doğrulandı)/`..._max_bars_zero_means_
+unlimited`. Tüm 4 patterns/*.py dosyası artık BULUNAN HATA 3'e karşı en azından
+opt-in bir savunmaya sahip.
+
+**Sırada:** 1D (doğrulama — `scripts/formasyon_denetim.py`, ≥100 gerçek BIST sembolü,
+önce/sonra tablosu — eski/gevşek filtreler vs yeni/sıkı filtreler, eleme-nedeni
+dökümü, 10 rastgele sinyalin `tlab plot` ile GÖRSEL incelemesi zorunlu) — Faz 1'in
+kabul testi. 1D'nin bir parçası olarak `max_bars` için gerçek bir varsayılan değer
+gerekip gerekmediği de (yukarıdaki not) ölçülüp karara bağlanmalı.
+

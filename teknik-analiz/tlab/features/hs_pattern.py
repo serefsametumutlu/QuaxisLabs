@@ -56,21 +56,34 @@ def find_hs(
     kind: HSKind = "tobo",
     sym_tol: float = 0.5,
     neck_slope_max: float = 0.01,
+    neck_total_slope_max: float = 0.15,
 ) -> list[HSPattern]:
     """pivots'taki (bar_idx sırasına göre) her ardışık 5'li pencereyi dener.
 
     Geçerlilik: (1) kind dizisi tobo için low,high,low,high,low, obo için
     high,low,high,low,high olmalı; (2) head, l1/l3'ten daha EKSTREM olmalı
-    (tobo: daha düşük low; obo: daha yüksek high); (3) boyun eğimi
-    (h2.price-h1.price)/(h2.bar_idx-h1.bar_idx), ortalama fiyata göre
-    normalize edilmiş mutlak değeri neck_slope_max'ı AŞMAMALI (~yatay
-    boyun kuralı); (4) omuz simetrisi: |l1.price - l3.price| <=
-    sym_tol * depth (depth = |head.price - boyun(head.bar_idx)|).
+    (tobo: daha düşük low; obo: daha yüksek high); (3) boyun çizgisinin
+    TOPLAM eğimi (bkz. `neck_total_slope_max` altındaki not) makul bir
+    aralıkta kalmalı (~yatay/hafif eğimli boyun kuralı); (4) omuz
+    simetrisi: |l1.price - l3.price| <= sym_tol * depth (depth =
+    |head.price - boyun(head.bar_idx)|).
+
+    `neck_slope_max` (DEPRECATED, artık KULLANILMIYOR — yalnızca geriye
+    dönük API uyumluluğu için imzada duruyor): eskiden `(h2.price-h1.price)/
+    (h2.bar_idx-h1.bar_idx)` (BAR BAŞINA eğim) `avg_price`'a normalize
+    edilip SABİT bir eşikle (varsayılan 0.01) karşılaştırılıyordu. Bu YANLIŞ
+    normalizeydi: 40 barlık bir formasyonda boyun çizgisinin TOPLAMDA
+    %40 (0.01×40) eğilmesine izin veriyordu — "yaklaşık yatay boyun" kuralı
+    fiilen hiçbir şeyi elemiyordu (bkz. STRATEJI_DENETIM_TAM.md). Faz 1, 1C
+    DÜZELTMESİ: `neck_total_slope_max` — formasyon SÜRESİNE göre
+    normalize edilmiş TOPLAM eğim (`|h2.price-h1.price|/avg_price`,
+    varsayılan 0.15 = boyun formasyon boyunca en fazla %15 eğilebilir).
 
     Aynı pivot dizisinde üst üste binen pencereler (ör. i ve i+2) BAĞIMSIZ
     aday olarak değerlendirilir — eleme/öncelik sırası bu fonksiyonun
     sorumluluğunda değildir (trendlines/channels'daki max_lines/max_channels
     gibi bir seçim kriteri burada YOK, çağıran filtreleyebilir)."""
+    del neck_slope_max  # DEPRECATED, bkz. docstring — yalnızca API uyumluluğu
     if kind == "tobo":
         expected_kinds = ("low", "high", "low", "high", "low")
     elif kind == "obo":
@@ -101,7 +114,10 @@ def find_hs(
         avg_price = (h1.price + h2.price) / 2.0
         if avg_price == 0:
             continue
-        if abs(neck_slope) / abs(avg_price) > neck_slope_max:
+        # Faz 1, 1C — TOPLAM eğim (bkz. docstring'deki `neck_slope_max`
+        # DEPRECATED notu), bar başına DEĞİL.
+        total_rise = abs(h2.price - h1.price) / abs(avg_price)
+        if total_rise > neck_total_slope_max:
             continue
 
         neck_at_head = neck_slope * head.bar_idx + neck_intercept

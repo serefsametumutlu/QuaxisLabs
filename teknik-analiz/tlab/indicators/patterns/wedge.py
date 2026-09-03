@@ -85,6 +85,16 @@ class WedgeParams(BaseParams):
     right: int = 3
     min_pivots: int = 4
     min_bars: int = 15
+    # Faz 1, 1C sonrası (BULUNAN HATA 3, 2026-09-03/04): P1-P2 pivot
+    # mesafesine (`created_idx - min(p1'ler)`) hiç üst sınır YOKTU --
+    # gerçek veride (TUCLK) ~18 ay süren gerçekçi olmayan bir "formasyon"
+    # üretmişti (`max_apex_bars` yalnızca doğum-apex mesafesini sınırlıyor,
+    # BUNU DEĞİL). `double_top_bottom.max_bars_between`'in AYNI mekanizması
+    # -- 0=sınırsız (varsayılan davranış DEĞİŞMEDİ, 1D'nin önce/sonra
+    # ölçümü gerçek bir literatür-temelli varsayılana karar verecek).
+    # KASITLI OLARAK `_BAR_FIELDS` DIŞINDA (sentinel 0, ölçeklemeyle 1'e
+    # dönüşmesin).
+    max_bars: int = 0
     max_apex_bars: int = 120
     slope_ratio_range: tuple[float, float] = (0.3, 1.0)
     tol_atr: float = 0.3
@@ -326,7 +336,10 @@ def _passes_shape_filters(conv, upper: Trendline, lower: Trendline, p: WedgePara
     distinct_pivots = {upper.p1.bar_idx, upper.p2.bar_idx, lower.p1.bar_idx, lower.p2.bar_idx}
     if len(distinct_pivots) < p.min_pivots:
         return False
-    if conv.created_idx - min(upper.p1.bar_idx, lower.p1.bar_idx) < p.min_bars:
+    span = conv.created_idx - min(upper.p1.bar_idx, lower.p1.bar_idx)
+    if span < p.min_bars:
+        return False
+    if p.max_bars > 0 and span > p.max_bars:
         return False
     if conv.apex_idx is None:
         return False

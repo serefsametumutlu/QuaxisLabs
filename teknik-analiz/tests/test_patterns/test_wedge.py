@@ -98,6 +98,34 @@ def test_passes_shape_filters_rejects_out_of_band_slope_ratio() -> None:
     assert _passes_shape_filters(conv, upper, lower, params) is False
 
 
+def test_passes_shape_filters_rejects_span_too_long() -> None:
+    """Faz 1, 1C sonrası (BULUNAN HATA 3): P1-P2 mesafesine (`span`) üst
+    sınır -- AYNI geometri `test_passes_shape_filters_accepts_valid_
+    falling_wedge_geometry`'de KABUL ediliyordu (span=28); `max_bars=10`
+    ile REDDEDİLMELİ."""
+    up1, up2 = _pivot(0, 130.0, "high"), _pivot(20, 110.0, "high")
+    lo1, lo2 = _pivot(5, 100.0, "low"), _pivot(25, 95.0, "low")
+    upper = _line(-1.0, 130.0, "resistance", up1, up2)
+    lower = _line(-0.25, 101.25, "support", lo1, lo2)
+    conv = converging_lines(upper, lower)
+    params = WedgeParams(
+        min_pivots=4, min_bars=5, max_apex_bars=200, slope_ratio_range=(0.1, 1.0), max_bars=10,
+    )
+    assert _passes_shape_filters(conv, upper, lower, params) is False
+
+
+def test_passes_shape_filters_max_bars_zero_means_unlimited() -> None:
+    up1, up2 = _pivot(0, 130.0, "high"), _pivot(20, 110.0, "high")
+    lo1, lo2 = _pivot(5, 100.0, "low"), _pivot(25, 95.0, "low")
+    upper = _line(-1.0, 130.0, "resistance", up1, up2)
+    lower = _line(-0.25, 101.25, "support", lo1, lo2)
+    conv = converging_lines(upper, lower)
+    params = WedgeParams(
+        min_pivots=4, min_bars=5, max_apex_bars=200, slope_ratio_range=(0.1, 1.0), max_bars=0,
+    )
+    assert _passes_shape_filters(conv, upper, lower, params) is True
+
+
 # --- _direction_candidates -------------------------------------------------
 
 

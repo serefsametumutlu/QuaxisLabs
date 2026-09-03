@@ -29,7 +29,7 @@ test_head_shoulders.py` bunu hedefli bir senaryoyla doğrular."""
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import ClassVar, Literal
 
 import pandas as pd
 
@@ -53,6 +53,7 @@ from tlab.core.types import (
     Timeframe,
 )
 from tlab.features.hs_pattern import HSKind, HSPattern, find_hs, neckline_value_at
+from tlab.features.pattern_context import pattern_depth_ok, prior_trend
 from tlab.features.swings import ZigzagMethod, significant_pivots
 from tlab.features.volatility import atr
 
@@ -67,19 +68,34 @@ class HeadShouldersParams(BaseParams):
     right: int = 3
     kind: HSFilter = "both"
     sym_tol: float = 0.5
+    # Faz 1, 1C — DEPRECATED, artık KULLANILMIYOR (bkz. tlab/features/
+    # hs_pattern.py::find_hs docstring'i). Yerine neck_total_slope_max geçti.
     neck_slope_max: float = 0.01
+    neck_total_slope_max: float = 0.15
     shoulder_time_ratio: tuple[float, float] = (0.5, 2.0)
     confirm_bars: int = 1
     vol_k: float = 1.2
     max_bars_to_confirm_mult: float = 3.0
     retest_tol_atr: float = 0.3
     atr_period: int = 14
+    # Faz 1, 1C — YENİ (Bulkowski): TOBO düşüşten, OBO yükselişten sonra
+    # gelmeli (bkz. tlab/features/pattern_context.py::prior_trend).
+    prior_trend_lookback: int = 20
+    prior_trend_min_tstat: float = 1.5
+    # Faz 1, 1C — YENİ (STRATEJI_DENETIM_TAM.md — ZOREN 4H örneğinde
+    # formasyon derinliği fiyatın ~%3'ü, 4H gürültüsünden ayırt edilemezdi).
+    # Eşik çift dipten yüksek tutuldu çünkü OBO/TOBO daha büyük bir yapıdır.
+    min_depth_pct: float = 0.04
+    min_depth_atr: float = 2.5
     # Faz 0.5, A1 — ortak pivot girişi (bkz. tlab/features/swings.py::
     # significant_pivots). Varsayılan zigzag_method="atr" (sistem geneli
     # karar, scripts/sistemik_denetim.py ölçümüyle doğrulandı).
     zigzag_method: ZigzagMethod = "atr"
     atr_mult: float = 3.0
     min_swing_atr: float | None = None
+    # Faz 0.5, A2 — prior_trend_lookback takvimsel bir süre; 1D taban kabul
+    # edilip diğer zaman dilimlerine ölçeklenir.
+    _BAR_FIELDS: ClassVar[frozenset[str]] = frozenset({"prior_trend_lookback"})
     # Faz 0.5, A4 — bkz. double_top_bottom.py'deki AYNI notu.
     require_volume_confirm: bool = False
 
@@ -116,8 +132,9 @@ class HeadShouldersIndicator(BaseIndicator):
         last_state: dict[str, dict] = {}
 
         for kind in kinds:
+            direction: Direction = "long" if kind == "tobo" else "short"
             candidates = find_hs(
-                zigzag, kind=kind, sym_tol=p.sym_tol, neck_slope_max=p.neck_slope_max,
+                zigzag, kind=kind, sym_tol=p.sym_tol, neck_total_slope_max=p.neck_total_slope_max,
             )
             for hs in candidates:
                 # NOT: `hs.created_idx` (=hs.l3.confirmed_idx) BİLEREK DEĞİL,
@@ -144,8 +161,24 @@ class HeadShouldersIndicator(BaseIndicator):
                 if not (p.shoulder_time_ratio[0] <= ratio <= p.shoulder_time_ratio[1]):
                     continue
 
+                # Faz 1, 1C — ön trend şartı (Bulkowski): TOBO düşüşten,
+                # OBO yükselişten sonra gelmeli.
+                trend_ok, _ = prior_trend(
+                    df, hs.l1.bar_idx, p.prior_trend_lookback, direction, p.prior_trend_min_tstat,
+                )
+                if not trend_ok:
+                    continue
+
+                # Faz 1, 1C — minimum derinlik (ZOREN 4H örneği ~%3,
+                # gürültüden ayırt edilemezdi).
+                neckline_avg_price = (hs.h1.price + hs.h2.price) / 2.0
+                if not pattern_depth_ok(
+                    hs.depth, neckline_avg_price, atr_series.iloc[born_idx],
+                    p.min_depth_pct, p.min_depth_atr,
+                ):
+                    continue
+
                 pattern_id = f"{kind}_{hs.l1.bar_idx}_{hs.head.bar_idx}_{hs.l3.bar_idx}"
-                direction: Direction = "long" if kind == "tobo" else "short"
                 shoulder_extreme = hs.l3.price
 
                 def _invalidation(
@@ -154,7 +187,18 @@ class HeadShouldersIndicator(BaseIndicator):
                 ) -> bool:
                     return close[t] < _extreme if _dir == "long" else close[t] > _extreme
 
-                def _break_line(t: int, _hs: HSPattern = hs) -> float:
+                # Faz 1, 1C — YENİ (Bulkowski): boyun çizgisi HER YÖNE
+                # eğilebilir; sinyal boyun aşağı/yatay eğimliyse boyun
+                # çizgisinin kapanışla aşılmasıdır, AMA boyun YUKARI
+                # eğimliyse (neckline_slope > 0) sinyal SAĞ KOLTUKALTI
+                # TEPESİNİN (h2) kapanışla aşılmasıdır — eski kod yukarı
+                # eğimli boyunlu formasyonları (neck_total_slope_max
+                # içinde kalsalar bile) hiç ele almıyordu, bilgi kaybı.
+                break_rule = "right_armpit" if hs.neckline_slope > 0 else "neckline"
+
+                def _break_line(t: int, _hs: HSPattern = hs, _rule: str = break_rule) -> float:
+                    if _rule == "right_armpit":
+                        return _hs.h2.price
                     return neckline_value_at(_hs, t)
 
                 max_bars_to_confirm = int(p.max_bars_to_confirm_mult * (left_span + right_span))
@@ -168,7 +212,7 @@ class HeadShouldersIndicator(BaseIndicator):
                     confirm_bars=p.confirm_bars, max_bars_to_confirm=max_bars_to_confirm,
                     retest_tol_atr=p.retest_tol_atr, atr_series=atr_series, score=0.65,
                     invalidation_check=_invalidation,
-                    extra_payload={"depth": hs.depth},
+                    extra_payload={"depth": hs.depth, "break_rule": break_rule},
                     max_bars_to_target=max_bars_to_target,
                 )
                 pattern_signals = track_breakout_pattern(df, born_idx, cfg)
@@ -182,9 +226,23 @@ class HeadShouldersIndicator(BaseIndicator):
                     ) if hs.l3.bar_idx > hs.h2.bar_idx else float(volume[hs.h2.bar_idx])
                     breakout_idx = df.index.get_loc(confirm_sig.bar_time)
                     breakout_vol = volume[breakout_idx]
-                    volume_profile_ok = bool(
+                    breakout_volume_ok = bool(
                         right_shoulder_vol > 0 and breakout_vol >= p.vol_k * right_shoulder_vol
                     )
+                    # Faz 1, 1C — hacim kuralını TAMAMLA (Bulkowski): hacim
+                    # SOL OMUZ ya da BAŞ'ta en yüksek, SAĞ OMUZ'da AZALMIŞ
+                    # olmalı — eskiden yalnızca "kırılım hacmi sağ omuzdan
+                    # büyük mü" kontrol ediliyordu, oluşum SIRASINDAKİ
+                    # azalan hacim DESENİ hiç bakılmıyordu.
+                    left_shoulder_vol = float(volume[hs.l1.bar_idx : hs.h1.bar_idx + 1].mean())
+                    head_vol = float(volume[hs.h1.bar_idx : hs.h2.bar_idx + 1].mean())
+                    volume_declining_pattern = bool(
+                        right_shoulder_vol > 0
+                        and max(left_shoulder_vol, head_vol) > right_shoulder_vol
+                    )
+                    volume_profile_ok = breakout_volume_ok and volume_declining_pattern
+                    confirm_sig.payload["breakout_volume_ok"] = breakout_volume_ok
+                    confirm_sig.payload["volume_declining_pattern"] = volume_declining_pattern
                     confirm_sig.payload["volume_profile_ok"] = volume_profile_ok
                     if p.require_volume_confirm and not volume_profile_ok:
                         # Faz 0.5, A4: aday GEÇERSİZLEŞMİYOR, yalnızca

@@ -189,19 +189,49 @@ class HeadShouldersIndicator(BaseIndicator):
                         start=hs.l3.bar_time, end=level_end_from_signals(pattern_signals),
                     )
                 )
-                # Hologram dolgusu: L1->L3 arası GERÇEK kapanış fiyatı yolunu
-                # izler (yalnızca 5 zigzag köşesi değil). 2026-09-03 GERÇEK
-                # bulgu: yalnızca 5 köşeyi (L1-H1-Baş-H2-L3) birleştirip
-                # L3'ten L1'e DÜZ bir çizgiyle kapatmak -- L1/L3 omuz
-                # tepeleri H1/H2 boyun çukurlarının ÜSTÜNDE ama Baş'ın
-                # ALTINDA olduğu için -- kendi kendini kesen ("bowtie")
-                # bir çokgen üretiyordu (kullanıcı: "hologramı yarım
-                # yaptığın için ters/karışık görünüyor" — kök neden buydu).
-                # `double_top_bottom.py`'deki AYNI düzeltme (2026-09-03).
-                path_idxs = range(hs.l1.bar_idx, hs.l3.bar_idx + 1)
+                # Hologram dolgusu: 2026-09-04, kullanıcının elle TradingView'de
+                # çizip paylaştığı referansa göre ÜÇ AYRI, apeksi omuz/baş
+                # noktasına bakan ters üçgen -- tek bağlı bir zigzag/candle-
+                # izleyen çokgen DEĞİL ("ters üçgen içi dolu Sol Omuz, ters
+                # üçgen içi dolu Baş, ters üçgen içi dolu Sağ Omuz" -- kullanıcı
+                # net tarif etti). Komşu üçgenler H1/H2 boyun noktalarını
+                # PAYLAŞIR (üçgen1 sağ tabanı = H1 = üçgen2 sol tabanı, vb.) --
+                # görsel olarak kesintisiz bir W/M okunur ama her üçgen kendi
+                # başına basit/dışbükey olduğu için kendi kendini kesme riski
+                # YAPISAL olarak yok (önceki "candle izle" çözümünün jaggy/
+                # gürültülü görünümü de böylece ortadan kalkıyor). Dış
+                # kenarlar (L1'in solu, L3'ün sağı) H1/H2 ile AYNI fiyata
+                # sabitlenip zaman ekseninde aynalanır (gerçek bir pivot
+                # olmadığı için) -- düz tabanlı, temiz bir üçgen sınırı verir.
+                outer_left_idx = max(0, hs.l1.bar_idx - (hs.h1.bar_idx - hs.l1.bar_idx))
+                outer_right_idx = min(n - 1, hs.l3.bar_idx + (hs.l3.bar_idx - hs.h2.bar_idx))
                 polygons.append(
                     Polygon(
-                        points=tuple((df.index[i], float(close[i])) for i in path_idxs),
+                        points=(
+                            (df.index[outer_left_idx], hs.h1.price),
+                            (hs.l1.bar_time, hs.l1.price),
+                            (hs.h1.bar_time, hs.h1.price),
+                        ),
+                        label=f"{pattern_id}_hologram", style="pattern_hologram",
+                    )
+                )
+                polygons.append(
+                    Polygon(
+                        points=(
+                            (hs.h1.bar_time, hs.h1.price),
+                            (hs.head.bar_time, hs.head.price),
+                            (hs.h2.bar_time, hs.h2.price),
+                        ),
+                        label=f"{pattern_id}_hologram", style="pattern_hologram",
+                    )
+                )
+                polygons.append(
+                    Polygon(
+                        points=(
+                            (hs.h2.bar_time, hs.h2.price),
+                            (hs.l3.bar_time, hs.l3.price),
+                            (df.index[outer_right_idx], hs.h2.price),
+                        ),
                         label=f"{pattern_id}_hologram", style="pattern_hologram",
                     )
                 )

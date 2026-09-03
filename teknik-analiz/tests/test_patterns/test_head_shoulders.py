@@ -2,7 +2,7 @@
 
 Elle inşa edilmiş bir TOBO senaryosu (`_tobo_ohlcv`; pivotlar GERÇEK
 `find_pivots`/`alternate_pivots`/`find_hs` çalıştırılarak doğrulanmıştır):
-l1(idx2,97) -> h1(idx7,117) -> head(idx12,88) -> h2(idx16,116) ->
+l1(idx2,97) -> h1(idx7,117) -> head(idx12,88) -> h2(idx16,117) ->
 l3(idx20,95, `finalized_idx=23`'te PENDING doğar — idx21'deki küçük tepe
 l3'ü finalize eder) -> idx24'te boyun kırılımı (kapanış 118>~115) ->
 idx29'da hedefe ulaşma (kapanış 148>=146).
@@ -42,7 +42,7 @@ _ROWS: list[tuple[float, float, float, float]] = [
     (90, 93, 94, 89),
     (93, 100, 101, 92),
     (100, 110, 111, 99),
-    (110, 116, 117, 108),    # h2 high=116 (idx16)
+    (110, 116, 117, 108),    # h2 high=117 (idx16)
     (116, 112, 117, 110),
     (112, 105, 113, 104),
     (105, 99, 106, 97),
@@ -117,21 +117,35 @@ def test_kind_both_also_scans_obo_independently() -> None:
     assert any(s.payload["pattern_name"] == "tobo" for s in result.signals)
 
 
-def test_hologram_polygon_traces_close_path_l1_to_l3() -> None:
-    """2026-09-03: hologram artık yalnızca 5 zigzag köşesini (L1-H1-Baş-H2-L3)
-    DÜZ ÇİZGİLERLE birleştirip L3'ten L1'e kapatan bir çokgen DEĞİL — bu,
-    omuz tepeleri (L1/L3) boyun çukurlarının (H1/H2) ÜSTÜNDE ama Baş'ın
-    ALTINDA olduğu için kendi kendini kesen ("bowtie") bir şekil üretiyordu
-    (kullanıcı: hologram "yarım"/ters görünüyor). Artık L1->L3 arası GERÇEK
-    kapanış fiyatı yolunu izliyor (`double_top_bottom.py`'deki aynı düzeltme)."""
+def test_hologram_is_three_separate_inverted_triangles() -> None:
+    """2026-09-04: kullanıcı elle TradingView'de çizip paylaştığı referansa
+    göre hologramın ÜÇ AYRI, apeksi omuz/baş noktasına bakan ters üçgen
+    olmasını istedi ("ters üçgen içi dolu Sol Omuz, ters üçgen içi dolu
+    Baş, ters üçgen içi dolu Sağ Omuz") — tek bağlı bir candle-izleyen
+    çokgen DEĞİL (önceki tur, 2026-09-03 — jaggy/gürültülü duruyordu).
+    Komşu üçgenler H1/H2 boyun noktalarını PAYLAŞIR."""
     df = _tobo_ohlcv()
     result = HeadShouldersIndicator(_params()).compute(df)
-    hologram = next(p for p in result.polygons if p.style == "pattern_hologram")
-    prices = [price for _t, price in hologram.points]
-    close = df["close"].to_numpy()
-    assert prices == pytest.approx(list(close[2:21]))
-    assert hologram.points[0][0] == df.index[2]  # l1
-    assert hologram.points[-1][0] == df.index[20]  # l3
+    holograms = [p for p in result.polygons if p.style == "pattern_hologram"]
+    assert len(holograms) == 3
+    for h in holograms:
+        assert len(h.points) == 3  # her biri basit bir üçgen
+
+    tri1, tri2, tri3 = holograms
+    # Üçgen 1: dış-sol (H1 fiyatında, aynalanmış zaman) -> L1 (apeks) -> H1.
+    assert tri1.points[1][0] == df.index[2] and tri1.points[1][1] == pytest.approx(97)  # l1
+    assert tri1.points[2][0] == df.index[7] and tri1.points[2][1] == pytest.approx(117)  # h1
+    assert tri1.points[0][1] == pytest.approx(117)  # dış kenar h1 fiyatında düz
+
+    # Üçgen 2: H1 -> Baş (apeks) -> H2 -- paylaşılan boyun tabanı.
+    assert tri2.points[0] == tri1.points[2]  # H1 paylaşılıyor
+    assert tri2.points[1][0] == df.index[12] and tri2.points[1][1] == pytest.approx(88)  # baş
+    assert tri2.points[2][0] == df.index[16] and tri2.points[2][1] == pytest.approx(117)  # h2
+
+    # Üçgen 3: H2 -> L3 (apeks) -> dış-sağ (H2 fiyatında, aynalanmış zaman).
+    assert tri3.points[0] == tri2.points[2]  # H2 paylaşılıyor
+    assert tri3.points[1][0] == df.index[20] and tri3.points[1][1] == pytest.approx(95)  # l3
+    assert tri3.points[2][1] == pytest.approx(117)  # dış kenar h2 fiyatında düz
 
 
 def test_registers_in_registry() -> None:

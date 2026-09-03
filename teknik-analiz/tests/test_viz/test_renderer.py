@@ -133,6 +133,38 @@ def test_line_extension_is_capped_not_unbounded() -> None:
     assert max(ext_trace.y) < 300
 
 
+def test_pattern_pole_line_gets_a_label_without_extend_right() -> None:
+    """Regresyon (2026-09-04, flag_pennant "Direk" hiç görünmüyordu --
+    kullanıcı: "sistemde bu görselle alakası olmayan şekiller oluşuyor"):
+    `_draw_lines` eskiden yalnızca `extend_right=True` olan çizgileri
+    etiketliyordu -- direk çizgisi (formasyonun KENDİSİ, sağa uzamayan
+    sabit bir bacak) `if ext is None: continue` ile hiç etikete
+    uğramadan atlanıyordu. Artık `pattern_pole` stili özel olarak,
+    uzatma mekanizmasından bağımsız, kendi orta noktasına etiketleniyor."""
+    df = make_trend(n=60, slope=0.0, noise=0.1, start_price=100.0)
+    t0, t1 = df.index[5], df.index[10]
+    result = IndicatorResult(
+        indicator="patterns.flag_pennant", version="0.1.0", params_hash="h",
+        symbol="TEST", timeframe=Timeframe.D1,
+        lines=[
+            Line(
+                points=((t0, 100.0), (t1, 110.0)), label="flagpennant_5_10_pole",
+                style="pattern_pole",
+            ),
+        ],
+        markers=[
+            Marker(
+                t=t1, price=110.0, text="BAYRAK [ONAY]",
+                kind="pattern_confirmed:flagpennant_5_10",
+            ),
+        ],
+        last_state={"flagpennant_5_10": {"state": "confirmed"}},
+    )
+    fig = render(result, df, theme="light")
+    pole_anns = [a for a in fig.layout.annotations if a.text == "Direk"]
+    assert len(pole_anns) == 1
+
+
 def test_panel_titles_land_on_correct_axis_when_vp_panel_present() -> None:
     """Regresyon (2026-08-30, TCELL'de bulunan GERÇEK bir hata): Plotly eksen
     numaralandırması SATIR-ÖNCELİKLİ ve `specs`teki HER hücreye (None hariç)

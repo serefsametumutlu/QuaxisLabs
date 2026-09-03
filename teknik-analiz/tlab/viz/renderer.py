@@ -1471,14 +1471,34 @@ def _draw_lines(
         color = line_color(theme, ln.style)
         style_dash = _DASH_FOR_STYLE.get(ln.style, "solid")
         (t0, p0), (t1, p1) = ln.points[0], ln.points[-1]
+        # 2026-09-04 GERÇEK bulgu (flag_pennant "Direk" hiç görünmüyordu --
+        # kullanıcı: "sistemde bu görselle alakası olmayan şekiller
+        # oluşuyor"): direk çizgisi `extend_right=False` olduğu için
+        # aşağıdaki `if ext is None: continue` onu HİÇ etikete uğratmadan
+        # atlıyordu -- `_line_extensions` yalnızca `extend_right=True` olan
+        # çizgileri işliyor. Direk zaten sağa uzamayan, sabit bir bacak
+        # (formasyonun KENDİSİ, bir sınır/projeksiyon değil) -- bu yüzden
+        # uzatma mekanizmasına girmeden, KENDİ orta noktasına, daha kalın
+        # bir çizgiyle etiketleniyor (mockup'taki "DİREK" pill'inin sade
+        # karşılığı).
+        is_pole = ln.style == "pattern_pole"
         fig.add_trace(
             go.Scatter(
                 x=[_x(t0), _x(t1)], y=[p0, p1], mode="lines",
-                line=dict(color=color, width=1.6, dash=style_dash),
+                line=dict(color=color, width=2.4 if is_pole else 1.6, dash=style_dash),
                 name=ln.label, showlegend=False, hoverinfo="skip",
             ),
             row=row, col=col,
         )
+        if is_pole:
+            mid_t = t0 + (pd.Timestamp(t1) - pd.Timestamp(t0)) / 2
+            fig.add_annotation(
+                x=_x(mid_t), y=(p0 + p1) / 2, text=_display_text(ln.label, ln.style),
+                showarrow=False, font=dict(size=10, color=color, family=theme.font),
+                bgcolor=with_alpha(theme.bg, 0.75), xanchor="right", yanchor="bottom",
+                yshift=6, row=row, col=col,
+            )
+            continue
         ext = extensions.get(ln)
         if ext is None:
             continue

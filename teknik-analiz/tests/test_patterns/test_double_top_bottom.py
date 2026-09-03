@@ -90,6 +90,18 @@ def test_target_is_neckline_plus_depth_and_reached() -> None:
     assert completed.bar_time == df.index[23]
 
 
+def test_entry_marker_emitted_at_confirmation() -> None:
+    """2026-09-04: kullanıcı "nerede AL sinyali geldiğini de yazman
+    gerekiyor" dedi -- head_shoulders.py'deki AYNI marker altyapısı,
+    tüm patterns/*.py dosyalarına portlandı."""
+    df = _double_bottom_ohlcv()
+    result = DoubleTopBottomIndicator(_params()).compute(df)
+    entry = next(m for m in result.markers if m.kind.startswith("pattern_entry_long:"))
+    assert entry.text == "AL"
+    completed = next(s for s in result.signals if s.state == "completed")
+    assert entry.t == completed.bar_time
+
+
 def test_no_double_top_false_positive_for_asymmetric_neckline_peaks() -> None:
     """idx7(117)/idx14(105) tepe çifti eq_tol'u (varsayılan 0.02) çok aşıyor
     (~%11) -> hiç double_top adayı üretilmemeli."""

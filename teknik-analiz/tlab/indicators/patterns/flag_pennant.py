@@ -239,13 +239,27 @@ class FlagPennantIndicator(BaseIndicator):
                 )
             )
             last_sig = pattern_signals[-1]
+            entry_price = close[df.index.get_loc(last_sig.bar_time)]
             markers.append(
                 Marker(
-                    t=last_sig.bar_time, price=close[df.index.get_loc(last_sig.bar_time)],
+                    t=last_sig.bar_time, price=entry_price,
                     text=marker_text(_LABEL_TR[shape], last_sig.payload["event"], shape),
                     kind=f"pattern_{last_sig.state}:{pattern_id}",
                 )
             )
+            # 2026-09-04: kullanıcı "nerede AL sinyali geldiğini de yazman
+            # gerekiyor" dedi -- head_shoulders.py'deki AYNI marker
+            # altyapısı (renderer._draw_markers'da dolgulu üçgen + kalın
+            # AL/SAT metni). flag_pennant'ta pattern_id zaten yönsüz TEK
+            # (bir direk yalnızca bir yöne kırılabilir).
+            if last_sig.state in ("confirmed", "completed"):
+                markers.append(
+                    Marker(
+                        t=last_sig.bar_time, price=entry_price,
+                        text="AL" if direction == "long" else "SAT",
+                        kind=f"pattern_entry_{direction}:{pattern_id}",
+                    )
+                )
             last_state[pattern_id] = {
                 "shape": shape, "direction": direction, "state": last_sig.state,
                 "event": last_sig.payload["event"], "target": target,

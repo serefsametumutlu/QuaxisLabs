@@ -1881,10 +1881,15 @@ def _draw_markers(
             # ayrı ve göze çarpan bir işaret olarak eklenir.
             is_long = m.kind.startswith("pattern_entry_long:")
             color = theme.up if is_long else theme.down
-            # AL: fiyatın ALTINA, yukarı bakan bir ok (destekliyormuş gibi).
-            # SAT: fiyatın ÜSTÜNE, aşağı bakan bir ok -- klasik AL/SAT ok
-            # yönü kuralı.
-            tri_shift, text_shift = (-16, -32) if is_long else (16, 32)
+            # 2026-09-04 GERÇEK bulgu (AKBNK flag_pennant'ta bulundu): SAT
+            # işareti eskiden fiyatın ÜSTÜNE (yukarı) yerleşiyordu -- ama
+            # `pattern_confirmed:`/`pattern_completed:` onay rozeti HER
+            # ZAMAN yukarı-sağa sabit (`ax=30, ay=-30`) yerleşiyor, yön
+            # farketmeksizin -- ikisi ÇAKIŞIYORDU ("SAT" yazısı "BAYRAK
+            # [HEDEFE ULAŞTI]" rozetinin İÇİNE gömülmüştü). Artık AL/SAT
+            # HER ZAMAN aşağı yerleşiyor (rozetin ZATEN işgal ettiği yukarı
+            # bölgeden kaçınmak için), yalnızca ok yönü/renk/metin değişir.
+            tri_shift, text_shift = -16, -32
             fig.add_annotation(
                 x=_x(m.t), y=m.price, text="▲" if is_long else "▼",
                 showarrow=False, font=dict(size=15, color=color),

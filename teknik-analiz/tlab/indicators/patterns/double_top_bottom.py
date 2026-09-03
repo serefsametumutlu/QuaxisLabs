@@ -204,6 +204,18 @@ class DoubleTopBottomIndicator(BaseIndicator):
                         kind=f"pattern_{last_sig.state}:{pattern_id}",
                     )
                 )
+                # 2026-09-04: kullanıcı "nerede AL sinyali geldiğini de
+                # yazman gerekiyor" dedi -- head_shoulders.py'deki AYNI
+                # marker altfyapısı (renderer._draw_markers'da dolgulu
+                # üçgen + kalın AL/SAT metni).
+                if last_sig.state in ("confirmed", "completed"):
+                    markers.append(
+                        Marker(
+                            t=last_sig.bar_time, price=marker_price,
+                            text="AL" if direction == "long" else "SAT",
+                            kind=f"pattern_entry_{direction}:{pattern_id}",
+                        )
+                    )
                 last_state[pattern_id] = {
                     "pattern": pattern_name, "direction": direction, "state": last_sig.state,
                     "event": last_sig.payload["event"], "target": target,

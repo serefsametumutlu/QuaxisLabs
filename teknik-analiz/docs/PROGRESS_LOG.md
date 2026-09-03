@@ -1969,3 +1969,20 @@ Adım 3'e (Faz 1 — klasik formasyon motoru v2, literatür düzeltmeleri:
 `min_bars_between=22`, ön-trend şartı, hologram M/W silueti, OBO/TOBO neck
 slope düzeltmesi) geçilecek.
 
+**2026-09-04 EK — kullanıcı "gerçekten düzeldi mi emin misin" diye sorguladı,
+haklıydı (ilk rapor yalnızca 30-sembollük bir alt-örneklem + 2 grafikle
+"muhtemelen düzeldi" diyordu):** wedge/triangle/broadening için TAM 120
+sembolde yeniden ölçüm yapıldı. Sonuç: 6 (gösterge×tf) kombinasyonundan 5'i
+Faz 0.5 ÖNCESİKİ orijinal sayıyla BİREBİR eşleşti (wedge 1D: 30=30,
+triangle 4H: 9=9, triangle 1D: 8=8, broadening 1D: 128=128; broadening
+4H'te küçük fark 139→193, A2'nin YENİ zaman ölçeklemesinden — beklenen).
+**Sayısal düzelme artık tam ölçekte doğrulandı.** Ek görsel inceleme (3 yeni
+grafik: TUCLK×2, SKBNK) 2 YENİ kapsam-dışı bulgu daha ortaya çıkardı —
+**BULUNAN HATA 3:** formasyon süresine (P1-P2 pivot mesafesi) hiç üst sınır
+yok, TUCLK'de ~18 aylık gerçekçi olmayan bir "formasyon" üretildi
+(`max_apex_bars` yalnızca doğum-apex mesafesini sınırlıyor) — Faz 1'in işi.
+SKBNK, render'da hiç görünmeyen sinyal sorununun (BULUNAN HATA 1) ÜÇÜNCÜ
+tekrarı, artık "yaygın" olarak işaretlendi. `docs/spec/SISTEMIK_DENETIM_
+v1.md` bu doğrulanmış sayılar ve yeni bulgularla güncellendi (kod
+DEĞİŞMEDİ, yalnızca rapor genişletildi + 2 yeni "kapsam dışı" not).
+

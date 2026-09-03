@@ -21,6 +21,20 @@ düzeltildi** — wedge/triangle/broadening/price_structure(trendline) artık
 HER ZAMAN ham (fixed 3/3) pivot kullanıyor, `zigzag_method` sistem geneli
 "atr" kararına bu 4 yer için istisna.
 
+**Düzeltme AYRICA tam 120-sembollük örneklemde YENİDEN ölçülüp doğrulandı**
+(ilk turda yalnızca 30 sembollük bir alt-örneklem + 2 grafikle "muhtemelen
+düzeldi" denmişti — kullanıcı bunu sorguladı, haklıydı, tam ölçekte tekrar
+koşuldu). Sonuç: **6 (gösterge×tf) kombinasyonundan 5'i BİREBİR Faz 0.5
+ÖNCESİKİ orijinal sayıya döndü** (wedge 1D: 30=30, triangle 4H: 9=9,
+triangle 1D: 8=8, broadening 1D: 128=128), broadening 4H'te küçük bir fark
+var (139→193, A2'nin yeni zaman dilimi ölçeklemesinden — Faz 0.5 öncesinde
+hiç yoktu, beklenen bir sapma). Bu, düzeltmenin tesadüf değil gerçek
+olduğunun güçlü bir kanıtı. **Ama gözle inceleme AYRICA gösterdi ki sayı
+düzelmesi TEK BAŞINA yeterli değil** — kalan sinyallerin bir kısmı hâlâ
+KALİTE sorunu taşıyor (aşırı uzun süreli "formasyonlar" gibi, aşağıdaki
+"Düzeltme sonrası 2. tur" bölümüne bakın) — bu, Faz 0.5'in kapsamı DIŞINDA,
+Faz 1'in (literatür temelli süre/derinlik/ön-trend kısıtları) işi.
+
 Diğer üç bulgu (A2/A3/A4) doğrudan doğrulandı, aşağıda kısaca gösteriliyor.
 
 ## Yöntem
@@ -37,32 +51,35 @@ Diğer üç bulgu (A2/A3/A4) doğrudan doğrulandı, aşağıda kısaca gösteri
 
 ## A1 — Önce/sonra sinyal sayısı
 
-| Gösterge | TF | Eski | Yeni | Değişim |
-|---|---|---:|---:|---:|
-| patterns.head_shoulders | 4H | 1207 | 386 | **%68 azaldı** |
-| patterns.head_shoulders | 1D | 1034 | 280 | **%73 azaldı** |
-| patterns.double_top_bottom | 4H | 3306 | 284 | **%91 azaldı** |
-| patterns.double_top_bottom | 1D | 1710 | 393 | **%77 azaldı** |
-| structure.price_structure (zone/range) | 4H | 5627 | 1146 | **%80 azaldı** |
-| structure.price_structure (zone/range) | 1D | 5183 | 1265 | **%76 azaldı** |
-| structure.golden_zone | 4H | 1053 | 2250 | %114 arttı |
-| structure.golden_zone | 1D | 960 | 1773 | %85 arttı |
-| patterns.wedge† | 4H | 7 | 408 → **düzeltme sonrası ~20‡** | (düzeltilmeden önce %-5729) |
-| patterns.wedge† | 1D | 30 | 158 → **düzeltme sonrası ~kalıcı azda** | |
-| patterns.triangle† | 4H | 9 | 187 → **düzeltme sonrası ~24‡** | |
-| patterns.triangle† | 1D | 8 | 265 → **düzeltme sonrası azda** | |
-| patterns.broadening† | 4H | 139 | 1885 → **düzeltme sonrası ~130‡** | |
-| patterns.broadening† | 1D | 128 | 1751 → **düzeltme sonrası ~128‡** | |
+| Gösterge | TF | Eski (Faz 0.5 öncesi) | Bozuk ("atr", geçici) | **Düzeltme sonrası (nihai)** | Değişim (eski→nihai) |
+|---|---|---:|---:|---:|---:|
+| patterns.head_shoulders | 4H | 1207 | — | 386 | **%68 azaldı** |
+| patterns.head_shoulders | 1D | 1034 | — | 280 | **%73 azaldı** |
+| patterns.double_top_bottom | 4H | 3306 | — | 284 | **%91 azaldı** |
+| patterns.double_top_bottom | 1D | 1710 | — | 393 | **%77 azaldı** |
+| structure.price_structure (zone/range) | 4H | 5627 | — | 1146 | **%80 azaldı** |
+| structure.price_structure (zone/range) | 1D | 5183 | — | 1265 | **%76 azaldı** |
+| structure.golden_zone | 4H | 1053 | — | 2250 | %114 arttı (beklenen/iyi) |
+| structure.golden_zone | 1D | 960 | — | 1773 | %85 arttı (beklenen/iyi) |
+| patterns.wedge† | 4H | 7 | 408 | **9** | neredeyse aynı |
+| patterns.wedge† | 1D | 30 | 158 | **30** | **BİREBİR aynı** |
+| patterns.triangle† | 4H | 9 | 187 | **9** | **BİREBİR aynı** |
+| patterns.triangle† | 1D | 8 | 265 | **8** | **BİREBİR aynı** |
+| patterns.broadening† | 4H | 139 | 1885 | **193** | A2 ölçeklemesinden fark (bkz. not) |
+| patterns.broadening† | 1D | 128 | 1751 | **128** | **BİREBİR aynı** |
 
 † Bu üç gösterge (+ price_structure'ın trendline tarafı, ayrı ölçülmedi ama
-AYNI mekanizmayı paylaştığı için aynı düzeltme uygulandı) için "yeni"
-sütunundaki ilk ölçüm (`zigzag_method="atr"` varsayılanıyla) **gerçek bir
-regresyondu** — aşağıdaki "Kritik bulgu" bölümüne bakın. Düzeltme sonrası
-(`zigzag_method="fixed"` bu 4 yerde geri kalıcı varsayılan) davranış "eski"
-sütununa YAKIN/ondan biraz farklı kalıyor (aynı ham pivot kaynağı, sadece A2
-zaman dilimi ölçeklemesi ek olarak devrede — bu yüzden birebir aynı değil).
-‡ 30 sembollük bir doğrulama alt-örneklemiyle ölçüldü (tam 120 sembol tekrar
-koşulmadı — zaman kısıtı; oranlar "eski" sütunla tutarlı).
+AYNI mekanizmayı paylaştığı için aynı düzeltme uygulandı) için "Bozuk"
+sütunu (`zigzag_method="atr"` varsayılanıyla, bu oturumun ortasında kısa
+süre canlı kaldı) **gerçek bir regresyondu** — aşağıdaki "Kritik bulgu"
+bölümüne bakın. "Düzeltme sonrası" sütunu **tam 120-sembollük örneklemde
+AYRICA yeniden ölçüldü** (yalnızca ilk turun 30-sembollük tahmini DEĞİL) —
+6 kombinasyondan 5'i Faz 0.5 ÖNCESİKİ sayıyla BİREBİR eşleşti; broadening
+4H'teki fark (139→193) `zigzag_method="fixed"`e dönmekten DEĞİL, A2'nin
+YENİ zaman dilimi ölçeklemesinden geliyor (Faz 0.5 öncesinde `min_bars`/
+`prior_trend_lookback` gibi alanlar 4H'te ölçeklenmiyordu, şimdi ×6
+ölçekleniyor — bu KASITLI bir davranış değişikliği, A2'nin kendisi).
+`zigzag_method="fixed"` bu 4 yerde geri kalıcı varsayılan yapıldı.
 
 **golden_zone'daki artış (yaklaşık 2 kat) BEKLENEN ve İYİ bir sonuç:**
 golden_zone zaten `min_swing_atr=3.0` ile KENDİ filtresini uyguluyordu (A1
@@ -176,13 +193,40 @@ mekanizma) artık `zigzag_method`'dan BAĞIMSIZ her zaman ham `find_pivots`
 kullanıyor — yalnızca `_zones` (golden_zone'a benzer, kendi kapalı zigzag
 YAPISI DEĞİL, kümeleme mantığı) `zigzag_method="atr"` varsayılanını korudu.
 
-**Düzeltme sonrası doğrulama (2. tur, gerçek veri):**
+**Düzeltme sonrası doğrulama — sayısal (TAM 120-sembollük yeniden ölçüm,
+`scripts/sistemik_denetim.py`'nin sonucunu ilk raporladıktan SONRA, kullanıcının
+"gerçekten düzeldi mi emin misin" sorusu üzerine ayrıca koşuldu):** yukarıdaki
+tabloda gösterildiği gibi 6 kombinasyondan 5'i Faz 0.5 öncesi sayıyla BİREBİR
+eşleşti. Bu, ilk turda yalnızca 30-sembollük bir alt-örneklemle yapılan hızlı
+kontrolden ÇOK daha güçlü bir kanıt.
+
+**Düzeltme sonrası doğrulama — görsel (2. tur, gerçek grafikler, toplam 5
+örnek):**
 - BARMA/wedge (4H): 23 farklı sinyal (tüm dönem boyunca) → **3 sinyal, tek
   pattern zinciri** (pending→confirmed→expired, mantıklı bir yaşam döngüsü).
 - GARAN/broadening (1D): yanlış "paralel kanal" iddiası → **hiç sinyal yok**
   (doğru — gerçek bir genişleme geometrisi bulunamadı).
-- 30 sembollük hızlı bir yeniden-ölçüm: wedge/triangle/broadening 4H
-  sinyal sayıları "eski" (fixed) sütununa yakın seviyelere döndü.
+- **TUCLK/wedge (1D) ve TUCLK/broadening (1D):** sinyal ÜRETİLDİ ama
+  formasyon hologramı Ocak 2025'ten Temmuz 2026'ya (**~18 ay**) uzanıyor —
+  klasik takoz/genişleme tanımına (birkaç hafta-ay) HİÇ uymuyor; aradaki
+  büyük bir fiyat sivrisi (13.3'e kadar) kutunun tamamen DIŞINDA kalmış.
+  **Bu, düzeltmenin TAM ÇÖZMEDİĞİ bir kalite sorunu:** "fixed" pivot
+  kaynağı trendline ÇİZGİLERİNİ (2 uç nokta) daha güvenilir kıldı ama
+  formasyonun SÜRESİNE (iki pivot arasındaki bar mesafesine) bir üst sınır
+  yok — `max_apex_bars` yalnızca "doğum barından apex'e" mesafeyi sınırlıyor,
+  P1-P2 pivot mesafesini DEĞİL. **Bu, Faz 0.5'in kapsamı DIŞINDA** (pivot
+  kaynağı/zaman ölçekleme meselesi değil, formasyonun kendi süre/geometri
+  kısıtı) — Faz 1'in (klasik formasyon motoru v2) ele alması gereken bir
+  konu, `docs/PROGRESS_LOG.md`'ye "BULUNAN HATA" olarak ayrıca not düşüldü.
+- **SKBNK/triangle (4H):** sinyal üretildi ama grafikte HİÇBİR üçgen
+  çizgisi görünmüyor (VESBE/KRPLS ile AYNI, önceden not düşülen render/
+  declutter sorununun ÜÇÜNCÜ tekrarı — bu sorunun tek seferlik değil,
+  YAYGIN olduğunu doğruluyor).
+
+**Dürüst sonuç:** Sinyal SAYISI kesin olarak düzeldi (tam ölçekli ölçümle
+doğrulandı). Kalan sinyallerin KALİTESİ ise KISMEN iyi (BARMA/GARAN gibi
+temiz örnekler var) KISMEN hâlâ sorunlu (TUCLK gibi aşırı-uzun-süreli
+formasyonlar) — bu son kısım Faz 0.5'in DEĞİL, Faz 1'in hedefi.
 
 `pytest -q -m "not network"`: **619/619 yeşil** (golden testler bu düzeltmeyle
 regenerate edildi — `structure.price_structure`'ın çizim çıktısı KASITLI
@@ -191,14 +235,30 @@ olarak değişti, gerekçesi yukarıda).
 ## Kapsam dışı bulunan (bu fazda düzeltilmedi) bulgular
 
 **BULUNAN HATA 1 — bazı formasyon sinyalleri render'da hiç görünmüyor.**
-VESBE (`patterns.broadening`, `retest_hold` durumu) ve KRPLS
-(`patterns.head_shoulders`, `retest_hold` durumu) örneklerinde, sinyal
-GERÇEKTEN üretilmiş olmasına rağmen (kod seviyesinde doğrulandı) grafikte
-HİÇBİR çizgi/kutu/etiket görünmedi — ne varsayılan pencerede ne
-`--last-n 0` (tüm geçmiş) ile. Şüphe: `renderer.py`'nin declutter mekanizması
-(`_latest_per_group`/`_declutter_levels`) `retest_hold` durumundaki pattern
-zincirlerini sistematik olarak eliyor olabilir. Faz 3/4'ün (SVG motoru)
-kapsamı — kod DEĞİŞTİRİLMEDİ, yalnızca not düşüldü.
+VESBE (`patterns.broadening`, `retest_hold` durumu), KRPLS
+(`patterns.head_shoulders`, `retest_hold` durumu) VE SKBNK
+(`patterns.triangle`, 4H, düzeltme SONRASI turda bulundu) örneklerinde,
+sinyal GERÇEKTEN üretilmiş olmasına rağmen (kod seviyesinde doğrulandı)
+grafikte HİÇBİR çizgi/kutu/etiket görünmedi — ne varsayılan pencerede ne
+`--last-n 0` (tüm geçmiş) ile. Üç bağımsız örnekte tekrarlandığı için
+TEK SEFERLİK bir tesadüf değil, YAYGIN bir sorun. Şüphe: `renderer.py`'nin
+declutter mekanizması (`_latest_per_group`/`_declutter_levels`) belirli
+pattern durumlarındaki (`retest_hold` gibi) zincirleri sistematik olarak
+eliyor olabilir. Faz 3/4'ün (SVG motoru) kapsamı — kod DEĞİŞTİRİLMEDİ,
+yalnızca not düşüldü.
+
+**BULUNAN HATA 3 — formasyon süresine (P1-P2 pivot mesafesi) üst sınır
+yok.** TUCLK örneğinde (`patterns.wedge`/`patterns.broadening`, 1D)
+düzeltme sonrası kalan bir sinyal, hologramı ~18 ay (Ocak 2025 - Temmuz
+2026) kapsayan, aradaki büyük bir fiyat hareketini (13.3'e kadar bir sivri)
+kutunun dışında bırakan gerçekçi olmayan bir "formasyon" üretti.
+`max_apex_bars` yalnızca doğum barından apex'e (iki çizginin projeksiyon
+kesişimine) olan mesafeyi sınırlıyor, iki trendline'ın KENDİ uç
+pivotlarının (P1-P2) birbirinden ne kadar uzak olabileceğine bir üst sınır
+YOK — bu yüzden "fixed" (yoğun) pivot kaynağı bile aşırı-uzun-süreli
+formasyonları engelleyemiyor. Faz 1'in (klasik formasyon motoru v2,
+literatür temelli süre kısıtları) kapsamı — kod DEĞİŞTİRİLMEDİ, yalnızca
+not düşüldü.
 
 **BULUNAN HATA 2 — `tlab plot`'un varsayılan pencereleme mantığı eski
 (expired/tamamlanmış) sinyalleri gösteremiyor.** KRPLS ve BARMA

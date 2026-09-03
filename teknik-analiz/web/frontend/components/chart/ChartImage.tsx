@@ -27,6 +27,26 @@ export function ChartImage({ symbol, tf, indicator, market, theme }: Props) {
   const qs = new URLSearchParams({ symbol, tf, indicator, market, theme }).toString();
   const src = `${API_BASE}/chart.png?${qs}`;
 
+  // GERÇEK HATA (2026-09-03, kullanıcı geri bildirimiyle bulundu):
+  // `<img key={src}>` src değişince DOM elemanını yeniden kurar, ama
+  // `loaded`/`failed` bu component'in KENDİ state'i — src değiştiğinde
+  // OTOMATİK sıfırlanmaz. Bir gösterge/sembol başarıyla yüklendikten
+  // (loaded=true) SONRA dropdown'dan BAŞKA birine geçilince, yeni <img>
+  // henüz hiçbir şey yüklememişken sarmalayıcı onu "block" gösteriyordu
+  // (eski `loaded=true` hâlâ geçerliydi) — "Grafik oluşturuluyor…" mesajı
+  // hiç görünmeden boş/eski bir görsel kalıyordu ("mumların görüntüsü
+  // bozulmuş" şikayetinin muhtemel kaynağı). Düzeltme: React'ın "render
+  // sırasında state ayarlama" deseni (useEffect DEĞİL — eslint
+  // react-hooks/set-state-in-effect bunu reddediyor, ayrıca bir render
+  // gecikmesi/flaş da eklerdi) — `prevSrc` ile karşılaştırılıp src
+  // değiştiği ANDA, aynı render içinde senkron sıfırlanıyor.
+  const [prevSrc, setPrevSrc] = useState(src);
+  if (src !== prevSrc) {
+    setPrevSrc(src);
+    setLoaded(false);
+    setFailed(false);
+  }
+
   // GERÇEK HATA (2 tur bulunup düzeltildi):
   // (1) `<a href={src} download>` — `src` backend'de AYRI bir origin'de
   //     (localhost:8000) olduğu için tarayıcılar `download` özniteliğini

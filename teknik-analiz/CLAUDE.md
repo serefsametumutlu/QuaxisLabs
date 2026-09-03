@@ -37,19 +37,26 @@ kararları) artık `docs/PROGRESS_LOG.md`'de** — bu dosya CLAUDE.md'nin 150k k
 sınırını aştığı için oraya taşındı (2026-09-02). Aşağıdaki liste yalnızca ÖZET; bir
 fazın TAM detayına ihtiyaç varsa `docs/PROGRESS_LOG.md`'ye bak.
 
-**Durum (2026-09-03): 587 test yeşil (`pytest -q -m "not network"`), ruff/mypy/
+**Durum (2026-09-04): 619 test yeşil (`pytest -q -m "not network"`), ruff/mypy/
 lint_lookahead temiz (baseline: 19 ruff / 1 mypy / 3 lint_lookahead — hepsi önceden
 var olan/bilinen false-positive, ilgisiz satırlar). Faz 0-10 + K0-K3 (aşağıdaki liste)
 TAMAMLANDI; proje artık YENİ, daha büyük bir denetim/yol haritası altında ilerliyor —
 bkz. `docs/TANI_VE_YOL_HARITASI_v2.md` (tanı + Faz 0-8 promptları), `docs/
 STRATEJI_DENETIM_TAM.md` (24 göstergenin tam denetimi), `docs/SITE_TASARIM_YOL_
 HARITASI.md` (S1-S8 arayüz promptları), sıra `docs/00_BASLANGIC_SIRASI.md`'de
-(16 adım). **Adım 1 / (yeni) Faz 0 tamamlandı** (sinyal tazeliği — `bars_ago` +
+(16 adım). **Adım 1 / (yeni) Faz 0 TAMAMLANDI** (sinyal tazeliği — `bars_ago` +
 `/scan` tazelik filtresi; `.claude/skills/grafik-tasarim-sistemi` + `.claude/
-agents/grafik-tasarimcisi.md`; `tests/test_viz/test_golden.py` golden testi) —
-detay `docs/PROGRESS_LOG.md`'nin 2026-09-03 girdisinde. Adım 2 (yeni Faz 0.5 —
-`significant_pivots`, zaman dilimi ölçeklemesi, `supported_timeframes` kapısı)
-onay bekliyor.**
+agents/grafik-tasarimcisi.md`; `tests/test_viz/test_golden.py` golden testi).
+**Adım 2 / (yeni) Faz 0.5 TAMAMLANDI** (A1 ortak pivot girişi `significant_
+pivots` + A2 zaman dilimi ölçekleme `for_timeframe`/`scaled_factory` + A3
+`supported_timeframes` kapısı + A4 hacim onayı parametresi + D ölçüm/rapor —
+120 gerçek BIST sembolüyle ölçüldü, `docs/spec/SISTEMIK_DENETIM_v1.md`; ölçüm
+sırasında GERÇEK bir regresyon bulunup düzeltildi: wedge/triangle/broadening'de
+ATR-seyrek pivotlar trendline aday havuzunu bozuyordu, `zigzag_method`
+varsayılanı bu 3 gösterge + `price_structure`'ın trendline tarafı için
+"fixed"e geri çevrildi) — detay `docs/PROGRESS_LOG.md`'nin 2026-09-03 ve
+2026-09-03/04 girdilerinde. Adım 3 (Faz 1 — klasik formasyon motoru v2) onay
+bekliyor.**
 
 ### Tamamlanan fazlar (özet)
 

@@ -288,6 +288,358 @@
       "yaxis": "y"
     },
     {
+      "hoverinfo": "skip",
+      "line": {
+        "color": "#ff5c5c",
+        "dash": "solid",
+        "width": 1.6
+      },
+      "mode": "lines",
+      "name": "Direnç (Temas:40)",
+      "showlegend": false,
+      "type": "scatter",
+      "x": [
+        "2024-02-28T10:00:00+03:00",
+        "2024-03-11T10:00:00+03:00"
+      ],
+      "xaxis": "x",
+      "y": [
+        111.334304,
+        113.15404
+      ],
+      "yaxis": "y"
+    },
+    {
+      "hoverinfo": "skip",
+      "line": {
+        "color": "rgba(109,116,128,0.6)",
+        "dash": "dash",
+        "width": 1.0
+      },
+      "mode": "lines",
+      "name": "Direnç (Temas:40)_uzatma",
+      "showlegend": false,
+      "type": "scatter",
+      "x": [
+        "2024-03-11T10:00:00+03:00",
+        "2024-04-16T10:00:00+03:00"
+      ],
+      "xaxis": "x",
+      "y": [
+        113.15404,
+        118.613249
+      ],
+      "yaxis": "y"
+    },
+    {
+      "hoverinfo": "skip",
+      "line": {
+        "color": "#ff5c5c",
+        "dash": "solid",
+        "width": 1.6
+      },
+      "mode": "lines",
+      "name": "Direnç (Temas:35)",
+      "showlegend": false,
+      "type": "scatter",
+      "x": [
+        "2024-02-01T10:00:00+03:00",
+        "2024-02-28T10:00:00+03:00"
+      ],
+      "xaxis": "x",
+      "y": [
+        107.196952,
+        111.334304
+      ],
+      "yaxis": "y"
+    },
+    {
+      "hoverinfo": "skip",
+      "line": {
+        "color": "rgba(109,116,128,0.6)",
+        "dash": "dash",
+        "width": 1.0
+      },
+      "mode": "lines",
+      "name": "Direnç (Temas:35)_uzatma",
+      "showlegend": false,
+      "type": "scatter",
+      "x": [
+        "2024-02-28T10:00:00+03:00",
+        "2024-05-19T10:00:00+03:00"
+      ],
+      "xaxis": "x",
+      "y": [
+        111.334304,
+        123.74636
+      ],
+      "yaxis": "y"
+    },
+    {
+      "hoverinfo": "skip",
+      "line": {
+        "color": "#ff5c5c",
+        "dash": "solid",
+        "width": 1.6
+      },
+      "mode": "lines",
+      "name": "Direnç (Temas:35)",
+      "showlegend": false,
+      "type": "scatter",
+      "x": [
+        "2024-02-01T10:00:00+03:00",
+        "2024-03-11T10:00:00+03:00"
+      ],
+      "xaxis": "x",
+      "y": [
+        107.196952,
+        113.15404
+      ],
+      "yaxis": "y"
+    },
+    {
+      "hoverinfo": "skip",
+      "line": {
+        "color": "rgba(109,116,128,0.6)",
+        "dash": "dash",
+        "width": 1.0
+      },
+      "mode": "lines",
+      "name": "Direnç (Temas:35)_uzatma",
+      "showlegend": false,
+      "type": "scatter",
+      "x": [
+        "2024-03-11T10:00:00+03:00",
+        "2024-07-06T10:00:00+03:00"
+      ],
+      "xaxis": "x",
+      "y": [
+        113.15404,
+        131.025305
+      ],
+      "yaxis": "y"
+    },
+    {
+      "hoverinfo": "skip",
+      "line": {
+        "color": "#ff5c5c",
+        "dash": "solid",
+        "width": 1.6
+      },
+      "mode": "lines",
+      "name": "Direnç (Temas:27)",
+      "showlegend": false,
+      "type": "scatter",
+      "x": [
+        "2024-03-30T10:00:00+03:00",
+        "2024-04-29T10:00:00+03:00"
+      ],
+      "xaxis": "x",
+      "y": [
+        116.442511,
+        120.884656
+      ],
+      "yaxis": "y"
+    },
+    {
+      "hoverinfo": "skip",
+      "line": {
+        "color": "rgba(109,116,128,0.6)",
+        "dash": "dash",
+        "width": 1.0
+      },
+      "mode": "lines",
+      "name": "Direnç (Temas:27)_uzatma",
+      "showlegend": false,
+      "type": "scatter",
+      "x": [
+        "2024-04-29T10:00:00+03:00",
+        "2024-07-28T10:00:00+03:00"
+      ],
+      "xaxis": "x",
+      "y": [
+        120.884656,
+        134.211091
+      ],
+      "yaxis": "y"
+    },
+    {
+      "hoverinfo": "skip",
+      "line": {
+        "color": "#35b8ff",
+        "dash": "solid",
+        "width": 1.6
+      },
+      "mode": "lines",
+      "name": "Destek (Temas:79)",
+      "showlegend": false,
+      "type": "scatter",
+      "x": [
+        "2024-02-04T10:00:00+03:00",
+        "2024-03-12T10:00:00+03:00"
+      ],
+      "xaxis": "x",
+      "y": [
+        102.223056,
+        107.868788
+      ],
+      "yaxis": "y"
+    },
+    {
+      "hoverinfo": "skip",
+      "line": {
+        "color": "rgba(109,116,128,0.6)",
+        "dash": "dash",
+        "width": 1.0
+      },
+      "mode": "lines",
+      "name": "Destek (Temas:79)_uzatma",
+      "showlegend": false,
+      "type": "scatter",
+      "x": [
+        "2024-03-12T10:00:00+03:00",
+        "2024-07-01T10:00:00+03:00"
+      ],
+      "xaxis": "x",
+      "y": [
+        107.868788,
+        124.805984
+      ],
+      "yaxis": "y"
+    },
+    {
+      "hoverinfo": "skip",
+      "line": {
+        "color": "#35b8ff",
+        "dash": "solid",
+        "width": 1.6
+      },
+      "mode": "lines",
+      "name": "Destek (Temas:77)",
+      "showlegend": false,
+      "type": "scatter",
+      "x": [
+        "2024-01-11T10:00:00+03:00",
+        "2024-04-03T10:00:00+03:00"
+      ],
+      "xaxis": "x",
+      "y": [
+        99.270457,
+        111.553171
+      ],
+      "yaxis": "y"
+    },
+    {
+      "hoverinfo": "skip",
+      "line": {
+        "color": "rgba(109,116,128,0.6)",
+        "dash": "dash",
+        "width": 1.0
+      },
+      "mode": "lines",
+      "name": "Destek (Temas:77)_uzatma",
+      "showlegend": false,
+      "type": "scatter",
+      "x": [
+        "2024-04-03T10:00:00+03:00",
+        "2024-09-07T10:00:00+03:00"
+      ],
+      "xaxis": "x",
+      "y": [
+        111.553171,
+        134.786739
+      ],
+      "yaxis": "y"
+    },
+    {
+      "hoverinfo": "skip",
+      "line": {
+        "color": "#35b8ff",
+        "dash": "solid",
+        "width": 1.6
+      },
+      "mode": "lines",
+      "name": "Destek (Temas:66)",
+      "showlegend": false,
+      "type": "scatter",
+      "x": [
+        "2024-02-23T10:00:00+03:00",
+        "2024-04-03T10:00:00+03:00"
+      ],
+      "xaxis": "x",
+      "y": [
+        105.725692,
+        111.553171
+      ],
+      "yaxis": "y"
+    },
+    {
+      "hoverinfo": "skip",
+      "line": {
+        "color": "rgba(109,116,128,0.6)",
+        "dash": "dash",
+        "width": 1.0
+      },
+      "mode": "lines",
+      "name": "Destek (Temas:66)_uzatma",
+      "showlegend": false,
+      "type": "scatter",
+      "x": [
+        "2024-04-03T10:00:00+03:00",
+        "2024-08-01T10:00:00+03:00"
+      ],
+      "xaxis": "x",
+      "y": [
+        111.553171,
+        129.035609
+      ],
+      "yaxis": "y"
+    },
+    {
+      "hoverinfo": "skip",
+      "line": {
+        "color": "#35b8ff",
+        "dash": "solid",
+        "width": 1.6
+      },
+      "mode": "lines",
+      "name": "Destek (Temas:57)",
+      "showlegend": false,
+      "type": "scatter",
+      "x": [
+        "2024-03-02T10:00:00+03:00",
+        "2024-05-02T10:00:00+03:00"
+      ],
+      "xaxis": "x",
+      "y": [
+        106.050518,
+        115.446562
+      ],
+      "yaxis": "y"
+    },
+    {
+      "hoverinfo": "skip",
+      "line": {
+        "color": "rgba(109,116,128,0.6)",
+        "dash": "dash",
+        "width": 1.0
+      },
+      "mode": "lines",
+      "name": "Destek (Temas:57)_uzatma",
+      "showlegend": false,
+      "type": "scatter",
+      "x": [
+        "2024-05-02T10:00:00+03:00",
+        "2024-09-07T10:00:00+03:00"
+      ],
+      "xaxis": "x",
+      "y": [
+        115.446562,
+        135.162851
+      ],
+      "yaxis": "y"
+    },
+    {
       "marker": {
         "color": [
           "#22d67f",
@@ -2481,6 +2833,36 @@
   ],
   "layout": {
     "annotations": [
+      {
+        "font": {
+          "color": "#6d7480",
+          "size": 10
+        },
+        "showarrow": false,
+        "text": "Direnç (Temas:27)",
+        "x": "2024-07-28T10:00:00+03:00",
+        "xanchor": "right",
+        "xref": "x",
+        "y": 134.211091,
+        "yanchor": "bottom",
+        "yref": "y",
+        "yshift": -24.0
+      },
+      {
+        "font": {
+          "color": "#6d7480",
+          "size": 10
+        },
+        "showarrow": false,
+        "text": "Destek (Temas:57)",
+        "x": "2024-09-07T10:00:00+03:00",
+        "xanchor": "right",
+        "xref": "x",
+        "y": 135.162851,
+        "yanchor": "bottom",
+        "yref": "y",
+        "yshift": -24.0
+      },
       {
         "font": {
           "color": "#f5b400",

@@ -95,9 +95,20 @@ class WedgeParams(BaseParams):
     atr_period: int = 14
     vol_ma_window: int = 20
     # Faz 0.5, A1 — ortak pivot girişi (bkz. tlab/features/swings.py::
-    # significant_pivots). Varsayılan zigzag_method="atr" (sistem geneli
-    # karar, scripts/sistemik_denetim.py ölçümüyle doğrulandı).
-    zigzag_method: ZigzagMethod = "atr"
+    # significant_pivots). VARSAYILAN "fixed" — sistem geneli karar "atr"
+    # idi ama scripts/sistemik_denetim.py'nin 120-sembol ölçümü bunu bu
+    # göstergede YALANLADI: trendline aday havuzu (build_trendlines +
+    # classify()) SEYREK pivotlarla ÇOK DAHA FAZLA yanlış-pozitif üretti
+    # (4H'te 7->408 sinyal, %-5729; gözle incelemede düz bir çöküş trendi
+    # "takoz" olarak sınıflandı — bkz. docs/spec/SISTEMIK_DENETIM_v1.md).
+    # Kök neden: az sayıda pivotla üretilen bir çizgi TANIM GEREĞİ neredeyse
+    # her zaman "geçerli" görünür (min_touches=2 barajını iki nokta zaten
+    # sağlar); classify()'ın yakınsama/ıraksama testi YOĞUN havuzda anlamlı
+    # bir filtre, SEYREK havuzda değil. head_shoulders/double_top_bottom/
+    # golden_zone (zigzag'in KENDİSİ formasyon yapısı) tam tersi yönde
+    # iyileşti -- bu yüzden BU dosyada istisna, significant_pivots'un genel
+    # sözleşmesinde değil.
+    zigzag_method: ZigzagMethod = "fixed"
     atr_mult: float = 3.0
     min_swing_atr: float | None = None
     # Faz 0.5, A2 — takoz/üçgenin min. oluşum süresi ve apex'e izin verilen

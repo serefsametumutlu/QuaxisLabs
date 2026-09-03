@@ -79,9 +79,13 @@ class BroadeningParams(BaseParams):
     prior_trend_lookback: int = 20
     vol_ma_window: int = 20
     # Faz 0.5, A1 — ortak pivot girişi (bkz. tlab/features/swings.py::
-    # significant_pivots). Varsayılan zigzag_method="atr" (sistem geneli
-    # karar, scripts/sistemik_denetim.py ölçümüyle doğrulandı).
-    zigzag_method: ZigzagMethod = "atr"
+    # significant_pivots). VARSAYILAN "fixed" — bkz. wedge.py'deki AYNI
+    # notu: sistemik_denetim.py ölçümü, trendline aday havuzu (build_
+    # trendlines + diverging_lines/classify) SEYREK (atr) pivotlarla ÇOK
+    # DAHA FAZLA yanlış-pozitif ürettiğini gösterdi (4H'te 139->1885
+    # sinyal, %-1256; gözle incelemede iki sınır çizgisi neredeyse
+    # PARALEL, gerçek bir ıraksama yok).
+    zigzag_method: ZigzagMethod = "fixed"
     atr_mult: float = 3.0
     min_swing_atr: float | None = None
     # Faz 0.5, A2 — dördü de takvimsel bir süre temsil ediyor (min. oluşum

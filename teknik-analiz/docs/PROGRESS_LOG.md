@@ -1849,3 +1849,123 @@ yansıtmıyor, yalnızca kütüphane/ortam gürültüsü).
 sistemik düzeltmeler: `significant_pivots()`, `for_timeframe()`, `supported_
 timeframes` kapısı, hacim onayı parametresi) başlayacak.
 
+---
+
+## 2026-09-03/04 — Adım 2 / FAZ 0.5: Sistemik düzeltmeler (A1-A4 + D)
+
+Kullanıcı onayı üzerine Adım 2 başlatıldı, A1→A2→A3→A4→D sırasıyla TAMAMLANDI.
+Her alt-adım sonunda ayrı push yapıldı (kullanıcı "düzenli commit/push"
+istedi) — commit'ler: `9e084c7` (A1), `c3621d8` (A2+A3+A4), ve bu girdinin
+sonundaki (D + wedge/broadening/triangle düzeltmesi).
+
+**A1 — Ortak pivot girişi:** `tlab/features/swings.py::significant_pivots(df,
+method="atr"|"fixed", ...)` — `method="atr"` → `alternate_pivots(atr_zigzag(...))`;
+`method="fixed"` → `min_swing_atr` verilmezse `alternate_pivots(find_pivots(...))`,
+verilirse `_reduce_with_min_swing` (golden_zone'un ÖNCEDEN kendi içinde
+uyguladığı swing-büyüklüğü filtresinin taşınmış hâli — RAW `find_pivots`
+çıktısı üzerinde çalışır, `alternate_pivots`'un KENDİSİYLE AYNI "yalnızca
+ileri, pending serbestçe güncellenir, commit edilen asla geri alınmaz"
+deseniyle non-repaint). **Yol boyunca bir repaint hatası yazıp KENDİ hypothesis
+testimle yakalayıp düzelttim:** ilk taslak `_reduce_with_min_swing`
+`kept[-1]`'i SONRADAN gelen daha ekstrem bir pivotla değiştiriyordu — bu,
+partial/full df'ler arasında committed bir pivotun KAYBOLMASINA (gerçek
+repaint) yol açıyordu; `test_significant_pivots_fixed_min_swing_prefix_is_
+non_repainting` (hypothesis, 30 örnek) bunu yakaladı, algoritma "pending
+serbestçe güncellenir, commit ASLA geri alınmaz" prensibine göre yeniden
+yazıldı.
+
+7 gösterge buna bağlandı: `head_shoulders`/`double_top_bottom`/`golden_zone`
+(zigzag DOĞRUDAN formasyon yapısı) + `wedge`/`triangle`/`broadening`/
+`price_structure` (pivot yalnızca trendline aday havuzu — bkz. aşağıdaki
+KRİTİK bulgu, bu ayrımın NEDEN önemli olduğu buradan çıktı).
+`harmonic.*`/`structure.swing_fib_abcd` zaten kendi `zigzag_method`'unu
+sunuyordu, yalnızca varsayılanları "fixed"ten "atr"ye çevrildi (`atr_mult`
+kasıtlı olarak KENDİ değerinde — 2.0 — bırakıldı, sistemin ortak 3.0'ı
+DEĞİL).
+
+**A2 — Zaman dilimi ölçekleme:** `tlab/core/params.py::BaseParams.for_
+timeframe(tf)` — `_BAR_FIELDS: ClassVar[frozenset[str]]` alt sınıflarca
+bildirilir (dataclass field SAYILMAZ), 1D taban, 4H×6/1H×24/W1÷5,
+`round`+`max(1,...)`. `double_top_bottom`/`wedge`/`broadening`/
+`price_structure`/`flag_pennant`'a takvimsel bar-alanları işaretlendi
+(`left`/`right`/`confirm_bars`/`atr_period`/MA pencereleri BİLİNÇLİ OLARAK
+dışarıda — TA'nın evrensel kısaltmaları ya da sinyal mekaniği, takvimsel
+süre DEĞİL; `weekly_channel.n=52` de dışarıda — W1-native bir sabit, D1
+tabanına göre ölçeklemek YANLIŞ olurdu). `scanner/engine.py` +
+`viz/live.py` artık TEK bir ortak `tlab/indicators/bootstrap.py::
+scaled_factory(name, tf)`'den geçiyor (tarama ve `/chart` AYNI ölçekli
+parametreleri kullanır garantisi).
+
+**A3 — supported_timeframes kapısı:** `IndicatorSpec.supported_timeframes`
+(`build_catalog()`'un SONUNDA her indikatörü bir kez kurup KENDİ meta'sından
+otomatik dolduruluyor — iki kez elle yazılıp drift etme riski YOK).
+`engine.run()`'da (gösterge,tf) çifti desteklenmiyorsa iş HİÇ AÇILMAZ,
+`ScanRun.skipped_unsupported`'a yazılır + loglanır. `viz/live.py` aynı kapıyı
+net bir `ValueError` ile uyguluyor. `run_eod`'un varsayılan `timeframes`'ine
+`"w1"` eklendi (`Store.update()` zaten her EOD koşusunda W1'i 1D'den otomatik
+türetip yazıyordu — ekstra veri adımı gerekmedi). Web: `/api/catalog`
+`supported_timeframes` döndürüyor, `/chart` sayfasının TF seçicisi artık
+seçili göstergenin desteklemediği zaman dilimlerini devre dışı gösteriyor +
+otomatik destekli bir TF'e geçiyor.
+
+**A4 — Hacim onayı:** 5 formasyon modülüne (`double_top_bottom`/
+`head_shoulders`/`wedge`/`broadening`/`flag_pennant`) `require_volume_
+confirm: bool = False` — `True` iken hacim onayı geçmeyen aday `confirmed`'a
+TERFİ ETMİYOR (`invalidated` OLMUYOR, yalnızca o event `pattern_signals`
+listesinden çıkarılıyor — pending gibi diğer sinyaller ETKİLENMİYOR).
+`config/scans.yaml`'a `hacim_onayli` preset'i — indikatör parametrelerine
+DOKUNMADAN, mevcut `filter.expr` mekanizmasıyla (`volume_ok == True or
+volume_profile_ok == True` — iki modül grubu farklı payload anahtarı
+kullandığı için `or`, `filter_expr.py` eksik anahtarı None/False sayıyor).
+
+**D — Ölçüm ve rapor (`scripts/sistemik_denetim.py`, 120 gerçek BIST
+sembolü):** Tam rapor `docs/spec/SISTEMIK_DENETIM_v1.md`'de. Özet:
+
+1. head_shoulders/double_top_bottom/golden_zone/price_structure(zone/range)
+   için A1 ÇALIŞTI — sinyal sayısı %68-91 azaldı (golden_zone İKİ KAT ARTTI
+   ama bu BEKLENEN/İYİ bir sonuç — kendi filtresi zaten vardı, ortak giriş
+   onu DAHA TUTARLI hale getirdi).
+2. **BULUNAN GERÇEK HATA (bu oturumda bulunup DÜZELTİLDİ — kapsam dışı
+   DEĞİL, A1'in kendi kabul testi):** wedge/triangle/broadening için A1
+   TAM TERSİ etki yaptı — sinyal sayısı 12-57 KAT ARTTI (broadening 4H:
+   139→1885). Kök neden: `build_trendlines`'ın `min_touches=2` şartı SEYREK
+   (ATR) pivotlarda neredeyse HİÇBİR ŞEYİ ELEMİYOR (iki nokta her zaman bir
+   doğru tanımlar) — YOĞUN (fixed 3/3) pivotlarda gerçek bir filtre. Gözle
+   inceleme (13 örnek) bunu doğruladı: golden_zone 5/6 gerçek, wedge/
+   triangle/broadening 0/3 net gerçek (BARMA: düz bir çöküş trendi "takoz"
+   olarak, ISDMR: geniş bir V dip "üçgen" olarak yanlış sınıflanmıştı).
+   **Düzeltme:** `WedgeParams`/`BroadeningParams`'ın `zigzag_method`
+   varsayılanı "fixed"e GERİ ÇEVRİLDİ (A1'in genel "atr" kararına bu 2
+   dosya için istisna); `price_structure`'ın `_trendlines`'ı da (ayrı
+   ölçülmedi ama AYNI mekanizma) artık `zigzag_method`'dan BAĞIMSIZ HER
+   ZAMAN ham `find_pivots` kullanıyor (yalnızca `_zones` "atr" varsayılanını
+   korudu — kümeleme mantığı farklı, o ölçümde İYİ sonuç vermişti).
+   Düzeltme sonrası 2. tur gözle doğrulama: BARMA 23 sinyal→3 sinyal (tek
+   mantıklı pending→confirmed→expired zinciri), GARAN'daki yanlış "paralel
+   kanal" iddiası tamamen kayboldu. Golden testler (price_structure çizim
+   çıktısı KASITLI değişti) regenerate edildi.
+3. atr_mult=3.0 taramayla DOĞRULANDI (2.0/2.5 çok gevşek, 3.5 gereksiz katı).
+4. A2/A3/A4 gerçek veriyle demo edildi, hepsi beklendiği gibi çalıştı.
+
+**BULUNAN HATA (kapsam dışı, DÜZELTİLMEDİ, yalnızca not düşüldü):**
+(1) Bazı formasyon sinyalleri (`retest_hold` durumundaki VESBE/KRPLS
+örnekleri) render'da HİÇ görünmüyor — muhtemelen declutter mekanizması bu
+durumun çizgilerini sistematik eliyor, Faz 3/4'ün (SVG motoru) kapsamı.
+(2) `tlab plot`'un varsayılan pencereleme mantığı eski/expired sinyalleri
+gösteremiyor (sinyal tarihi pencerenin dışında kalıyor, ya da sonraki büyük
+bir fiyat hareketi y-eksenini o kadar genişletiyor ki eski formasyon görsel
+olarak sıkışıp kayboluyor) — Faz 3/4/S4'ün kapsamı.
+
+**Test durumu:** `pytest -q -m "not network"` **619/619 yeşil** (587→619,
++32: A1 testleri (significant_pivots + repaint hypothesis) + A2 testleri
+(`for_timeframe` + `scaled_factory`) + A3 testleri (gate + `viz/live`) + A4
+testleri (require_volume_confirm + preset expr)). `ruff check tlab/ tests/`
+19 hata (BASELINE İLE AYNI, `git stash` ile doğrulandı — yeni kodda SIFIR).
+`mypy tlab/` 1 hata (BASELINE, `renderer.py:2790`, ilgisiz). `lint_lookahead`
+3 uyarı (BASELINE İLE AYNI).
+
+**Sırada:** Adım 2 (Faz 0.5) TAMAMLANDI, onay bekleniyor. Onay gelirse
+Adım 3'e (Faz 1 — klasik formasyon motoru v2, literatür düzeltmeleri:
+`min_bars_between=22`, ön-trend şartı, hologram M/W silueti, OBO/TOBO neck
+slope düzeltmesi) geçilecek.
+

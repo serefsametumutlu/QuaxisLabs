@@ -75,7 +75,7 @@ from tlab.features.ma import crossovers, sma
 from tlab.features.oscillators import macd as compute_macd
 from tlab.features.oscillators import rsi as compute_rsi
 from tlab.features.ranges import detect_ranges
-from tlab.features.swings import Pivot, ZigzagMethod, atr_zigzag, find_pivots, significant_pivots
+from tlab.features.swings import Pivot, ZigzagMethod, atr_zigzag, find_pivots
 from tlab.features.trendlines import Trendline, build_trendlines
 from tlab.features.volume_profile import find_hvn_nodes
 from tlab.features.volume_profile import profile as compute_profile
@@ -88,10 +88,12 @@ class PriceStructureParams(BaseParams):
     pivot_right: int = 3
     atr_period: int = 14
     # Faz 0.5, A1 — ortak pivot girişi (bkz. tlab/features/swings.py::
-    # significant_pivots). Varsayılan zigzag_method="atr" (sistem geneli
-    # karar, scripts/sistemik_denetim.py ölçümüyle doğrulandı); atr_period
-    # yukarıdaki alanla PAYLAŞILIR (modülün geri kalanı zaten aynı ATR'yi
-    # kullanıyor).
+    # significant_pivots). YALNIZCA `_zones`'u etkiler -- `_trendlines`
+    # HER ZAMAN ham find_pivots kullanır (bkz. compute()'taki gerekçe: ATR
+    # seyrekleştirmesi trendline aday havuzunda ciddi yanlış-pozitif
+    # artışına yol açtığı ölçüldü). Varsayılan "atr" _zones için ölçümle
+    # doğrulandı (scripts/sistemik_denetim.py); atr_period yukarıdaki
+    # alanla PAYLAŞILIR (modülün geri kalanı zaten aynı ATR'yi kullanıyor).
     zigzag_method: ZigzagMethod = "atr"
     atr_mult: float = 3.0
     min_swing_atr: float | None = None
@@ -151,22 +153,29 @@ class PriceStructure(BaseIndicator):
 
     def compute(self, df: pd.DataFrame, context: dict | None = None) -> IndicatorResult:
         p = self.params
-        # `_trendlines`'ın candidate-havuzu zaten KABUL EDİLMİŞ bir "aday
-        # havuzu" repaint istisnasına sahip (bkz. modül docstring'i) --
-        # `significant_pivots`'un ALTERNATİFLENMİŞ/azaltılmış zigzag'i onun
-        # için güvenli. `_zones` ise KENDİ, generic repaint_test'e HİÇ
-        # girmeyen ama BU dosyanın kendi hedefli testiyle (`test_range_and_
-        # zone_signals_are_repaint_consistent`) doğrulanan, GERÇEK bir
-        # non-repaint garantisi taşıyor -- bu garanti, alternate_pivots'un
-        # "hangi pivot kesinleşti" kararının df büyüdükçe DEĞİŞEBİLMESİNE
-        # (aynı aday havuzu etkisi) DAYANIYOR OLMAMALI. Bu yüzden `_zones`
-        # KASITLI OLARAK HAM (alternate_pivots'tan GEÇMEMİŞ) pivot adaylarını
+        # Faz 0.5 (A1) session notu: `_trendlines`'ın candidate-havuzuna
+        # `significant_pivots`'un ALTERNATİFLENMİŞ/SEYRELTİLMİŞ çıktısını
+        # vermek `scripts/sistemik_denetim.py`'nin gerçek BIST ölçümünde
+        # `patterns.wedge`/`patterns.broadening` için ciddi bir yanlış-
+        # pozitif ARTIŞINA yol açtığı bulundu (bkz. o dosyaların docstring'i,
+        # docs/spec/SISTEMIK_DENETIM_v1.md) -- `build_trendlines` + geometrik
+        # yakınsama/ıraksama testi SEYREK pivotlarla anlamını yitiriyor (az
+        # nokta neredeyse her zaman "geçerli" bir çizgiye oturuyor). Bu
+        # modülün trendline'ları AYNI `build_trendlines` mekanizmasını
+        # paylaştığı için (ayrıca ölçülmedi ama tutarlılık/güvenlik için)
+        # HER ZAMAN HAM `find_pivots` kullanır -- `zigzag_method`'dan
+        # BAĞIMSIZ (o parametre yalnızca `_zones`'u etkiler, aşağı bakınız).
+        #
+        # `_zones` ise KENDİ, generic repaint_test'e HİÇ girmeyen ama BU
+        # dosyanın kendi hedefli testiyle (`test_range_and_zone_signals_
+        # are_repaint_consistent`) doğrulanan, GERÇEK bir non-repaint
+        # garantisi taşıyor -- bu garanti, alternate_pivots'un "hangi pivot
+        # kesinleşti" kararının df büyüdükçe DEĞİŞEBİLMESİNE (aynı aday
+        # havuzu etkisi) DAYANIYOR OLMAMALI. Bu yüzden `_zones` KASITLI
+        # OLARAK HAM (alternate_pivots'tan GEÇMEMİŞ) pivot adaylarını
         # kullanır -- find_pivots/atr_zigzag'in KENDİSİ, tek başına, ileri-
         # yalnızca (append-only) ve prefix-tutarlıdır.
-        trend_pivots = significant_pivots(
-            df, method=p.zigzag_method, left=p.pivot_left, right=p.pivot_right,
-            atr_mult=p.atr_mult, atr_period=p.atr_period, min_swing_atr=p.min_swing_atr,
-        )
+        trend_pivots = find_pivots(df, p.pivot_left, p.pivot_right)
         zone_pivots = (
             atr_zigzag(df, atr_mult=p.atr_mult, atr_period=p.atr_period)
             if p.zigzag_method == "atr"

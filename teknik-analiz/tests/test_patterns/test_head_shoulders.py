@@ -101,6 +101,20 @@ def test_shoulder_markers_present() -> None:
     assert {"SOL OMUZ", "BAŞ", "SAĞ OMUZ"} <= texts
 
 
+def test_entry_marker_emitted_at_confirmation() -> None:
+    """2026-09-04: kullanıcı "nerede AL sinyali geldiğini de yazman
+    gerekiyor" dedi — TOBO (long yön) için son sinyal confirmed/completed
+    olduğunda ayrı bir `pattern_entry_long:{pid}` marker'ı, aynı bar/
+    fiyatta, metni "AL" olarak eklenmelidir."""
+    df = _tobo_ohlcv()
+    result = HeadShouldersIndicator(_params()).compute(df)
+    entry = next(m for m in result.markers if m.kind.startswith("pattern_entry_long:"))
+    assert entry.text == "AL"
+    last_sig = result.signals[-1]
+    assert entry.t == last_sig.bar_time
+    assert last_sig.state in ("confirmed", "completed")
+
+
 def test_asymmetric_shoulder_time_ratio_filters_pattern_out() -> None:
     """Sol omuz->baş ve baş->sağ omuz süreleri (10 bar / 8 bar) aslında
     (0.5,2.0) bandına GİRER — çok dar bir bant (0.9,1.1) ile filtrelenmesi

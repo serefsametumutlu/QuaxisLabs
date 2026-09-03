@@ -254,6 +254,19 @@ class HeadShouldersIndicator(BaseIndicator):
                         kind=f"pattern_{last_sig.state}:{pattern_id}",
                     )
                 )
+                # 2026-09-04: kullanıcı "nerede AL sinyali geldiğini de
+                # yazman gerekiyor" dedi -- kırılım+onay tamamlanıp durum
+                # confirmed/completed'a ulaştığında (last_sig zaten bunu
+                # temsil ediyor -- PGSUS örneğinde "tobo_retest_hold"),
+                # AYRI/göze çarpan bir AL(long)/SAT(short) üçgen işareti.
+                if last_sig.state in ("confirmed", "completed"):
+                    markers.append(
+                        Marker(
+                            t=last_sig.bar_time, price=close[df.index.get_loc(last_sig.bar_time)],
+                            text="AL" if direction == "long" else "SAT",
+                            kind=f"pattern_entry_{direction}:{pattern_id}",
+                        )
+                    )
                 last_state[pattern_id] = {
                     "kind": kind, "direction": direction, "state": last_sig.state,
                     "event": last_sig.payload["event"], "target": hs.target,

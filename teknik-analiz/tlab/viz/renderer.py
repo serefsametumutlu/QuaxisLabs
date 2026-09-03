@@ -1026,6 +1026,9 @@ def _filter_confirmed_patterns(result: IndicatorResult) -> IndicatorResult:
     def _keep_marker(m: Marker) -> bool:
         if m.kind.startswith("pattern_confirmed:") or m.kind.startswith("pattern_completed:"):
             return m.kind.split(":", 1)[1] in valid_ids
+        if m.kind.startswith("pattern_entry_long:") or m.kind.startswith("pattern_entry_short:"):
+            # AL/SAT işareti hedef Level'i gibi YÖNE ÖZGÜ -- tam pid eşleşmeli.
+            return m.kind.split(":", 1)[1] in valid_ids
         if m.kind.startswith("pattern_vertex:"):
             return _matches(m.kind.removeprefix("pattern_vertex:"))
         return False
@@ -1869,6 +1872,28 @@ def _draw_markers(
                 showarrow=True, arrowhead=2, arrowcolor=color, arrowwidth=2,
                 font=dict(size=11, color=confirmed_text), bgcolor=color,
                 bordercolor=color, borderwidth=2, ax=30, ay=-30, row=row, col=col,
+            )
+        elif m.kind.startswith("pattern_entry_long:") or m.kind.startswith("pattern_entry_short:"):
+            # 2026-09-04: kullanıcı "nerede AL sinyali geldiğini de yazman
+            # gerekiyor" dedi -- mockup'taki (Breakout→FVG sahnesi) dolgulu
+            # üçgen + kalın "AL"/"SAT" metniyle AYNI dil, gerçek ONAY
+            # rozetinin (`pattern_confirmed:`) TAM AYNI nokta/bar'ında,
+            # ayrı ve göze çarpan bir işaret olarak eklenir.
+            is_long = m.kind.startswith("pattern_entry_long:")
+            color = theme.up if is_long else theme.down
+            # AL: fiyatın ALTINA, yukarı bakan bir ok (destekliyormuş gibi).
+            # SAT: fiyatın ÜSTÜNE, aşağı bakan bir ok -- klasik AL/SAT ok
+            # yönü kuralı.
+            tri_shift, text_shift = (-16, -32) if is_long else (16, 32)
+            fig.add_annotation(
+                x=_x(m.t), y=m.price, text="▲" if is_long else "▼",
+                showarrow=False, font=dict(size=15, color=color),
+                yshift=tri_shift, row=row, col=col,
+            )
+            fig.add_annotation(
+                x=_x(m.t), y=m.price, text=f"<b>{'AL' if is_long else 'SAT'}</b>",
+                showarrow=False, font=dict(size=11, color=color, family=theme.font),
+                bgcolor=with_alpha(theme.bg, 0.85), yshift=text_shift, row=row, col=col,
             )
         elif m.kind.startswith("pattern_vertex:"):
             fig.add_annotation(

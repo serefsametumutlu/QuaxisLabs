@@ -72,7 +72,7 @@ def _tobo_ohlcv() -> pd.DataFrame:
 
 
 def _params() -> HeadShouldersParams:
-    return HeadShouldersParams(left=2, right=2, kind="tobo")
+    return HeadShouldersParams(left=2, right=2, zigzag_method="fixed", kind="tobo")
 
 
 def test_pending_born_at_l3_finalized_idx_not_confirmed_idx() -> None:
@@ -120,14 +120,17 @@ def test_asymmetric_shoulder_time_ratio_filters_pattern_out() -> None:
     (0.5,2.0) bandına GİRER — çok dar bir bant (0.9,1.1) ile filtrelenmesi
     beklenir (10/8=1.25 > 1.1)."""
     df = _tobo_ohlcv()
-    params = HeadShouldersParams(left=2, right=2, shoulder_time_ratio=(0.9, 1.1))
+    params = HeadShouldersParams(
+        left=2, right=2, zigzag_method="fixed", shoulder_time_ratio=(0.9, 1.1)
+    )
     result = HeadShouldersIndicator(params).compute(df)
     assert result.signals == []
 
 
 def test_kind_both_also_scans_obo_independently() -> None:
     df = _tobo_ohlcv()
-    result = HeadShouldersIndicator(HeadShouldersParams(left=2, right=2, kind="both")).compute(df)
+    params = HeadShouldersParams(left=2, right=2, zigzag_method="fixed", kind="both")
+    result = HeadShouldersIndicator(params).compute(df)
     assert any(s.payload["pattern_name"] == "tobo" for s in result.signals)
 
 

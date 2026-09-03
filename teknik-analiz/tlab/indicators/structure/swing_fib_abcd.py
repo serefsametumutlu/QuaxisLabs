@@ -49,7 +49,11 @@ ZigzagMethod = Literal["fixed", "atr"]
 class SwingFibABCDParams(BaseParams):
     left: int = 3
     right: int = 3
-    zigzag_method: ZigzagMethod = "fixed"
+    # Faz 0.5, A1: sistem-geneli varsayılan "fixed"ten "atr"ye çevrildi (görev
+    # metni: "harmonics ve swing_fib_abcd'nin VARSAYILANINI fixed'ten atr'ye
+    # çevir"). atr_mult BİLİNÇLİ OLARAK 2.0'da bırakıldı — bu modülün KENDİ,
+    # önceden ayrı ayarlanmış değeri.
+    zigzag_method: ZigzagMethod = "atr"
     atr_mult: float = 2.0
     atr_period: int = 14
     abcd_ratios: tuple[float, ...] = (1.0, 1.272, 1.618)

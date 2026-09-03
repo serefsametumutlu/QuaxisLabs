@@ -85,6 +85,22 @@ DARK_TERMINAL = Theme(
     page_bg="#090b0f",
     border="#1b2028",
     accent="#f5b400",
+    # 2026-09-02 (kullanıcı: "grafik stil vitrini artifact'e benzemiyor"):
+    # renk paleti zaten 2026-09-01'de birebir eşitlenmişti (yukarı bkz.) ama
+    # FONT hiç taşınmamıştı — `Theme.font`ın varsayılanı (Consolas) mockup'ın
+    # gerçek seçimi olan Inter/JetBrains Mono'dan TAMAMEN farklıydı, bu da
+    # "hiç benzemiyor" hissine katkı yapan GERÇEK bir eksiklikti. Mockup'ın
+    # `dark` tema tanımından (`fontBody:'Inter'`, `fontDisplay`/`mono`:
+    # 'JetBrains Mono') birebir taşındı. Google Fonts `<link>`'i
+    # `tlab/dashboard.py::_inject_theme_css`'te yükleniyor — TARAYICIDA
+    # görüntülenen grafikler bu fontları kullanır. **Bilinen sınırlama**:
+    # kaleido (PNG dışa aktarımı, `tlab plot`/"PNG Oluştur" butonu) AYRI bir
+    # headless-Chromium sürecidir, Streamlit sayfasının yüklediği fontları
+    # GÖRMEZ — sistemde bu fontlar kurulu değilse PNG çıktısı sessizce
+    # varsayılan bir fonta düşer (ekran görüntüsü ETKİLENMEZ, yalnızca PNG
+    # dışa aktarımı).
+    font="Inter, -apple-system, 'Segoe UI', sans-serif",
+    font_display="'JetBrains Mono', ui-monospace, monospace",
 )
 
 LIGHT_ANALYSIS = Theme(
@@ -107,7 +123,11 @@ LIGHT_ANALYSIS = Theme(
     page_bg="#eef0f3",
     border="#e3e6ea",
     accent="#b8892f",
-    font="Segoe UI, Arial, sans-serif",
+    # 2026-09-02: mockup'ın `classic` tema tanımından (`fontBody:'Inter'`,
+    # `fontDisplay:'Source Serif 4'`) birebir taşındı — bkz. DARK_TERMINAL'in
+    # aynı tarihli notu (font, renk paletinden AYRI olarak hiç taşınmamıştı).
+    font="Inter, -apple-system, 'Segoe UI', sans-serif",
+    font_display="'Source Serif 4', Georgia, serif",
 )
 
 KAGIT_RAPORU = Theme(
@@ -133,7 +153,11 @@ KAGIT_RAPORU = Theme(
     page_bg="#efe7d4",
     border="#e1d5b7",
     accent="#b8802a",
-    font="Georgia, 'Times New Roman', serif",
+    # 2026-09-02: mockup'ın `editorial` tema tanımından (`fontBody:
+    # "'Source Serif 4', Georgia, serif"`) birebir eşitlendi — `font_display`
+    # (Playfair Display) zaten doğruydu, yalnızca gövde fontu Georgia'da
+    # kalmıştı.
+    font="'Source Serif 4', Georgia, 'Times New Roman', serif",
     font_display="'Playfair Display', Georgia, serif",
 )
 

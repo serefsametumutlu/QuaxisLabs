@@ -19,6 +19,11 @@ _PARAMS = PriceStructureParams(
     pivot_left=2, pivot_right=2, range_min_bars=8, range_atr_mult=1.5,
     trendline_min_touches=2, trendline_tol_atr=1.0, zone_band_atr=1.0,
     zone_min_pivots=2, profile_window_bars=40, volume_ma_window=10,
+    # Faz 0.5: sistem varsayılanı zigzag_method="atr"; bu dosyanın küçük
+    # (build_structure_ohlcv) fixture'ı ATR zigzag'in ısınma penceresine
+    # sığmıyor -- trendline/range/zone MEKANİĞİNİ hedefleyen bu testler
+    # bilinçli olarak eski "fixed" davranışına sabitlendi.
+    zigzag_method="fixed",
 )
 
 

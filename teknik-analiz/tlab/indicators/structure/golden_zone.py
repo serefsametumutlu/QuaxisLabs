@@ -19,11 +19,17 @@ seçim, projenin `SwingFibABCD`'de zaten kullandığı `born_idx = c.finalized_i
 deseniyle birebir tutarlıdır.
 
 "Yeni swing onayı → eski bant end alır" kuralı: bir sonraki zigzag pivotu
-(qualifying olsun olmasın — bkz. `min_swing_atr` filtresi SADECE o pivotun
-KENDİ bandının çizilip çizilmeyeceğine karar verir, önceki bandın kapanıp
-kapanmayacağına DEĞİL) finalize olduğunda ÖNCEKİ bandın Box/Level `end`'i
-o bara SABİTLENİR; en güncel (henüz süperseded olmamış) bant `t1`/`end`'i
-`df.index[-1]`'e uzanır (extend-only, her `compute()` çağrısında büyür).
+finalize olduğunda ÖNCEKİ bandın Box/Level `end`'i o bara SABİTLENİR; en
+güncel (henüz süperseded olmamış) bant `t1`/`end`'i `df.index[-1]`'e uzanır
+(extend-only, her `compute()` çağrısında büyür).
+
+FAZ 0.5 (A1) NOTU: pivot girişi artık `tlab/features/swings.py::
+significant_pivots`'tan geliyor (`zigzag_method`/`atr_mult`/`min_swing_atr`
+parametreleri buna bağlanır) — bu modülün ÖNCEDEN kendi içinde uyguladığı
+swing-büyüklüğü filtresi (`swing_range < min_swing_atr * ATR`) artık
+`significant_pivots(method="fixed", min_swing_atr=...)`'in İÇİNDE yaşıyor
+(tekrar yok); varsayılan `zigzag_method="atr"` iken bu filtre YOK SAYILIR,
+`atr_mult` zaten aynı işi görür.
 """
 
 from __future__ import annotations
@@ -46,7 +52,7 @@ from tlab.core.types import (
     Timeframe,
 )
 from tlab.features.fibonacci import retracement
-from tlab.features.swings import alternate_pivots, find_pivots, label_structure
+from tlab.features.swings import ZigzagMethod, label_structure, significant_pivots
 from tlab.features.volatility import atr
 from tlab.features.zones_sd import golden_zone
 
@@ -60,6 +66,15 @@ class GoldenZoneParams(BaseParams):
     reaction_body_ratio: float = 0.5
     min_swing_atr: float = 3.0
     atr_period: int = 14
+    # Faz 0.5, A1: ortak pivot girişi (tlab/features/swings.py::significant_
+    # pivots) -- bu modül A1 denetiminde "doğru davranan tek modül" olarak
+    # işaretlenmişti (kendi min_swing_atr filtresini ZATEN uyguluyordu); o
+    # filtre artık significant_pivots(method="fixed", min_swing_atr=...)
+    # içine TAŞINDI (tekrar yok). Sistem-geneli varsayılan zigzag_method="atr"
+    # olduğunda min_swing_atr YOK SAYILIR (atr_mult zaten aynı işi görür) --
+    # min_swing_atr yalnızca zigzag_method="fixed" iken devrede.
+    zigzag_method: ZigzagMethod = "atr"
+    atr_mult: float = 3.0
 
 
 class GoldenZoneIndicator(BaseIndicator):
@@ -79,7 +94,12 @@ class GoldenZoneIndicator(BaseIndicator):
 
     def compute(self, df: pd.DataFrame, context: dict | None = None) -> IndicatorResult:
         p = self.params
-        zigzag = label_structure(alternate_pivots(find_pivots(df, p.left, p.right)))
+        zigzag = label_structure(
+            significant_pivots(
+                df, method=p.zigzag_method, left=p.left, right=p.right,
+                atr_mult=p.atr_mult, atr_period=p.atr_period, min_swing_atr=p.min_swing_atr,
+            )
+        )
         atr_series = atr(df, p.atr_period)
         n = len(df)
         low = df["low"].to_numpy()
@@ -120,11 +140,9 @@ class GoldenZoneIndicator(BaseIndicator):
             scan_end = next_finalized if next_finalized is not None else n
             edge_time = df.index[next_finalized] if next_finalized is not None else df.index[-1]
 
-            swing_range = abs(a_pivot.price - x_pivot.price)
-            a_atr = atr_series.iloc[born]
-            if pd.isna(a_atr) or swing_range < p.min_swing_atr * a_atr:
-                continue
-
+            # swing-büyüklüğü/min_swing_atr filtresi artık `significant_
+            # pivots`'un içinde (zigzag_method="fixed" iken) — burada TEKRAR
+            # uygulanmıyor.
             is_uptrend = x_pivot.kind == "low"
             direction: Direction = "long" if is_uptrend else "short"
 

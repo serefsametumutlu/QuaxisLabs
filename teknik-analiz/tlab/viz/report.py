@@ -66,10 +66,10 @@ def build_report_html(store: ResultsStore, run_id: str, *, generate_charts: bool
 
     return f"""<!doctype html>
 <html lang="tr"><head><meta charset="utf-8">
-<title>tlab EOD Raporu — {html.escape(run.market)} — {html.escape(run_id)}</title>
+<title>QuaxisLabs EOD Raporu — {html.escape(run.market)} — {html.escape(run_id)}</title>
 <style>{_CSS}</style>
 </head><body>
-<h1>tlab Gün Sonu (EOD) Raporu</h1>
+<h1>QuaxisLabs Gün Sonu (EOD) Raporu</h1>
 <div class="meta">run_id: <code>{html.escape(run_id)}</code> | market: {html.escape(run.market)} |
 başladı: {html.escape(run.started_at)} | bitti: {html.escape(run.finished_at or '---')} |
 evren: {run.universe_size} sembol | git: {html.escape(run.git_sha or '---')}</div>

@@ -58,7 +58,7 @@ from tlab.features.channels import (
     regression_channel,
 )
 from tlab.features.oscillators import rsi
-from tlab.features.swings import find_pivots
+from tlab.features.swings import ZigzagMethod, significant_pivots
 
 ChannelMethod = Literal["regression", "pivot"]
 
@@ -75,6 +75,13 @@ class ChannelParams(BaseParams):
     confirm_bars: int = 1
     left: int = 3
     right: int = 3
+    # Faz 0.5, A1 — ortak pivot girişi (bkz. tlab/features/swings.py::
+    # significant_pivots). Varsayılan zigzag_method="atr" (sistem geneli
+    # karar, scripts/sistemik_denetim.py ölçümüyle doğrulandı).
+    zigzag_method: ZigzagMethod = "atr"
+    atr_mult: float = 3.0
+    atr_period: int = 14
+    min_swing_atr: float | None = None
 
 
 class ChannelIndicator(BaseIndicator):
@@ -100,7 +107,10 @@ class ChannelIndicator(BaseIndicator):
             mid_diff_last = band.mid.diff().iloc[-1] if len(df) > 1 else float("nan")
             slope = float(mid_diff_last) if not pd.isna(mid_diff_last) else 0.0
         else:
-            pivots = find_pivots(df, p.left, p.right)
+            pivots = significant_pivots(
+                df, method=p.zigzag_method, left=p.left, right=p.right,
+                atr_mult=p.atr_mult, atr_period=p.atr_period, min_swing_atr=p.min_swing_atr,
+            )
             channels = pivot_channel(df, pivots, max_channels=1)
             if not channels:
                 band = RegressionChannel(

@@ -14,7 +14,7 @@ from tlab.testing.repaint import repaint_test
 
 def _run() -> tuple[list, list]:
     df = build_abcd_ohlcv()
-    result = SwingFibABCD(SwingFibABCDParams(left=2, right=2))(df)
+    result = SwingFibABCD(SwingFibABCDParams(left=2, right=2, zigzag_method="fixed"))(df)
     return result.signals, result.levels
 
 
@@ -115,7 +115,7 @@ def test_swing_fib_abcd_passes_repaint() -> None:
     itibaren "var" sayılabilir, daha erken bir kesitte henüz görünmemesi
     repaint hatası DEĞİLDİR."""
     df = build_abcd_ohlcv()
-    indicator = SwingFibABCD(SwingFibABCDParams(left=2, right=2))
+    indicator = SwingFibABCD(SwingFibABCDParams(left=2, right=2, zigzag_method="fixed"))
     report = repaint_test(indicator, df, cut_points=list(range(44, len(df) + 1)))
     assert report.passed, report.mismatches
 

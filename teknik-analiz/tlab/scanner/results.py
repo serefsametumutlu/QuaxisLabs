@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS signals (
     score REAL NOT NULL,
     pattern_id TEXT NOT NULL,
     payload_json TEXT NOT NULL,
+    bars_ago INTEGER,
     PRIMARY KEY (run_id, symbol, timeframe, indicator, pattern_id, state, bar_time)
 );
 
@@ -145,7 +146,18 @@ class ResultsStore:
         self._conn = sqlite3.connect(self.db_path)
         self._conn.execute("PRAGMA foreign_keys = ON")
         self._conn.executescript(_SCHEMA)
+        self._migrate_bars_ago_column()
         self._conn.commit()
+
+    def _migrate_bars_ago_column(self) -> None:
+        """`_SCHEMA`'daki `CREATE TABLE IF NOT EXISTS` var olan bir `signals`
+        tablosuna yeni `bars_ago` kolonunu EKLEMEZ (SQLite semantiği) -- Faz
+        0 öncesi oluşturulmuş `outputs/results.db` dosyaları için tek seferlik
+        bir `ALTER TABLE` migrasyonu gerekiyor. Şema DONUK sözleşmesi bu tür
+        bir alan EKLEMEYE izin veriyor (kaldırma/yeniden adlandırma değil)."""
+        cols = {row[1] for row in self._conn.execute("PRAGMA table_info(signals)")}
+        if "bars_ago" not in cols:
+            self._conn.execute("ALTER TABLE signals ADD COLUMN bars_ago INTEGER")
 
     def close(self) -> None:
         self._conn.close()
@@ -184,29 +196,31 @@ class ResultsStore:
                 self._conn.execute(
                     "INSERT OR REPLACE INTO signals "
                     "(run_id, symbol, market, timeframe, indicator, params_hash, bar_time, "
-                    " detected_at, direction, state, score, pattern_id, payload_json) "
-                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    " detected_at, direction, state, score, pattern_id, payload_json, bars_ago) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (
                         run_id, item.symbol, item.market, item.timeframe, item.indicator,
                         item.params_hash, "", "", "neutral", "error", 0.0, "error",
-                        json.dumps({"error": item.error}, ensure_ascii=False),
+                        json.dumps({"error": item.error}, ensure_ascii=False), None,
                     ),
                 )
                 continue
 
             assert item.result is not None
             for signal in item.result.signals:
+                bars_ago = signal.payload.get("bars_ago")
                 self._conn.execute(
                     "INSERT OR REPLACE INTO signals "
                     "(run_id, symbol, market, timeframe, indicator, params_hash, bar_time, "
-                    " detected_at, direction, state, score, pattern_id, payload_json) "
-                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    " detected_at, direction, state, score, pattern_id, payload_json, bars_ago) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (
                         run_id, item.symbol, item.market, item.timeframe, item.indicator,
                         item.params_hash, signal.bar_time.isoformat(),
                         signal.detected_at.isoformat(),
                         signal.direction, signal.state, signal.score, _pattern_key(signal),
                         json.dumps(signal.payload, ensure_ascii=False, default=str),
+                        int(bars_ago) if bars_ago is not None else None,
                     ),
                 )
             self._conn.execute(
@@ -324,6 +338,7 @@ class ResultsStore:
         direction: str | None = None,
         symbol: str | None = None,
         states: tuple[str, ...] | None = ("confirmed", "completed"),
+        max_bars_ago: int | None = None,
         limit: int = 200,
         offset: int = 0,
     ) -> tuple[list[dict], int]:
@@ -341,8 +356,19 @@ class ResultsStore:
         kategorilerine göre ayrı ayrı tarama sonucu görüntüleme isteğine
         yanıt): `indicator` (tekil eşitlik) yerine/yanında bir KATEGORİdeki
         TÜM gösterge adlarını (ör. tüm `harmonic.*`) tek seferde filtreler
-        (`indicator IN (...)`). `direction`: `long`/`short` filtresi."""
-        clauses, params = ["run_id = ?"], [run_id]
+        (`indicator IN (...)`). `direction`: `long`/`short` filtresi.
+
+        `max_bars_ago` (Faz 0, TANI_VE_YOL_HARITASI_v2.md — sinyal tazeliği):
+        verilirse yalnızca zincirin GÜNCEL (rn=1) satırının `bars_ago`'su bu
+        değere eşit veya küçük olan sinyalleri döner. `bars_ago`
+        `scanner/engine.py::_add_bars_ago`'nun run anında hesaplayıp
+        `payload`'a yazdığı, sonra `persist()`'in kendi kolonuna kopyaladığı
+        bar-cinsi bir yaş (`None` = bu run'dan ÖNCE yazılmış eski bir satır,
+        migrasyon öncesi — bu satırlar `max_bars_ago` verildiğinde YAŞI
+        BİLİNMEDİĞİ için dışlanır). `None` (varsayılan) = filtre YOK, eski
+        davranış korunur."""
+        clauses: list[str] = ["run_id = ?"]
+        params: list[object] = [run_id]
         for col, val in (
             ("market", market), ("timeframe", timeframe),
             ("indicator", indicator), ("symbol", symbol), ("direction", direction),
@@ -359,7 +385,7 @@ class ResultsStore:
         if states is not None:
             placeholders = ", ".join("?" for _ in states)
             state_clause = f"WHERE state IN ({placeholders})"
-            params_states = list(states)
+            params_states: list[object] = list(states)
         else:
             params_states = []
 
@@ -373,15 +399,20 @@ class ResultsStore:
         """
         latest_sql = f"SELECT * FROM ({ranked_sql}) WHERE rn = 1"
         filtered_sql = f"SELECT * FROM ({latest_sql}) {state_clause}"
+        params_bars_ago: list[object] = []
+        if max_bars_ago is not None:
+            bars_ago_clause = " AND " if state_clause else " WHERE "
+            filtered_sql += f"{bars_ago_clause}bars_ago IS NOT NULL AND bars_ago <= ?"
+            params_bars_ago = [max_bars_ago]
 
         count_cur = self._conn.execute(
-            f"SELECT COUNT(*) FROM ({filtered_sql})", params + params_states
+            f"SELECT COUNT(*) FROM ({filtered_sql})", params + params_states + params_bars_ago
         )
         total = count_cur.fetchone()[0]
 
         cur = self._conn.execute(
             f"{filtered_sql} ORDER BY detected_at DESC LIMIT ? OFFSET ?",
-            params + params_states + [limit, offset],
+            params + params_states + params_bars_ago + [limit, offset],
         )
         cols = [d[0] for d in cur.description]
         rows = [dict(zip(cols, row, strict=True)) for row in cur.fetchall()]

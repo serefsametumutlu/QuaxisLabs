@@ -19,7 +19,10 @@ _SCHOOLS = [
 
 def test_gartley_state_transitions_on_known_fixture() -> None:
     df = build_gartley_ohlcv()
-    params = HarmonicParams(left=2, right=2, confirmation_policy="close_reversal", reversal_bars=1)
+    params = HarmonicParams(
+        left=2, right=2, zigzag_method="fixed",
+        confirmation_policy="close_reversal", reversal_bars=1,
+    )
     indicator = HarmonicIndicator("carney", params)
     result = indicator(df)
 
@@ -42,7 +45,10 @@ def test_xa_fib_ladder_present_for_known_candidate() -> None:
     doğrudan sarmalanması, YENİ bir hesap yöntemi DEĞİL) `Level` olarak
     yayınlıyor — PRZ'nin NEDEN o bantta olduğunu görsel olarak gerekçelendirir."""
     df = build_gartley_ohlcv()
-    params = HarmonicParams(left=2, right=2, confirmation_policy="close_reversal", reversal_bars=1)
+    params = HarmonicParams(
+        left=2, right=2, zigzag_method="fixed",
+        confirmation_policy="close_reversal", reversal_bars=1,
+    )
     indicator = HarmonicIndicator("carney", params)
     result = indicator(df)
 
@@ -60,7 +66,10 @@ def test_xa_fib_ladder_present_for_known_candidate() -> None:
 @pytest.mark.parametrize("school", _SCHOOLS)
 def test_harmonic_indicator_passes_repaint(school: str) -> None:
     df = build_gartley_ohlcv()
-    params = HarmonicParams(left=2, right=2, confirmation_policy="close_reversal", reversal_bars=1)
+    params = HarmonicParams(
+        left=2, right=2, zigzag_method="fixed",
+        confirmation_policy="close_reversal", reversal_bars=1,
+    )
     indicator = HarmonicIndicator(school, params)
     report = repaint_test(indicator, df, cut_points=list(range(29, len(df) + 1)))
     assert report.passed, report.mismatches
@@ -71,7 +80,9 @@ def test_harmonic_indicator_passes_repaint(school: str) -> None:
 )
 def test_harmonic_indicator_passes_repaint_for_all_confirmation_policies(policy: str) -> None:
     df = build_gartley_ohlcv()
-    params = HarmonicParams(left=2, right=2, confirmation_policy=policy, reversal_bars=1)
+    params = HarmonicParams(
+        left=2, right=2, zigzag_method="fixed", confirmation_policy=policy, reversal_bars=1,
+    )
     indicator = HarmonicIndicator("carney", params)
     report = repaint_test(indicator, df, cut_points=list(range(29, len(df) + 1)))
     assert report.passed, report.mismatches
@@ -83,7 +94,10 @@ def test_signals_alone_are_repaint_safe_across_full_range() -> None:
     tutarlı olmalı (bu, sınırlamanın gerçek bir repaint hatası olmadığının
     ayrı bir kanıtı)."""
     df = build_gartley_ohlcv()
-    params = HarmonicParams(left=2, right=2, confirmation_policy="close_reversal", reversal_bars=1)
+    params = HarmonicParams(
+        left=2, right=2, zigzag_method="fixed",
+        confirmation_policy="close_reversal", reversal_bars=1,
+    )
     indicator = HarmonicIndicator("carney", params)
 
     full = indicator(df)

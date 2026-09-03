@@ -1771,3 +1771,81 @@ ruff/mypy/lint_lookahead temiz (yeni kod kapsamında — repo genelindeki 18 ruf
 mypy/3 lint_lookahead uyarısı önceden var olan ya da bilinen false-positive,
 ilgisiz satırlardır).
 
+---
+
+## 2026-09-03 — Adım 1 / FAZ 0: Sinyal tazeliği + tasarım doğrulama altyapısı
+
+**Tetikleyici:** `docs/TANI_VE_YOL_HARITASI_v2.md` + `docs/STRATEJI_DENETIM_TAM.md`
+tanı/denetim raporları ve 16 adımlık `docs/00_BASLANGIC_SIRASI.md` yol haritası
+kullanıcı tarafından onaylandı; bu oturum haritayı BAŞTAN uyguluyor, Adım 1 (Faz 0)
+ile başladı. Önce `arch` paketi eksikti (`test_garch11_forecast_*`, 4 test) — kuruldu,
+573→577 yeşil (ortam eksikliği, kod hatası değil).
+
+**İş 1 — Sinyal tazeliği:**
+`scanner/engine.py::_add_bars_ago(result, df)` (YENİ) — İŞ 1'in metninde önerilen
+İKİ seçenekten "daha basit ve KESİN doğru" olanı seçildi: ayrı bir `bars` tablosu +
+takvimden geri hesaplama YERİNE, indikatör zaten kendi çağrıldığı `df.index`'i
+bildiği için, `_run_single_worker`/`_run_pair_worker` (df_y ile — `RelativeMomentumPair`
+"df=Y" mimari notuyla tutarlı)/`_run_universe_worker` (sembol başına kendi df'i)
+her sinyalin `payload["bars_ago"]`'sını run anında YAZAR (`Signal.payload` frozen
+dataclass'ın mutasyona açık tek alanı — yeniden oluşturmaya gerek yok).
+`results.py`: `signals` tablosuna yeni `bars_ago INTEGER` kolonu (şema DONUK
+sözleşmesi alan EKLEMEYE izin veriyor) + eski DB dosyaları için `_migrate_bars_ago_
+column()` tek seferlik `ALTER TABLE`; `persist()` payload'dan okuyup kolona yazıyor;
+`latest_signals(..., max_bars_ago=None)` YENİ parametre — `None`=eski davranış,
+verilirse yalnızca zincirin GÜNCEL satırının `bars_ago <= N` VE `NOT NULL` (migrasyon
+öncesi/yaşı bilinmeyen satırlar `max_bars_ago` verildiğinde DIŞLANIR — sessizce taze
+sayılmıyorlar). `web/backend/routes/scan.py::list_signals` yeni `max_bars_ago: int|None=3`
+query param + yanıta `bars_ago` alanı. Frontend (`web/frontend/app/scan/page.tsx`):
+"Tazelik" seçici (Son 1/3/10 mum/Tümü, varsayılan 3 — "Tümü" backend'e büyük sayı
+gönderiyor, HTTP query'de `None` taşınamadığı için), "Yaş" kolonu, sayfa-içi
+`bars_ago` artan sıralama (backend `detected_at DESC` sıralamasını KORUYOR — bu,
+tazelik sırasıyla BİREBİR aynı değil, o yüzden client-side ayrıca sıralanıyor),
+tazelik-farkında dürüst boş durum metni. 7 yeni test (`tests/test_scanner/
+test_bars_ago.py`) — `_add_bars_ago` hesabı (son bar=0, N bar geride=N, boş df/
+sinyalsiz no-op), `persist()` kolon yazımı, `max_bars_ago=None`/filtreli/NULL-dışlama.
+
+**İş 2 — Grafik tasarım skill'i + agent'ı:**
+`.claude/skills/grafik-tasarim-sistemi/SKILL.md` + `.claude/agents/grafik-
+tasarimcisi.md` (YENİ) — `bilanco-radar/.claude/{skills/kart-tasarim-sistemi,
+agents/kart-tasarimcisi.md}` örnek alınarak grafik/SVG alanına uyarlandı. İçerik:
+`docs/design/grafik_stil_vitrini.html`'in "ilham panosu değil çalıştırılabilir
+şartname" statüsü, kullanılacak 3 tema (dark→DARK_TERMINAL, classic→LIGHT_ANALYSIS,
+editorial→KAGIT_RAPORU — saas/neon KAPSAM DIŞI), token/etiket-yerleşimi kuralları,
+ve ZORUNLU görsel doğrulama döngüsü (değişiklik→gerçek veriyle üret→Read ile
+AÇ VE GÖR→madde madde yaz→düzelt, en az 3 iterasyon + en az 3 veri durumu,
+`docs/design/iterasyon/`'a kaydedilir).
+
+**İş 3 — Golden (görsel gerileme) testi:**
+`tests/conftest.py` (YENİ, proje kökünde İLK conftest) — `--update-golden` bayrağı.
+`tests/test_viz/test_golden.py` (YENİ) — 3 gösterge (`structure.price_structure`
+dark, `structure.swing_fib_abcd` light, `harmonic.carney` light — Gartley,
+`build_gartley_ohlcv()` fixture'ı `test_renderer.py`'den ödünç) sabit sentetik/
+deterministik veri üzerinde render edilip `fig.to_dict()`'in kararlı (yuvarlanmış,
+sıralanmış) JSON'ıyla `tests/test_viz/golden/*.json`'a karşılaştırılıyor.
+Karşılaştırma mantığı `normalize_figure()` fonksiyonunda İZOLE edildi (görev
+metninin notu: Faz 3'te SVG motorüne geçilince yalnızca bu fonksiyon SVG metni
+döndürecek şekilde değişecek, geri kalanı aynı kalacak).
+**Yol boyunca bulunan gerçek bir test-izolasyon hatası (bu görevin kapsamında,
+kendim düzelttim — PROGRESS_LOG'a not düşülmesi gereken "kapsam dışı" bir hata
+DEĞİL):** golden testleri TEK BAŞINA yeşildi ama tam `pytest -q -m "not network"`
+koşusunda BAŞARISIZ oluyordu — sebep `fig.to_dict()`'in `layout.template`'i
+(Plotly'nin ~50 iz tipi için SÜREÇ genelinde paylaşılan `pio.templates.default`'tan
+gelen, bizim ÇİZMEDİĞİMİZ genel varsayılan stil) gömmesi; bu ambient global,
+test SIRASINA göre farklı değerler taşıyabiliyor. Düzeltme: `normalize_figure()`
+`layout.template`'i karşılaştırmadan ÖNCE atıyor (bizim çizdiğimiz hiçbir şeyi
+yansıtmıyor, yalnızca kütüphane/ortam gürültüsü).
+
+**Test durumu:** `pytest -q -m "not network"` **587/587 yeşil** (577→587, +10:
+7 bars_ago + 3 golden). `ruff check tlab/ tests/` 19 hata (BASELINE İLE AYNI —
+`git stash` ile doğrulandı, benim değişikliklerimden ÖNCE de 19'du; CLAUDE.md'deki
+"18" notu hafif eski/drift, yeni dosyalarda SIFIR). `mypy tlab/` 1 hata (BASELINE,
+`renderer.py:2790`, bu göreve AİT DEĞİL — düzeltirken KENDİ eklediğim 1 mypy hatasını
+(`results.py`, `list[str]+list[int]` union tipi) `params`/`params_states`/
+`params_bars_ago`'yu `list[object]` olarak açıkça tipleyerek AYRICA düzelttim).
+`lint_lookahead` 3 uyarı (BASELINE İLE AYNI, ilgisiz satırlar).
+
+**Sırada:** Adım 1 tamamlandı, onay bekleniyor. Onay gelirse Adım 2 (Faz 0.5 —
+sistemik düzeltmeler: `significant_pivots()`, `for_timeframe()`, `supported_
+timeframes` kapısı, hacim onayı parametresi) başlayacak.
+

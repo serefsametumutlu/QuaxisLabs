@@ -79,6 +79,10 @@ export interface ScanSignal {
   bar_time: string;
   detected_at: string;
   pattern_id: string;
+  /** Faz 0 — sinyalin, tarandığı andaki SON bara göre kaç bar geride
+   * olduğu (takvim günü DEĞİL, bar sayısı — 4H/1D karşılaştırılabilir).
+   * `null` = bu koşu Faz 0 öncesi (migrasyon öncesi) yazılmış, yaşı bilinmiyor. */
+  bars_ago: number | null;
   payload: Record<string, unknown>;
 }
 
@@ -123,6 +127,10 @@ export function fetchSignals(params: {
   direction?: string;
   symbol?: string;
   all_states?: boolean;
+  /** Faz 0 — "Son N mumda oluşan sinyaller". Backend varsayılanı 3;
+   * filtreyi tamamen kapatmak için (Tümü) büyük bir sayı gönderilir --
+   * bkz. web/backend/routes/scan.py::list_signals. */
+  max_bars_ago?: number;
   limit?: number;
   offset?: number;
 }): Promise<ScanSignalsResponse> {

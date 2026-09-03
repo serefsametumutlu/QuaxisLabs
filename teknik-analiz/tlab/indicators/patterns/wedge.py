@@ -61,7 +61,7 @@ from tlab.core.types import (
     Timeframe,
 )
 from tlab.features.patterns_geom import ClassifyParams, PatternShape, classify, converging_lines
-from tlab.features.swings import find_pivots
+from tlab.features.swings import ZigzagMethod, significant_pivots
 from tlab.features.trendlines import Trendline, build_trendlines
 from tlab.features.volatility import atr
 
@@ -94,6 +94,12 @@ class WedgeParams(BaseParams):
     retest_tol_atr: float = 0.3
     atr_period: int = 14
     vol_ma_window: int = 20
+    # Faz 0.5, A1 — ortak pivot girişi (bkz. tlab/features/swings.py::
+    # significant_pivots). Varsayılan zigzag_method="atr" (sistem geneli
+    # karar, scripts/sistemik_denetim.py ölçümüyle doğrulandı).
+    zigzag_method: ZigzagMethod = "atr"
+    atr_mult: float = 3.0
+    min_swing_atr: float | None = None
 
 
 def _normalized_ratio(slope_a: float, slope_b: float) -> float:
@@ -128,7 +134,10 @@ class WedgeIndicator(BaseIndicator):
 
     def compute(self, df: pd.DataFrame, context: dict | None = None) -> IndicatorResult:
         p = self.params
-        pivots = find_pivots(df, p.left, p.right)
+        pivots = significant_pivots(
+            df, method=p.zigzag_method, left=p.left, right=p.right,
+            atr_mult=p.atr_mult, atr_period=p.atr_period, min_swing_atr=p.min_swing_atr,
+        )
         atr_series = atr(df, p.atr_period)
         close = df["close"].to_numpy()
         volume = df["volume"].to_numpy()

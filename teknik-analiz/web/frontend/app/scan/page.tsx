@@ -18,6 +18,24 @@ import { useTheme } from "@/lib/useTheme";
 const MARKETS = ["bist", "nasdaq"];
 const PAGE_SIZE = 50;
 
+/** Faz 0 — sinyal tazeliği filtresi. "Tümü" filtreyi KAPATMAK için backend'e
+ * büyük bir sayı gönderir (bkz. web/backend/routes/scan.py::list_signals
+ * max_bars_ago dokümantasyonu — None query param olarak taşınamıyor). */
+const FRESHNESS_OPTIONS: { label: string; value: number }[] = [
+  { label: "Son 1 mum", value: 1 },
+  { label: "Son 3 mum", value: 3 },
+  { label: "Son 10 mum", value: 10 },
+  { label: "Tümü", value: 999_999 },
+];
+const DEFAULT_MAX_BARS_AGO = 3;
+
+function ageLabel(barsAgo: number | null): string {
+  if (barsAgo === null || barsAgo === undefined) return "—";
+  if (barsAgo === 0) return "son mum";
+  if (barsAgo === 1) return "1 mum önce";
+  return `${barsAgo} mum önce`;
+}
+
 const STATE_COLOR: Record<string, string> = {
   confirmed: "text-accent",
   completed: "text-accent",
@@ -82,6 +100,7 @@ function ScanPageInner() {
   const [direction, setDirection] = useState("");
   const [symbol, setSymbol] = useState("");
   const [allStates, setAllStates] = useState(false);
+  const [maxBarsAgo, setMaxBarsAgo] = useState(DEFAULT_MAX_BARS_AGO);
   const [offset, setOffset] = useState(0);
   const [catalog, setCatalog] = useState<CatalogEntry[]>([]);
   const [categories, setCategories] = useState<CategoryEntry[]>([]);
@@ -148,6 +167,7 @@ function ScanPageInner() {
       direction: direction || undefined,
       symbol: symbol || undefined,
       all_states: allStates,
+      max_bars_ago: maxBarsAgo,
       limit: PAGE_SIZE,
       offset,
     })
@@ -157,7 +177,7 @@ function ScanPageInner() {
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [runId, tf, indicator, category, direction, symbol, allStates, offset]);
+  }, [runId, tf, indicator, category, direction, symbol, allStates, maxBarsAgo, offset]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -173,6 +193,17 @@ function ScanPageInner() {
     });
     router.push(`/chart?${qs.toString()}`);
   };
+
+  // Faz 0: en taze sinyal en üstte. Backend detected_at'e göre sıralar
+  // (taramanın hangi sırada işlendiği); bars_ago (barın kendi yaşı) bunun
+  // birebir aynısı değil, bu yüzden sayfa içinde AYRICA sıralanıyor.
+  // null bars_ago (Faz 0 öncesi eski satır) her zaman en sona düşer.
+  const sortedSignals = [...signals].sort((a, b) => {
+    if (a.bars_ago === null && b.bars_ago === null) return 0;
+    if (a.bars_ago === null) return 1;
+    if (b.bars_ago === null) return -1;
+    return a.bars_ago - b.bars_ago;
+  });
 
   const selectedRun = runs.find((r) => r.run_id === runId);
   const page = Math.floor(offset / PAGE_SIZE) + 1;
@@ -267,6 +298,23 @@ function ScanPageInner() {
               {indicatorsInCategory.map((c) => (
                 <option key={c.name} value={c.name}>
                   {c.display_name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-text-3">
+            Tazelik
+            <select
+              value={maxBarsAgo}
+              onChange={(e) => {
+                setMaxBarsAgo(Number(e.target.value));
+                setOffset(0);
+              }}
+              className="min-w-28 rounded-md border border-border bg-surface-1 px-2.5 py-1.5 text-sm text-text-1 outline-none focus:border-accent"
+            >
+              {FRESHNESS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
                 </option>
               ))}
             </select>
@@ -378,11 +426,12 @@ function ScanPageInner() {
                   <th className="px-3 py-2 font-medium">Durum</th>
                   <th className="px-3 py-2 font-medium">Yön</th>
                   <th className="px-3 py-2 font-medium">Skor</th>
+                  <th className="px-3 py-2 font-medium">Yaş</th>
                   <th className="px-3 py-2 font-medium">Tespit</th>
                 </tr>
               </thead>
               <tbody>
-                {signals.map((s, i) => (
+                {sortedSignals.map((s, i) => (
                   <tr
                     key={`${s.symbol}-${s.timeframe}-${s.indicator}-${s.pattern_id}-${i}`}
                     onClick={() => openChart(s)}
@@ -404,13 +453,16 @@ function ScanPageInner() {
                       )}
                     </td>
                     <td className="px-3 py-2 font-mono text-xs">{s.score.toFixed(2)}</td>
+                    <td className="px-3 py-2 font-mono text-xs text-text-2">{ageLabel(s.bars_ago)}</td>
                     <td className="px-3 py-2 text-xs text-text-3">{formatDate(s.detected_at)}</td>
                   </tr>
                 ))}
                 {!loading && signals.length === 0 && runs.length > 0 && (
                   <tr>
-                    <td colSpan={7} className="px-3 py-6 text-center text-sm text-text-3">
-                      Bu filtrelerle eşleşen sinyal yok.
+                    <td colSpan={8} className="px-3 py-6 text-center text-sm text-text-3">
+                      {maxBarsAgo < 999_999
+                        ? `Son ${maxBarsAgo} mumda bu filtreye uyan sinyal yok — tazeliği gevşetmeyi dene.`
+                        : "Bu filtrelerle eşleşen sinyal yok."}
                     </td>
                   </tr>
                 )}

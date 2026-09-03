@@ -65,6 +65,12 @@ def list_signals(
     direction: str | None = None,
     symbol: str | None = None,
     all_states: bool = False,
+    # Faz 0 (TANI_VE_YOL_HARITASI_v2.md) — sinyal tazeliği. Kullanıcının
+    # ifadesi: "bana AL sinyali gelecek, ben grafiğe bakacağım ve SON MUMDA
+    # o sinyali göreceğim". Varsayılan 3 -- "son 3 mumda oluşanlar".
+    # `None`/negatif GÖNDERİLEMEZ (query param), filtreyi tamamen kapatmak
+    # isteyen frontend "Tümü" seçeneğinde büyük bir sayı (999999) gönderir.
+    max_bars_ago: int | None = 3,
     limit: int = 50,
     offset: int = 0,
 ) -> dict[str, object]:
@@ -84,6 +90,7 @@ def list_signals(
         direction=direction,
         symbol=symbol,
         states=None if all_states else ("confirmed", "completed"),
+        max_bars_ago=max_bars_ago,
         limit=min(limit, 500),
         offset=offset,
     )
@@ -120,6 +127,7 @@ def list_signals(
                 "bar_time": r["bar_time"],
                 "detected_at": r["detected_at"],
                 "pattern_id": r["pattern_id"],
+                "bars_ago": r.get("bars_ago"),
                 "payload": payload,
             }
         )

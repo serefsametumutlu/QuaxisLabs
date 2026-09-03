@@ -187,6 +187,107 @@ def label_structure(zigzag: list[Pivot]) -> list[Pivot]:
     return labeled
 
 
+ZigzagMethod = Literal["fixed", "atr"]
+
+
+def _reduce_with_min_swing(
+    raw_pivots: list[Pivot], atr_series: pd.Series, min_swing_atr: float
+) -> list[Pivot]:
+    """`find_pivots`'un HAM (henüz alternatiflenmemiş) çıktısı üzerinde
+    `alternate_pivots`'un AYNISI bir ileri-tarama yapar, tek farkla: bir
+    `pending` adayı SONLANDIRMAYA (zigzag'a eklemeye) aday olduğunda,
+    swing büyüklüğü (`abs(pending.price - zigzag[-1].price)`)
+    `min_swing_atr * ATR[p.confirmed_idx]`'in altındaysa YOK SAYILIR
+    (`structure/golden_zone.py`'nin daha önce KENDİ İÇİNDE uyguladığı
+    `swing_range < min_swing_atr * atr_series.iloc[a_pivot.finalized_idx]`
+    karşılaştırmasıyla AYNI — `p.confirmed_idx`, pending KABUL EDİLSEYDİ
+    onun `finalized_idx`'i olacak değerin ta KENDİSİ).
+
+    KRİTİK (non-repaint): `zigzag`'a bir kez EKLENEN pivot ASLA
+    değiştirilmez/geri alınmaz — yalnızca henüz eklenmemiş `pending` adayı
+    serbestçe güncellenir (`alternate_pivots`'un kendisiyle AYNI güvenlik
+    özelliği). İLK denemede `zigzag[-1]`'i SONRADAN gelen bir pivotla
+    "daha ekstrem" diye DEĞİŞTİREN bir versiyon yazılmıştı — bu, partial/
+    full df'ler arasında committed bir pivotun kaybolmasına (gerçek bir
+    repaint'e) yol açtığı hypothesis testiyle YAKALANIP burada terk
+    edildi (bkz. Faz 0.5 session notu)."""
+    ordered = sorted(raw_pivots, key=lambda p: (p.confirmed_idx, p.bar_idx, p.kind))
+    zigzag: list[Pivot] = []
+    pending: Pivot | None = None
+
+    for p in ordered:
+        if pending is None:
+            pending = p
+            continue
+        if p.kind == pending.kind:
+            is_more_extreme = (p.kind == "high" and p.price > pending.price) or (
+                p.kind == "low" and p.price < pending.price
+            )
+            if is_more_extreme:
+                pending = p
+            continue
+        if zigzag:
+            a = (
+                atr_series.iloc[p.confirmed_idx]
+                if p.confirmed_idx < len(atr_series)
+                else float("nan")
+            )
+            swing = abs(pending.price - zigzag[-1].price)
+            if pd.isna(a) or swing < min_swing_atr * a:
+                # pending önemsiz -- p'yi YOK SAY, pending DEĞİŞMEDEN kalır
+                # (henüz commit edilmediği için serbestçe bekleyebilir).
+                continue
+        zigzag.append(
+            replace(pending, finalized_idx=p.confirmed_idx, finalized_time=p.confirmed_time)
+        )
+        pending = p
+
+    return zigzag
+
+
+def significant_pivots(
+    df: pd.DataFrame,
+    method: ZigzagMethod = "atr",
+    *,
+    left: int = 3,
+    right: int = 3,
+    atr_mult: float = 3.0,
+    atr_period: int = 14,
+    min_swing_atr: float | None = None,
+) -> list[Pivot]:
+    """Formasyon göstergelerinin ORTAK pivot girişi (Faz 0.5, A1 —
+    `docs/STRATEJI_DENETIM_TAM.md` Bölüm A1): sistemdeki HER formasyon aynı
+    `find_pivots(left=3, right=3)` varsayılanına dayanıyordu, bu da 4H'te
+    bir günden kısa "bacaklar" (gürültü) üretiyordu. Bu fonksiyon o tek
+    kaynak — TÜM formasyon göstergeleri buradan beslenir.
+
+    Her iki `method` de ALTERNATİFLENMİŞ, FİNALİZE EDİLMİŞ bir zigzag döner
+    (`alternate_pivots`'tan geçmiş — `include_pending=False`, yalnızca
+    kesinleşmiş pivotlar) — çağıranın AYRICA `alternate_pivots` çağırmasına
+    GEREK YOK (iki kez çağırmak son pivotu YANLIŞLIKLA düşürür, bkz. Faz 0.5
+    session notu).
+
+    - `method="atr"` (VARSAYILAN — Faz 0.5 ölçümü `scripts/sistemik_
+      denetim.py`'nin atr_mult taramasıyla seçildi): `atr_zigzag(atr_mult,
+      atr_period)` — ölçek-bağımsız, 4H'te ve 1D'de aynı ekonomik büyüklüğü
+      temsil eder. `min_swing_atr` bu modda YOK SAYILIR (`atr_mult` zaten
+      aynı işi görüyor).
+    - `method="fixed"`: `find_pivots(left, right)` + alternate_pivots.
+      `min_swing_atr` verilirse `_reduce_with_min_swing` ile önemsiz
+      bacaklar AYRICA elenir (`structure/golden_zone.py`'nin taşınmış hâli).
+    """
+    if method == "atr":
+        raw = atr_zigzag(df, atr_mult=atr_mult, atr_period=atr_period)
+        return alternate_pivots(raw)
+    if method == "fixed":
+        raw = find_pivots(df, left, right)
+        if min_swing_atr is None:
+            return alternate_pivots(raw)
+        atr_series = atr(df, atr_period)
+        return _reduce_with_min_swing(raw, atr_series, min_swing_atr)
+    raise ValueError(f"Bilinmeyen zigzag method: {method!r} (fixed|atr olmalı)")
+
+
 def atr_zigzag(df: pd.DataFrame, atr_mult: float = 2.0, atr_period: int = 14) -> list[Pivot]:
     """ATR tabanlı ters dönüş eşiğiyle zigzag.
 

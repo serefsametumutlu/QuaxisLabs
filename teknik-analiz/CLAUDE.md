@@ -37,9 +37,19 @@ kararları) artık `docs/PROGRESS_LOG.md`'de** — bu dosya CLAUDE.md'nin 150k k
 sınırını aştığı için oraya taşındı (2026-09-02). Aşağıdaki liste yalnızca ÖZET; bir
 fazın TAM detayına ihtiyaç varsa `docs/PROGRESS_LOG.md`'ye bak.
 
-**Durum (2026-09-02): 560 test yeşil (`pytest -q -m "not network"`), ruff/mypy/
-lint_lookahead temiz (baseline: 18 ruff / 2 mypy / 3 lint_lookahead — hepsi önceden
-var olan/bilinen false-positive, ilgisiz satırlar).**
+**Durum (2026-09-03): 587 test yeşil (`pytest -q -m "not network"`), ruff/mypy/
+lint_lookahead temiz (baseline: 19 ruff / 1 mypy / 3 lint_lookahead — hepsi önceden
+var olan/bilinen false-positive, ilgisiz satırlar). Faz 0-10 + K0-K3 (aşağıdaki liste)
+TAMAMLANDI; proje artık YENİ, daha büyük bir denetim/yol haritası altında ilerliyor —
+bkz. `docs/TANI_VE_YOL_HARITASI_v2.md` (tanı + Faz 0-8 promptları), `docs/
+STRATEJI_DENETIM_TAM.md` (24 göstergenin tam denetimi), `docs/SITE_TASARIM_YOL_
+HARITASI.md` (S1-S8 arayüz promptları), sıra `docs/00_BASLANGIC_SIRASI.md`'de
+(16 adım). **Adım 1 / (yeni) Faz 0 tamamlandı** (sinyal tazeliği — `bars_ago` +
+`/scan` tazelik filtresi; `.claude/skills/grafik-tasarim-sistemi` + `.claude/
+agents/grafik-tasarimcisi.md`; `tests/test_viz/test_golden.py` golden testi) —
+detay `docs/PROGRESS_LOG.md`'nin 2026-09-03 girdisinde. Adım 2 (yeni Faz 0.5 —
+`significant_pivots`, zaman dilimi ölçeklemesi, `supported_timeframes` kapısı)
+onay bekliyor.**
 
 ### Tamamlanan fazlar (özet)
 

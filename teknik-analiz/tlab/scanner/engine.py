@@ -64,6 +64,27 @@ class ScanRun:
         return sum(1 for r in self.results if r.error is not None)
 
 
+def _add_bars_ago(result: IndicatorResult, df: pd.DataFrame) -> None:
+    """Her sinyalin `payload`'ına, bu run'ın çektiği `df`'nin SON barına göre
+    kaç bar geride olduğunu yazar (`bars_ago`). Takvim günü DEĞİL bar sayısı
+    -- 4H ile 1D'nin yaşı aynı ölçüyle karşılaştırılamaz (TANI_VE_YOL_
+    HARITASI_v2.md Faz 0, İş 1: "en temiz yol ayrı bir bars tablosu tutmak,
+    alternatif ve daha basit: scanner sinyali kaydederken payload'a bars_ago
+    yazsın -- bu daha KESİN doğru"). İndikatör zaten bu `df` ile çağrıldığı
+    için burada ayrı bir takvim/seans hesaplamasına gerek yok: `df.index`
+    bar bar biliniyor, `signal.bar_time` bu index'in bir elemanı.
+    `Signal` frozen bir dataclass ama `payload` alanı sıradan bir dict --
+    burada MUTASYONA uğratılıyor, yeniden oluşturulmuyor."""
+    if df.empty or not result.signals:
+        return
+    last_pos = len(df.index) - 1
+    pos_by_time = {ts: i for i, ts in enumerate(df.index)}
+    for signal in result.signals:
+        pos = pos_by_time.get(pd.Timestamp(signal.bar_time))
+        if pos is not None:
+            signal.payload["bars_ago"] = last_pos - pos
+
+
 def _fetch_and_prepare(
     symbol: str, market: Market, timeframe: Timeframe, lookback_bars: int, drop_open_bar: bool
 ) -> pd.DataFrame:
@@ -88,6 +109,7 @@ def _run_single_worker(
         df = _fetch_and_prepare(symbol, market, timeframe, lookback_bars, drop_open_bar)
         indicator = CATALOG[indicator_name].factory()
         result = indicator(df)
+        _add_bars_ago(result, df)
         return {
             "symbol": symbol, "market": market_value, "timeframe": timeframe_value,
             "indicator": indicator_name, "params_hash": result.params_hash,
@@ -116,6 +138,10 @@ def _run_pair_worker(
         df_x = _fetch_and_prepare(x_symbol, market, timeframe, lookback_bars, drop_open_bar)
         indicator = CATALOG[indicator_name].factory()
         result = indicator(df_y, context={"x": df_x})
+        # bars_ago Y'nin df'ine göre hesaplanıyor (RelativeMomentumPair'in
+        # kendi mimari notu: "df=Y hissesi" -- ortak indeks Y'nin ALT
+        # kümesi, bu yüzden lookup her zaman başarılı).
+        _add_bars_ago(result, df_y)
         return {
             "symbol": symbol_label, "market": market_value, "timeframe": timeframe_value,
             "indicator": indicator_name, "params_hash": result.params_hash,
@@ -165,6 +191,9 @@ def _run_universe_worker(
         )
         indicator = CATALOG[indicator_name].factory()
         results = indicator(universe_dfs, index_df)
+        for sym, r in results.items():
+            if sym in universe_dfs:
+                _add_bars_ago(r, universe_dfs[sym])
         out["symbol_results"] = {sym: r.to_json() for sym, r in results.items()}
     except Exception as exc:  # noqa: BLE001 — bkz. _run_single_worker
         out["error"] = f"{type(exc).__name__}: {exc}"

@@ -42,7 +42,7 @@ from tlab.core.types import (
     Signal,
     Timeframe,
 )
-from tlab.features.swings import Pivot, alternate_pivots, find_pivots
+from tlab.features.swings import Pivot, ZigzagMethod, significant_pivots
 from tlab.features.volatility import atr
 
 _LABEL_TR = {"double_top": "ÇİFT TEPE", "double_bottom": "ÇİFT DİP"}
@@ -60,6 +60,12 @@ class DoubleTopBottomParams(BaseParams):
     retest_tol_atr: float = 0.3
     atr_period: int = 14
     vol_ma_window: int = 20
+    # Faz 0.5, A1 — ortak pivot girişi (bkz. tlab/features/swings.py::
+    # significant_pivots). Varsayılan zigzag_method="atr" (sistem geneli
+    # karar, scripts/sistemik_denetim.py ölçümüyle doğrulandı).
+    zigzag_method: ZigzagMethod = "atr"
+    atr_mult: float = 3.0
+    min_swing_atr: float | None = None
 
 
 def _matched_pairs(zigzag: list[Pivot], kind: str) -> list[tuple[Pivot, Pivot, Pivot]]:
@@ -94,7 +100,10 @@ class DoubleTopBottomIndicator(BaseIndicator):
     def compute(self, df: pd.DataFrame, context: dict | None = None) -> IndicatorResult:
         p = self.params
         n = len(df)
-        zigzag = alternate_pivots(find_pivots(df, p.left, p.right))
+        zigzag = significant_pivots(
+            df, method=p.zigzag_method, left=p.left, right=p.right,
+            atr_mult=p.atr_mult, atr_period=p.atr_period, min_swing_atr=p.min_swing_atr,
+        )
         atr_series = atr(df, p.atr_period)
         close = df["close"].to_numpy()
         volume = df["volume"].to_numpy()

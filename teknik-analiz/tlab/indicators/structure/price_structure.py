@@ -74,7 +74,7 @@ from tlab.features.ma import crossovers, sma
 from tlab.features.oscillators import macd as compute_macd
 from tlab.features.oscillators import rsi as compute_rsi
 from tlab.features.ranges import detect_ranges
-from tlab.features.swings import Pivot, find_pivots
+from tlab.features.swings import Pivot, ZigzagMethod, atr_zigzag, find_pivots, significant_pivots
 from tlab.features.trendlines import Trendline, build_trendlines
 from tlab.features.volume_profile import find_hvn_nodes
 from tlab.features.volume_profile import profile as compute_profile
@@ -86,6 +86,14 @@ class PriceStructureParams(BaseParams):
     pivot_left: int = 3
     pivot_right: int = 3
     atr_period: int = 14
+    # Faz 0.5, A1 — ortak pivot girişi (bkz. tlab/features/swings.py::
+    # significant_pivots). Varsayılan zigzag_method="atr" (sistem geneli
+    # karar, scripts/sistemik_denetim.py ölçümüyle doğrulandı); atr_period
+    # yukarıdaki alanla PAYLAŞILIR (modülün geri kalanı zaten aynı ATR'yi
+    # kullanıyor).
+    zigzag_method: ZigzagMethod = "atr"
+    atr_mult: float = 3.0
+    min_swing_atr: float | None = None
     trendline_min_touches: int = 2
     trendline_tol_atr: float = 0.3
     trendline_confirm_bars: int = 1
@@ -135,11 +143,31 @@ class PriceStructure(BaseIndicator):
 
     def compute(self, df: pd.DataFrame, context: dict | None = None) -> IndicatorResult:
         p = self.params
-        pivots = find_pivots(df, p.pivot_left, p.pivot_right)
+        # `_trendlines`'ın candidate-havuzu zaten KABUL EDİLMİŞ bir "aday
+        # havuzu" repaint istisnasına sahip (bkz. modül docstring'i) --
+        # `significant_pivots`'un ALTERNATİFLENMİŞ/azaltılmış zigzag'i onun
+        # için güvenli. `_zones` ise KENDİ, generic repaint_test'e HİÇ
+        # girmeyen ama BU dosyanın kendi hedefli testiyle (`test_range_and_
+        # zone_signals_are_repaint_consistent`) doğrulanan, GERÇEK bir
+        # non-repaint garantisi taşıyor -- bu garanti, alternate_pivots'un
+        # "hangi pivot kesinleşti" kararının df büyüdükçe DEĞİŞEBİLMESİNE
+        # (aynı aday havuzu etkisi) DAYANIYOR OLMAMALI. Bu yüzden `_zones`
+        # KASITLI OLARAK HAM (alternate_pivots'tan GEÇMEMİŞ) pivot adaylarını
+        # kullanır -- find_pivots/atr_zigzag'in KENDİSİ, tek başına, ileri-
+        # yalnızca (append-only) ve prefix-tutarlıdır.
+        trend_pivots = significant_pivots(
+            df, method=p.zigzag_method, left=p.pivot_left, right=p.pivot_right,
+            atr_mult=p.atr_mult, atr_period=p.atr_period, min_swing_atr=p.min_swing_atr,
+        )
+        zone_pivots = (
+            atr_zigzag(df, atr_mult=p.atr_mult, atr_period=p.atr_period)
+            if p.zigzag_method == "atr"
+            else find_pivots(df, p.pivot_left, p.pivot_right)
+        )
 
-        lines, trendline_signals = _trendlines(df, pivots, p)
+        lines, trendline_signals = _trendlines(df, trend_pivots, p)
         boxes_ranges, range_signals = _ranges(df, p)
-        boxes_zones, zone_signals = _zones(df, pivots, p)
+        boxes_zones, zone_signals = _zones(df, zone_pivots, p)
         profile_levels, profile_series, poc_reclaimed_last_bar = _volume_profile(df, p)
         series = _volume_macd_rsi_series(df, p)
         osc_markers = _macd_cross_markers(series)

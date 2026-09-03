@@ -282,7 +282,7 @@ def test_declutter_levels_keeps_only_latest_start_per_style() -> None:
     fib merdiveni/D-hedefi üst üste binip grafiği okunmaz kılıyordu.
     `_declutter_levels`, aynı stildeki eski üçlüleri TAMAMEN eler."""
     df = build_abcd_ohlcv()
-    result = SwingFibABCD(SwingFibABCDParams(left=2, right=2))(df)
+    result = SwingFibABCD(SwingFibABCDParams(left=2, right=2, zigzag_method="fixed"))(df)
     d_levels_full = [lv for lv in result.levels if lv.style == "bullish"]
     assert len({lv.start for lv in d_levels_full}) >= 2  # fixture 2 üçlü üretir
 
@@ -375,7 +375,7 @@ def test_cap_frozen_channels_keeps_only_most_recent_pairs() -> None:
 
 def test_render_declutter_reduces_annotation_count() -> None:
     df = build_abcd_ohlcv()
-    result = SwingFibABCD(SwingFibABCDParams(left=2, right=2))(df)
+    result = SwingFibABCD(SwingFibABCDParams(left=2, right=2, zigzag_method="fixed"))(df)
     result.symbol = "TEST"
     fig_full = render(result, df, theme="light", declutter=False)
     fig_declutter = render(result, df, theme="light", declutter=True)
@@ -395,7 +395,10 @@ def test_fill_and_line_colors_agree_on_direction() -> None:
 
 def _render_gartley() -> tuple[IndicatorResult, pd.DataFrame]:
     df = build_gartley_ohlcv()
-    params = HarmonicParams(left=2, right=2, confirmation_policy="close_reversal", reversal_bars=1)
+    params = HarmonicParams(
+        left=2, right=2, zigzag_method="fixed",
+        confirmation_policy="close_reversal", reversal_bars=1,
+    )
     result = HarmonicIndicator("carney", params)(df)
     result.symbol = "TEST"
     return result, df

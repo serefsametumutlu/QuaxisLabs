@@ -63,7 +63,10 @@ def _double_bottom_ohlcv() -> pd.DataFrame:
 
 
 def _params() -> DoubleTopBottomParams:
-    return DoubleTopBottomParams(left=2, right=2)
+    # Faz 0.5: sistem varsayılanı zigzag_method="atr"; bu dosyanın küçük el
+    # yapımı fixture'ları ATR zigzag'in ısınma penceresine sığmıyor — bant
+    # mekaniğini test ettikleri için bilinçli olarak "fixed"e sabitlendi.
+    return DoubleTopBottomParams(left=2, right=2, zigzag_method="fixed")
 
 
 def test_pending_born_at_p2_finalized_idx() -> None:
@@ -112,7 +115,9 @@ def test_no_double_top_false_positive_for_asymmetric_neckline_peaks() -> None:
 
 def test_eq_tol_too_strict_filters_out_pair() -> None:
     df = _double_bottom_ohlcv()
-    strict = DoubleTopBottomIndicator(DoubleTopBottomParams(left=2, right=2, eq_tol=0.001))
+    strict = DoubleTopBottomIndicator(
+        DoubleTopBottomParams(left=2, right=2, zigzag_method="fixed", eq_tol=0.001)
+    )
     result = strict.compute(df)
     assert result.signals == []
 

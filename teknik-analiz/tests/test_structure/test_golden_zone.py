@@ -88,7 +88,12 @@ def _build_fail_scenario() -> pd.DataFrame:
 
 
 def _params() -> GoldenZoneParams:
-    return GoldenZoneParams(left=2, right=2)
+    # Faz 0.5: sistem-geneli varsayılan artık zigzag_method="atr" -- bu
+    # dosyanın el yapımı küçük senaryoları (birkaç barlık, elle kurgulanmış
+    # fixed-window pivotlar) ATR zigzag'in ısınma penceresini karşılamıyor.
+    # Bu testler pivot KAYNAĞINI değil, bant/sinyal MEKANİĞİNİ hedefliyor --
+    # o yüzden bilinçli olarak eski "fixed" davranışına sabitleniyor.
+    return GoldenZoneParams(left=2, right=2, zigzag_method="fixed")
 
 
 def _events(df: pd.DataFrame) -> list[dict]:
@@ -175,7 +180,9 @@ def test_golden_zone_fail_bar_and_direction() -> None:
 
 def test_min_swing_atr_filters_tiny_swings() -> None:
     df = _build_touch_reaction_success_scenario()
-    strict = GoldenZoneIndicator(GoldenZoneParams(left=2, right=2, min_swing_atr=1000.0))
+    strict = GoldenZoneIndicator(
+        GoldenZoneParams(left=2, right=2, zigzag_method="fixed", min_swing_atr=1000.0)
+    )
     result = strict.compute(df)
     assert result.boxes == []
     assert result.signals == []

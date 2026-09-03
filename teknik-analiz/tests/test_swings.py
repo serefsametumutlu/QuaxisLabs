@@ -6,10 +6,18 @@ from __future__ import annotations
 import math
 
 import pandas as pd
+import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from tlab.features.swings import Pivot, alternate_pivots, atr_zigzag, find_pivots, label_structure
+from tlab.features.swings import (
+    Pivot,
+    alternate_pivots,
+    atr_zigzag,
+    find_pivots,
+    label_structure,
+    significant_pivots,
+)
 from tlab.testing.fixtures import make_trend, make_zigzag
 
 
@@ -173,6 +181,89 @@ def test_atr_zigzag_finds_alternating_reversals() -> None:
 def test_atr_zigzag_empty_df_returns_empty() -> None:
     df = make_trend(n=1).iloc[:0]
     assert atr_zigzag(df) == []
+
+
+# --- significant_pivots (Faz 0.5, A1) --------------------------------------
+
+
+def test_significant_pivots_atr_matches_atr_zigzag_alternated() -> None:
+    pivots = [(0, 100.0), (30, 140.0), (60, 90.0), (90, 150.0)]
+    df = make_zigzag(pivots, noise=0.1, seed=11)
+
+    result = significant_pivots(df, method="atr", atr_mult=1.5, atr_period=10)
+    expected = alternate_pivots(atr_zigzag(df, atr_mult=1.5, atr_period=10))
+
+    assert [(p.bar_idx, p.kind, p.finalized_idx) for p in result] == [
+        (p.bar_idx, p.kind, p.finalized_idx) for p in expected
+    ]
+
+
+def test_significant_pivots_fixed_without_filter_matches_alternate_find_pivots() -> None:
+    pivots = [(0, 100.0), (20, 130.0), (40, 90.0), (60, 150.0), (80, 80.0)]
+    df = make_zigzag(pivots, noise=0.0)
+
+    result = significant_pivots(df, method="fixed", left=5, right=5)
+    expected = alternate_pivots(find_pivots(df, 5, 5))
+
+    assert [(p.bar_idx, p.kind) for p in result] == [(p.bar_idx, p.kind) for p in expected]
+
+
+def test_significant_pivots_fixed_min_swing_atr_drops_small_leg() -> None:
+    # Büyük bir swing (0->20, +40) sonra KÜÇÜK bir geri çekilme (20->25, -2,
+    # min_swing_atr eşiğinin altında kalacak kadar ufak — ardından TEKRAR
+    # dönüp büyük bir yükselişe geçtiği için (25->50, +62) bar 25 GERÇEK bir
+    # yerel dip). min_swing_atr olmadan 25'teki küçük dip AYRI bir zigzag
+    # noktası olur; filtre AÇIKKEN o nokta ATLANMALI (önceki tepe [20] hâlâ
+    # "pending" kalıp sonraki büyük yükselişle [50] eşleşmeli).
+    # (55, 190): bar 50'nin bir yerel tepe olarak KESİNLEŞMESİ için right=2
+    # kadar sonrasında (daha düşük) veri gerekiyor -- yoksa 50 serinin
+    # ucunda kalır ve hiç onaylanmaz.
+    pivots = [(0, 100.0), (20, 140.0), (25, 138.0), (50, 200.0), (55, 190.0)]
+    df = make_zigzag(pivots, noise=0.0)
+
+    unfiltered = significant_pivots(df, method="fixed", left=2, right=2)
+    filtered = significant_pivots(df, method="fixed", left=2, right=2, min_swing_atr=50.0)
+
+    assert any(p.bar_idx == 25 for p in unfiltered)
+    assert not any(p.bar_idx == 25 for p in filtered)
+    # 20'deki tepe hâlâ tutulmalı, ve 50'deki tepeye finalize olmalı.
+    kept_high = next(p for p in filtered if p.bar_idx == 20)
+    assert kept_high.kind == "high"
+
+
+def test_significant_pivots_unknown_method_raises() -> None:
+    df = make_trend(n=30)
+    with pytest.raises(ValueError):
+        significant_pivots(df, method="banana")  # type: ignore[arg-type]
+
+
+@given(
+    n=st.integers(min_value=40, max_value=100),
+    seed=st.integers(min_value=0, max_value=5000),
+)
+@settings(max_examples=30, deadline=None)
+def test_significant_pivots_fixed_min_swing_prefix_is_non_repainting(n: int, seed: int) -> None:
+    """`significant_pivots(df[:cut], method="fixed", min_swing_atr=...)` bir
+    ÖN EK üretmeli: tam seride görünen bir pivot, aynı bar_idx/kind/price ile
+    prefix'te de görülüyorsa asla farklı bir DEĞERE sahip olmamalı (yalnızca
+    henüz bilinmeyen SONRAKİ pivotlar prefix'te eksik olabilir)."""
+    df = make_trend(n=n, slope=0.0, noise=1.5, seed=seed)
+    cut = n // 2
+    if cut <= 10:
+        return
+
+    partial = significant_pivots(df.iloc[:cut], method="fixed", left=2, right=2, min_swing_atr=1.0)
+    full = significant_pivots(df, method="fixed", left=2, right=2, min_swing_atr=1.0)
+    full_by_key = {(p.bar_idx, p.kind): p for p in full}
+
+    for i, p in enumerate(partial):
+        key = (p.bar_idx, p.kind)
+        assert key in full_by_key, f"prefix'te var, tamda yok: {key}"
+        assert math.isclose(p.price, full_by_key[key].price, rel_tol=1e-9)
+        if i < len(partial) - 1:
+            # Son eleman hariç (tail, prefix'e göre daha erken finalize
+            # olabilir), sıralama da AYNI ön ek olmalı.
+            assert full[i].bar_idx == p.bar_idx and full[i].kind == p.kind
 
 
 # --- non-repaint property testi -------------------------------------------

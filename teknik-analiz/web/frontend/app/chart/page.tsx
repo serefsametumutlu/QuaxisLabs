@@ -12,6 +12,10 @@ import { useTheme } from "@/lib/useTheme";
 
 const TIMEFRAMES = ["1h", "4h", "1d", "w1"];
 const MARKETS = ["bist", "nasdaq"];
+// "Birleşik Yapı Raporu" gerçek bir CATALOG girdisi değil (structure.price_
+// structure + structure.swing_fib_abcd'nin bileşimi, bkz. viz/live.py) --
+// ikisi de (D1, H4) destekliyor, kesişimleri burada elle yazılı.
+const STRUCTURE_REPORT_SUPPORTED_TF = ["1D", "4H"];
 
 function Select({
   label,
@@ -84,6 +88,23 @@ function ChartPageInner() {
     ...singleIndicators.map((c) => ({ name: c.name, display_name: c.display_name })),
   ];
 
+  // Faz 0.5, A3 — seçili göstergenin desteklediği zaman dilimleri (backend
+  // /api/chart aynı kapıyla NET bir hata döner; burada seçiciyi ÖNCEDEN
+  // kısıtlayıp o hatayı hiç TETİKLEMEMEK hedefleniyor). Boş dizi = kısıt yok.
+  const supportedTf =
+    indicator === "structure.report"
+      ? STRUCTURE_REPORT_SUPPORTED_TF
+      : (catalog.find((c) => c.name === indicator)?.supported_timeframes ?? []);
+
+  useEffect(() => {
+    if (supportedTf.length === 0) return;
+    if (!supportedTf.includes(tf.toUpperCase())) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTf(supportedTf[0].toLowerCase());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [indicator, catalog]);
+
   return (
     <div className="flex min-h-screen bg-bg text-text-1">
       <Sidebar theme={theme} onThemeChange={setTheme} />
@@ -104,7 +125,25 @@ function ChartPageInner() {
               ))}
             </datalist>
           </label>
-          <Select label="Zaman Dilimi" value={tf} onChange={setTf} options={TIMEFRAMES} />
+          <label className="flex flex-col gap-1 text-xs text-text-3">
+            Zaman Dilimi
+            <select
+              value={tf}
+              onChange={(e) => setTf(e.target.value)}
+              className="rounded-md border border-border bg-surface-1 px-2.5 py-1.5 text-sm text-text-1 outline-none focus:border-accent"
+            >
+              {TIMEFRAMES.map((o) => {
+                const disabled =
+                  supportedTf.length > 0 && !supportedTf.includes(o.toUpperCase());
+                return (
+                  <option key={o} value={o} disabled={disabled}>
+                    {o}
+                    {disabled ? " (desteklenmiyor)" : ""}
+                  </option>
+                );
+              })}
+            </select>
+          </label>
           <label className="flex flex-col gap-1 text-xs text-text-3">
             Gösterge
             <select

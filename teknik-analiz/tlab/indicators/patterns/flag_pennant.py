@@ -35,6 +35,7 @@ generic `Registry.register()`'a TEMİZ kaydolur."""
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import ClassVar
 
 import numpy as np
 import pandas as pd
@@ -76,6 +77,14 @@ class FlagPennantParams(BaseParams):
     vol_k: float = 1.2
     retest_tol_atr: float = 0.3
     atr_period: int = 14
+    # Faz 0.5, A2 — direk/bayrak süresi takvimsel (Bulkowski: "hızlı, dik
+    # direk" + "en fazla 3 hafta"); 1D taban kabul edilip diğer zaman
+    # dilimlerine göre ölçeklenir.
+    _BAR_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {"pole_bars", "flag_min_bars", "flag_max_bars"}
+    )
+    # Faz 0.5, A4 — bkz. double_top_bottom.py'deki AYNI notu.
+    require_volume_confirm: bool = False
 
 
 class FlagPennantIndicator(BaseIndicator):
@@ -196,9 +205,12 @@ class FlagPennantIndicator(BaseIndicator):
             if confirm_sig is not None:
                 pole_vol = float(volume[pole.t0_idx : pole.t1_idx + 1].mean())
                 flag_vol = float(volume[window_start : born_idx + 1].mean())
-                confirm_sig.payload["volume_profile_ok"] = bool(
-                    flag_vol > 0 and pole_vol >= p.vol_k * flag_vol
-                )
+                volume_profile_ok = bool(flag_vol > 0 and pole_vol >= p.vol_k * flag_vol)
+                confirm_sig.payload["volume_profile_ok"] = volume_profile_ok
+                if p.require_volume_confirm and not volume_profile_ok:
+                    # Faz 0.5, A4: aday GEÇERSİZLEŞMİYOR, yalnızca confirmed'a
+                    # TERFİ ETMİYOR.
+                    pattern_signals = [s for s in pattern_signals if s is not confirm_sig]
 
             signals.extend(pattern_signals)
 

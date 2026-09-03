@@ -37,7 +37,7 @@ güvenilirliğini kaybeder" kuralı)."""
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import ClassVar, Literal
 
 import pandas as pd
 
@@ -100,6 +100,12 @@ class WedgeParams(BaseParams):
     zigzag_method: ZigzagMethod = "atr"
     atr_mult: float = 3.0
     min_swing_atr: float | None = None
+    # Faz 0.5, A2 — takoz/üçgenin min. oluşum süresi ve apex'e izin verilen
+    # maks. mesafe takvimsel süreler (Bulkowski: "en az 3 hafta"); 1D taban
+    # kabul edilip diğer zaman dilimlerine göre ölçeklenir.
+    _BAR_FIELDS: ClassVar[frozenset[str]] = frozenset({"min_bars", "max_apex_bars"})
+    # Faz 0.5, A4 — bkz. double_top_bottom.py'deki AYNI notu.
+    require_volume_confirm: bool = False
 
 
 def _normalized_ratio(slope_a: float, slope_b: float) -> float:
@@ -251,10 +257,16 @@ class WedgeIndicator(BaseIndicator):
                     if confirm_sig is not None:
                         vol_bar_idx = df.index.get_loc(confirm_sig.bar_time)
                         vma = vol_ma[vol_bar_idx]
-                        volume_ok = (
+                        volume_ok = bool(
                             not pd.isna(vma) and vma > 0 and volume[vol_bar_idx] >= p.vol_k * vma
                         )
-                        confirm_sig.payload["volume_ok"] = bool(volume_ok)
+                        confirm_sig.payload["volume_ok"] = volume_ok
+                        if p.require_volume_confirm and not volume_ok:
+                            # Faz 0.5, A4: aday GEÇERSİZLEŞMİYOR, yalnızca
+                            # confirmed'a TERFİ ETMİYOR.
+                            pattern_signals = [
+                                s for s in pattern_signals if s is not confirm_sig
+                            ]
 
                     signals.extend(pattern_signals)
 

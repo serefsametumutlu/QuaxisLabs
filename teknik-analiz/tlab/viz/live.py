@@ -15,7 +15,7 @@ from tlab.core.types import IndicatorResult, Market, Timeframe
 from tlab.data.providers.yfinance_provider import YFinanceProvider
 from tlab.data.store import Store
 from tlab.data.universe import BENCHMARK_SYMBOL, load_universe
-from tlab.indicators.bootstrap import CATALOG
+from tlab.indicators.bootstrap import CATALOG, scaled_factory
 from tlab.indicators.pairs.relative_momentum import RelativeMomentumPair, RelativeMomentumParams
 from tlab.indicators.pairs.vol_harvest import VolHarvestPair, VolHarvestParams
 from tlab.viz.renderer import render, render_structure_report
@@ -30,6 +30,20 @@ _TF_MAP = {"1H": Timeframe.H1, "4H": Timeframe.H4, "1D": Timeframe.D1, "W1": Tim
 STRUCTURE_REPORT_NAME = "structure.report"
 
 
+def _require_supported_timeframe(indicator_name: str, tf: Timeframe) -> None:
+    """Faz 0.5, A3: `engine.run()`'daki AYNI kapı — grafik ile tarama AYNI
+    sonucu üretmeli. Burada sessizce yanlış/anlamsız bir sonuç üretmek
+    yerine NET bir hata fırlatılır (`momentum.alpha_rank`in D1-only
+    sözleşmesini çiğneyip 4H'te "çalışır gibi görünmesi" tam da STRATEJI_
+    DENETIM_TAM.md A3'ün belgelediği sessiz hataydı)."""
+    supported = CATALOG[indicator_name].supported_timeframes
+    if supported and tf not in supported:
+        names = ", ".join(t.value for t in supported)
+        raise ValueError(
+            f"{indicator_name} {tf.value}'te çalışmıyor (desteklenen zaman dilimleri: {names})"
+        )
+
+
 def compute_live(
     indicator_name: str, symbol: str, timeframe: str, market: str
 ) -> tuple[IndicatorResult, pd.DataFrame | None]:
@@ -42,6 +56,7 @@ def compute_live(
     tf = _TF_MAP.get(timeframe.upper())
     if tf is None:
         raise ValueError(f"Geçersiz tf: {timeframe} (1h|4h|1d bekleniyor)")
+    _require_supported_timeframe(indicator_name, tf)
     store = Store(YFinanceProvider())
 
     if spec.needs_context:
@@ -51,12 +66,14 @@ def compute_live(
         pair_instance: BaseIndicator
         if indicator_name == "pair.relative_momentum":
             pair_instance = RelativeMomentumPair(
-                RelativeMomentumParams(y_symbol=y_sym, x_symbol=x_sym)
+                RelativeMomentumParams(y_symbol=y_sym, x_symbol=x_sym).for_timeframe(tf)
             )
         elif indicator_name == "pair.vol_harvest":
-            pair_instance = VolHarvestPair(VolHarvestParams(y_symbol=y_sym, x_symbol=x_sym))
+            pair_instance = VolHarvestPair(
+                VolHarvestParams(y_symbol=y_sym, x_symbol=x_sym).for_timeframe(tf)
+            )
         else:
-            pair_instance = spec.factory()
+            pair_instance = scaled_factory(indicator_name, tf)
         df_y = store.get(y_sym, tf, mkt)
         df_x = store.get(x_sym, tf, mkt)
         result = pair_instance(df_y, context={"x": df_x})
@@ -83,7 +100,7 @@ def compute_live(
         if symbol not in universe_dfs:
             universe_dfs[symbol] = store.get(symbol, tf, mkt)
         index_df = store.get(BENCHMARK_SYMBOL[mkt], tf, mkt)
-        instance = spec.factory()
+        instance = scaled_factory(indicator_name, tf)
         results = instance(universe_dfs, index_df)
         if symbol not in results:
             raise ValueError(
@@ -93,7 +110,7 @@ def compute_live(
         result = results[symbol]
         return result, universe_dfs[symbol]
 
-    instance = spec.factory()
+    instance = scaled_factory(indicator_name, tf)
     df = store.get(symbol, tf, mkt)
     result = instance(df)
     result.symbol = symbol
@@ -111,12 +128,14 @@ def compute_structure_report(
     tf = _TF_MAP.get(timeframe.upper())
     if tf is None:
         raise ValueError(f"Geçersiz tf: {timeframe} (1h|4h|1d bekleniyor)")
+    _require_supported_timeframe("structure.price_structure", tf)
+    _require_supported_timeframe("structure.swing_fib_abcd", tf)
     store = Store(YFinanceProvider())
     df = store.get(symbol, tf, mkt)
 
-    ps_result = CATALOG["structure.price_structure"].factory()(df)
+    ps_result = scaled_factory("structure.price_structure", tf)(df)
     ps_result.symbol = symbol
-    sf_result = CATALOG["structure.swing_fib_abcd"].factory()(df)
+    sf_result = scaled_factory("structure.swing_fib_abcd", tf)(df)
     sf_result.symbol = symbol
     return ps_result, sf_result, df
 

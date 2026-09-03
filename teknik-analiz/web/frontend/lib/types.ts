@@ -89,6 +89,9 @@ export interface CatalogEntry {
   display_name: string;
   needs_context: boolean;
   needs_universe: boolean;
+  /** Faz 0.5, A3 — büyük harfli tf kodları (ör. ["1D","4H"]). Boş dizi =
+   * göstergenin kendi bir kısıtı yok (nadir; çoğu gösterge D1/H4 bildirir). */
+  supported_timeframes: string[];
 }
 
 export interface CategoryEntry {

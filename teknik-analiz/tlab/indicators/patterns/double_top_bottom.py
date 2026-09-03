@@ -21,6 +21,7 @@ TEMİZ kaydolur."""
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import ClassVar
 
 import pandas as pd
 
@@ -66,6 +67,15 @@ class DoubleTopBottomParams(BaseParams):
     zigzag_method: ZigzagMethod = "atr"
     atr_mult: float = 3.0
     min_swing_atr: float | None = None
+    # Faz 0.5, A2 — min_bars_between takvimsel bir süre (LMW: "en az bir ay")
+    # temsil ediyor; 1D taban kabul edilip diğer zaman dilimlerine göre
+    # ölçeklenir (bkz. tlab/core/params.py::BaseParams.for_timeframe).
+    _BAR_FIELDS: ClassVar[frozenset[str]] = frozenset({"min_bars_between"})
+    # Faz 0.5, A4 — `volume_ok` ZATEN hesaplanıp payload'a yazılıyordu ama
+    # hiçbir sinyali FİLTRELEMİYORDU (bkz. STRATEJI_DENETIM_TAM.md A4).
+    # Varsayılan False = davranış DEĞİŞMEDİ; True iken hacim onayı
+    # geçmeyen aday confirmed'a TERFİ ETMEZ (invalidated OLMAZ).
+    require_volume_confirm: bool = False
 
 
 def _matched_pairs(zigzag: list[Pivot], kind: str) -> list[tuple[Pivot, Pivot, Pivot]]:
@@ -168,9 +178,15 @@ class DoubleTopBottomIndicator(BaseIndicator):
                 if confirm_sig is not None:
                     breakout_idx = df.index.get_loc(confirm_sig.bar_time)
                     vma = vol_ma[breakout_idx]
-                    confirm_sig.payload["volume_ok"] = bool(
+                    volume_ok = bool(
                         not pd.isna(vma) and vma > 0 and volume[breakout_idx] >= p.vol_k * vma
                     )
+                    confirm_sig.payload["volume_ok"] = volume_ok
+                    if p.require_volume_confirm and not volume_ok:
+                        # Faz 0.5, A4: aday GEÇERSİZLEŞMİYOR, yalnızca
+                        # confirmed'a TERFİ ETMİYOR -- diğer yaşam döngüsü
+                        # sinyalleri (pending vb.) olduğu gibi kalır.
+                        pattern_signals = [s for s in pattern_signals if s is not confirm_sig]
 
                 signals.extend(pattern_signals)
 

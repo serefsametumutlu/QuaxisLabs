@@ -25,6 +25,7 @@ aşımı: apex olmadığı için sabit `max_bars_to_confirm` parametresi kullan�
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import ClassVar
 
 import pandas as pd
 
@@ -83,6 +84,14 @@ class BroadeningParams(BaseParams):
     zigzag_method: ZigzagMethod = "atr"
     atr_mult: float = 3.0
     min_swing_atr: float | None = None
+    # Faz 0.5, A2 — dördü de takvimsel bir süre temsil ediyor (min. oluşum
+    # süresi, kırılım/hedef için üst bar sınırı, ön-trend bakış penceresi);
+    # 1D taban kabul edilip diğer zaman dilimlerine göre ölçeklenir.
+    _BAR_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {"min_bars", "max_bars_to_confirm", "max_bars_to_target", "prior_trend_lookback"}
+    )
+    # Faz 0.5, A4 — bkz. double_top_bottom.py'deki AYNI notu.
+    require_volume_confirm: bool = False
 
 
 class BroadeningIndicator(BaseIndicator):
@@ -206,9 +215,16 @@ class BroadeningIndicator(BaseIndicator):
                     if confirm_sig is not None:
                         vol_bar_idx = df.index.get_loc(confirm_sig.bar_time)
                         vma = vol_ma[vol_bar_idx]
-                        confirm_sig.payload["volume_ok"] = bool(
+                        volume_ok = bool(
                             not pd.isna(vma) and vma > 0 and volume[vol_bar_idx] >= p.vol_k * vma
                         )
+                        confirm_sig.payload["volume_ok"] = volume_ok
+                        if p.require_volume_confirm and not volume_ok:
+                            # Faz 0.5, A4: aday GEÇERSİZLEŞMİYOR, yalnızca
+                            # confirmed'a TERFİ ETMİYOR.
+                            pattern_signals = [
+                                s for s in pattern_signals if s is not confirm_sig
+                            ]
 
                     signals.extend(pattern_signals)
                     levels.append(

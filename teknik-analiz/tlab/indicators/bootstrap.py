@@ -48,12 +48,13 @@ indikatörler için farklı bir evren/çağrı biçimi gerektirir
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 import pandas as pd
 
 from tlab.core.indicator import BaseIndicator, RegistryError, registry
+from tlab.core.types import Timeframe
 from tlab.indicators.harmonics.scanner_indicator import HarmonicIndicator, HarmonicParams
 from tlab.indicators.momentum.alpha_rank import AlphaRank, AlphaRankParams
 from tlab.indicators.momentum.momentum_rank import MomentumRank, MomentumRankParams
@@ -93,6 +94,12 @@ class IndicatorSpec:
     # AÇMAZ, tüm evren + endeksi TEK bir işte `UniverseIndicator.__call__`e
     # verir (bkz. `tlab/core/indicator.py::UniverseIndicator` docstring'i).
     needs_universe: bool = False
+    # Faz 0.5, A3: `build_catalog()`'un SONUNDA, HER indikatörün KENDİ
+    # `.meta.supported_timeframes`'inden otomatik dolduruluyor (bkz. o
+    # fonksiyonun sonu) -- elle iki kez yazılıp DRIFT etme riski taşıyan bir
+    # alan DEĞİL, tek doğru kaynağın (indikatörün kendi meta'sı) bir
+    # izdüşümü. `engine.run()`/`viz/live.py`/`/api/catalog` buradan okur.
+    supported_timeframes: tuple[Timeframe, ...] = ()
 
 
 def _harmonic_factory(school: str) -> Any:
@@ -180,10 +187,44 @@ def build_catalog() -> dict[str, IndicatorSpec]:
         name="pair.vol_harvest", category="pair",
         factory=lambda: VolHarvestPair(VolHarvestParams()), needs_context=True,
     )
-    return catalog
+    # Faz 0.5, A3: supported_timeframes'i HER indikatörü bir kez kurup KENDİ
+    # meta'sından oku -- iki kez elle yazmak yerine tek doğru kaynağı kopyalar.
+    return {
+        name: replace(spec, supported_timeframes=spec.factory().meta.supported_timeframes)
+        for name, spec in catalog.items()
+    }
 
 
 CATALOG: dict[str, IndicatorSpec] = build_catalog()
+
+
+def scaled_factory(indicator_name: str, timeframe: Timeframe) -> Any:
+    """`CATALOG[indicator_name].factory()`'yi kurar ve `params`'ını `tf`'ye
+    göre ölçekler (Faz 0.5, A2 — `BaseParams.for_timeframe`). Hem
+    `scanner/engine.py`'nin worker'ları (tarama) hem `viz/live.py`
+    (`tlab plot` / `/api/chart`) BURADAN çağırır — "grafikle tarama AYNI
+    sonucu üretmeli" (A2 madde 3) ancak TEK bir ölçekleme yeri varsa
+    garanti edilir.
+
+    TASARIM KARARI: yeni bir `with_params()` metodu ya da `factory(tf=...)`
+    imzası EKLEMEK yerine, `indicator.params`'ı DOĞRUDAN yeni (ölçeklenmiş)
+    bir örnekle DEĞİŞTİRİYORUZ. `BaseIndicator`/`UniverseIndicator`
+    sözleşmesi `params`'ı sıradan bir örnek özniteliği olarak tanımlıyor
+    (dataclass'ın KENDİSİ frozen, ama onu TAŞIYAN nesne değil) — bu yüzden
+    bu, `HarmonicIndicator(school, params)`/`WedgeIndicator(mode, params)`
+    gibi FARKLI constructor imzalarına sahip indikatörlerin HİÇBİRİNE
+    dokunmadan çalışan tek genel çözüm. `factory()`'ye `tf` eklemek CATALOG
+    sözleşmesini (her yerde `Callable[[], BaseIndicator]`) değiştirirdi;
+    `with_params()` eklemek de aynı işi bunun ÜSTÜNE bir metotla yapardı.
+
+    Dönüş tipi `IndicatorSpec.factory`'nin KENDİSİYLE aynı sebeple `Any`
+    (yukarıdaki yorum) — kesin bir `BaseIndicator | UniverseIndicator`
+    union'ı çağıranların her birinde (tekil/pair/universe) FARKLI `__call__`
+    imzaları olduğu için mypy'yi her çağrı sitesinde yanlış yere kısıtlardı.
+    """
+    indicator = CATALOG[indicator_name].factory()
+    indicator.params = indicator.params.for_timeframe(timeframe)
+    return indicator
 
 
 def _quiet_tailed_ohlcv(seed: int, start_price: float) -> pd.DataFrame:

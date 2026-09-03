@@ -15,6 +15,9 @@ from tlab.cli import _load_scan_preset, _signal_passes_filter
 @dataclass
 class _FakeSignal:
     payload: dict[str, Any] = field(default_factory=dict)
+    score: float = 0.0
+    direction: str = "long"
+    state: str = "confirmed"
 
 
 def test_break_types_filter() -> None:
@@ -57,10 +60,44 @@ def test_combined_filters_all_must_match() -> None:
 
 
 def test_scans_yaml_presets_load() -> None:
-    for name in ("dusen_kiran", "golden_zone", "demand_taze", "kanal_dibi_hafta"):
+    for name in (
+        "dusen_kiran", "golden_zone", "demand_taze", "kanal_dibi_hafta", "hacim_onayli",
+    ):
         indicators, filt = _load_scan_preset(name)
         assert indicators
         assert isinstance(filt, dict)
+
+
+def test_hacim_onayli_preset_expr_accepts_volume_ok_key() -> None:
+    """Faz 0.5, A4 — `patterns.double_top_bottom`/`wedge`/`broadening`
+    `volume_ok` payload anahtarını kullanır."""
+    _, filt = _load_scan_preset("hacim_onayli")
+    assert _signal_passes_filter(
+        _FakeSignal({"event": "double_top_confirmed", "volume_ok": True}), filt
+    )
+    assert not _signal_passes_filter(
+        _FakeSignal({"event": "double_top_confirmed", "volume_ok": False}), filt
+    )
+
+
+def test_hacim_onayli_preset_expr_accepts_volume_profile_ok_key() -> None:
+    """`patterns.head_shoulders`/`flag_pennant` FARKLI bir payload anahtarı
+    (`volume_profile_ok`) kullanır -- `or` ile expr İKİSİNİ DE kapsar,
+    diğer indikatörün payload'ında olmayan anahtar None/False sayılır."""
+    _, filt = _load_scan_preset("hacim_onayli")
+    assert _signal_passes_filter(
+        _FakeSignal({"event": "tobo_confirmed", "volume_profile_ok": True}), filt
+    )
+    assert not _signal_passes_filter(
+        _FakeSignal({"event": "tobo_confirmed", "volume_profile_ok": False}), filt
+    )
+
+
+def test_hacim_onayli_preset_events_filter_still_applies() -> None:
+    _, filt = _load_scan_preset("hacim_onayli")
+    assert not _signal_passes_filter(
+        _FakeSignal({"event": "double_top_pending", "volume_ok": True}), filt
+    )
 
 
 def test_unknown_preset_raises() -> None:

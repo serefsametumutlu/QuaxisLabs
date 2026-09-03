@@ -53,6 +53,7 @@ barı, macd/volume series eşitliği) doğrulanır.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import ClassVar
 
 import numpy as np
 import pandas as pd
@@ -94,6 +95,13 @@ class PriceStructureParams(BaseParams):
     zigzag_method: ZigzagMethod = "atr"
     atr_mult: float = 3.0
     min_swing_atr: float | None = None
+    # Faz 0.5, A2 — konsolidasyon kutusu için minimum bar sayısı takvimsel
+    # bir süre (kaç bar boyunca fiyat dar bir bantta kaldı); 1D taban kabul
+    # edilip diğer zaman dilimlerine göre ölçeklenir. profile_window_bars
+    # BİLİNÇLİ OLARAK dışarıda bırakıldı -- kendi docstring'i bunu bir
+    # takvim süresi değil "tipik görünür pencere" (viz) varsayımı olarak
+    # tanımlıyor.
+    _BAR_FIELDS: ClassVar[frozenset[str]] = frozenset({"range_min_bars"})
     trendline_min_touches: int = 2
     trendline_tol_atr: float = 0.3
     trendline_confirm_bars: int = 1

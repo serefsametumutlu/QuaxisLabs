@@ -105,6 +105,29 @@ def test_entry_marker_emitted_at_confirmation() -> None:
     assert entry.t == completed.bar_time
 
 
+def test_require_volume_confirm_suppresses_confirmed_when_volume_fails() -> None:
+    """Faz 0.5, A4: fixture hacmi SABİT (1000) -- vol_k=1.2 varsayılanıyla
+    eşiği HİÇBİR barda geçmez (volume_ok HER ZAMAN False).
+    require_volume_confirm=True iken confirmed sinyali hiç ÜRETİLMEMELİ
+    (aday GEÇERSİZLEŞMEZ -- pending sinyali olduğu gibi kalır)."""
+    df = _double_bottom_ohlcv()
+    params = DoubleTopBottomParams(left=2, right=2, zigzag_method="fixed",
+                                    require_volume_confirm=True)
+    result = DoubleTopBottomIndicator(params).compute(df)
+    assert not any(s.state == "confirmed" for s in result.signals)
+    assert any(s.payload.get("event", "").endswith("_pending") for s in result.signals)
+
+
+def test_require_volume_confirm_false_keeps_default_behavior() -> None:
+    """Varsayılan (require_volume_confirm=False) davranış DEĞİŞMEMELİ --
+    aynı fixture'da confirmed sinyali hâlâ üretilir (bkz.
+    test_neckline_break_confirms_at_expected_bar)."""
+    df = _double_bottom_ohlcv()
+    result = DoubleTopBottomIndicator(_params()).compute(df)
+    confirmed = next(s for s in result.signals if s.state == "confirmed")
+    assert confirmed.payload["volume_ok"] is False  # ölçüldü ama FİLTRELEMEDİ
+
+
 def test_no_double_top_false_positive_for_asymmetric_neckline_peaks() -> None:
     """idx7(117)/idx14(105) tepe çifti eq_tol'u (varsayılan 0.02) çok aşıyor
     (~%11) -> hiç double_top adayı üretilmemeli."""

@@ -20,6 +20,7 @@ def get_catalog() -> list[dict[str, object]]:
             "display_name": tr_indicator(spec.name),
             "needs_context": spec.needs_context,
             "needs_universe": spec.needs_universe,
+            "supported_timeframes": [tf.value for tf in spec.supported_timeframes],
         }
         for spec in CATALOG.values()
     ]

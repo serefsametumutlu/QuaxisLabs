@@ -89,3 +89,32 @@ presets:
     filter:
       events: ["reversal_confluence"]
       expr: "bottom_probability >= 0.5 and n_sources >= 3"
+  # Faz 0.5, A4 (STRATEJI_DENETIM_TAM.md): 5 formasyon modülünün hepsinde
+  # volume_ok/volume_profile_ok ZATEN hesaplanıp payload'a yazılıyordu ama
+  # hiçbir sinyali filtrelemiyordu. `require_volume_confirm=True` (indikatör
+  # parametresi, varsayılan KAPALI) sinyali kaynağında bastırırken, bu
+  # preset AYNI bilgiyi mevcut (indikatör parametrelerine dokunmayan)
+  # preset/expr mekanizmasıyla SUNUM katmanında filtreler -- iki modül
+  # farklı payload anahtarı kullandığı için (`volume_ok` vs
+  # `volume_profile_ok`) `or` ile ikisi birden kontrol edilir; ilgisiz
+  # anahtar bir indikatörün payload'ında yoksa `filter_expr.py` bunu
+  # None/False sayar (hata fırlatmaz).
+  hacim_onayli:
+    description: "Kırılım hacmi ortalamanın üstünde olan onaylanmış formasyonlar (5 patterns.* göstergesi)"
+    indicators:
+      [
+        "patterns.head_shoulders", "patterns.double_top_bottom",
+        "patterns.wedge", "patterns.triangle", "patterns.broadening",
+        "patterns.flag_pennant",
+      ]
+    filter:
+      events:
+        [
+          "tobo_confirmed", "obo_confirmed",
+          "double_top_confirmed", "double_bottom_confirmed",
+          "falling_wedge_confirmed", "rising_wedge_confirmed",
+          "sym_triangle_confirmed", "asc_triangle_confirmed", "desc_triangle_confirmed",
+          "broadening_top_confirmed", "broadening_bottom_confirmed",
+          "bayrak_confirmed", "flama_confirmed",
+        ]
+      expr: "volume_ok == True or volume_profile_ok == True"

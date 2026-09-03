@@ -10,12 +10,14 @@ Series/Timestamp pickling sürüm/ortam farklılıklarına karşı en sağlam yo
 
 from __future__ import annotations
 
+import logging
 import os
 import time
 from collections.abc import Callable
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 
 import pandas as pd
 
@@ -26,6 +28,8 @@ from tlab.data.store import Store
 from tlab.data.universe import BENCHMARK_SYMBOL
 from tlab.data.validate import DataQualityReport, check_data_quality
 from tlab.scanner.results import DataQualityRecord, SymbolIndicatorRun
+
+_logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -58,6 +62,10 @@ class ScanRun:
     indicator_names: list[str]
     results: list[IndicatorRunResult] = field(default_factory=list)
     data_quality: list[DataQualityRecord] = field(default_factory=list)
+    # Faz 0.5, A3: (indikatör, tf) çiftleri IndicatorMeta.supported_timeframes'i
+    # ihlal ettiği için hiç İŞ AÇILMADAN atlandı (bkz. run()). Sessizce
+    # atlamak yerine burada görünür -- eod.py/çağıran isterse loglar/raporlar.
+    skipped_unsupported: list[dict[str, str]] = field(default_factory=list)
 
     @property
     def error_count(self) -> int:
@@ -97,17 +105,29 @@ def _fetch_and_prepare(
     return df
 
 
+def _scaled_indicator(indicator_name: str, timeframe: Timeframe) -> Any:
+    """`bootstrap.py::scaled_factory`'nin process-local import'lu ince
+    sarmalayıcısı — `ProcessPoolExecutor` işçi süreçlerinde modül seviyesi
+    bir import'un (bu dosyanın en üstünde) süreçler arası pickling'i
+    karmaşıklaştırmaması için import burada, çağrı anında yapılır (bkz.
+    modül docstring'i, `_run_single_worker` ile AYNI gerekçe). Ölçekleme
+    mantığının KENDİSİ `bootstrap.py`'de yaşıyor — `viz/live.py` da AYNI
+    fonksiyonu çağırır (Faz 0.5, A2 madde 3: "grafikle tarama AYNI sonucu
+    üretmeli")."""
+    from tlab.indicators.bootstrap import scaled_factory  # process-local import
+
+    return scaled_factory(indicator_name, timeframe)
+
+
 def _run_single_worker(
     symbol: str, market_value: str, timeframe_value: str, indicator_name: str,
     lookback_bars: int, drop_open_bar: bool,
 ) -> dict:
-    from tlab.indicators.bootstrap import CATALOG  # process-local import
-
     t0 = time.perf_counter()
     market, timeframe = Market(market_value), Timeframe(timeframe_value)
     try:
         df = _fetch_and_prepare(symbol, market, timeframe, lookback_bars, drop_open_bar)
-        indicator = CATALOG[indicator_name].factory()
+        indicator = _scaled_indicator(indicator_name, timeframe)
         result = indicator(df)
         _add_bars_ago(result, df)
         return {
@@ -128,15 +148,13 @@ def _run_pair_worker(
     y_symbol: str, x_symbol: str, market_value: str, timeframe_value: str, indicator_name: str,
     lookback_bars: int, drop_open_bar: bool,
 ) -> dict:
-    from tlab.indicators.bootstrap import CATALOG
-
     t0 = time.perf_counter()
     market, timeframe = Market(market_value), Timeframe(timeframe_value)
     symbol_label = f"{y_symbol}/{x_symbol}"
     try:
         df_y = _fetch_and_prepare(y_symbol, market, timeframe, lookback_bars, drop_open_bar)
         df_x = _fetch_and_prepare(x_symbol, market, timeframe, lookback_bars, drop_open_bar)
-        indicator = CATALOG[indicator_name].factory()
+        indicator = _scaled_indicator(indicator_name, timeframe)
         result = indicator(df_y, context={"x": df_x})
         # bars_ago Y'nin df'ine göre hesaplanıyor (RelativeMomentumPair'in
         # kendi mimari notu: "df=Y hissesi" -- ortak indeks Y'nin ALT
@@ -167,8 +185,6 @@ def _run_universe_worker(
     geçmişi olan sembolleri sessizce atlayabilir (bkz. `UniverseIndicator`
     docstring'i — dönen sözlük `universe`'in ALT KÜMESİ olabilir), bu da
     `symbol_errors`'a DÜŞMEZ (hata değil, tasarım gereği filtre)."""
-    from tlab.indicators.bootstrap import CATALOG
-
     t0 = time.perf_counter()
     market, timeframe = Market(market_value), Timeframe(timeframe_value)
     out: dict = {
@@ -189,7 +205,7 @@ def _run_universe_worker(
         index_df = _fetch_and_prepare(
             benchmark_symbol, market, timeframe, lookback_bars, drop_open_bar
         )
-        indicator = CATALOG[indicator_name].factory()
+        indicator = _scaled_indicator(indicator_name, timeframe)
         results = indicator(universe_dfs, index_df)
         for sym, r in results.items():
             if sym in universe_dfs:
@@ -293,12 +309,25 @@ def run(
     jobs_single: list[tuple] = []
     jobs_pair: list[tuple] = []
     jobs_universe: list[tuple] = []
+    skipped_unsupported: list[dict[str, str]] = []
 
     for name in indicator_names:
         spec = CATALOG.get(name)
         if spec is None:
             continue
         for tf in timeframes:
+            # Faz 0.5, A3: IndicatorMeta.supported_timeframes'i ihlal eden
+            # bir (gösterge, tf) çifti için İŞ HİÇ AÇILMAZ (momentum.alpha_
+            # rank'in D1-only sözleşmesini çiğneyip 4H'te koşması, weekly_
+            # channel'ın desteklediği W1'i HİÇ görmemesi gibi sessiz
+            # hatalar buradan geliyordu — bkz. STRATEJI_DENETIM_TAM.md A3).
+            if spec.supported_timeframes and tf not in spec.supported_timeframes:
+                skipped_unsupported.append({"indicator": name, "timeframe": tf.value})
+                _logger.info(
+                    "skipped_unsupported: %s tf=%s desteklenmiyor (supported=%s)",
+                    name, tf.value, [t.value for t in spec.supported_timeframes],
+                )
+                continue
             if spec.needs_context:
                 for y_sym, x_sym in pairs or []:
                     jobs_pair.append(
@@ -344,5 +373,5 @@ def run(
         run_id=run_id, started_at=started_at, finished_at=datetime.now(UTC),
         market=market.value, timeframes=[tf.value for tf in timeframes],
         universe_size=len(universe), indicator_names=indicator_names,
-        results=results, data_quality=data_quality,
+        results=results, data_quality=data_quality, skipped_unsupported=skipped_unsupported,
     )

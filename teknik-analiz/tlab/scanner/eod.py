@@ -109,7 +109,14 @@ def run_eod(
     date_: date | None = None,
     force: bool = False,
     indicator_names: list[str] | None = None,
-    timeframes: tuple[str, ...] = ("4h", "1d"),
+    # Faz 0.5, A3: "w1" eklendi (cli.py/dashboard.py'nin ZATEN kullandığı
+    # yazım — bkz. tlab/cli.py:365) -- weekly_channel supported_timeframes=
+    # (W1, D1) bildiriyordu ama run_eod öncesinde yalnızca 4H+1D taradığı
+    # için W1'i HİÇ görmüyordu (bkz. STRATEJI_DENETIM_TAM.md A3). W1 verisi
+    # `Store.update()` tarafından zaten HER EOD koşusunda 1D'den otomatik
+    # türetilip yazılıyor (bkz. data/store.py) -- ekstra bir veri adımı
+    # gerekmiyor.
+    timeframes: tuple[str, ...] = ("4h", "1d", "w1"),
     pairs: list[tuple[str, str]] | None = None,
     notify: NotifyHook = _noop_notify,
     results_db: Path | None = None,
@@ -133,7 +140,7 @@ def run_eod(
         return {"run_id": run_id, "status": "skipped_existing"}
 
     indicator_names = indicator_names or list(CATALOG.keys())
-    tf_map = {"1h": Timeframe.H1, "4h": Timeframe.H4, "1d": Timeframe.D1}
+    tf_map = {"1h": Timeframe.H1, "4h": Timeframe.H4, "1d": Timeframe.D1, "w1": Timeframe.W1}
     tf_enums = [tf_map[tf.lower()] for tf in timeframes]
     universe = universe_override if universe_override is not None else load_universe(mkt)
 

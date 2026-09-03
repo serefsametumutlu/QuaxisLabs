@@ -94,6 +94,25 @@ def test_neckline_break_confirms_and_reaches_target() -> None:
     assert completed.payload["target"] == pytest.approx(146.0, abs=0.5)
 
 
+def test_require_volume_confirm_suppresses_confirmed_when_volume_fails() -> None:
+    """Faz 0.5, A4: fixture hacmi SABİT (1000) -- vol_k=1.2 varsayılanıyla
+    sağ omuz hacmi kırılım hacmini AŞAMAZ (volume_profile_ok HER ZAMAN
+    False). require_volume_confirm=True iken confirmed sinyali hiç
+    ÜRETİLMEMELİ."""
+    df = _tobo_ohlcv()
+    params = HeadShouldersParams(left=2, right=2, zigzag_method="fixed", kind="tobo",
+                                  require_volume_confirm=True)
+    result = HeadShouldersIndicator(params).compute(df)
+    assert not any(s.payload["event"] == "tobo_confirmed" for s in result.signals)
+
+
+def test_require_volume_confirm_false_keeps_default_behavior() -> None:
+    df = _tobo_ohlcv()
+    result = HeadShouldersIndicator(_params()).compute(df)
+    confirmed = next(s for s in result.signals if s.payload["event"] == "tobo_confirmed")
+    assert confirmed.payload["volume_profile_ok"] is False  # ölçüldü ama FİLTRELEMEDİ
+
+
 def test_shoulder_markers_present() -> None:
     df = _tobo_ohlcv()
     result = HeadShouldersIndicator(_params()).compute(df)

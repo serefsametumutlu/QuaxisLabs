@@ -80,6 +80,8 @@ class HeadShouldersParams(BaseParams):
     zigzag_method: ZigzagMethod = "atr"
     atr_mult: float = 3.0
     min_swing_atr: float | None = None
+    # Faz 0.5, A4 — bkz. double_top_bottom.py'deki AYNI notu.
+    require_volume_confirm: bool = False
 
 
 class HeadShouldersIndicator(BaseIndicator):
@@ -180,9 +182,14 @@ class HeadShouldersIndicator(BaseIndicator):
                     ) if hs.l3.bar_idx > hs.h2.bar_idx else float(volume[hs.h2.bar_idx])
                     breakout_idx = df.index.get_loc(confirm_sig.bar_time)
                     breakout_vol = volume[breakout_idx]
-                    confirm_sig.payload["volume_profile_ok"] = bool(
+                    volume_profile_ok = bool(
                         right_shoulder_vol > 0 and breakout_vol >= p.vol_k * right_shoulder_vol
                     )
+                    confirm_sig.payload["volume_profile_ok"] = volume_profile_ok
+                    if p.require_volume_confirm and not volume_profile_ok:
+                        # Faz 0.5, A4: aday GEÇERSİZLEŞMİYOR, yalnızca
+                        # confirmed'a TERFİ ETMİYOR.
+                        pattern_signals = [s for s in pattern_signals if s is not confirm_sig]
 
                 signals.extend(pattern_signals)
 

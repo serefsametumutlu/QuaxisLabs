@@ -43,6 +43,7 @@ from tlab.core.types import (
     Signal,
     Timeframe,
 )
+from tlab.features.pattern_context import breakout_volume_ok, pattern_depth_ok, prior_trend
 from tlab.features.swings import Pivot, ZigzagMethod, significant_pivots
 from tlab.features.volatility import atr
 
@@ -53,8 +54,37 @@ _LABEL_TR = {"double_top": "ÇİFT TEPE", "double_bottom": "ÇİFT DİP"}
 class DoubleTopBottomParams(BaseParams):
     left: int = 3
     right: int = 3
-    eq_tol: float = 0.02
-    min_bars_between: int = 5
+    # Faz 1, 1B — Lo-Mamaysky-Wang (Journal of Finance, 2000) DTOP/DBOT
+    # tanımı: iki uç ORTALAMALARININ %1.5'i içinde olmalı (eski 0.02 gevşekti).
+    eq_tol: float = 0.015
+    # Faz 1, 1B — LMW: iki uç en az BİR AY (22 işlem günü) arayla olmalı
+    # (eski değer 5'ti — 4H'te bu 20 saatten az demekti, kullanıcının
+    # gördüğü sahte çift diplerin doğrudan kök nedeni). 1D taban, diğer
+    # zaman dilimlerine `for_timeframe` ile ölçeklenir (bkz. _BAR_FIELDS).
+    min_bars_between: int = 22
+    # Faz 1, 1B — YENİ. 0 = sınırsız (varsayılan, davranış eskisi gibi
+    # kapalı). Çift tepe/dip birkaç yıl arayla iki tepeyle "oluşmaz" —
+    # D1 için makul üst sınır ~250 bar (config/scans.yaml'da bir preset
+    # önerilebilir). BİLİNÇLİ OLARAK _BAR_FIELDS'e EKLENMEDİ: 0 "sınırsız"
+    # sentinel'i, min alanların aksine, ölçeklenirse (`max(1, round(0*6))`)
+    # YANLIŞLIKLA "üst sınır 1 bar" gibi katastrofik bir değere döner.
+    max_bars_between: int = 0
+    # Faz 1, 1B — YENİ (Bulkowski): iki dip arasında en az %10'luk bir
+    # yükseliş (çift tepede: iki tepe arasında en az %10'luk düşüş) olmalı
+    # — "dümdüz bir taban" tipi sahte formasyonları eler. Ölçü: boyun
+    # pivotu ile iki ucun ortalaması arasındaki mesafenin ucun fiyatına oranı.
+    min_rise_between_pct: float = 0.10
+    # Faz 1, 1B — YENİ (Bulkowski): çift dip DÜŞEN, çift tepe YÜKSELEN bir
+    # ön trendden sonra gelmeli (bkz. tlab/features/pattern_context.py::
+    # prior_trend). lookback 1D taban, diğer zaman dilimlerine ölçeklenir.
+    prior_trend_lookback: int = 20
+    prior_trend_min_tstat: float = 1.5
+    # Faz 1, 1B — YENİ (STRATEJI_DENETIM_TAM.md): formasyon derinliği
+    # önemsizse (ZOREN örneğinde ~%3, 4H gürültüsünden ayırt edilemezdi)
+    # elenir (bkz. pattern_context.py::pattern_depth_ok — HEM yüzde HEM
+    # ATR eşiği birden gerekir).
+    min_depth_pct: float = 0.03
+    min_depth_atr: float = 2.0
     confirm_bars: int = 1
     vol_k: float = 1.2
     max_bars_to_confirm_mult: float = 3.0
@@ -67,10 +97,13 @@ class DoubleTopBottomParams(BaseParams):
     zigzag_method: ZigzagMethod = "atr"
     atr_mult: float = 3.0
     min_swing_atr: float | None = None
-    # Faz 0.5, A2 — min_bars_between takvimsel bir süre (LMW: "en az bir ay")
-    # temsil ediyor; 1D taban kabul edilip diğer zaman dilimlerine göre
-    # ölçeklenir (bkz. tlab/core/params.py::BaseParams.for_timeframe).
-    _BAR_FIELDS: ClassVar[frozenset[str]] = frozenset({"min_bars_between"})
+    # Faz 0.5, A2 — takvimsel süre temsil eden bar-alanları; 1D taban kabul
+    # edilip diğer zaman dilimlerine ölçeklenir (bkz. tlab/core/params.py::
+    # BaseParams.for_timeframe). max_bars_between KASITLI OLARAK dışarıda
+    # (yukarıdaki yorum).
+    _BAR_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {"min_bars_between", "prior_trend_lookback"}
+    )
     # Faz 0.5, A4 — `volume_ok` ZATEN hesaplanıp payload'a yazılıyordu ama
     # hiçbir sinyali FİLTRELEMİYORDU (bkz. STRATEJI_DENETIM_TAM.md A4).
     # Varsayılan False = davranış DEĞİŞMEDİ; True iken hacim onayı
@@ -117,7 +150,6 @@ class DoubleTopBottomIndicator(BaseIndicator):
         atr_series = atr(df, p.atr_period)
         close = df["close"].to_numpy()
         volume = df["volume"].to_numpy()
-        vol_ma = df["volume"].rolling(p.vol_ma_window, min_periods=5).mean().to_numpy()
 
         signals: list[Signal] = []
         levels: list[Level] = []
@@ -126,8 +158,12 @@ class DoubleTopBottomIndicator(BaseIndicator):
         last_state: dict[str, dict] = {}
 
         for kind, pattern_name in (("high", "double_top"), ("low", "double_bottom")):
+            direction: Direction = "short" if kind == "high" else "long"
             for p1, neckline_pivot, p2 in _matched_pairs(zigzag, kind):
-                if p2.bar_idx - p1.bar_idx < p.min_bars_between:
+                bars_between = p2.bar_idx - p1.bar_idx
+                if bars_between < p.min_bars_between:
+                    continue
+                if p.max_bars_between > 0 and bars_between > p.max_bars_between:
                     continue
                 avg_price = (p1.price + p2.price) / 2.0
                 if avg_price == 0:
@@ -135,16 +171,37 @@ class DoubleTopBottomIndicator(BaseIndicator):
                 if abs(p1.price - p2.price) / avg_price > p.eq_tol:
                     continue
 
-                born_idx = p2.finalized_idx
-                if born_idx is None or born_idx >= n:
-                    continue
-
-                extreme = max(p1.price, p2.price) if kind == "high" else min(p1.price, p2.price)
-                direction: Direction = "short" if kind == "high" else "long"
                 neckline_price = neckline_pivot.price
                 depth = abs(avg_price - neckline_price)
                 if depth == 0:
                     continue
+                # Faz 1, 1B — Bulkowski: iki uç arasında en az min_rise_
+                # between_pct kadar bir ters hareket olmalı ("dümdüz bir
+                # taban" tipi sahte formasyonları eler).
+                if depth / avg_price < p.min_rise_between_pct:
+                    continue
+
+                born_idx = p2.finalized_idx
+                if born_idx is None or born_idx >= n:
+                    continue
+
+                # Faz 1, 1B — ön trend şartı (Bulkowski): çift dip DÜŞEN,
+                # çift tepe YÜKSELEN bir trendden sonra gelmeli.
+                trend_ok, _ = prior_trend(
+                    df, p1.bar_idx, p.prior_trend_lookback, direction, p.prior_trend_min_tstat,
+                )
+                if not trend_ok:
+                    continue
+
+                # Faz 1, 1B — minimum derinlik (STRATEJI_DENETIM_TAM.md):
+                # önemsiz derinlikteki formasyonlar 4H gürültüsünden ayırt
+                # edilemez.
+                if not pattern_depth_ok(
+                    depth, avg_price, atr_series.iloc[born_idx], p.min_depth_pct, p.min_depth_atr,
+                ):
+                    continue
+
+                extreme = max(p1.price, p2.price) if kind == "high" else min(p1.price, p2.price)
                 target = neckline_price - depth if direction == "short" else neckline_price + depth
 
                 def _invalidation(
@@ -177,10 +234,7 @@ class DoubleTopBottomIndicator(BaseIndicator):
                 )
                 if confirm_sig is not None:
                     breakout_idx = df.index.get_loc(confirm_sig.bar_time)
-                    vma = vol_ma[breakout_idx]
-                    volume_ok = bool(
-                        not pd.isna(vma) and vma > 0 and volume[breakout_idx] >= p.vol_k * vma
-                    )
+                    volume_ok = breakout_volume_ok(volume, breakout_idx, p.vol_ma_window, p.vol_k)
                     confirm_sig.payload["volume_ok"] = volume_ok
                     if p.require_volume_confirm and not volume_ok:
                         # Faz 0.5, A4: aday GEÇERSİZLEŞMİYOR, yalnızca
@@ -203,14 +257,26 @@ class DoubleTopBottomIndicator(BaseIndicator):
                         start=p2.bar_time, end=level_end_from_signals(pattern_signals),
                     )
                 )
-                # Hologram dolgusu: 1-boyun-2 arası GERÇEK kapanış fiyatı
-                # yolunu izler (yalnızca 3 köşeli düz üçgen değil) — böylece
-                # M/W silueti gerçek mumlara oturur, geometrik bir üçgen
-                # yerine tanınabilir bir formasyon hattı görünür.
-                path_idxs = range(p1.bar_idx, p2.bar_idx + 1)
+                # Faz 1, 1B — hologram DÜZELTMESİ: eski hâli (p1-p2 arası
+                # GERÇEK kapanış yolu) geometrik olarak doğruydu ama
+                # görsel olarak AMORF bir leke üretiyordu (bkz. STRATEJI_
+                # DENETIM_TAM.md — ALTNY örneğindeki "mavi bulut" tam bu).
+                # `docs/design/grafik_stil_vitrini.html::sceneDoubleTopBottom`
+                # 5 köşeli, boyun seviyesine OTURAN, kendi kendini kesmeyen
+                # bir M/W silueti çiziyor — [boyun_sol, uç1, boyun, uç2,
+                # boyun_sağ]. boyun_sol/boyun_sağ, uç1/uç2 ile AYNI zamanda
+                # ama boyun FİYATINDA (dikey bir "direk" ile uca bağlanan
+                # şematik köşeler) — kendi kendini kesmeyen kapalı bir
+                # poligon garantiler.
                 polygons.append(
                     Polygon(
-                        points=tuple((df.index[i], float(close[i])) for i in path_idxs),
+                        points=(
+                            (p1.bar_time, neckline_price),
+                            (p1.bar_time, p1.price),
+                            (neckline_pivot.bar_time, neckline_price),
+                            (p2.bar_time, p2.price),
+                            (p2.bar_time, neckline_price),
+                        ),
                         label=f"{pattern_id}_hologram", style="pattern_hologram",
                     )
                 )

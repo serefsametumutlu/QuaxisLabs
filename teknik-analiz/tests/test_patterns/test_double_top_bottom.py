@@ -66,7 +66,22 @@ def _params() -> DoubleTopBottomParams:
     # Faz 0.5: sistem varsayılanı zigzag_method="atr"; bu dosyanın küçük el
     # yapımı fixture'ları ATR zigzag'in ısınma penceresine sığmıyor — bant
     # mekaniğini test ettikleri için bilinçli olarak "fixed"e sabitlendi.
-    return DoubleTopBottomParams(left=2, right=2, zigzag_method="fixed")
+    #
+    # Faz 1: yeni literatür filtreleri (min_bars_between=22, prior_trend_
+    # lookback=20 vb.) bu KÜÇÜK el yapımı fixture'a (24 bar) sığmaz -- bu
+    # dosya formasyon MEKANİĞİNİ (pending/confirmed/completed, hedef,
+    # marker, hologram) test ediyor, YENİ filtrelerin doğruluğu AYRI
+    # testlerle (aşağıda) doğrulanıyor. min_bars_between=10 fixture'ın
+    # GERÇEK p1-p2 mesafesiyle (idx2->idx12) TAM eşleşir; prior_trend_
+    # lookback=3 (fixture'da p1=idx2'den önce yalnızca 3 bar var, idx0-2
+    # GERÇEKTEN düşüyor: 104->101->98) + min_tstat=0.5 (gevşek); rise/
+    # depth eşikleri fixture'da zaten rahatça geçiyor (depth ~%21, ölçüldü)
+    # ama garanti olsun diye sıfırlandı.
+    return DoubleTopBottomParams(
+        left=2, right=2, zigzag_method="fixed",
+        min_bars_between=10, prior_trend_lookback=3, prior_trend_min_tstat=0.5,
+        min_rise_between_pct=0.0, min_depth_pct=0.0, min_depth_atr=0.0,
+    )
 
 
 def test_pending_born_at_p2_finalized_idx() -> None:
@@ -111,8 +126,11 @@ def test_require_volume_confirm_suppresses_confirmed_when_volume_fails() -> None
     require_volume_confirm=True iken confirmed sinyali hiç ÜRETİLMEMELİ
     (aday GEÇERSİZLEŞMEZ -- pending sinyali olduğu gibi kalır)."""
     df = _double_bottom_ohlcv()
-    params = DoubleTopBottomParams(left=2, right=2, zigzag_method="fixed",
-                                    require_volume_confirm=True)
+    params = DoubleTopBottomParams(
+        left=2, right=2, zigzag_method="fixed", require_volume_confirm=True,
+        min_bars_between=10, prior_trend_lookback=3, prior_trend_min_tstat=0.5,
+        min_rise_between_pct=0.0, min_depth_pct=0.0, min_depth_atr=0.0,
+    )
     result = DoubleTopBottomIndicator(params).compute(df)
     assert not any(s.state == "confirmed" for s in result.signals)
     assert any(s.payload.get("event", "").endswith("_pending") for s in result.signals)
@@ -145,18 +163,114 @@ def test_eq_tol_too_strict_filters_out_pair() -> None:
     assert result.signals == []
 
 
-def test_hologram_polygon_traces_close_path_p1_to_p2() -> None:
-    """Hologram artık düz 3 köşeli bir üçgen DEĞİL, p1->p2 arası GERÇEK
-    kapanış fiyatı yolunu izliyor (2026-09-03, bkz. modül yorumu) — bu
-    yüzden nokta sayısı bar aralığı kadar (idx2..idx12 dahil = 11)."""
+def test_hologram_polygon_is_five_point_mw_silhouette() -> None:
+    """Faz 1, 1B DÜZELTMESİ (2026-09-04): eski hâli (p1->p2 arası GERÇEK
+    kapanış fiyatı yolu, 11 nokta) görsel olarak AMORF bir leke üretiyordu
+    (bkz. STRATEJI_DENETIM_TAM.md — ALTNY örneği). Artık `docs/design/
+    grafik_stil_vitrini.html::sceneDoubleTopBottom`'daki 5 köşeli, boyun
+    seviyesine OTURAN M/W silueti: [boyun_sol, uç1, boyun, uç2, boyun_sağ] —
+    boyun_sol/uç1 VE uç2/boyun_sağ AYNI zaman damgasını (dikey "direk")
+    paylaşır."""
     df = _double_bottom_ohlcv()
     result = DoubleTopBottomIndicator(_params()).compute(df)
     hologram = next(p for p in result.polygons if p.style == "pattern_hologram")
-    prices = [price for _t, price in hologram.points]
-    close = df["close"].to_numpy()
-    assert prices == pytest.approx(list(close[2:13]))
-    assert hologram.points[0][0] == df.index[2]
-    assert hologram.points[-1][0] == df.index[12]
+    assert len(hologram.points) == 5
+    (t0, y0), (t1, y1), (t2, y2), (t3, y3), (t4, y4) = hologram.points
+    neckline = 117.0
+    assert t0 == t1 == df.index[2]  # boyun_sol + uç1 (p1) aynı zaman
+    assert y0 == pytest.approx(neckline)
+    assert y1 == pytest.approx(97.0)  # dip1
+    assert t2 == df.index[7]  # boyun (neckline pivot)
+    assert y2 == pytest.approx(neckline)
+    assert t3 == t4 == df.index[12]  # uç2 (p2) + boyun_sağ aynı zaman
+    assert y3 == pytest.approx(96.0)  # dip2
+    assert y4 == pytest.approx(neckline)
+
+
+# --- Faz 1, 1B — YENİ literatür filtrelerinin her biri GERÇEKTEN eliyor mu ---
+# (fixture'ın gerçek p1-p2 mesafesi 10 bar, ön trend idx0-2'de düşüyor, depth
+# ~%21 -- `_params()`'ın gevşetilmiş temel değerlerinden yalnızca TEK BİR
+# parametre sıkılaştırılıp diğerleri sabit tutuluyor.)
+
+
+def _base_kwargs() -> dict:
+    return {
+        "left": 2, "right": 2, "zigzag_method": "fixed",
+        "min_bars_between": 10, "prior_trend_lookback": 3, "prior_trend_min_tstat": 0.5,
+        "min_rise_between_pct": 0.0, "min_depth_pct": 0.0, "min_depth_atr": 0.0,
+    }
+
+
+def test_min_bars_between_default_22_filters_out_fixture() -> None:
+    """Varsayılan min_bars_between=22 (LMW: en az bir ay) fixture'ın GERÇEK
+    p1-p2 mesafesini (10 bar) elemeli -- eski değer (5) bunu ELEMEZDİ."""
+    kwargs = _base_kwargs()
+    del kwargs["min_bars_between"]  # varsayılan (22) devrede kalsın
+    df = _double_bottom_ohlcv()
+    result = DoubleTopBottomIndicator(DoubleTopBottomParams(**kwargs)).compute(df)
+    assert result.signals == []
+
+
+def test_max_bars_between_filters_out_too_wide_pair() -> None:
+    kwargs = _base_kwargs()
+    kwargs["max_bars_between"] = 5  # fixture'ın GERÇEK mesafesi (10) > 5
+    df = _double_bottom_ohlcv()
+    result = DoubleTopBottomIndicator(DoubleTopBottomParams(**kwargs)).compute(df)
+    assert result.signals == []
+
+
+def test_max_bars_between_zero_means_unlimited() -> None:
+    kwargs = _base_kwargs()
+    kwargs["max_bars_between"] = 0
+    df = _double_bottom_ohlcv()
+    result = DoubleTopBottomIndicator(DoubleTopBottomParams(**kwargs)).compute(df)
+    assert any(s.state == "confirmed" for s in result.signals)
+
+
+def test_min_rise_between_pct_filters_out_shallow_pair() -> None:
+    """Fixture'ın gerçek yükseliş oranı ~%21 -- %99 gibi imkânsız bir eşik
+    ELEMELİ."""
+    kwargs = _base_kwargs()
+    kwargs["min_rise_between_pct"] = 0.99
+    df = _double_bottom_ohlcv()
+    result = DoubleTopBottomIndicator(DoubleTopBottomParams(**kwargs)).compute(df)
+    assert result.signals == []
+
+
+def test_prior_trend_filters_out_when_min_tstat_too_strict() -> None:
+    """Fixture'ın ön trendi GERÇEK ama zayıf bir istatistiksel güçle (3
+    noktalı pencere) -- imkânsız derecede yüksek bir min_tstat ELEMELİ."""
+    kwargs = _base_kwargs()
+    kwargs["prior_trend_min_tstat"] = 1000.0
+    df = _double_bottom_ohlcv()
+    result = DoubleTopBottomIndicator(DoubleTopBottomParams(**kwargs)).compute(df)
+    assert result.signals == []
+
+
+def test_min_depth_pct_filters_out_shallow_pattern() -> None:
+    kwargs = _base_kwargs()
+    kwargs["min_depth_pct"] = 0.99  # depth zaten ~%21, %99 asla geçmez
+    df = _double_bottom_ohlcv()
+    result = DoubleTopBottomIndicator(DoubleTopBottomParams(**kwargs)).compute(df)
+    assert result.signals == []
+
+
+def test_min_depth_atr_filters_out_when_atr_multiple_too_high() -> None:
+    kwargs = _base_kwargs()
+    kwargs["min_depth_atr"] = 1000.0
+    df = _double_bottom_ohlcv()
+    result = DoubleTopBottomIndicator(DoubleTopBottomParams(**kwargs)).compute(df)
+    assert result.signals == []
+
+
+def test_all_faz1_filters_relaxed_still_produces_confirmed_signal() -> None:
+    """Sağlık kontrolü: `_base_kwargs()`'ın (fixture'a göre kalibre
+    edilmiş, hiçbiri aşırı sıkı olmayan) tam hâliyle formasyon HÂLÂ
+    confirmed'a ulaşmalı -- yukarıdaki negatif testlerin "elenme" iddiası
+    gerçekten yalnızca sıkılaştırılan TEK parametreden kaynaklanıyor."""
+    df = _double_bottom_ohlcv()
+    result = DoubleTopBottomIndicator(DoubleTopBottomParams(**_base_kwargs())).compute(df)
+    assert any(s.state == "confirmed" for s in result.signals)
 
 
 def test_registers_in_registry() -> None:

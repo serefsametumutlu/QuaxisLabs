@@ -36,6 +36,7 @@ from tlab.core.indicator import UniverseIndicator
 from tlab.core.params import BaseParams, params_hash
 from tlab.core.types import IndicatorMeta, IndicatorResult, Line, Signal, Timeframe
 from tlab.features.ma import ema
+from tlab.features.pattern_context import rolling_trend_tstat as _rolling_trend_tstat
 from tlab.features.volatility import realized_vol
 from tlab.features.xsec import fip, momentum_horizons, rs_line
 
@@ -54,34 +55,6 @@ class MomentumRankParams(BaseParams):
     ema_slow: int = 200
     top_pct: float = 10.0
     min_history_bars: int = 260
-
-
-def _rolling_trend_tstat(series: pd.Series, window: int) -> tuple[pd.Series, pd.Series]:
-    """`series`nin (zamana karşı) rolling OLS eğimi + t-istatistiği.
-    `rolling_alpha_beta`'nın AYNI kapalı-form formülleri, x = 0..window-1
-    (bar indeksi) — yalnızca [t-window+1,t] penceresini kullanır (non-repaint)."""
-    values = series.to_numpy(dtype=float)
-    n = len(values)
-    slope = np.full(n, np.nan)
-    tstat = np.full(n, np.nan)
-    x = np.arange(window, dtype=float)
-    x_mean = x.mean()
-    x_var = float(((x - x_mean) ** 2).sum())
-    dof = window - 2
-    if window >= 2 and dof > 0 and x_var > 0:
-        for t in range(window - 1, n):
-            y = values[t - window + 1 : t + 1]
-            if np.isnan(y).any():
-                continue
-            y_mean = y.mean()
-            b = float(((x - x_mean) * (y - y_mean)).sum() / x_var)
-            a = y_mean - b * x_mean
-            resid = y - (a + b * x)
-            resid_var = float((resid**2).sum() / dof)
-            se_b = math.sqrt(resid_var / x_var) if resid_var > 0 else 0.0
-            slope[t] = b
-            tstat[t] = (b / se_b) if se_b > 0 else np.nan
-    return pd.Series(slope, index=series.index), pd.Series(tstat, index=series.index)
 
 
 @dataclass(frozen=True)

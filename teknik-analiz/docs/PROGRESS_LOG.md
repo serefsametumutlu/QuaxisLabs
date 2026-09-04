@@ -2903,3 +2903,42 @@ iter{1..5}_golden_zone_*`, `iter{1..3}_supply_demand_*`.
 
 **Sırada:** Faz 4a'nın kalan 2 sahnesi (weekly/reversal_map).
 
+## 2026-09-04 (aynı gün) — Faz 4a devam: `weekly_channel` sahnesi portlandı (6/6 — yalnızca reversal_map kaldı)
+
+**`tlab/viz/svg/scenes/weekly_channel.py`** — mum + güncel regresyon/pivot
+kanalı (`channel_current_*`/`channel` stili) + alt panelde "Kanal İçi
+Pozisyon" osilatörü (`channel_position` serisi, 0=alt sınır/1=üst sınır,
+kırılımda aralık dışına taşabilir). BİLİNÇLİ sapma: `ChannelIndicator.
+compute()`'un ürettiği `channel_frozen_*` çizgileri (THYAO 1D'de GERÇEK
+veriyle ölçüldü: **206 satır**) bu ilk portta HİÇ ÇİZİLMEDİ — hepsini
+çizmek okunamaz bir kalabalık olurdu, tek bir "eski kanal" seçmek için
+görev metninde bir kriter de yok; yalnızca güncel kanal çizildi.
+
+`ChannelIndicator` `Marker` üretmez (yalnızca `Signal`) — işaretlerin fiyat
+konumu pencerenin kendi mum verisinden türetildi (dokunuş→o barın low/high'ı,
+kırılım→close). THYAO 1D'de 150 barlık pencerede bile onlarca dokunuş
+sinyali üretebildiği GERÇEK ölçümle doğrulandığı için (`_latest_event_
+markers`) yalnızca HER olay türünün (break_up/break_down/bottom_touch/
+top_touch — en fazla 4) penceredeki EN SON örneği gösterilir.
+
+3 iterasyon (THYAO classic/dark, TUCLK classic) — önceki üç sahnenin
+(swing_fib_abcd/golden_zone/supply_demand) eksen/etiket dersleri baştan
+uygulandığı için YENİ bir hata bulunmadı, ilk denemeden temiz çıktı. 7 yeni
+test. `test_double_top_bottom_scene.py`'nin "henüz portlanmamış" örneği
+BİR KEZ DAHA güncellendi — bu kez `confluence`ya (Faz 4a'nın gerçekten SON
+sahnesi, `reversal_map`), bu yüzden bir daha bayatlamayacak. 803 test yeşil
+(796→803), ruff/mypy/lint_lookahead baseline'ları DEĞİŞMEDİ. Detay:
+`docs/design/iterasyon/iter{1..3}_weekly_channel_*`.
+
+**Sırada (SON sahne):** `reversal_map` — `confluence.py::build_reversal_map`
+CATALOG göstergesi değil, çoklu-kaynak post-processing fonksiyonu (girdisi
+`{indikatör_adı: IndicatorResult}` sözlüğü). Sahne öncesi `live.py`ye
+`compute_reversal_map` benzeri bir köprü fonksiyonu eklenmesi gerekecek
+(muhtemelen `structure.supply_demand`/`golden_zone`/`price_structure`/
+`swing_fib_abcd` + varsa `trend.weekly_channel` [W1] + `harmonic.*`'ı aynı
+sembol için hesaplayıp `sources` sözlüğünü kurup `build_reversal_map`'i
+çağıran bir fonksiyon). Sahne tasarımı: ana panel (mum + `confluence_zone`
+kutuları + "DİPTE OLASI" marker'ı) + yan panel (yoğunluk histogramı,
+`vp_bins`/`vp_volumes` — `report.py`nin hacim profili paneliyle AYNI
+sözleşme, bkz. `confluence.py` docstring'i).
+

@@ -37,7 +37,7 @@ kararları) artık `docs/PROGRESS_LOG.md`'de** — bu dosya CLAUDE.md'nin 150k k
 sınırını aştığı için oraya taşındı (2026-09-02). Aşağıdaki liste yalnızca ÖZET; bir
 fazın TAM detayına ihtiyaç varsa `docs/PROGRESS_LOG.md`'ye bak.
 
-**Durum (2026-09-04): 796 test yeşil (`pytest -q -m "not network"`), ruff/mypy
+**Durum (2026-09-04): 803 test yeşil (`pytest -q -m "not network"`), ruff/mypy
 temiz (baseline: 19 ruff / 1 mypy — hepsi önceden var olan/bilinen false-positive,
 ilgisiz satırlar); lint_lookahead 5 uyarı (`coint_monitor.py`nin eklenmesiyle
 CLAUDE.md'nin eski "3" rakamından güncellenmedi, hepsi bu satırın YAZILDIĞI Faz
@@ -294,6 +294,18 @@ güncellendi (bayatlamıştı). 796 test yeşil (779→796), ruff/mypy/
 lint_lookahead baseline'ları DEĞİŞMEDİ. Detay: `docs/PROGRESS_LOG.md`nin
 aynı tarihli girdisi. **Sırada: Faz 4a'nın kalan 2 sahnesi (weekly/
 reversal_map).**
+
+**EK (aynı gün) — Faz 4a devam: `weekly_channel` sahnesi portlandı (6/6 —
+yalnızca `reversal_map` kaldı).** `tlab/viz/svg/scenes/weekly_channel.py`
+— mum + güncel regresyon/pivot kanalı + alt panelde "Kanal İçi Pozisyon"
+osilatörü. `channel_frozen_*` çizgileri (THYAO'da 206 satır ölçüldü) bu
+ilk portta BİLİNÇLİ OLARAK çizilmedi (okunamaz kalabalık olurdu). 3
+iterasyon YENİ hata bulmadı (önceki 3 sahnenin dersleri baştan
+uygulandığı için). 7 yeni test, 803 test yeşil (796→803), ruff/mypy/
+lint_lookahead baseline'ları DEĞİŞMEDİ. Detay: `docs/PROGRESS_LOG.md`nin
+aynı tarihli girdisi. **Sırada (SON sahne): `reversal_map` — `confluence.py::
+build_reversal_map`e `live.py`de bir köprü fonksiyonu gerekiyor (CATALOG
+göstergesi değil, çoklu-kaynak post-processing).**
 
 ### Tamamlanan fazlar (özet)
 

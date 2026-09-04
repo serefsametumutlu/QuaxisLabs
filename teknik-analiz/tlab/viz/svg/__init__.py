@@ -21,6 +21,7 @@ from tlab.viz.svg.scenes import harmonic as _harmonic
 from tlab.viz.svg.scenes import report as _report
 from tlab.viz.svg.scenes import supply_demand as _supply_demand
 from tlab.viz.svg.scenes import swing_fib_abcd as _swing_fib_abcd
+from tlab.viz.svg.scenes import weekly_channel as _weekly_channel
 from tlab.viz.svg.scenes.base import SceneOut
 from tlab.viz.svg.theme import SVGTheme, resolve_svg_theme
 
@@ -41,6 +42,7 @@ _SCENES = {
     "structure.swing_fib_abcd": _swing_fib_abcd,
     "structure.golden_zone": _golden_zone,
     "structure.supply_demand": _supply_demand,
+    "trend.weekly_channel": _weekly_channel,
 }
 _SCENES.update({f"harmonic.{school}": _harmonic for school in _HARMONIC_SCHOOLS})
 

@@ -105,12 +105,30 @@ class RelativeMomentumParams(BaseParams):
     # |z| < exit_k -> pozisyon KAPATILIR (nakit/flat -- mean_reversion'ın
     # rotasyoneldeki "hep bir tarafta" sorununu çözen asıl mekanizma).
     exit_k: float = 0.5
-    # |z| > stop_k -> zorunlu tasfiye (spread beklenenden fazla ıraksadı --
-    # eşbütünleşme kırılmış olabilir, k'nin GİRİŞ eşiği olduğunu unutma).
-    stop_k: float = 3.0
+    # 2026-09-04 KULLANICI KARARI (docs/PROGRESS_LOG.md "Faz 2" bölümü):
+    # gerçek 17-çiftlik listede in-sample/out-of-sample ayrımlı bir parametre
+    # taraması (window/k/exit_k/stop_k/max_hold_bars, 243 kombinasyon)
+    # koşuldu. Eski değer (3.0) OOS'ta kazanma oranını %53.2'de tutuyordu;
+    # `stop_k` GEVŞETİLDİĞİNDE (4.0) -- window/k SABİT tutulup YALNIZCA bu
+    # mode'a ÖZGÜ alanlar (exit_k/stop_k/max_hold_bars, rotasyonel modu HİÇ
+    # etkilemez) taranınca -- OOS kazanma oranı %53.5'e, medyan getiri
+    # +0.86%'ya çıktı (n=43 OOS işlem). Bu, birçok farklı window/k/exit_k
+    # kombinasyonunda TUTARLI tekrarlanan bir bulguydu (tek bir "şanslı
+    # hücre" değil) -- eski (3.0), pozisyonları normal oynaklıkta bile
+    # gereksiz erken kapatıyordu. `window`/`k` (rotasyonel modun da PAYLAŞTIĞI
+    # alanlar) KASITLI OLARAK değiştirilmedi -- taramanın window=20/k=2.5 ile
+    # ÇOK HAFİF daha iyi bir OOS sonucu (kazanma %56.1) olsa da, bunları
+    # değiştirmek 2026-08-29'da AYRI bir kullanıcı kararıyla kalibre edilmiş
+    # rotasyonel modun varsayılan davranışını da SESSİZCE değiştirirdi (Faz
+    # 2, 2C'nin "mevcut ROTASYONEL motoru BOZMA" ilkesini ihlal eder) --
+    # mean_reversion'ın TAM optimize edilmiş seti isteyen `window=20, k=2.5`
+    # açıkça geçmeli.
+    stop_k: float = 4.0
     # Giriş barından bu kadar bar sonra -- z hâlâ dönmediyse -- zorunlu kapat
     # (zaman stopu, referans uygulamadaki "30 gün sonra kapat" kuralı).
-    max_hold_bars: int = 30
+    # 2026-09-04: yukarıdaki `stop_k` taramasıyla AYNI turda 30->40 optimize
+    # edildi (AYNI gerekçe/kısıt -- window/k sabit).
+    max_hold_bars: int = 40
     # Zorunlu tasfiye (stop_k) SONRASI z tekrar GİRİŞ bandının (±k) içine
     # dönene kadar yeni giriş YOK -- "kırılmış" bir eşbütünleşmenin hemen
     # ardından aynı yönde yeniden girmeyi önler (normal exit_k çıkışı ya da

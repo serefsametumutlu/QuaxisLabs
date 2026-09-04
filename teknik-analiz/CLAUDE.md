@@ -102,7 +102,15 @@ SABİT bir liste, `tlab/scanner/engine.py::run()` yalnızca bu dosyadaki
 çiftler için iş açar — listede olmayan bir çift (test edilen TOASO/FROTO,
 ASELS/SDTTR, TCELL/TTKOM dahil, hiçbiri eşikleri geçmiyor) asla otomatik
 sinyal üretmez, liste yalnızca `pair_denetim.py`'nin elle yeniden
-çalıştırılmasıyla değişir. **Sırada: Adım 5 (Faz 3 — SVG çizim motoru).**
+çalıştırılmasıyla değişir. **EK (aynı gün):** 116 çiftlik gevşetilmiş liste
+denendi/backtest edildi — 17'den anlamlı şekilde İYİ DEĞİLDİ (medyan getiri
+ikisinde de ~0, tek "yıldız" sonuç RGYAS/KGYO +%1017 bir veri anomalisiydi),
+17'de kalındı. `mean_reversion` parametreleri IS/OOS ayrımlı 243-kombinasyonluk
+bir taramayla optimize edildi — `stop_k` 3.0→4.0, `max_hold_bars` 30→40
+(window/k rotasyonel modu bozmamak için SABİT tutuldu) OOS kazanma oranını
+%53.2→%53.5'e çıkardı (küçük ama tutarlı bir iyileşme, "büyük edge" DEĞİL).
+`RelativeMomentumParams`'ın bu 2 varsayılanı güncellendi, kilitleyen test
+eklendi. **Sırada: Adım 5 (Faz 3 — SVG çizim motoru).**
 
 ### Tamamlanan fazlar (özet)
 

@@ -261,6 +261,22 @@ def test_mean_reversion_coint_monitor_disabled_by_default() -> None:
     assert RelativeMomentumParams().coint_monitor_window is None
 
 
+def test_mean_reversion_default_stop_k_and_max_hold_bars_tuned() -> None:
+    """2026-09-04 kullanıcı kararı: 17-çiftlik gerçek listede IS/OOS ayrımlı
+    bir parametre taraması (243 kombinasyon) `stop_k`/`max_hold_bars`'ın
+    (window/k SABİT tutulup -- rotasyonel modu etkilemesin diye) 3.0/30
+    yerine 4.0/40 olduğunda OOS kazanma oranını %53.2->%53.5, medyan
+    getiriyi 0->+0.86%'a çıkardığını gösterdi (bkz. `stop_k` alanının
+    docstring'i). Bu test o kararı kilitler -- `window`/`k` (rotasyonel
+    modun da paylaştığı alanlar) KASITLI OLARAK değişmedi."""
+    p = RelativeMomentumParams()
+    assert p.stop_k == 4.0
+    assert p.max_hold_bars == 40
+    assert p.window == 60  # rotasyonel modun 2026-08-29 kararı -- DEĞİŞMEDİ
+    assert p.k == 2.0  # aynı gerekçe -- DEĞİŞMEDİ
+    assert p.exit_k == 0.5  # tarama zaten en iyi olarak bunu buldu, DEĞİŞMEDİ
+
+
 def test_mean_reversion_coint_monitor_forces_exit_when_enabled() -> None:
     """Faz 2, 2C -- `coint_monitor_window` verilip eşik (`coint_break_p_
     threshold`) imkânsız derecede gevşek (0.0 -- her ölçülebilir p-değeri

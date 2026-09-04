@@ -2260,6 +2260,49 @@ olarak alıp dinamik yazıyor). `scripts/pair_denetim.py::main()`'in varsayılan
 betik tekrar çalıştırılırsa AYNI kararı üretir. `docs/spec/ARBITRAJ_DENETIM_v2.md`
 "KAPATILDI" bölümüyle güncellendi (orijinal analiz ARŞİV olarak kalıyor).
 
+**Faz 2 EK — 116 çift denemesi + mean_reversion parametre optimizasyonu
+(2026-09-04, aynı gün):** Kullanıcı "sadece 17 çifte mi bağlı kalacağız,
+TOASO/FROTO gibi çiftleri kaçırır mıyız" diye sordu. Mimari netleştirildi:
+`config/pairs.yaml` SABİT bir liste, `tlab/scanner/engine.py::run()` yalnızca
+bu dosyadaki çiftler için iş açar — TOASO/FROTO zaten aynı-sektör
+kombinasyonuna dahildi (test edildi: corr=0.48, p≈0.9 — gerçekten kointegre
+DEĞİL, kaçırılmış bir fırsat değil). Kullanıcı eşikleri gevşetip (corr≥0.5,
+adf_max=0.10, fdr_q=0.10) **116 çiftlik** bir liste üretmemi istedi — 17'nin
+tamamı bu 116'nın içinde. Aynı zamanda tüm-evren (`same_sector_only=False`,
+209.628 kombinasyon) bir tarama başlatıldı ama kullanıcı bunun çok
+süreceğini fark edip DURDURDU (`TaskStop`) — 116 çiftin `mode="mean_
+reversion"` ile GERÇEK backtest'ini istedi. **Sonuç: 116 çift, 17'den
+DAHA İYİ DEĞİL** — 59/116 (%51) kârlı, medyan getiri +%0.28 (17'nin
+medyanı +%0.13'e çok yakın), ortalama getiri (+%11.89) yalnızca TEK bir
+aykırı değerden (RGYAS/KGYO, +%1017 — muhtemelen ISBTR'dekiyle AYNI türde
+bir veri anomalisi, RGYAS'ın AKSGY ile başka bir çiftte AYNI dönemde −%20
+vermesiyle doğrulandı) şişmişti. Kullanıcı kendi kriterine göre ("kötü
+sonuç verirse mevcut duruma dön") **17 çiftte kalmaya karar verdi.**
+
+Ardından kullanıcı `mean_reversion` parametrelerini (window/k/exit_k/
+stop_k/max_hold_bars) backtest ile optimize etmemi istedi. **Metodoloji
+(overfitting'e karşı):** 17 çiftin ~600 barlık verisi %60/%40 in-sample/
+out-of-sample olarak bölündü (rolling istatistiklerin "soğumaması" için
+TAM seriye göre hesaplanıp işlemler GİRİŞ tarihine göre IS/OOS'a
+ayrıldı — cold-start artefaktı yok), 243 kombinasyon (`window`∈{20,40,60},
+`k`∈{1.5,2.0,2.5}, `exit_k`∈{0.25,0.5,0.75}, `stop_k`∈{2.5,3.0,4.0},
+`max_hold_bars`∈{20,40,60}) TÜM 17 çift için IS'te ve OOS'te ayrı ayrı
+skorlandı. **Bulgu:** IS'te en iyi 15 kombinasyonun ÇOĞU OOS'ta kazanma
+oranı %50'nin ALTINA düşüyordu (klasik aşırı-uyum) — ama `stop_k=4.0`
+(eski varsayılan 3.0'dan gevşek), BİRÇOK farklı `window`/`k`/`exit_k`
+kombinasyonunda TUTARLI şekilde OOS performansını iyileştiriyordu (tek
+"şanslı hücre" değil). `window`/`k` SABİT tutulup (rotasyonel modun da
+PAYLAŞTIĞI alanlar, 2026-08-29'da AYRI bir kararla kalibre edilmişti,
+Faz 2 2C'nin "rotasyonel motoru bozma" ilkesi) yalnızca mean_reversion'a
+ÖZGÜ alanlar (exit_k/stop_k/max_hold_bars) taranınca: **stop_k 3.0→4.0,
+max_hold_bars 30→40** (exit_k=0.5 zaten en iyisiydi, değişmedi) OOS
+kazanma oranını %53.2→%53.5, medyan getiriyi 0→+%0.86'ya çıkardı (n=43
+OOS işlem). `RelativeMomentumParams`'ın bu iki varsayılanı GÜNCELLENDİ
+(kilitleyen test: `test_mean_reversion_default_stop_k_and_max_hold_bars_
+tuned`). **Dürüst not:** bu KÜÇÜK bir edge (kazanma oranı %50'den yalnızca
+birkaç puan yukarıda) — 17 çift/~2.4 yıllık veriyle istatistiksel güç
+sınırlı, "büyük bir kâr formülü bulundu" denemez.
+
 **Faz 2 TAMAMEN BİTTİ.** Sırada: **Adım 5 — Faz 3 (SVG çizim motoru)**,
 `docs/TANI_VE_YOL_HARITASI_v2.md`'nin `## FAZ 3` bölümü.
 

@@ -17,11 +17,12 @@ double_top_bottom için TAMAMEN ELİMİNE EDEN, KARAR GEREKTİREN bir sonuç
 örneği üretti (ISCTR). double_top_bottom D1'de %76.5 azaldı (298→70) — bu
 ÖNCEKİ regresyon düzeltmelerine benzer, sağlıklı bir sonuç. **Ama double_top_
 bottom 4H'te 125→0'a düştü (%100) — YENİ parametrelerle bu gösterge 4H'te
-FİİLEN DEVRE DIŞI.** Kök neden bulundu: `min_bars_between=22` (1D taban, LMW
-kaynaklı "en az 1 ay") `for_timeframe` ile 4H'e ×6 ölçekleniyor (132 bar) ve
-120 sembolün TAMAMINDA eşleşen (p1,p2) çiftlerinin HİÇBİRİ bu mesafeyi
-karşılamıyor — bu YENİ, kapanmamış bir bulgu, **Adım 4 onayından önce kullanıcı
-kararı gerektiriyor** (aşağıdaki "Karar Gerektiren Bulgu" bölümüne bakın).
+FİİLEN DEVRE DIŞI.** **BU BULGU AYNI GÜN KAPATILDI** — kök neden `tlab/core/
+params.py::_TF_BAR_SCALE`'in "gün 24 saat işlem görür" YANLIŞ varsayımı
+(BIST'in GERÇEK 8 saatlik seansı yerine) + `min_bars_between`'in ATR-zigzag
+pivot aralığını (zaman-dilimi-DEĞİŞMEZ bir bar sayısı) takvimsel ölçeklemesi
+olarak bulundu; düzeltme sonrası 4H sinyal sayısı 497→72 (%85.5 azalma,
+D1'in %76.5'ine yakın, SAĞLIKLI). Detay: aşağıdaki "KAPATILDI" bölümü.
 
 Görsel inceleme (10 örnek, hepsi `Read` ile açılıp incelendi) AYRICA daha önce
 BEKLENMEYEN 3 yeni bulgu ortaya çıkardı: (1) render zincirinde `last_n`
@@ -81,6 +82,66 @@ head_shoulders'ta EN BÜYÜK eleyici `shoulder_time_ratio` (Faz 1'in KENDİSİ
 DEĞİL, önceden var olan bir filtre) — bu, Faz 1'in yeni filtrelerinin (prior_
 trend/min_depth) NİSPETEN ILIMLI olduğunu, asıl sıkılaşmanın zaten var olan
 geometri kısıtından geldiğini gösteriyor.
+
+## KAPATILDI (2026-09-04, aynı gün) — Karar Gerektiren Bulgu çözüldü
+
+Kullanıcı 4 seçeneği değerlendirmemi ve en avantajlısını uygulamamı istedi.
+Kök nedeni daha derin araştırınca seçeneklerin hiçbiri tam doğru çerçeve
+değildi — **gerçek kök neden BULUNDU ve düzeltildi:**
+
+**Kök neden #1 (sistemik, TÜM `_BAR_FIELDS` alanlarını etkiliyordu):**
+`tlab/core/params.py::_TF_BAR_SCALE` (Faz 0.5, A2) "gün 24 saat sürekli
+işlem görür" varsayımıyla kalibre edilmişti (1H×24, 4H×6). BIST seansı
+10:00-18:00 (8 saat) ve GERÇEK bar sayısı (`data/resample.py`'nin
+09:00/13:00/17:00 hizalamasıyla, gerçek ISCTR verisinde ÖLÇÜLDÜ) günde
+ORTALAMA **9 (1H) / 3 (4H)** — eski katsayılar 1H'de ~2.7x, 4H'de TAM 2x
+fazla sıkıydı. `_TF_BAR_SCALE` düzeltildi (1H: 24→9, 4H: 6→3) — bu, double_
+top_bottom'un YANI SIRA `prior_trend_lookback`, wedge/broadening'in
+`min_bars`/`max_apex_bars` gibi HER `_BAR_FIELDS` alanını doğru kalibre
+etti (sistemik bir düzeltme, tek bir göstergeye özel değil).
+
+**Kök neden #2 (double_top_bottom'a özel):** Kök neden #1'in düzeltmesiyle
+bile (132→66 bar) 4H'te HÂLÂ sıfıra yakın sinyal vardı (30 sembolde 0/20
+denemesi gösterdi). Derin ölçüm: `min_bars_between`'in ölçtüğü şey (ATR-
+zigzag'de eşleşen p1→p2 pivot ARALIĞI) BAR SAYISI olarak zaman diliminden
+**neredeyse bağımsız** — 120 sembolde medyan 1D'de **27.5 bar**, 4H'te **29
+bar** (ALMOST AYNI). Mekanik açıklama: ATR'nin kendisi bar granülaritesine
+göre ölçekleniyor (4H'teki tek ATR birimi 1D'dekinden küçük), bu yüzden
+"3×ATR'lik bir tersine dönüş" biriktirmek HER İKİ zaman diliminde kabaca
+AYNI SAYIDA bar alıyor — bu, ATR-zigzag pivot mesafelerinin **kendi
+doğasında zaman-dilimi-değişmez (self-similar)** olduğunun somut kanıtı.
+Takvimsel (calendar-linear) ölçekleme bu yüzden BU ALAN için YANLIŞ
+modeldi. **Düzeltme:** `min_bars_between` `_BAR_FIELDS`'ten TAMAMEN
+çıkarıldı (artık HİÇBİR zaman diliminde ölçeklenmiyor, her zaman ham 22)
+— `prior_trend_lookback` (kapanış fiyatı üzerinde OLS penceresi, GERÇEKTEN
+takvimsel bir kavram) hâlâ ölçekleniyor.
+
+**Sonuç (120 sembol, TAM yeniden ölçüm):**
+
+| Gösterge | TF | Önceki (Adım 3 raporu) | **Düzeltme sonrası** |
+|---|---|---:|---:|
+| patterns.double_top_bottom | 1D | 298→70 | 298→70 (DEĞİŞMEDİ, sorun zaten yoktu) |
+| patterns.double_top_bottom | 4H | **125→0 (%100)** | **497→72 (%85.5)** |
+
+("Eski" sayı 4H'te 125'ten 497'ye çıktı çünkü "eski" yeniden-inşası da artık
+`min_bars_between=5`'i HİÇ ölçeklemiyor — bu, düzeltmenin doğru bir
+yan-etkisi, karşılaştırma tutarlılığı için gerekli.)
+
+**72 sinyal, %85.5'lik SAĞLIKLI bir azalma** (D1'in %76.5'ine çok yakın) —
+gösterge artık 4H'te fiilen devre dışı DEĞİL. `tlab/core/params.py`,
+`tlab/indicators/patterns/double_top_bottom.py` + 3 test dosyası güncellendi
+(656 test yeşil, ruff/mypy/lint_lookahead baseline ile birebir).
+`wedge`/`broadening`/`head_shoulders` bu düzeltmeden ETKİLENMEDİ (span/
+elenme dağılımları ölçüldü, `min_bars`/`max_apex_bars` zaten p95'in çok
+altında kalıyordu — zeroing riski yoktu, bkz. yukarıdaki span taraması).
+
+---
+
+## (ARŞİV) Orijinal "Karar Gerektiren Bulgu" — artık KAPATILDI, aşağıdaki
+## bölüm tarihsel referans için bırakıldı
+
+Kullanıcıya ilk sunulan 4 seçenek (üstteki gerçek kök-neden analizinden
+ÖNCE yazılmıştı):
 
 ## Karar Gerektiren Bulgu — double_top_bottom 4H'te sıfırlandı
 

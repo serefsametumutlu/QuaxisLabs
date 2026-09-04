@@ -62,17 +62,23 @@ bağlam kontrolleri) + 1B (`double_top_bottom.py` literatür düzeltmeleri) + 1C
 OBO/TOBO hiç tetiklenemiyordu — `break_rule="right_armpit"` düzeltmesi) +
 BULUNAN HATA 3'ün wedge/triangle/broadening tarafının kapatılması
 (`max_bars` opt-in üst sınır) + **1D (doğrulama — Faz 1'in kabul testi)**
-TAMAMLANDI, detay `docs/PROGRESS_LOG.md`'nin "Faz 1" bölümü ve `docs/spec/
-FORMASYON_DENETIM_v2.md`'de. **KARAR BEKLEYEN GERÇEK BULGU (1D'de bulundu,
-Adım 4 onayından ÖNCE kullanıcı kararı gerekiyor):** `patterns.double_top_
-bottom` 4H'te YENİ parametrelerle 120 sembolde SIFIR sinyale düştü (125→0,
-%100) — `min_bars_between=22`'nin (1D taban, LMW "en az 1 ay") `for_
-timeframe` ile 4H'e ×6=132 bar ölçeklenmesi TEK BAŞINA tüm adayları eliyor.
-4 seçenek `docs/spec/FORMASYON_DENETIM_v2.md`'nin "Karar Gerektiren Bulgu"
-bölümünde. Diğer görsel-inceleme bulguları (renderer `last_n` hatası,
-`patterns.broadening` hologramının kama gibi görünmesi, ISBTR veri kalitesi
-şüphesi, BULUNAN HATA 1'in 3 yeni örneği) aşağıdaki "Kaldığı yer" bölümüne
-eklendi.**
++ **KARAR GEREKTİREN BULGUNUN AYNI GÜN KAPATILMASI** TAMAMLANDI, detay
+`docs/PROGRESS_LOG.md`'nin "Faz 1" bölümü ve `docs/spec/FORMASYON_DENETIM_
+v2.md`'de. **Faz 1 TAMAMEN BİTTİ.** Kapatma özeti: `patterns.double_top_
+bottom` 4H'te 125→0'a (%100) düşmüştü; kök neden İKİ KATMANLIYDI —
+(1) `tlab/core/params.py::_TF_BAR_SCALE` "gün 24 saat işlem görür" YANLIŞ
+varsayımıyla kalibre edilmişti (BIST seansı GERÇEKTE 8 saat, ölçülen bar/gün
+1H=9/4H=3, eski değerler 1H=24/4H=6'ydı) — SİSTEMİK olarak düzeltildi (tüm
+`_BAR_FIELDS` alanlarını etkiler); (2) `min_bars_between`'in ölçtüğü ATR-
+zigzag pivot aralığı BAR SAYISI olarak zaman diliminden bağımsız çıktı
+(medyan 1D=27.5, 4H=29 — ALMOST AYNI, ATR'nin kendisi bar granülaritesine
+göre ölçeklendiği için) — `_BAR_FIELDS`'ten TAMAMEN çıkarıldı. Sonuç: 4H
+497→72 (%85.5 azalma, D1'in %76.5'ine yakın, SAĞLIKLI). 656 test yeşil.
+Diğer görsel-inceleme bulguları (renderer `last_n` hatası, `patterns.
+broadening` hologramının kama gibi görünmesi, ISBTR veri kalitesi şüphesi,
+BULUNAN HATA 1'in 3 yeni örneği) aşağıdaki "Kaldığı yer" bölümünde KALDI
+(kapsam dışı, Faz 3/4'e bırakıldı). **Sırada: Adım 4 (Faz 2 — istatistiksel
+arbitraj v2).**
 
 ### Tamamlanan fazlar (özet)
 

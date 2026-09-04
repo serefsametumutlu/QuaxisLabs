@@ -43,8 +43,13 @@ def test_universe_indicators_flagged_needs_universe() -> None:
 
 
 def test_scaled_factory_scales_bar_fields_for_h4() -> None:
+    """Faz 1, 1D düzeltmesi: bkz. `tlab/core/params.py::_TF_BAR_SCALE` +
+    `DoubleTopBottomParams.min_bars_between`'in `_BAR_FIELDS`'ten çıkarılma
+    gerekçesi (`prior_trend_lookback` hâlâ ölçekleniyor, `min_bars_between`
+    ARTIK ölçeklenmiyor)."""
     indicator = scaled_factory("patterns.double_top_bottom", Timeframe.H4)
-    assert indicator.params.min_bars_between == DoubleTopBottomParams().min_bars_between * 6
+    assert indicator.params.prior_trend_lookback == DoubleTopBottomParams().prior_trend_lookback * 3
+    assert indicator.params.min_bars_between == DoubleTopBottomParams().min_bars_between
 
 
 def test_scaled_factory_is_identity_at_d1() -> None:

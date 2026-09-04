@@ -28,19 +28,24 @@ def test_for_timeframe_d1_is_identity() -> None:
     assert scaled is p  # 1.0 çarpanı -- yeni kopya oluşturulmamalı
 
 
-def test_for_timeframe_h4_multiplies_by_six() -> None:
+def test_for_timeframe_h4_multiplies_by_three() -> None:
+    """Faz 1, 1D düzeltmesi: BIST'in GERÇEK seans yapısı (10:00-18:00, 4H
+    barları 09:00/13:00/17:00 hizalı) günde ORTALAMA 3 4H-barı üretir --
+    eski varsayım (6, "gün 24 saat" kabulü) 2x fazla sıkıydı, bkz.
+    `tlab/core/params.py::_TF_BAR_SCALE` yorumu."""
     p = _DummyParams(min_bars=15, max_bars=90)
     scaled = p.for_timeframe(Timeframe.H4)
-    assert scaled.min_bars == 90
-    assert scaled.max_bars == 540
+    assert scaled.min_bars == 45
+    assert scaled.max_bars == 270
     assert scaled.unrelated == 0.5  # _BAR_FIELDS'te değil -- DEĞİŞMEMELİ
 
 
-def test_for_timeframe_h1_multiplies_by_24() -> None:
+def test_for_timeframe_h1_multiplies_by_nine() -> None:
+    """BIST'te günde ORTALAMA 9 1H-barı ölçüldü (eski varsayım 24'tü)."""
     p = _DummyParams(min_bars=15, max_bars=90)
     scaled = p.for_timeframe(Timeframe.H1)
-    assert scaled.min_bars == 360
-    assert scaled.max_bars == 2160
+    assert scaled.min_bars == 135
+    assert scaled.max_bars == 810
 
 
 def test_for_timeframe_w1_divides_by_five_and_rounds() -> None:

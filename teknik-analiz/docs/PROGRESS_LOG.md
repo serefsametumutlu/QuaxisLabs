@@ -2112,9 +2112,55 @@ v2.md`'de. **Özet:**
   df ile yeniden render edilerek düzeltildi, ama genel `tlab plot` iş akışı
   hâlâ bu kırılganlığı taşıyor).
 
-**Adım 3 sonrası onay kapısı:** Faz 1'in 1A/1B/1C kod değişiklikleri + 1D
-doğrulaması TAMAMLANDI. `docs/spec/FORMASYON_DENETIM_v2.md`'nin özeti
-kullanıcıya sunulup, ÖZELLİKLE double_top_bottom 4H'in sıfırlanması
-konusunda karar alınmadan Adım 4'e (Faz 2 — istatistiksel arbitraj v2)
-geçilmeyecek.
+**Adım 3 sonrası onay kapısı — KAPANDI (2026-09-04, aynı gün):** Kullanıcı
+4 seçeneği (raporda listelenen) değerlendirip en avantajlısının uygulanmasını
+istedi. Daha derin araştırma GERÇEK kök nedeni buldu (4 seçeneğin hiçbiri
+tam doğru çerçeve değildi):
+
+1. **`tlab/core/params.py::_TF_BAR_SCALE` düzeltmesi (SİSTEMİK):** eski
+   1H=24/4H=6 katsayıları "gün 24 saat sürekli işlem görür" varsayımına
+   dayanıyordu. BIST seansı 10:00-18:00 (8 saat); `data/resample.py`'nin
+   09:00/13:00/17:00 hizalamasıyla GERÇEK ISCTR verisinde ölçülen bar/gün:
+   1H=9, 4H=3 (mode). Düzeltildi: 1H=9.0, 4H=3.0. Bu, double_top_bottom'un
+   YANI SIRA `prior_trend_lookback` gibi HER `_BAR_FIELDS` alanını doğru
+   kalibre etti — tek bir göstergeye özel değil, sistemik bir düzeltme.
+2. **`DoubleTopBottomParams.min_bars_between`'in `_BAR_FIELDS`'ten
+   ÇIKARILMASI (özel):** #1'in düzeltmesiyle bile (132→66 bar 4H'te) HÂLÂ
+   sıfıra yakın sinyal vardı (30 sembolde 0/20). Derin ölçüm: ATR-zigzag'de
+   eşleşen p1→p2 pivot aralığı BAR SAYISI olarak zaman diliminden NEREDEYSE
+   BAĞIMSIZ (120 sembol, medyan: 1D=27.5 bar, 4H=29 bar — ALMOST AYNI).
+   Mekanik açıklama: ATR kendisi bar granülaritesine göre ölçekleniyor
+   (4H'teki bir ATR birimi 1D'dekinden küçük), "3×ATR'lik bir tersine
+   dönüş" biriktirmek bu yüzden HER İKİ zaman diliminde kabaca AYNI SAYIDA
+   bar alıyor — ATR-zigzag pivot mesafeleri kendi doğasında zaman-dilimi-
+   DEĞİŞMEZ (self-similar). Takvimsel ölçekleme bu alan için YANLIŞ modeldi.
+   `min_bars_between` `_BAR_FIELDS`'ten çıkarıldı (artık HİÇBİR TF'de
+   ölçeklenmiyor, her zaman ham 22) — `prior_trend_lookback` (kapanış
+   fiyatı OLS penceresi, GERÇEKTEN takvimsel) hâlâ ölçekleniyor.
+
+**Sonuç (120 sembol, TAM yeniden ölçüm):** double_top_bottom 1D DEĞİŞMEDİ
+(298→70, sorun zaten yoktu); 4H **497→72 (%85.5 azalma)** — D1'in %76.5'ine
+yakın, SAĞLIKLI, gösterge artık 4H'te fiilen devre dışı DEĞİL. ("Eski"
+sayı 4H'te 125'ten 497'ye çıktı çünkü "eski" yeniden-inşası da artık
+`min_bars_between=5`'i hiç ölçeklemiyor — tutarlılık için gerekli bir
+yan etki.) wedge/broadening/head_shoulders bu düzeltmeden ETKİLENMEDİ
+(`min_bars`/`max_apex_bars` zaten p95'in çok altında kalıyordu — zeroing
+riski yoktu).
+
+Değişen dosyalar: `tlab/core/params.py` (_TF_BAR_SCALE), `tlab/indicators/
+patterns/double_top_bottom.py` (_BAR_FIELDS + uzun gerekçe yorumu),
+`tests/test_core_params.py`, `tests/test_scanner/test_timeframe_scaling.py`,
+`tests/test_scanner/test_bootstrap.py` (3 test dosyası yeni katsayılara +
+min_bars_between'in artık ölçeklenmediğine göre güncellendi). 656 test
+yeşil (655→656, +1 yeni regresyon testi), ruff/mypy/lint_lookahead baseline
+ile birebir. `docs/spec/FORMASYON_DENETIM_v2.md`'ye "KAPATILDI" bölümü
+eklendi (orijinal 4-seçenekli analiz ARŞİV olarak dosyada kalıyor).
+
+**Faz 1 TAMAMEN BİTTİ.** Sırada: **Adım 4 — Faz 2 (istatistiksel arbitraj
+v2)**, `docs/TANI_VE_YOL_HARITASI_v2.md`'nin `## FAZ 2` bölümü. Amaç: 606
+sahte çifti ~20-40 gerçek çifte indirmek (ham ADF yerine Engle-Granger,
+Šidák/BH-FDR düzeltmesi, OOS doğrulama) + `RelativeMomentumPair`'e gerçek
+bir `mean_reversion` modu (çıkış/stop/zaman-stopu/kilit) eklemek + kalıcı
+kointegrasyon çürüme izleyicisi (`coint_monitor.py`) + `scripts/pair_
+denetim.py` ile yeniden keşif + `docs/spec/ARBITRAJ_DENETIM_v2.md`.
 

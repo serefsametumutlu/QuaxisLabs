@@ -73,8 +73,20 @@ class DoubleTopBottomParams(BaseParams):
     eq_tol: float = 0.015
     # Faz 1, 1B — LMW: iki uç en az BİR AY (22 işlem günü) arayla olmalı
     # (eski değer 5'ti — 4H'te bu 20 saatten az demekti, kullanıcının
-    # gördüğü sahte çift diplerin doğrudan kök nedeni). 1D taban, diğer
-    # zaman dilimlerine `for_timeframe` ile ölçeklenir (bkz. _BAR_FIELDS).
+    # gördüğü sahte çift diplerin doğrudan kök nedeni).
+    #
+    # Faz 1, 1D DÜZELTMESİ (2026-09-04, docs/spec/FORMASYON_DENETIM_v2.md):
+    # bu alan ARTIK `_BAR_FIELDS`'te DEĞİL (takvimsel ölçeklenmiyor) —
+    # 120 sembollük ölçüm, `p1->p2` mesafesinin (ATR-zigzag pivot aralığı)
+    # BAR SAYISI olarak zaman diliminden NEREDEYSE BAĞIMSIZ olduğunu gösterdi
+    # (medyan: 1D'de 27.5 bar, 4H'te 29 bar — ALMOST AYNI). Kök neden: ATR
+    # kendisi bar granülaritesine göre ölçekleniyor (4H'teki tek bir ATR
+    # birimi 1D'dekinden küçük), bu yüzden "3×ATR'lik bir tersine dönüş"ü
+    # biriktirmek HER İKİ zaman diliminde de kabaca AYNI SAYIDA bar alıyor —
+    # takvimsel (×3/×9) ölçekleme bu yüzden YANLIŞ MODELdi, `min_bars_
+    # between=22`'yi 4H'te 66-132 bara şişirip 120 sembolün TAMAMINI eledi
+    # (125→0 sinyal). Ham (ölçeksiz) 22, 4H'teki GERÇEK adayların %67'sini
+    # geçiriyor (1D'de %63 — birbirine çok yakın, sağlıklı bir eşik).
     min_bars_between: int = 22
     # Faz 1, 1B — YENİ. 0 = sınırsız (varsayılan, davranış eskisi gibi
     # kapalı). Çift tepe/dip birkaç yıl arayla iki tepeyle "oluşmaz" —
@@ -114,10 +126,11 @@ class DoubleTopBottomParams(BaseParams):
     # Faz 0.5, A2 — takvimsel süre temsil eden bar-alanları; 1D taban kabul
     # edilip diğer zaman dilimlerine ölçeklenir (bkz. tlab/core/params.py::
     # BaseParams.for_timeframe). max_bars_between KASITLI OLARAK dışarıda
-    # (yukarıdaki yorum).
-    _BAR_FIELDS: ClassVar[frozenset[str]] = frozenset(
-        {"min_bars_between", "prior_trend_lookback"}
-    )
+    # (yukarıdaki yorum). `min_bars_between` de Faz 1, 1D'den beri KASITLI
+    # OLARAK dışarıda (bkz. tanımındaki uzun yorum — pivot-aralığı bar
+    # sayısı olarak zaman diliminden bağımsız, takvimsel ölçekleme YANLIŞ
+    # MODELdi).
+    _BAR_FIELDS: ClassVar[frozenset[str]] = frozenset({"prior_trend_lookback"})
     # Faz 0.5, A4 — `volume_ok` ZATEN hesaplanıp payload'a yazılıyordu ama
     # hiçbir sinyali FİLTRELEMİYORDU (bkz. STRATEJI_DENETIM_TAM.md A4).
     # Varsayılan False = davranış DEĞİŞMEDİ; True iken hacim onayı

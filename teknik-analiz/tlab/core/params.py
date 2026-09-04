@@ -16,9 +16,22 @@ _P = TypeVar("_P", bound="BaseParams")
 # Bar-cinsi her eşik, aynı TAKVİMSEL süreyi temsil etsin diye bu katsayıyla
 # çarpılır -- 4H'te 1D'lik bir eşik 6 kat daha AZ bar demekti (kalibre edilen
 # her şey 6 KAT SIKI olurdu), bu satır o sistemik hatayı kapatıyor.
+#
+# Faz 1, 1D DÜZELTMESİ (2026-09-04, docs/spec/FORMASYON_DENETIM_v2.md):
+# yukarıdaki 24.0/6.0 değerleri "gün 24 saat sürekli işlem görür" varsayımına
+# dayanıyordu (24h/1h=24, 24h/4h=6) -- ama BIST seansı 10:00-18:00 (8 saat)
+# ve GERÇEK bar sayısı (data/resample.py'nin 09:00/13:00/17:00 hizalamasıyla,
+# gerçek ISCTR verisinde ÖLÇÜLDÜ) günde ORTALAMA 9 (1H) / 3 (4H) -- yani
+# eski katsayılar 1H'de ~2.7x, 4H'de TAM 2x FAZLA SIKI ölçekliyordu. GERÇEK
+# BULGU: bu, `patterns.double_top_bottom`'un min_bars_between=22'sinin 4H'te
+# 132 bara (22 gün yerine 44 gün) ölçeklenmesine, ve dolayısıyla 120 gerçek
+# BIST sembolünde SIFIR sinyale (125->0) yol açmıştı. Düzeltilmiş katsayılar
+# BIST'in GERÇEK seans yapısına göre kalibre edildi (NASDAQ/kripto gibi farklı
+# seans uzunluğuna sahip piyasalar için bu tablo Market-farkında DEĞİL --
+# bilinçli bir basitleştirme, tlab'ın birincil evreni BIST).
 _TF_BAR_SCALE: dict[str, float] = {
-    "1H": 24.0,
-    "4H": 6.0,
+    "1H": 9.0,
+    "4H": 3.0,
     "1D": 1.0,
     "1W": 1.0 / 5.0,
 }

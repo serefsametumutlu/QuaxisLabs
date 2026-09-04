@@ -11,6 +11,7 @@ import type { CategoryEntry } from "@/lib/types";
 const NAV = [
   { href: "/scan", label: "Tarama" },
   { href: "/chart", label: "Grafik" },
+  { href: "/share", label: "Paylaşım Metni" },
 ];
 
 interface Props {

@@ -2631,3 +2631,46 @@ için). 750 test yeşil (741→750), ruff/mypy baseline'ları DEĞİŞMEDİ.
 **Sırada:** Faz 4a'nın kalan 5 sahnesi (report/swingfib/goldensupply/
 weekly/reversal_map) — ayrı oturum(lar)da.
 
+## 2026-09-04 (aynı gün) — Web: "Paylaşım Metni" — çoklu-gösterge X paylaşım metni üreticisi
+
+Kullanıcı, dashboard'daki mevcut "Yapay Zeka Raporu" butonundan (BİR
+göstergenin ZATEN açık olduğu grafiğe bağlı) BİLİNÇLİ OLARAK AYRI bir akış
+istedi: yalnızca bir sembol adı yazıp, sistemin O AN o sembol için ürettiği
+ÇOKLU-gösterge (yapı raporu 1D+4H, harmonik-Carney/golden zone/arz-talep/
+çift tepe-dip 4H) taramasından X'te paylaşılabilir TEK bir metin üretmesini
+istedi — bu, aynı oturumda INTEM için ELLE yapılan analiz+paylaşım metni
+iş akışının ÜRÜNLEŞTİRİLMESİ. Sağlayıcı Gemini (kullanıcı onayı), ses
+"yapay zeka değil bir insan/quant tarafından yazılmış gibi ama anlaşılır" —
+`quant_report.py`nin defalarca elle ayarlanmış anti-yapay-zeka-sesi
+`_SYSTEM_PROMPT`ı ve LLM çağrı çekirdeği (`_generate_from_facts`) BURADA
+YENİDEN YAZILMADI, dosya sonunda `generate_from_facts`/`SYSTEM_PROMPT`
+adlarıyla dışa açılıp AYNEN paylaşıldı.
+
+**Yeni dosyalar:** `tlab/viz/share_text.py` (`build_share_facts()` — her
+göstergenin OLGU listesini `report_text.py`nin ZATEN var olan
+`build_summary_lines`/`build_generic_summary_lines`inden toplar, bir
+gösterge aday/veri üretmezse o bölüm SESSİZCE atlanır; `generate_share_text()`
+— birleşik olguları `generate_from_facts`e iletir), `web/backend/routes/
+share_text.py` (`GET /api/share-text?symbol=...&market=...`, `report.py`
+ile AYNI `_ensure_gemini_key()` bootstrap deseni — bilanco-radar'ın `.env`'i),
+`web/frontend/app/share/page.tsx` (sembol girişi + "Paylaşım Metni Oluştur"
+butonu + kopyala düğmesi, `AiReportPanel`in stilini paylaşır), Sidebar'a
+"Paylaşım Metni" linki eklendi.
+
+6 yeni test (`tests/test_viz/test_share_text.py` — `compute_structure_report`/
+`compute_live`/`generate_from_facts` MOCK'lanır, ağ çağrısı YOK; olgu
+birleştirme + göstergenin ValueError/FileNotFoundError/`df=None` durumunda
+sessizce atlanması + `generate_share_text`in birleşik listeyi AYNEN LLM
+çekirdeğine ilettiği doğrulandı). 756 test yeşil (750→756), ruff/mypy/
+lint_lookahead baseline'ları DEĞİŞMEDİ. Frontend: `npx eslint`/`tsc --noEmit`/
+`next build` üçü de temiz, `/share` rotası derlendi.
+
+Gerçek Gemini çağrısı `TestClient` ile uçtan uca (INTEM, gerçek bilanco-radar
+anahtarıyla) iki kez denendi — ikisinde de `503 UNAVAILABLE` ("high demand",
+geçici bir Gemini-taraflı kesinti) alındı, bu da doğru şekilde deterministik
+fallback'e (`used_ai=False`, açık bir `note`) düştü. Anahtar bulma +
+fallback yolu böylece uçtan uca doğrulandı, ama gerçek bir BAŞARILI LLM
+çıktısı örneği bu oturumda HENÜZ görülmedi — kullanıcıya arayüz üzerinden
+elle denemesi önerilecek, çıktı sesi beğenilmezse `quant_report.py::
+_SYSTEM_PROMPT` (Faz 3/rapor özelliğiyle PAYLAŞILAN tek nokta) güncellenebilir.
+

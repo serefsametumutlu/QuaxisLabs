@@ -143,6 +143,23 @@ export function fetchPairsRefreshStatus(jobId: string): Promise<PairsRefreshJob>
   return getJson<PairsRefreshJob>(`/pairs/refresh/status?job_id=${encodeURIComponent(jobId)}`);
 }
 
+export interface ShareTextResponse {
+  text: string;
+  used_ai: boolean;
+  provider: string | null;
+  note: string | null;
+}
+
+/** `web/backend/routes/share_text.py` — tek bir sembolü çoklu-gösterge
+ * (yapı raporu + harmonik + golden zone + arz-talep + çift tepe/dip)
+ * taramasından geçirip X'te paylaşılabilir tek bir metin üretir. Dashboard'daki
+ * `fetchReport`'tan (bir göstergenin ZATEN açık olduğu grafiğe bağlı) BİLİNÇLİ
+ * OLARAK AYRI — burada yalnızca sembol adı yeterli. */
+export function fetchShareText(params: { symbol: string; market: string }): Promise<ShareTextResponse> {
+  const qs = new URLSearchParams(params).toString();
+  return getJson<ShareTextResponse>(`/share-text?${qs}`);
+}
+
 export function fetchSignals(params: {
   run_id: string;
   market?: string;

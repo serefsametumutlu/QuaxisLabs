@@ -23,6 +23,7 @@ from web.backend.routes import (
     report,
     scan,
     scan_trigger,
+    share_text,
     universe,
 )
 
@@ -45,6 +46,7 @@ app.include_router(guide.router, prefix="/api")
 app.include_router(scan.router, prefix="/api")
 app.include_router(scan_trigger.router, prefix="/api")
 app.include_router(pairs_refresh.router, prefix="/api")
+app.include_router(share_text.router, prefix="/api")
 
 
 @app.get("/api/health")

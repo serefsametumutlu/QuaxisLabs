@@ -37,7 +37,7 @@ kararları) artık `docs/PROGRESS_LOG.md`'de** — bu dosya CLAUDE.md'nin 150k k
 sınırını aştığı için oraya taşındı (2026-09-02). Aşağıdaki liste yalnızca ÖZET; bir
 fazın TAM detayına ihtiyaç varsa `docs/PROGRESS_LOG.md`'ye bak.
 
-**Durum (2026-09-04): 738 test yeşil (`pytest -q -m "not network"`), ruff/mypy
+**Durum (2026-09-04): 756 test yeşil (`pytest -q -m "not network"`), ruff/mypy
 temiz (baseline: 19 ruff / 1 mypy — hepsi önceden var olan/bilinen false-positive,
 ilgisiz satırlar); lint_lookahead 5 uyarı (`coint_monitor.py`nin eklenmesiyle
 CLAUDE.md'nin eski "3" rakamından güncellenmedi, hepsi bu satırın YAZILDIĞI Faz
@@ -196,8 +196,26 @@ modül) tam titizlikle portlandı: 4 iterasyon, BAKAB (confirmed) + TUCLK
 vertex etiketleri + PRZ etiketi + D rozeti HEPSİ `resolve_collisions`e
 alındı (3 ayrı üst-üste-binme bulunup düzeltildi). 8 yeni test + 1 golden,
 750 test yeşil, ruff/mypy baseline'ları DEĞİŞMEDİ. Detay: `docs/
-PROGRESS_LOG.md`nin aynı tarihli girdisi. **Sırada: Faz 4a'nın kalan 5
-sahnesi (report/swingfib/goldensupply/weekly/reversal_map).**
+PROGRESS_LOG.md`nin aynı tarihli girdisi.
+
+**EK (aynı gün) — Web: "Paylaşım Metni" (çoklu-gösterge X paylaşım metni
+üreticisi):** kullanıcı, mevcut "Yapay Zeka Raporu"ndan (bir göstergenin
+zaten açık olduğu grafiğe bağlı) BİLİNÇLİ OLARAK AYRI, yalnızca sembol adı
+girilip yapı raporu (1D+4H) + harmonik-Carney/golden zone/arz-talep/çift
+tepe-dip (4H) taramasından tek bir X-paylaşım metni üreten bir sayfa istedi
+(Gemini, "insan/quant sesi" — `quant_report.py`nin AYNI, defalarca ayarlanmış
+`_SYSTEM_PROMPT`ı/LLM çekirdeği YENİDEN YAZILMADI, `generate_from_facts`/
+`SYSTEM_PROMPT` adlarıyla dışa açılıp paylaşıldı). YENİ `tlab/viz/
+share_text.py` (`build_share_facts`/`generate_share_text`), `web/backend/
+routes/share_text.py` (`GET /api/share-text`), `web/frontend/app/share/
+page.tsx` + Sidebar linki. 6 yeni test (LLM/veri çağrıları MOCK'lanır),
+756 test yeşil (750→756), ruff/mypy/lint_lookahead baseline'ları DEĞİŞMEDİ,
+frontend `eslint`/`tsc --noEmit`/`next build` temiz. Uçtan uca gerçek Gemini
+denemesi (INTEM) iki kez `503 UNAVAILABLE` (geçici Gemini-taraflı yoğunluk)
+aldı, fallback yolu doğru çalıştı — ama bu oturumda BAŞARILI bir LLM
+çıktısı örneği henüz GÖRÜLMEDİ, kullanıcı arayüzden kendi deneyebilir.
+Detay: `docs/PROGRESS_LOG.md`nin aynı tarihli girdisi. **Sırada: Faz 4a'nın
+kalan 5 sahnesi (report/swingfib/goldensupply/weekly/reversal_map).**
 
 ### Tamamlanan fazlar (özet)
 

@@ -313,3 +313,12 @@ def generate_pair_report(
     else:
         date_str = "bugün"
     return _generate_from_facts(facts, sym, date_str, provider, api_key, model)
+
+
+# 2026-09-04 -- `tlab/viz/share_text.py` (çoklu-gösterge "paylaşım metni"
+# özelliği) AYNI LLM-çekirdeğini ve AYNI "insan/quant sesi" `_SYSTEM_PROMPT`ını
+# paylaşmak istiyor -- burada YENİDEN YAZMAK yerine (kullanıcının defalarca
+# düzelttiği anti-yapay-zeka-sesi kuralları TEK yerde kalsın diye) mevcut
+# özel fonksiyon/sabit public bir isimle DIŞA AÇILIYOR, davranış DEĞİŞMEDİ.
+generate_from_facts = _generate_from_facts
+SYSTEM_PROMPT = _SYSTEM_PROMPT

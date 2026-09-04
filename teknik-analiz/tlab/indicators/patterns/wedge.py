@@ -72,6 +72,16 @@ _TRIANGLE_SHAPES: frozenset[str] = frozenset({"sym_triangle", "asc_triangle", "d
 _BULLISH_SHAPES: frozenset[str] = frozenset({"falling_wedge", "asc_triangle"})
 _BEARISH_SHAPES: frozenset[str] = frozenset({"rising_wedge", "desc_triangle"})
 
+def _bump(context: dict | None, key: str) -> None:
+    """Faz 1, 1D — bkz. `double_top_bottom.py::_bump` AYNI mekanizma/gerekçe."""
+    if context is None:
+        return
+    counter = context.get("elim")
+    if counter is None:
+        return
+    counter[key] = counter.get(key, 0) + 1
+
+
 _LABEL_TR: dict[str, str] = {
     "falling_wedge": "ALÇALAN TAKOZ", "rising_wedge": "YÜKSELEN TAKOZ",
     "sym_triangle": "SİMETRİK ÜÇGEN", "asc_triangle": "YÜKSELEN ÜÇGEN",
@@ -193,7 +203,7 @@ class WedgeIndicator(BaseIndicator):
                 shape = classify(conv, classify_params)
                 if shape is None or shape not in self._shapes:
                     continue
-                if not _passes_shape_filters(conv, upper, lower, p):
+                if not _passes_shape_filters(conv, upper, lower, p, context):
                     continue
 
                 pattern_key = (
@@ -332,23 +342,37 @@ class WedgeIndicator(BaseIndicator):
         )
 
 
-def _passes_shape_filters(conv, upper: Trendline, lower: Trendline, p: WedgeParams) -> bool:
+def _passes_shape_filters(
+    conv, upper: Trendline, lower: Trendline, p: WedgeParams, context: dict | None = None,
+) -> bool:
+    """Faz 1, 1D — `context={"elim": {}}` verilirse (bkz. `double_top_
+    bottom.py::_bump`) hangi filtrenin eleneni sayar; varsayılan (`None`)
+    davranış DEĞİŞMEZ."""
     distinct_pivots = {upper.p1.bar_idx, upper.p2.bar_idx, lower.p1.bar_idx, lower.p2.bar_idx}
     if len(distinct_pivots) < p.min_pivots:
+        _bump(context, "min_pivots")
         return False
     span = conv.created_idx - min(upper.p1.bar_idx, lower.p1.bar_idx)
     if span < p.min_bars:
+        _bump(context, "min_bars")
         return False
     if p.max_bars > 0 and span > p.max_bars:
+        _bump(context, "max_bars")
         return False
     if conv.apex_idx is None:
+        _bump(context, "no_apex")
         return False
     if conv.apex_idx - conv.created_idx > p.max_apex_bars:
+        _bump(context, "max_apex_bars")
         return False
     if conv.apex_idx - conv.created_idx < 1:
+        _bump(context, "apex_too_close")
         return False
     ratio = _normalized_ratio(upper.slope, lower.slope)
-    return p.slope_ratio_range[0] <= ratio <= p.slope_ratio_range[1]
+    if not (p.slope_ratio_range[0] <= ratio <= p.slope_ratio_range[1]):
+        _bump(context, "slope_ratio_range")
+        return False
+    return True
 
 
 def _direction_candidates(

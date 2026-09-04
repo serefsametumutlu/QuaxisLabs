@@ -2065,9 +2065,56 @@ ile reddediliyor), `test_broadening.py::test_max_bars_filters_out_too_long_spans
 unlimited`. Tüm 4 patterns/*.py dosyası artık BULUNAN HATA 3'e karşı en azından
 opt-in bir savunmaya sahip.
 
-**Sırada:** 1D (doğrulama — `scripts/formasyon_denetim.py`, ≥100 gerçek BIST sembolü,
-önce/sonra tablosu — eski/gevşek filtreler vs yeni/sıkı filtreler, eleme-nedeni
-dökümü, 10 rastgele sinyalin `tlab plot` ile GÖRSEL incelemesi zorunlu) — Faz 1'in
-kabul testi. 1D'nin bir parçası olarak `max_bars` için gerçek bir varsayılan değer
-gerekip gerekmediği de (yukarıdaki not) ölçülüp karara bağlanmalı.
+**1D — DOĞRULAMA (2026-09-04, TAMAMLANDI):** `scripts/formasyon_denetim.py`
+(YENİ) 120 gerçek BIST sembolünde (D1+4H) eski/yeni parametreleri karşılaştırdı
++ indikatörlere opsiyonel `context={"elim": {}}` sayaç mekanizması eklendi
+(`_bump()` — double_top_bottom/head_shoulders/wedge/broadening'in HEPSİNDE,
+varsayılan `context=None` davranışı DEĞİŞTİRMİYOR) + 10 rastgele confirmed
+sinyal `tlab plot`'un kullandığı AYNI `render()` ile PNG'ye render edilip
+`Read` ile TEK TEK açılıp incelendi. Tam sonuç `docs/spec/FORMASYON_DENETIM_
+v2.md`'de. **Özet:**
+- double_top_bottom 1D: 298→70 (%76.5 azalma) — SAĞLIKLI. head_shoulders 1D:
+  204→141 (%30.9), 4H: 126→102 (%19.0) — ikisi de makul, en büyük eleyici
+  YENİ filtreler değil `shoulder_time_ratio` (önceden var olan) çıktı.
+- **KARAR GEREKTİREN GERÇEK BULGU:** double_top_bottom 4H: 125→**0** (%100).
+  `min_bars_between=22`'nin (LMW, "en az 1 ay") `for_timeframe` ile 4H'e
+  ×6=132 bara ölçeklenmesi TEK BAŞINA 4172 adayın TAMAMINI eliyor — double
+  top/dip'in 4H'te doğası gereği çok daha kısa sürede oluştuğu (günler,
+  haftalar değil) gerçeğini takvimsel ölçekleme yok sayıyor. 4 çözüm
+  seçeneği raporda — Adım 4 onayından ÖNCE kullanıcı kararı gerekiyor.
+- BULUNAN HATA 3 span taraması: max_bars=60→9, 90→30, 120→36, 180→62,
+  250→92, sınırsız→166 confirmed (wedge+triangle+broadening, D1) — kademeli,
+  tek net eşik yok; SKBNK/triangle'da 8+ aylık bir direnç çizgisinin gerçek
+  apeksin son birkaç haftaya sıkıştığı GÖRSEL olarak doğrulandı, gerçek bir
+  varsayılan gerekebilir ama hangi sayı olduğu ayrı bir tur gerektiriyor.
+- Görsel inceleme (10/10 açıldı): ISCTR/head_shoulders TEXTBOOK kalitede bir
+  OBO (sol omuz/baş/sağ omuz/boyun/kırılım/hedef hepsi net) — Faz 1 sonrası
+  kalan sinyallerin GERÇEK kalitesine güçlü kanıt. 1/10 (GEDİK) render'da
+  hiç görünmedi (BULUNAN HATA 1'in 3. yeni örneği, BARMA/ISBTR'yle birlikte).
+- **3 YENİ, kapsam dışı bulgu** (hepsi CLAUDE.md'nin "Kaldığı yer" bölümüne
+  işlendi, Faz 1'de DÜZELTİLMEDİ): (1) `renderer.py::_resolve_window_end`
+  (satır 480) `last_n` parametresini hiç almıyor — `patterns.*`/`harmonic.*`
+  için pencere bitişi HER ZAMAN "en son geçerli örüntü"ye göre hesaplanıyor,
+  `last_n` açıkça verilse bile; en son örüntü `last_n`'in ima ettiği
+  pencereden eskiyse TERS (start>end) bir x-ekseni aralığı oluşuyor — ISCTR
+  `patterns.head_shoulders` 4H'te GERÇEKTEN gözlemlenip teşhis edildi. (2)
+  `patterns.broadening`'in hologram poligonu (ham pivot noktalarını
+  birleştirdiği için) created_idx'e doğru YAKINSAYAN bir kama gibi
+  görünüyor — `patterns_geom.py::diverging_lines` (satır 140-151) kod
+  incelemesiyle MATEMATİKSEL OLARAK doğru bulundu (created_idx SONRASI ileri
+  yönde ıraksamayı test ediyor), bu yüzden bu bir SINIFLANDIRMA hatası değil,
+  bir ANLATIM/görsel netlik sorunu (BARMA/ODINE/IZMDC/ISBTR'nin HEPSİNDE
+  gözlemlendi). (3) ISBTR sembolünün 4H önbellek verisi 400.000-680.000 TL
+  aralığında — BIST için gerçekçi değil, veri kalitesi şüphesi.
+- Yöntem notu: `compute_live()` TAM geçmişi çekiyor (ölçüm betiğinin
+  `last_n=600`'ü ile UYUŞMUYOR) — bu, ISCTR'de render'ın sayımdaki TOBO
+  yerine farklı bir OBO göstermesine yol açtı (görsel örnekler AYNI 600-bar
+  df ile yeniden render edilerek düzeltildi, ama genel `tlab plot` iş akışı
+  hâlâ bu kırılganlığı taşıyor).
+
+**Adım 3 sonrası onay kapısı:** Faz 1'in 1A/1B/1C kod değişiklikleri + 1D
+doğrulaması TAMAMLANDI. `docs/spec/FORMASYON_DENETIM_v2.md`'nin özeti
+kullanıcıya sunulup, ÖZELLİKLE double_top_bottom 4H'in sıfırlanması
+konusunda karar alınmadan Adım 4'e (Faz 2 — istatistiksel arbitraj v2)
+geçilmeyecek.
 

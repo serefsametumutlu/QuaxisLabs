@@ -50,6 +50,20 @@ from tlab.features.volatility import atr
 _LABEL_TR = {"double_top": "ÇİFT TEPE", "double_bottom": "ÇİFT DİP"}
 
 
+def _bump(context: dict | None, key: str) -> None:
+    """Faz 1, 1D — ölçüm betikleri (`scripts/formasyon_denetim.py`) için
+    OPSİYONEL elenme-sebebi sayacı. `context={"elim": {}}` verilmediği
+    sürece (varsayılan davranış) HİÇBİR ŞEY yapmaz -- var olan `context`
+    parametresini (şimdiye kadar yalnızca pair indikatörlerinin kullandığı)
+    genişletir, yeni bir Params alanı GEREKTİRMEZ."""
+    if context is None:
+        return
+    counter = context.get("elim")
+    if counter is None:
+        return
+    counter[key] = counter.get(key, 0) + 1
+
+
 @dataclass(frozen=True)
 class DoubleTopBottomParams(BaseParams):
     left: int = 3
@@ -162,13 +176,16 @@ class DoubleTopBottomIndicator(BaseIndicator):
             for p1, neckline_pivot, p2 in _matched_pairs(zigzag, kind):
                 bars_between = p2.bar_idx - p1.bar_idx
                 if bars_between < p.min_bars_between:
+                    _bump(context, "min_bars_between")
                     continue
                 if p.max_bars_between > 0 and bars_between > p.max_bars_between:
+                    _bump(context, "max_bars_between")
                     continue
                 avg_price = (p1.price + p2.price) / 2.0
                 if avg_price == 0:
                     continue
                 if abs(p1.price - p2.price) / avg_price > p.eq_tol:
+                    _bump(context, "eq_tol")
                     continue
 
                 neckline_price = neckline_pivot.price
@@ -179,6 +196,7 @@ class DoubleTopBottomIndicator(BaseIndicator):
                 # between_pct kadar bir ters hareket olmalı ("dümdüz bir
                 # taban" tipi sahte formasyonları eler).
                 if depth / avg_price < p.min_rise_between_pct:
+                    _bump(context, "min_rise_between_pct")
                     continue
 
                 born_idx = p2.finalized_idx
@@ -191,6 +209,7 @@ class DoubleTopBottomIndicator(BaseIndicator):
                     df, p1.bar_idx, p.prior_trend_lookback, direction, p.prior_trend_min_tstat,
                 )
                 if not trend_ok:
+                    _bump(context, "prior_trend")
                     continue
 
                 # Faz 1, 1B — minimum derinlik (STRATEJI_DENETIM_TAM.md):
@@ -199,6 +218,7 @@ class DoubleTopBottomIndicator(BaseIndicator):
                 if not pattern_depth_ok(
                     depth, avg_price, atr_series.iloc[born_idx], p.min_depth_pct, p.min_depth_atr,
                 ):
+                    _bump(context, "min_depth")
                     continue
 
                 extreme = max(p1.price, p2.price) if kind == "high" else min(p1.price, p2.price)

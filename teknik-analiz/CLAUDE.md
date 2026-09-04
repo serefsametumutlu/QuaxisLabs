@@ -61,8 +61,18 @@ bağlam kontrolleri) + 1B (`double_top_bottom.py` literatür düzeltmeleri) + 1C
 (`head_shoulders.py`/`hs_pattern.py`, GERÇEK ikinci bug: yukarı eğimli boyunlu
 OBO/TOBO hiç tetiklenemiyordu — `break_rule="right_armpit"` düzeltmesi) +
 BULUNAN HATA 3'ün wedge/triangle/broadening tarafının kapatılması
-(`max_bars` opt-in üst sınır) TAMAMLANDI, detay `docs/PROGRESS_LOG.md`'nin
-"Faz 1" bölümünde. Sırada: 1D (doğrulama — Faz 1'in kabul testi).**
+(`max_bars` opt-in üst sınır) + **1D (doğrulama — Faz 1'in kabul testi)**
+TAMAMLANDI, detay `docs/PROGRESS_LOG.md`'nin "Faz 1" bölümü ve `docs/spec/
+FORMASYON_DENETIM_v2.md`'de. **KARAR BEKLEYEN GERÇEK BULGU (1D'de bulundu,
+Adım 4 onayından ÖNCE kullanıcı kararı gerekiyor):** `patterns.double_top_
+bottom` 4H'te YENİ parametrelerle 120 sembolde SIFIR sinyale düştü (125→0,
+%100) — `min_bars_between=22`'nin (1D taban, LMW "en az 1 ay") `for_
+timeframe` ile 4H'e ×6=132 bar ölçeklenmesi TEK BAŞINA tüm adayları eliyor.
+4 seçenek `docs/spec/FORMASYON_DENETIM_v2.md`'nin "Karar Gerektiren Bulgu"
+bölümünde. Diğer görsel-inceleme bulguları (renderer `last_n` hatası,
+`patterns.broadening` hologramının kama gibi görünmesi, ISBTR veri kalitesi
+şüphesi, BULUNAN HATA 1'in 3 yeni örneği) aşağıdaki "Kaldığı yer" bölümüne
+eklendi.**
 
 ### Tamamlanan fazlar (özet)
 
@@ -160,11 +170,54 @@ BULUNAN HATA 3'ün wedge/triangle/broadening tarafının kapatılması
     DEĞİŞMEDİ, yalnızca opt-in bir üst sınır knob'u açıldı; `min_bars_
     between=22` gibi bir literatür-temelli varsayılan DEĞİL, çünkü TUCLK
     tipi aşırı-uzun formasyonlara karşı doğru eşik değeri henüz ölçülmedi).
-    1D'nin önce/sonra ölçümü bu knob'un GERÇEK bir varsayılana ihtiyacı
-    olup olmadığına karar verecek. Testler: `test_wedge.py::test_passes_
-    shape_filters_rejects_span_too_long`/`..._max_bars_zero_means_
-    unlimited`, `test_broadening.py::test_max_bars_filters_out_too_long_
-    spans`/`..._max_bars_zero_means_unlimited`.
+    Testler: `test_wedge.py::test_passes_shape_filters_rejects_span_too_
+    long`/`..._max_bars_zero_means_unlimited`, `test_broadening.py::
+    test_max_bars_filters_out_too_long_spans`/`..._max_bars_zero_means_
+    unlimited`. **1D ölçümü TAMAMLANDI (`docs/spec/FORMASYON_DENETIM_v2.md`)**
+    — span dağılımı KADEMELİ (60 bar'da 9 confirmed → sınırsızda 166,
+    tek net bir eşik yok), SKBNK/triangle örneğinde 8+ aylık bir direnç
+    çizgisinin gerçek apeksin son birkaç haftaya sıkıştığı GÖRSEL olarak
+    doğrulandı — `max_bars`'a gerçek bir varsayılan (ör. 120-180 bar D1)
+    vermenin makul olduğu düşünülüyor ama HANGİ eşiğin doğru olduğu ayrı bir
+    görsel doğrulama turu gerektiriyor, henüz karara bağlanmadı.
+  - **BULUNAN HATA 1 — 2026-09-04 1D turunda 3 YENİ örnekle tekrar
+    doğrulandı** (BARMA/broadening 4H, ISBTR/broadening 4H×2, GEDİK/
+    head_shoulders 4H) — "yaygın" sınıflandırması güçlendi. İlginç ek gözlem:
+    AYNI BARMA/broadening'in 1D'deki `retest_hold` durumu DÜZGÜN render
+    edildi — hata `retest_hold`'a DEĞİL sembol/zaman-dilimi'ne bağlı,
+    aralıklı görünüyor. Hâlâ Faz 3/4'ün işi, kök neden araştırılmadı.
+  - **YENİ (2026-09-04, 1D turunda bulundu) — renderer `_resolve_window_end`
+    `last_n`'i yok sayıyor:** `tlab/viz/renderer.py:480` — `patterns.*`/
+    `harmonic.*` için pencere BİTİŞİ HER ZAMAN "en son geçerli örüntünün
+    kendi ufku"na göre hesaplanıyor, `last_n` açıkça verilse bile
+    (`_resolve_window_start` `last_n`'e uyuyor ama `_resolve_window_end`
+    UYMUYOR — tutarsız). En son geçerli örüntü `last_n`'in ima ettiği
+    pencereden eskiyse `window_end < window_start` (TERS aralık) oluşup
+    grafik neredeyse boş görünüyor (ISCTR `patterns.head_shoulders` 4H'te
+    GERÇEKTEN gözlemlendi/teşhis edildi). **Hedef: Faz 3/4 — `_resolve_
+    window_end`'e de `last_n` eklenmeli.**
+  - **YENİ (2026-09-04) — `compute_live()` tam geçmiş kullanıyor, ölçüm
+    betikleriyle UYUŞMUYOR:** `tlab/viz/live.py::compute_live` her zaman
+    TAM önbellek geçmişini çeker (`last_n` VERMEZ) — bir sinyali SAYIP
+    sonra `tlab plot`'la görsel doğrulamak, farklı geçmiş uzunluğu
+    yüzünden FARKLI bir adayı gösterebilir (ISCTR'de TAM OLARAK
+    gözlemlendi: sayımdaki TOBO yerine render'da bir OBO çıktı). **Hedef:
+    Faz 3/4 ya da ayrı bir takip işi.**
+  - **YENİ (2026-09-04) — `patterns.broadening`'in hologram poligonu
+    görsel olarak yanıltıcı (kod DOĞRU, anlatım değil):**
+    `patterns_geom.py::diverging_lines` (satır 140-151) matematiksel olarak
+    doğru bir "ileri yönde ıraksama" testi yapıyor (kod incelemesiyle
+    doğrulandı), ama hologram poligonu iki çizginin HAM pivot noktalarını
+    birleştirdiği için created_idx'e doğru YAKINSAYAN bir kama gibi
+    görünebiliyor (BARMA/ODINE/IZMDC/ISBTR örneklerinin HEPSİNDE
+    gözlemlendi) — kullanıcıyı yanıltabilir. **Hedef: Faz 3/4/S4 (görsel
+    tasarım) — hologram, created_idx SONRASI referans noktalarındaki
+    değerlere göre yeniden tasarlanmalı.**
+  - **YENİ (2026-09-04) — ISBTR veri kalitesi şüphesi:** `ISBTR`'nin 4H
+    önbellek verisi 400.000-680.000 TL aralığında — BIST için gerçekçi
+    değil, muhtemelen bir birim/ölçek hatası. **Hedef: `data/validate.py`'ye
+    bir "makul fiyat aralığı" sağlık kontrolü + bu sembolün verisi elle
+    doğrulanmalı — Faz 1'in TAMAMEN dışında, ayrı bir takip işi.**
 - **`harmonic.five_zero`**: 622 sembollük tam BIST evreninde HİÇBİR aday bulamadı
   (iki farklı parametre setiyle de) — kök neden araştırılmadı, ayrı bir takip işi.
 - **Dashboard**: "Bugünü Tara" `run_eod()`'u SENKRON çağırıyor (büyük evrende

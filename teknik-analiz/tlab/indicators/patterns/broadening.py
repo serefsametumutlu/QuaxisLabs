@@ -59,6 +59,16 @@ _LABEL_TR = {
 }
 
 
+def _bump(context: dict | None, key: str) -> None:
+    """Faz 1, 1D — bkz. `double_top_bottom.py::_bump` AYNI mekanizma/gerekçe."""
+    if context is None:
+        return
+    counter = context.get("elim")
+    if counter is None:
+        return
+    counter[key] = counter.get(key, 0) + 1
+
+
 @dataclass(frozen=True)
 class BroadeningParams(BaseParams):
     left: int = 3
@@ -150,12 +160,15 @@ class BroadeningIndicator(BaseIndicator):
                     upper.p1.bar_idx, upper.p2.bar_idx, lower.p1.bar_idx, lower.p2.bar_idx,
                 }
                 if len(distinct_pivots) < p.min_pivots:
+                    _bump(context, "min_pivots")
                     continue
                 start_idx = min(upper.p1.bar_idx, lower.p1.bar_idx)
                 span = dv.created_idx - start_idx
                 if span < p.min_bars:
+                    _bump(context, "min_bars")
                     continue
                 if p.max_bars > 0 and span > p.max_bars:
+                    _bump(context, "max_bars")
                     continue
 
                 prior_ref_idx = max(0, start_idx - p.prior_trend_lookback)

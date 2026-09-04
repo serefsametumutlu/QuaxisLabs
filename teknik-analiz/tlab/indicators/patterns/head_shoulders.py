@@ -62,6 +62,16 @@ HSFilter = Literal["tobo", "obo", "both"]
 _LABEL_TR: dict[HSKind, str] = {"tobo": "TOBO", "obo": "OBO"}
 
 
+def _bump(context: dict | None, key: str) -> None:
+    """Faz 1, 1D — bkz. `double_top_bottom.py::_bump` AYNI mekanizma/gerekçe."""
+    if context is None:
+        return
+    counter = context.get("elim")
+    if counter is None:
+        return
+    counter[key] = counter.get(key, 0) + 1
+
+
 @dataclass(frozen=True)
 class HeadShouldersParams(BaseParams):
     left: int = 3
@@ -159,6 +169,7 @@ class HeadShouldersIndicator(BaseIndicator):
                     continue
                 ratio = right_span / left_span
                 if not (p.shoulder_time_ratio[0] <= ratio <= p.shoulder_time_ratio[1]):
+                    _bump(context, "shoulder_time_ratio")
                     continue
 
                 # Faz 1, 1C — ön trend şartı (Bulkowski): TOBO düşüşten,
@@ -167,6 +178,7 @@ class HeadShouldersIndicator(BaseIndicator):
                     df, hs.l1.bar_idx, p.prior_trend_lookback, direction, p.prior_trend_min_tstat,
                 )
                 if not trend_ok:
+                    _bump(context, "prior_trend")
                     continue
 
                 # Faz 1, 1C — minimum derinlik (ZOREN 4H örneği ~%3,
@@ -176,6 +188,7 @@ class HeadShouldersIndicator(BaseIndicator):
                     hs.depth, neckline_avg_price, atr_series.iloc[born_idx],
                     p.min_depth_pct, p.min_depth_atr,
                 ):
+                    _bump(context, "min_depth")
                     continue
 
                 pattern_id = f"{kind}_{hs.l1.bar_idx}_{hs.head.bar_idx}_{hs.l3.bar_idx}"

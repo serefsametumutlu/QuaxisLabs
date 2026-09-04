@@ -123,6 +123,18 @@ def pill(
     return rect + label
 
 
+def outline_pill(
+    x: float, y: float, w: float, h: float, text: str, *,
+    color: str, family: str | None = None, size: float = 9.5, weight: int | str = 700,
+) -> str:
+    """Artifact'in `outlinePill`i -- içi boş, kesikli çerçeveli rozet (ör.
+    henüz oluşmakta olan bir formasyon için "AKTİF" etiketi)."""
+    return pill(
+        x, y, w, h, text, fill="none", stroke=color, stroke_width=1.3, dash="3,2",
+        text_fill=color, family=family, size=size, weight=weight,
+    )
+
+
 def glow_filter_defs(filter_id: str, *, enabled: bool) -> str:
     if not enabled:
         return ""

@@ -183,3 +183,15 @@ def test_golden_svg_double_top_bottom_classic(request: pytest.FixtureRequest) ->
     result.symbol = "GOLDEN"
     svg_text = render_svg(result, df, theme="classic")
     _assert_matches_golden(svg_text, "svg_double_top_bottom_classic", request, ext="svg")
+
+
+def test_golden_svg_harmonic_carney_classic(request: pytest.FixtureRequest) -> None:
+    df = build_gartley_ohlcv()
+    params = HarmonicParams(
+        left=2, right=2, zigzag_method="fixed",
+        confirmation_policy="close_reversal", reversal_bars=1,
+    )
+    result = HarmonicIndicator("carney", params)(df)
+    result.symbol = "GOLDEN"
+    svg_text = render_svg(result, df, theme="classic")
+    _assert_matches_golden(svg_text, "svg_harmonic_carney_classic", request, ext="svg")

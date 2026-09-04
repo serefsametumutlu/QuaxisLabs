@@ -2584,3 +2584,50 @@ olarak üretmemişti (birkaç bar gecikme, geçersizlik DEĞİL). Bu, kod
 tabanında kalıcı bir değişiklik gerektirmedi — bulgu kullanıcıya doğrudan
 sunuldu.
 
+## 2026-09-04 (aynı gün) — Adım 6 / Faz 4a başladı: `harmonic` sahnesi portlandı
+
+Kullanıcı Faz 4'e (kalan 18 sahnenin portu) devam kararı verdi. Roadmap'in
+kendi notu ("Bu fazı 3 oturuma böl — tek oturumda bağlam şişer") uyarınca
+bu oturumda 4a grubunun (harmonic/report/swingfib/goldensupply/weekly/
+reversal_map) TAMAMI değil, en yüksek sürekliliğe sahip TEK sahne
+(`harmonic` — aynı oturumda INTEM'in Bat analiziyle doğrudan bağlantılı)
+tam titizlikle portlandı; kalan 5 sahne sıradaki oturum(lar)a bırakıldı.
+
+**`tlab/viz/svg/scenes/harmonic.py`** — `HarmonicIndicator`'ın 8 ekolünün
+(carney/pesavento/gilmore/cypher/nenstar/navarro200/five_zero/three_drives)
+TAMAMI için TEK, ekol-agnostik sahne. `scanner_indicator.py::compute()`nin
+her adayı TEK bir döngüde işleyip `polygons`/`levels`/`markers`e HER ZAMAN
+sabit sayıda öğe eklediği (2 polygon, 2 level [prz_low/high], 1 marker)
+gerçeğine dayanan POZİSYONEL eşleştirme ile marker (yalnızca `harmonic_
+{state}` taşır, pattern_id İÇERMEZ) doğru adaya bağlanıyor.
+
+**4 iterasyon, gerçek veriyle (BAKAB confirmed, TUCLK pending — İKİ farklı
+durum dalı da GERÇEK sinyalle test edildi), 3 temada GÖRÜLEREK:**
+1. Baseline çalıştı ama D rozeti (pill) PRZ etiketiyle üst üste bindi —
+   PRZ dar bir fiyat bandı olduğu için D genelde TAM içine dokunuyor,
+   ikisi de elle konumlanmıştı.
+2. Rozet + PRZ etiketi `resolve_collisions`e taşındı — kenar taşması
+   düzeldi ama bu kez D'nin küçük harf etiketi ("D") ile büyük rozet AYNI
+   "D noktasının hemen altı" bölgesini paylaşıp üst üste bindi.
+3. D'nin küçük etiketi "above" yönüne çevrildi (rozet "below" kalıyor) —
+   kısmen düzeldi ama PRZ etiketiyle D etiketi bu kez BAŞKA bir noktada
+   çakıştı (ikisi de bağımsız elle konumlanmıştı, koordine değillerdi).
+4. KÖKTEN çözüm: X/A/B/C/D'nin BEŞİ de (yalnızca D değil) PRZ etiketi ve
+   rozetle AYNI `resolve_collisions` havuzuna alındı — artık hiçbir
+   değişken-konumlu öğe elle yerleştirilmiyor (Faz 3'ün double_top_bottom
+   sahnesiyle AYNI ilke). Bu, 5. iterasyonda (yalnızca ruff/mypy
+   satır-sarma, davranış DEĞİŞMEDİ, görsel olarak doğrulandı) son hâlini aldı.
+
+8 yeni test (`tests/test_viz/test_svg/test_harmonic_scene.py` — CONFIRMED
+ve ACTIVE/pending dallarının İKİSİ de gerçek `build_gartley_ohlcv`
+fixture'ının seri KESİLEREK türetilmiş hâliyle test ediliyor) + 1 yeni
+golden test. `tests/test_viz/test_svg/test_double_top_bottom_scene.py`nin
+`supports("harmonic.carney") is False` / unported-indicator testleri artık
+YANLIŞ varsayım taşıdığı için güncellendi (harmonic ARTIK portlandı --
+unported testi `structure.golden_zone`ye çevrildi). `tlab/viz/svg/prim.py`ye
+YENİ `outline_pill()` eklendi (artifact'in `outlinePill`i, "AKTİF" rozeti
+için). 750 test yeşil (741→750), ruff/mypy baseline'ları DEĞİŞMEDİ.
+
+**Sırada:** Faz 4a'nın kalan 5 sahnesi (report/swingfib/goldensupply/
+weekly/reversal_map) — ayrı oturum(lar)da.
+

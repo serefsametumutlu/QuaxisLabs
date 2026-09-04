@@ -16,10 +16,19 @@ import pandas as pd
 
 from tlab.core.types import IndicatorResult
 from tlab.viz.svg.scenes import double_top_bottom as _double_top_bottom
+from tlab.viz.svg.scenes import harmonic as _harmonic
 from tlab.viz.svg.scenes.base import SceneOut
 from tlab.viz.svg.theme import SVGTheme, resolve_svg_theme
 
+# harmonic.* -- 8 ekol AYNI (school-agnostic) sahne modülünü paylaşır, hepsi
+# `IndicatorResult.indicator` adına göre burada ayrı ayrı kaydedilir.
+_HARMONIC_SCHOOLS = (
+    "carney", "pesavento", "gilmore", "cypher", "nenstar",
+    "navarro200", "five_zero", "three_drives",
+)
+
 _SCENES = {"patterns.double_top_bottom": _double_top_bottom}
+_SCENES.update({f"harmonic.{school}": _harmonic for school in _HARMONIC_SCHOOLS})
 
 _GAP = 16.0
 

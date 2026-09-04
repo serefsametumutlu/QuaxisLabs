@@ -1,11 +1,12 @@
 """SVG sahne doğrulama döngüsü: gerçek veriyle SVG üret, `resvg_py` ile
 PNG'ye çevir, `docs/design/iterasyon/`e kaydet -- Faz 3'te `patterns.
-double_top_bottom` için kullanıldı, Faz 4'te kalan 18 sahne portlanırken
+double_top_bottom` için kullanıldı, Faz 4'te kalan sahneler portlanırken
 AYNI döngü için tekrar kullanılabilir (yalnızca indikatör/params sabitlerini
 değiştirmek yeterli).
 
-Kullanım: `python scripts/render_svg_scene.py [SEMBOL] [TEMA] [ETİKET]`
-(varsayılan: BAKAB classic iter1)."""
+Kullanım: `python scripts/render_svg_scene.py [İNDİKATÖR] [SEMBOL] [TF]
+[TEMA] [ETİKET]` (varsayılan: patterns.double_top_bottom BAKAB 1D classic
+iter1)."""
 from __future__ import annotations
 
 import sys
@@ -18,33 +19,36 @@ import resvg_py
 from tlab.core.types import Market, Timeframe
 from tlab.data.providers.yfinance_provider import YFinanceProvider
 from tlab.data.store import Store
-from tlab.indicators.patterns.double_top_bottom import (
-    DoubleTopBottomIndicator,
-    DoubleTopBottomParams,
-)
+from tlab.indicators.bootstrap import scaled_factory
 from tlab.viz.svg import render_svg
 
 OUT_DIR = Path(__file__).resolve().parents[1] / "docs" / "design" / "iterasyon"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 store = Store(YFinanceProvider())
+_TF_MAP = {"1D": Timeframe.D1, "4H": Timeframe.H4}
 
 
-def render_one(symbol: str, theme: str, tag: str) -> None:
-    df = store.get(symbol, Timeframe.D1, Market.BIST)
-    result = DoubleTopBottomIndicator(DoubleTopBottomParams())(df)
+def render_one(indicator: str, symbol: str, tf_label: str, theme: str, tag: str) -> None:
+    tf = _TF_MAP[tf_label]
+    df = store.get(symbol, tf, Market.BIST)
+    inst = scaled_factory(indicator, tf)
+    result = inst(df)
     result.symbol = symbol
     svg_text = render_svg(result, df, theme=theme)
-    svg_path = OUT_DIR / f"{tag}_{symbol}_{theme}.svg"
+    scene_tag = indicator.split(".")[-1]
+    svg_path = OUT_DIR / f"{tag}_{scene_tag}_{symbol}_{tf_label}_{theme}.svg"
     svg_path.write_text(svg_text, encoding="utf-8")
     png_bytes = resvg_py.svg_to_bytes(svg_string=svg_text)
-    png_path = OUT_DIR / f"{tag}_{symbol}_{theme}.png"
+    png_path = OUT_DIR / f"{tag}_{scene_tag}_{symbol}_{tf_label}_{theme}.png"
     png_path.write_bytes(bytes(png_bytes))
     print(f"wrote {png_path}")
 
 
 if __name__ == "__main__":
-    symbol = sys.argv[1] if len(sys.argv) > 1 else "BAKAB"
-    theme = sys.argv[2] if len(sys.argv) > 2 else "classic"
-    tag = sys.argv[3] if len(sys.argv) > 3 else "iter1"
-    render_one(symbol, theme, tag)
+    indicator = sys.argv[1] if len(sys.argv) > 1 else "patterns.double_top_bottom"
+    symbol = sys.argv[2] if len(sys.argv) > 2 else "BAKAB"
+    tf_label = sys.argv[3] if len(sys.argv) > 3 else "1D"
+    theme = sys.argv[4] if len(sys.argv) > 4 else "classic"
+    tag = sys.argv[5] if len(sys.argv) > 5 else "iter1"
+    render_one(indicator, symbol, tf_label, theme, tag)

@@ -136,8 +136,8 @@ mevcut çağıran — cli/dashboard/report — `go.Figure` API'sine bağımlı, 
 varsayılanı bunları sessizce kırardı; @overload ile tiplenmiş). 35 yeni test
 (34 birim + 1 golden), 738 test yeşil (703→738), ruff/mypy baseline'ları
 DEĞİŞMEDİ. Detay + tam bitti-kriteri karşılaştırması: `docs/spec/
-FAZ3_SVG_MOTORU.md`. **Sırada: Adım 6 (Faz 4 — kalan 18 sahnenin portu,
-kullanıcı onayı bekliyor).**
+FAZ3_SVG_MOTORU.md`. **Kullanıcı onayladı, Adım 6 (Faz 4) başladı — aşağıdaki
+EK'lere bak.**
 
 **EK (aynı gün, Faz 3'ten SONRA) — `mean_reversion` `stop_k`/`max_hold_bars`
 İKİNCİ TUR revizyonu:** kullanıcı isteğiyle AYNI 243-kombinasyonluk IS/OOS
@@ -186,6 +186,18 @@ tarama da yapıldı (artifact olarak sunuldu, kod değişikliği YOK) — kendi
 geçerli çıktı ve D bölgesi (237,96-240,08) fiyatın aynı sabah dokunduğu
 seviyeyle (239,70) örtüştü; sistem bunu C pivotunun henüz "kesinleşmemiş"
 olması yüzünden aday olarak üretmemişti (gecikme, geçersizlik değil).
+
+**EK (aynı gün) — Adım 6 / Faz 4a BAŞLADI: `harmonic` sahnesi portlandı.**
+Kullanıcı Faz 4'ü onayladı. Roadmap'in "3 oturuma böl" notuna uyularak 4a
+grubunun (harmonic/report/swingfib/goldensupply/weekly/reversal_map) TAMAMI
+değil, tek sahne (`harmonic` — 8 ekolün TAMAMI için ekol-agnostik tek
+modül) tam titizlikle portlandı: 4 iterasyon, BAKAB (confirmed) + TUCLK
+(pending) ile GERÇEK her iki durum dalı da görülerek doğrulandı; X/A/B/C/D
+vertex etiketleri + PRZ etiketi + D rozeti HEPSİ `resolve_collisions`e
+alındı (3 ayrı üst-üste-binme bulunup düzeltildi). 8 yeni test + 1 golden,
+750 test yeşil, ruff/mypy baseline'ları DEĞİŞMEDİ. Detay: `docs/
+PROGRESS_LOG.md`nin aynı tarihli girdisi. **Sırada: Faz 4a'nın kalan 5
+sahnesi (report/swingfib/goldensupply/weekly/reversal_map).**
 
 ### Tamamlanan fazlar (özet)
 

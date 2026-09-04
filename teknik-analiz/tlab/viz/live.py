@@ -20,7 +20,8 @@ from tlab.data.universe import BENCHMARK_SYMBOL, load_universe
 from tlab.indicators.bootstrap import CATALOG, scaled_factory
 from tlab.indicators.pairs.relative_momentum import RelativeMomentumPair, RelativeMomentumParams
 from tlab.indicators.pairs.vol_harvest import VolHarvestPair, VolHarvestParams
-from tlab.viz.renderer import render, render_structure_report
+from tlab.scanner.confluence import build_reversal_map
+from tlab.viz.renderer import render, render_reversal_map, render_structure_report
 from tlab.viz.svg import render_svg
 from tlab.viz.svg import supports as svg_supports
 from tlab.viz.themes import Theme
@@ -41,6 +42,20 @@ _TF_MAP = {"1H": Timeframe.H1, "4H": Timeframe.H4, "1D": Timeframe.D1, "W1": Tim
 # "aracı kurum raporu" grafiğinde birleştiren salt-görsel bir bileşim adı
 # (bkz. renderer.py::render_structure_report docstring'i, 2026-08-30).
 STRUCTURE_REPORT_NAME = "structure.report"
+
+# "confluence" da CATALOG'ta yok — `tlab/scanner/confluence.py::
+# build_reversal_map`in girdisi ZATEN hesaplanmış birden fazla indikatörün
+# sonucudur (`{indikatör_adı: IndicatorResult}`), `BaseIndicator`ın tekil
+# `compute(df)` sözleşmesine UYMAZ (bkz. o modülün docstring'i). `render_
+# reversal_map` (Plotly, Faz 8E'de yazıldı) o zamandan beri HİÇBİR canlı
+# giriş noktasına (CLI/web) bağlanmamıştı -- `compute_reversal_map` bu
+# eksik köprüyü tamamlar.
+REVERSAL_MAP_NAME = "confluence"
+
+_REVERSAL_MAP_SOURCE_NAMES = (
+    "structure.supply_demand", "structure.golden_zone",
+    "structure.price_structure", "structure.swing_fib_abcd",
+)
 
 
 def _require_supported_timeframe(indicator_name: str, tf: Timeframe) -> None:
@@ -203,6 +218,59 @@ def compute_structure_report_merged(
     return merged, df
 
 
+def compute_reversal_map(
+    symbol: str, timeframe: str, market: str
+) -> tuple[IndicatorResult, pd.DataFrame]:
+    """`confluence.py::build_reversal_map`in ihtiyaç duyduğu `sources`
+    sözlüğünü (ZATEN hesaplanmış indikatör sonuçları) canlı olarak kurar --
+    `compute_structure_report_merged`in AYNI "iki mevcut indikatörün olduğu
+    gibi çağrılması" ilkesi, burada 4 tekil-sembol indikatörü + haftalık
+    kanal + 8 harmonik ekol için genişletilmiş hâli.
+
+    Haftalık kanal: `build_reversal_map_from_run`'ın (EOD/DB yolu) BELGELİ
+    kuralıyla AYNI ("varsa W1, yoksa 1D'nin kendisi") -- `trend.weekly_
+    channel` yalnızca W1/D1 destekliyor, bu yüzden istenen `tf` (ör. 4H)
+    burada YOK SAYILIR, her zaman W1 veya D1 kullanılır."""
+    mkt = Market(market.lower())
+    tf = _TF_MAP.get(timeframe.upper())
+    if tf is None:
+        raise ValueError(f"Geçersiz tf: {timeframe} (1h|4h|1d|w1 bekleniyor)")
+    for name in _REVERSAL_MAP_SOURCE_NAMES:
+        _require_supported_timeframe(name, tf)
+    store = Store(YFinanceProvider())
+    df = store.get(symbol, tf, mkt)
+
+    sources: dict[str, IndicatorResult] = {}
+    for name in _REVERSAL_MAP_SOURCE_NAMES:
+        result = scaled_factory(name, tf)(df)
+        result.symbol = symbol
+        result.timeframe = tf
+        sources[name] = result
+
+    try:
+        wc_df, wc_tf = store.get(symbol, Timeframe.W1, mkt), Timeframe.W1
+    except FileNotFoundError:
+        # `df` yalnızca istenen `tf` D1 iken doğrudan yeniden kullanılabilir
+        # -- aksi hâlde (ör. tf=4H) `df` YANLIŞ zaman dilimi olurdu.
+        wc_df = df if tf == Timeframe.D1 else store.get(symbol, Timeframe.D1, mkt)
+        wc_tf = Timeframe.D1
+    wc_result = scaled_factory("trend.weekly_channel", wc_tf)(wc_df)
+    wc_result.symbol = symbol
+    wc_result.timeframe = wc_tf
+    sources["trend.weekly_channel"] = wc_result
+
+    for name in CATALOG:
+        if not name.startswith("harmonic."):
+            continue
+        h_result = scaled_factory(name, tf)(df)
+        h_result.symbol = symbol
+        h_result.timeframe = tf
+        sources[name] = h_result
+
+    result = build_reversal_map(symbol, tf.value, df, sources)
+    return result, df
+
+
 def render_structure_report_live(
     symbol: str, timeframe: str, market: str,
     *, theme: Theme | str | None = "auto", last_n: int | None = None, declutter: bool = True,
@@ -267,6 +335,12 @@ def render_live(
         return render_structure_report_live(
             symbol, timeframe, market, theme=theme, last_n=last_n, declutter=declutter,
         )
+    if indicator_name == REVERSAL_MAP_NAME:
+        result, df = compute_reversal_map(symbol, timeframe, market)
+        if engine == "svg" and svg_supports(REVERSAL_MAP_NAME):
+            svg_theme = _theme_to_svg_key(theme) or "classic"
+            return render_svg(result, df, theme=svg_theme, last_n=last_n)
+        return render_reversal_map(result, df, theme=theme, last_n=last_n)
     result, df = compute_live(indicator_name, symbol, timeframe, market)
     if engine == "svg" and df is not None and svg_supports(indicator_name):
         return render_svg(result, df, theme=_theme_to_svg_key(theme) or "classic", last_n=last_n)

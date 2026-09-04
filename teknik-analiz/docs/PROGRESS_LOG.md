@@ -2942,3 +2942,61 @@ kutuları + "DİPTE OLASI" marker'ı) + yan panel (yoğunluk histogramı,
 `vp_bins`/`vp_volumes` — `report.py`nin hacim profili paneliyle AYNI
 sözleşme, bkz. `confluence.py` docstring'i).
 
+## 2026-09-04 (aynı gün) — Faz 4a TAMAMLANDI: `reversal_map` (confluence) sahnesi portlandı (6/6)
+
+**Köprü — `tlab/viz/live.py::compute_reversal_map`.** `confluence`nin
+girdisi ZATEN hesaplanmış bir `{indikatör_adı: IndicatorResult}` sözlüğü
+olduğu için `compute_structure_report_merged`in "iki mevcut indikatörün
+olduğu gibi çağrılması" ilkesi 4 tekil-sembol indikatörü (`supply_demand`/
+`golden_zone`/`price_structure`/`swing_fib_abcd`) + haftalık kanal + 8
+harmonik ekol için genişletildi. **YAN BULGU — `render_reversal_map`
+(Plotly, Faz 8E'de yazılmıştı) 2026-09-04'e kadar HİÇBİR canlı giriş
+noktasına [CLI/web] hiç bağlanmamış, tamamen ölü koddu** — `compute_
+reversal_map` bu eksik köprüyü tamamladı, `render_live()`e `REVERSAL_MAP_
+NAME` dispatch'i eklendi. Ayrıca kod incelemesinde (iterasyon ÖNCESİ)
+GERÇEK bir hata bulunup düzeltildi: haftalık kanal için "W1 yoksa 1D'ye
+düş" mantığı ilk yazımda istenen `tf` H4/H1 iken YANLIŞLIKLA o `df`yi
+(H4/H1 verisi) "D1" diye etiketleyecekti — düzeltme, D1 gerekince AYRICA
+`store.get(symbol, Timeframe.D1, mkt)` çağırıyor (yalnızca istenen `tf`
+zaten D1 iken `df` yeniden kullanılıyor).
+
+**`tlab/viz/svg/scenes/reversal_map.py`** — Referans vitrinin `sceneReversalMap`si
+DEĞİL, doğrudan `tlab/viz/renderer.py::render_reversal_map`in (Faz 8E,
+projenin KENDİ onaylı Plotly tasarımı) SVG portu: katmanlı bölgeler
+(opaklık = `last_state["zones"]`'daki `weight_norm`) + "DİPTE OLASI: X | N
+kaynak" pill'i + kaynak açıklama kutusu + sağda yoğunluk profili (`vp_bins`/
+`vp_volumes`, HVN/Gauss YOK). BİLİNÇLİ tasarım farkı (diğer 5 sahneden):
+y-ekseni yalnızca mum aralığından DEĞİL, TÜM bölge fiyatlarından kurulur —
+diğer sahnelerde uzak bir seviye "gürültü" sayılıp dışlanmıştı, burada
+"kapanışın altındaki TÜM potansiyel destek seviyelerini göster" sahnenin
+TEK amacı olduğu için uzak bir bölgeyi gizlemek işlevi bozardı (THYAO'da
+GERÇEKTEN 34 aday, 214-291 TL aralığında, gözlemlendi).
+
+**1. iterasyonda (THYAO 1D classic) GERÇEK bir hata bulundu:** "Dönüş
+kaynakları: ..." kaynak açıklama metni panelin ALTINDAKİ x-ekseni ay
+etiketleriyle (neredeyse AYNI y konumu) üst üste biniyordu. Düzeltme:
+metin artık panelin İÇİNE, sol-alt köşeye yarı saydam bir arkaplan
+kutusuyla konur (`render_reversal_map`in [Plotly] `bgcolor` çözümüyle
+AYNI ilke) — "DİPTE OLASI" pill'inin dikey konumu da bu yeni kutuyla
+çakışmaması için ayarlandı. THYAO'da AYRICA gerçek bir gözlem: swing low
+(295.25) HİÇBİR adayla eşleşmedi (`n_sources=0`, `bottom_probability=0.0`)
+— bu GERÇEK veri davranışı (gerçek bir "confluence yok" durumu), sahne bunu
+çökmeden zarifçe gösterdi; 2/3. iterasyonlar için `n_sources>0` olan
+semboller (AKBNK dark, ISCTR editorial) ARANDI (5 sembol tarandı) ki
+düzeltmenin dolu-veri durumunda da doğru çalıştığı görülebilsin.
+
+7 yeni test (`tests/test_viz/test_svg/test_reversal_map_scene.py` —
+kaynak metninin panel içinde kaldığını kilitleyen regresyon + sıfır-kaynak
+durumunun çökmediğini doğrulayan test dahil, `tests/test_scanner/
+test_confluence.py`nin GERÇEK `_fake_result`/`_make_dipping_series`
+fixture'ları ve gerçek `build_reversal_map()` çağrısıyla — uydurma
+`IndicatorResult` DEĞİL). **810 test yeşil (803→810)**, ruff/mypy/
+lint_lookahead baseline'ları DEĞİŞMEDİ. Detay: `docs/design/iterasyon/
+iter{1..3}_confluence_*`.
+
+**FAZ 4a TAMAMEN BİTTİ (6/6 sahne: harmonic/report/swing_fib_abcd/
+golden_zone/supply_demand/weekly_channel/reversal_map — evet 7 isim ama
+golden_zone+supply_demand TEK "goldensupply" adımı sayılıyordu, roadmap'in
+orijinal 6 grubu buna göre). Sırada: `docs/00_BASLANGIC_SIRASI.md`'deki
+16 adımlık yol haritasının bir sonraki adımı — kullanıcı onayı bekleniyor.**
+

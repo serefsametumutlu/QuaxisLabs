@@ -77,8 +77,13 @@ def test_supports_reports_double_top_bottom() -> None:
     # Faz 4a'da portlandı -- artık desteklenen bir indikatör (bkz.
     # tests/test_viz/test_svg/test_harmonic_scene.py).
     assert supports("harmonic.carney") is True
-    # henüz portlanmamış bir gösterge -- False kalmalı.
-    assert supports("confluence") is False
+    # Faz 4a TAMAMEN BİTTİ (2026-09-04, 6/6 sahne portlandı, `confluence`
+    # SONUNCUSUYDU) -- bu satır artık gerçek bir CATALOG/salt-görsel adı
+    # DEĞİL, hiçbir zaman portlanmayacak UYDURMA bir isim kullanır (önceki
+    # 3 revizyonda `structure.golden_zone`/`trend.weekly_channel`/
+    # `confluence` sırayla buraya yazılıp her biri BİR SONRAKİ sahne
+    # portlanınca bayatlamıştı -- bu döngüyü burada bitir).
+    assert supports("not.a.real.indicator") is False
 
 
 def test_group_patterns_finds_double_bottom_group() -> None:
@@ -112,7 +117,7 @@ def test_render_svg_produces_well_formed_svg_in_all_three_themes(theme) -> None:
 
 def test_render_svg_raises_for_unported_indicator() -> None:
     result, df = _result_and_df()
-    result.indicator = "confluence"
+    result.indicator = "not.a.real.indicator"
     with pytest.raises(ValueError, match="henüz portlanmadı"):
         render_svg(result, df)
 

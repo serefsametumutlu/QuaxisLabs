@@ -20,7 +20,12 @@ from tlab.core.types import Market, Timeframe
 from tlab.data.providers.yfinance_provider import YFinanceProvider
 from tlab.data.store import Store
 from tlab.indicators.bootstrap import scaled_factory
-from tlab.viz.live import STRUCTURE_REPORT_NAME, compute_structure_report_merged
+from tlab.viz.live import (
+    REVERSAL_MAP_NAME,
+    STRUCTURE_REPORT_NAME,
+    compute_reversal_map,
+    compute_structure_report_merged,
+)
 from tlab.viz.svg import render_svg
 
 OUT_DIR = Path(__file__).resolve().parents[1] / "docs" / "design" / "iterasyon"
@@ -36,6 +41,8 @@ def render_one(indicator: str, symbol: str, tf_label: str, theme: str, tag: str)
         # swing_fib_abcd) BİRLEŞİMİ -- scaled_factory tek-indikatör
         # varsayımıyla çalışmaz, live.py'nin kendi birleştiricisi kullanılır.
         result, df = compute_structure_report_merged(symbol, tf_label, "bist")
+    elif indicator == REVERSAL_MAP_NAME:
+        result, df = compute_reversal_map(symbol, tf_label, "bist")
     else:
         tf = _TF_MAP[tf_label]
         df = store.get(symbol, tf, Market.BIST)

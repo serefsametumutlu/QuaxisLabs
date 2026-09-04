@@ -37,7 +37,7 @@ kararları) artık `docs/PROGRESS_LOG.md`'de** — bu dosya CLAUDE.md'nin 150k k
 sınırını aştığı için oraya taşındı (2026-09-02). Aşağıdaki liste yalnızca ÖZET; bir
 fazın TAM detayına ihtiyaç varsa `docs/PROGRESS_LOG.md`'ye bak.
 
-**Durum (2026-09-04): 803 test yeşil (`pytest -q -m "not network"`), ruff/mypy
+**Durum (2026-09-04): 810 test yeşil (`pytest -q -m "not network"`), ruff/mypy
 temiz (baseline: 19 ruff / 1 mypy — hepsi önceden var olan/bilinen false-positive,
 ilgisiz satırlar); lint_lookahead 5 uyarı (`coint_monitor.py`nin eklenmesiyle
 CLAUDE.md'nin eski "3" rakamından güncellenmedi, hepsi bu satırın YAZILDIĞI Faz
@@ -306,6 +306,27 @@ lint_lookahead baseline'ları DEĞİŞMEDİ. Detay: `docs/PROGRESS_LOG.md`nin
 aynı tarihli girdisi. **Sırada (SON sahne): `reversal_map` — `confluence.py::
 build_reversal_map`e `live.py`de bir köprü fonksiyonu gerekiyor (CATALOG
 göstergesi değil, çoklu-kaynak post-processing).**
+
+**EK (aynı gün) — FAZ 4a TAMAMLANDI: `reversal_map` (confluence) sahnesi
+portlandı (6/6, SON sahne).** `tlab/viz/live.py::compute_reversal_map`
+(YENİ köprü — `confluence`nin `sources` sözlüğünü 4 tekil-sembol
+indikatörü + haftalık kanal + 8 harmonik ekolü canlı hesaplayıp kurar) +
+`tlab/viz/svg/scenes/reversal_map.py` (referans: vitrin DEĞİL, doğrudan
+`renderer.py::render_reversal_map`in [Faz 8E, o zamandan beri HİÇBİR
+canlı giriş noktasına bağlanmamış ölü kod] SVG portu). Kod incelemesinde
+GERÇEK bir hata bulunup düzeltildi (W1→D1 düşüşünde `tf` H4/H1 iken yanlış
+df'in "D1" etiketlenmesi). 1. iterasyonda (THYAO) GERÇEK bir hata bulundu:
+kaynak açıklama metni x-ekseni ay etiketleriyle üst üste biniyordu —
+panelin içine, yarı saydam kutuyla taşındı. BİLİNÇLİ tasarım farkı: bu
+sahnede y-ekseni TÜM bölge fiyatlarını kapsar (diğer 5 sahnenin "uzak
+seviyeyi gizle" ilkesinin TAM TERSİ — burada "tüm potansiyel destekleri
+göster" sahnenin kendi amacı). 7 yeni test, 810 test yeşil (803→810),
+ruff/mypy/lint_lookahead baseline'ları DEĞİŞMEDİ. Detay: `docs/
+PROGRESS_LOG.md`nin aynı tarihli girdisi.
+
+**FAZ 4a TAMAMEN BİTTİ — 6/6 sahne portlandı.** Sırada: `docs/00_
+BASLANGIC_SIRASI.md`'deki 16 adımlık yol haritasının bir sonraki adımı —
+kullanıcı onayı bekleniyor.
 
 ### Tamamlanan fazlar (özet)
 

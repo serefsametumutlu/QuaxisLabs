@@ -105,30 +105,39 @@ class RelativeMomentumParams(BaseParams):
     # |z| < exit_k -> pozisyon KAPATILIR (nakit/flat -- mean_reversion'ın
     # rotasyoneldeki "hep bir tarafta" sorununu çözen asıl mekanizma).
     exit_k: float = 0.5
-    # 2026-09-04 KULLANICI KARARI (docs/PROGRESS_LOG.md "Faz 2" bölümü):
-    # gerçek 17-çiftlik listede in-sample/out-of-sample ayrımlı bir parametre
-    # taraması (window/k/exit_k/stop_k/max_hold_bars, 243 kombinasyon)
-    # koşuldu. Eski değer (3.0) OOS'ta kazanma oranını %53.2'de tutuyordu;
-    # `stop_k` GEVŞETİLDİĞİNDE (4.0) -- window/k SABİT tutulup YALNIZCA bu
-    # mode'a ÖZGÜ alanlar (exit_k/stop_k/max_hold_bars, rotasyonel modu HİÇ
-    # etkilemez) taranınca -- OOS kazanma oranı %53.5'e, medyan getiri
-    # +0.86%'ya çıktı (n=43 OOS işlem). Bu, birçok farklı window/k/exit_k
-    # kombinasyonunda TUTARLI tekrarlanan bir bulguydu (tek bir "şanslı
-    # hücre" değil) -- eski (3.0), pozisyonları normal oynaklıkta bile
-    # gereksiz erken kapatıyordu. `window`/`k` (rotasyonel modun da PAYLAŞTIĞI
-    # alanlar) KASITLI OLARAK değiştirilmedi -- taramanın window=20/k=2.5 ile
-    # ÇOK HAFİF daha iyi bir OOS sonucu (kazanma %56.1) olsa da, bunları
-    # değiştirmek 2026-08-29'da AYRI bir kullanıcı kararıyla kalibre edilmiş
-    # rotasyonel modun varsayılan davranışını da SESSİZCE değiştirirdi (Faz
-    # 2, 2C'nin "mevcut ROTASYONEL motoru BOZMA" ilkesini ihlal eder) --
-    # mean_reversion'ın TAM optimize edilmiş seti isteyen `window=20, k=2.5`
-    # açıkça geçmeli.
-    stop_k: float = 4.0
+    # 2026-09-04 KULLANICI KARARI — İKİNCİ TUR (docs/PROGRESS_LOG.md "Faz 2"
+    # bölümü, 2026-09-04 ikinci girdi): aynı 243-kombinasyonluk IS/OOS ızgarası
+    # (`outputs/reports/param_grid_results.json`) DAHA DİKKATLİ analiz edildi
+    # -- ilk turda `stop_k=4.0` yalnızca IS kazanma oranına göre seçilmişti
+    # (%53.6, ızgaranın en yükseklerinden). Bu ikinci analiz `window=60,
+    # k=2.0, exit_k=0.5` sabit tutulup YALNIZCA `stop_k`/`max_hold_bars`
+    # taranan alt-tabloya baktı: `stop_k=3.0`, `max_hold_bars`in HER ÜÇ
+    # test edilen değerinde de (20/40/60) OOS medyan getiride `stop_k=4.0`'ı
+    # sistematik olarak geçiyor (medyan ~1.58-1.65% vs ~0.39-0.86%) -- tek
+    # şanslı hücre değil, TUTARLI bir kalıp. Tüm ızgara üzerinden (diğer 4
+    # parametre ortalanarak) hesaplanan MARJİNAL etki de aynı yönü
+    # doğruluyor: `stop_k=3.0`'ın ortalama OOS medyanı (+0.105) `stop_k=4.0`
+    # ınkinden (−0.075) daha iyi, kazanma oranları pratikte eşit (~46.4 vs
+    # ~46.2) -- yani ilk turun "4.0 daha iyi" sonucu IS'e göre seçilmiş bir
+    # yanılsamaydı, OOS'a göre DEĞİL. `window`/`k`/`exit_k` yine KASITLI
+    # OLARAK değiştirilmedi (rotasyonel modun da PAYLAŞTIĞI alanlar, Faz 2
+    # 2C'nin "mevcut ROTASYONEL motoru BOZMA" ilkesi). `stop_k=3.0` +
+    # `max_hold_bars=60` kombinasyonu ızgaranın TÜMÜNDEKİ en yüksek OOS
+    # medyan getiriyi (+1.65%) veriyor, OOS kazanma oranı da (%55.6) ilk
+    # turun seçimini (stop_k=4.0/hold=40: %53.5) geçiyor. **Dürüst not:**
+    # OOS hücre başına ~43-59 işlem var, %53-56 aralığındaki fark tek başına
+    # istatistiksel kesinlik taşımaz -- güveni artıran şey üç farklı
+    # `max_hold_bars` değerinde ve ızgara-geneli marjinal ortalamada AYNI
+    # yönün tekrarlanması. Kullanıcı onayıyla uygulandı.
+    stop_k: float = 3.0
     # Giriş barından bu kadar bar sonra -- z hâlâ dönmediyse -- zorunlu kapat
     # (zaman stopu, referans uygulamadaki "30 gün sonra kapat" kuralı).
-    # 2026-09-04: yukarıdaki `stop_k` taramasıyla AYNI turda 30->40 optimize
-    # edildi (AYNI gerekçe/kısıt -- window/k sabit).
-    max_hold_bars: int = 40
+    # 2026-09-04 (ikinci tur): yukarıdaki `stop_k` yeniden-değerlendirmesiyle
+    # AYNI analizde `max_hold_bars=60`, ızgaradaki 3 değer arasında (20/40/60)
+    # `stop_k=3.0` ile EN YÜKSEK OOS medyan getiriyi (+1.65%) veren
+    # kombinasyon oldu (40 ile pratikte eşit, +1.58% -- ikisi de eski 40'tan
+    # belirgin daha iyi).
+    max_hold_bars: int = 60
     # Zorunlu tasfiye (stop_k) SONRASI z tekrar GİRİŞ bandının (±k) içine
     # dönene kadar yeni giriş YOK -- "kırılmış" bir eşbütünleşmenin hemen
     # ardından aynı yönde yeniden girmeyi önler (normal exit_k çıkışı ya da

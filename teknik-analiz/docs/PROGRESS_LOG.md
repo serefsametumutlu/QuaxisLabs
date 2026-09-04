@@ -2446,3 +2446,54 @@ spec/FAZ3_SVG_MOTORU.md`de. Bu, roadmap'in dört onay kapısından biri
 geçilmemeli") — kullanıcı onayı BEKLENİYOR, Faz 4'e (kalan 18 sahnenin
 portu, 3 oturuma bölünecek) henüz geçilmedi.
 
+## 2026-09-04 (aynı gün, Faz 3'ten SONRA) — `mean_reversion` stop_k/max_hold_bars İKİNCİ TUR revizyonu
+
+Kullanıcı, daha önce (bugünün Faz 2 bölümünde) `outputs/reports/
+param_grid_results.json`a kaydedilen 243-kombinasyonluk IS/OOS parametre
+taramasının SONUCUNU yeniden, daha titiz bir aşırı-uyum (overfitting)
+kontrolüyle analiz etmemi istedi (arka planda çalıştırdığı bir görev
+kimliğiyle sordu, o görev bu oturumun kendi görev listesinde bulunamadı —
+ama sonuç dosyası zaten TAM ve diskteydi, doğrudan ondan analiz edildi).
+
+**Analiz:** IS kazanma oranına göre en iyi 15 kombinasyonun **8'i** OOS'ta
+kazanma oranı %50'nin altına düşüyordu (bazıları %40'a kadar) — klasik
+aşırı-uyum. İlk turda seçilen mevcut varsayılan (`stop_k=4.0, max_hold_
+bars=40`) bu düşüşten kaçan az sayıdaki adaydan biriydi (OOS win %53.5),
+ama `window=60,k=2.0,exit_k=0.5` sabit tutulup yalnızca `stop_k`/`max_hold_
+bars` alt-tablosuna bakılınca `stop_k=3.0`'ın test edilen HER ÜÇ `max_hold_
+bars` değerinde de (20/40/60) `stop_k=4.0`'ı OOS medyan getiride sistematik
+olarak geçtiği görüldü (~1.58-1.65% vs ~0.39-0.86%) — tek şanslı hücre
+değil, tutarlı bir kalıp. Ayrıca ızgaranın TAMAMI üzerinden (diğer 4
+parametre ortalanarak) hesaplanan MARJİNAL etki de aynı yönü doğruladı:
+`stop_k=3.0`'ın ortalama OOS medyanı (+0.105) `stop_k=4.0`'ınkinden
+(−0.075) daha iyi, kazanma oranları pratikte eşit (~46.4 vs ~46.2) —
+yani ilk turun "4.0 daha iyi" sonucu IS'e göre seçilmiş bir yanılsamaydı,
+OOS'a göre DEĞİL.
+
+**Sonuç/karşılaştırma tablosu kullanıcıya sunuldu**, `stop_k=3.0 + max_
+hold_bars=60` (ızgaranın TÜMÜNDEKİ en yüksek OOS medyan getiri, +1.65%,
+OOS kazanma %55.6) önerildi — `stop_k=3.0 + max_hold_bars=40` (neredeyse
+eşit, +1.58%) alternatif olarak not edildi. Dürüst uyarı da eklendi: OOS
+hücre başına ~43-59 işlem var, %53-56 aralığındaki fark tek başına
+istatistiksel kesinlik taşımaz; güveni artıran şey üç farklı `max_hold_
+bars` değerinde ve ızgara-geneli marjinal ortalamada AYNI yönün
+tekrarlanmasıydı.
+
+**Kullanıcı onayladı** ("tamam onaylıyorum"). Uygulanan değişiklik:
+`RelativeMomentumParams.stop_k` 4.0→**3.0**, `max_hold_bars` 40→**60**
+(`tlab/indicators/pairs/relative_momentum.py`, docstring GENİŞLETİLEREK
+her iki turun gerekçesi de korundu — ilk turun "neden 4.0" mantığı SİLİNMEDİ,
+"ikinci tur neden 3.0'a geri döndü" ile birlikte anlatıldı). Kilitleyen
+test (`tests/test_pairs/test_relative_momentum.py::
+test_mean_reversion_default_stop_k_and_max_hold_bars_tuned`) yeni
+değerlere ve yeni gerekçeye göre GÜNCELLENDİ. `window=60`/`k=2.0` yine
+DEĞİŞMEDİ (rotasyonel modla paylaşılan alanlar, 2026-08-29 kararı).
+738 test yeşil, ruff/mypy baseline'ları DEĞİŞMEDİ.
+
+**Not (aynı parametrenin ikinci kez gidip gelmesi):** bu, `stop_k`'nin
+AYNI oturum içinde 3.0→4.0→3.0 şeklinde iki kez değişmesi demek — kasıtlı
+bir kararsızlık değil, İKİNCİ analizin İLK analizin gözden kaçırdığı bir
+IS/OOS ayrışmasını (seçim kriterinin OOS yerine IS'e dayanması) düzeltmesi.
+İleride bu alan tekrar gözden geçirilirse, her iki turun da gerekçesi
+kodda ve bu günlükte duruyor.
+

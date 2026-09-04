@@ -139,6 +139,23 @@ DEĞİŞMEDİ. Detay + tam bitti-kriteri karşılaştırması: `docs/spec/
 FAZ3_SVG_MOTORU.md`. **Sırada: Adım 6 (Faz 4 — kalan 18 sahnenin portu,
 kullanıcı onayı bekliyor).**
 
+**EK (aynı gün, Faz 3'ten SONRA) — `mean_reversion` `stop_k`/`max_hold_bars`
+İKİNCİ TUR revizyonu:** kullanıcı isteğiyle AYNI 243-kombinasyonluk IS/OOS
+ızgarası (`outputs/reports/param_grid_results.json`) yeniden, daha dikkatli
+analiz edildi (`window=60,k=2.0,exit_k=0.5` sabit tutulup yalnızca `stop_k`/
+`max_hold_bars` alt-tablosu + ızgara-geneli marjinal ortalama). Bulgu: ilk
+turda seçilen `stop_k=4.0` yalnızca IS kazanma oranına göre (ızgaranın en
+yükseklerinden) seçilmiş — OOS'ta ise `stop_k=3.0`, test edilen HER ÜÇ
+`max_hold_bars` değerinde de (20/40/60) `stop_k=4.0`'ı OOS medyan getiride
+sistematik olarak geçiyordu (~1.58-1.65% vs ~0.39-0.86%), ızgara-geneli
+marjinal ortalama da aynı yönü doğruladı (OOS medyan +0.105 vs −0.075).
+Kullanıcı onayıyla `RelativeMomentumParams.stop_k` 4.0→**3.0**, `max_hold_
+bars` 40→**60** (ızgaranın TÜMÜNDEKİ en yüksek OOS medyan getiri, +1.65%,
++%53.5→%55.6 OOS kazanma) olarak GÜNCELLENDİ; kilitleyen test (`test_mean_
+reversion_default_stop_k_and_max_hold_bars_tuned`) revize edildi. `window`/
+`k` yine DEĞİŞMEDİ (rotasyonel modla paylaşılan alanlar). 738 test hâlâ
+yeşil, ruff/mypy baseline'ları DEĞİŞMEDİ.
+
 ### Tamamlanan fazlar (özet)
 
 - **Faz 0 — İskelet**: `core/types.py`, `core/indicator.py`, `core/params.py`,

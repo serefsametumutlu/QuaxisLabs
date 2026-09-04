@@ -61,7 +61,21 @@ def compute_live(
     indicator_name: str, symbol: str, timeframe: str, market: str
 ) -> tuple[IndicatorResult, pd.DataFrame | None]:
     """`symbol` pair indikatörler için "Y/X" biçiminde olmalı (ör. "TCELL/ISCTR").
-    Dönen df, pair modunda None'dır (renderer bu modda df istemez)."""
+    Dönen df, pair modunda None'dır (renderer bu modda df istemez).
+
+    2026-09-04 GERÇEK HATA (bulunup düzeltildi): `BaseParams`/`for_timeframe()`
+    yalnızca `_BAR_FIELDS`'i ölçekler, tf'nin KENDİSİNİ hiçbir params alanında
+    SAKLAMAZ -- bu yüzden HER indikatörün `compute()`'u kendi `IndicatorResult`
+    ini `timeframe=Timeframe.D1` SABİT değeriyle kurar (18/18 dosya, istisnasız).
+    Sonuç: `result.timeframe` her zaman D1'di, gerçek tf 1H/4H olsa bile --
+    bu yalnızca `report_text.py`'nin "Zaman Dilimi: ..." metnini değil,
+    `renderer.py::_rangebreaks_for`'un GECE/hafta-sonu boşluğu gizleme
+    mantığını da (yalnızca `Timeframe.H1`/`H4` iken devreye girer) SESSİZCE
+    devre dışı bırakıyordu -- yani 1H/4H grafiklerde mum gövdeleri gerçekte
+    olduğundan daha sıkışık görünüyordu (2026-08-30'da BİR KEZ bulunup
+    düzeltilen sorunun ta kendisi, farklı bir kaynaktan geri gelmiş hâli).
+    Düzeltme `result.symbol = symbol`'la AYNI desende: compute() kendi
+    tf'sini bilemediği için, onu BİLEN çağıran (burası) sonradan atıyor."""
     if indicator_name not in CATALOG:
         raise ValueError(f"Bilinmeyen indikatör: {indicator_name} (bkz. tlab list-indicators)")
     spec = CATALOG[indicator_name]
@@ -91,6 +105,7 @@ def compute_live(
         df_x = store.get(x_sym, tf, mkt)
         result = pair_instance(df_y, context={"x": df_x})
         result.symbol = symbol
+        result.timeframe = tf
         return result, None
 
     if spec.needs_universe:
@@ -121,12 +136,14 @@ def compute_live(
                 "(yetersiz geçmiş/likidite — bkz. min_history_bars/min_liquidity_try)"
             )
         result = results[symbol]
+        result.timeframe = tf
         return result, universe_dfs[symbol]
 
     instance = scaled_factory(indicator_name, tf)
     df = store.get(symbol, tf, mkt)
     result = instance(df)
     result.symbol = symbol
+    result.timeframe = tf
     return result, df
 
 
@@ -148,8 +165,10 @@ def compute_structure_report(
 
     ps_result = scaled_factory("structure.price_structure", tf)(df)
     ps_result.symbol = symbol
+    ps_result.timeframe = tf
     sf_result = scaled_factory("structure.swing_fib_abcd", tf)(df)
     sf_result.symbol = symbol
+    sf_result.timeframe = tf
     return ps_result, sf_result, df
 
 

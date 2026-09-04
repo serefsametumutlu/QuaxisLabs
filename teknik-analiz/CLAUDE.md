@@ -212,10 +212,30 @@ page.tsx` + Sidebar linki. 6 yeni test (LLM/veri çağrıları MOCK'lanır),
 756 test yeşil (750→756), ruff/mypy/lint_lookahead baseline'ları DEĞİŞMEDİ,
 frontend `eslint`/`tsc --noEmit`/`next build` temiz. Uçtan uca gerçek Gemini
 denemesi (INTEM) iki kez `503 UNAVAILABLE` (geçici Gemini-taraflı yoğunluk)
-aldı, fallback yolu doğru çalıştı — ama bu oturumda BAŞARILI bir LLM
-çıktısı örneği henüz GÖRÜLMEDİ, kullanıcı arayüzden kendi deneyebilir.
-Detay: `docs/PROGRESS_LOG.md`nin aynı tarihli girdisi. **Sırada: Faz 4a'nın
-kalan 5 sahnesi (report/swingfib/goldensupply/weekly/reversal_map).**
+aldı, fallback yolu doğru çalıştı.
+
+**EK (aynı gün) — kullanıcı "Oluştur"a basınca 404 aldı + GERÇEK sistemik
+hata bulundu:** 404'ün nedeni bir dev-server hijyen sorunuydu (`uvicorn
+--reload`'un WatchFiles'ı yeni router'ı hiç yüklememişti, elle yeniden
+başlatılarak düzeltildi). Teşhis sırasında AYRI, ÇOK DAHA GENİŞ kapsamlı
+gerçek bir hata bulundu: `IndicatorResult` üreten 18 dosyanın TAMAMI
+(istisnasız, tüm indikatörler) `timeframe`'i SABİT `Timeframe.D1` yazıyordu
+— çünkü params hiçbir yerde tf'nin kendisini SAKLAMIYOR. Etki yalnızca
+metin etiketleri değil: `renderer.py::_rangebreaks_for`'un 1H/4H gece/
+hafta-sonu boşluğu gizleme mantığı da SESSİZCE hiç devreye girmiyordu (yani
+TÜM 1H/4H grafiklerde mumlar gerçekte olduğundan daha sıkışık görünüyordu
+— 2026-08-30'da bulunup düzeltilen sorunun farklı bir kaynaktan geri gelmiş
+hâli). `tlab/viz/live.py::compute_live`/`compute_structure_report`'a
+(`result.symbol = symbol`'la AYNI desende) `result.timeframe = tf` eklendi
+— TEK nokta hem AI rapor hem paylaşım metni hem grafik render'ını (chart.png/
+svg) kapsıyor; tarayıcı/DB (`scanner/engine.py`) zaten ETKİLENMEMİŞTİ (kendi
+ayrı tf değişkenini kullanıyordu). 756 test yeşil, ruff/mypy DEĞİŞMEDİ,
+canlı sunucuda THYAO 4H doğrulandı ("Zaman Dilimi: 1D"→"4H", grafik hatasız
+render etti) + hem `/api/report` hem `/api/share-text` gerçek bir BAŞARILI
+Gemini yanıtıyla (`used_ai=True`, "4 saatlik periyotta" doğru diliyle) test
+edildi. Detay: `docs/PROGRESS_LOG.md`nin aynı tarihli girdisi. **Sırada:
+Faz 4a'nın kalan 5 sahnesi (report/swingfib/goldensupply/weekly/
+reversal_map).**
 
 ### Tamamlanan fazlar (özet)
 

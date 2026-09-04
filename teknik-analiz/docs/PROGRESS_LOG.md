@@ -2669,8 +2669,57 @@ Gerçek Gemini çağrısı `TestClient` ile uçtan uca (INTEM, gerçek bilanco-r
 anahtarıyla) iki kez denendi — ikisinde de `503 UNAVAILABLE` ("high demand",
 geçici bir Gemini-taraflı kesinti) alındı, bu da doğru şekilde deterministik
 fallback'e (`used_ai=False`, açık bir `note`) düştü. Anahtar bulma +
-fallback yolu böylece uçtan uca doğrulandı, ama gerçek bir BAŞARILI LLM
-çıktısı örneği bu oturumda HENÜZ görülmedi — kullanıcıya arayüz üzerinden
-elle denemesi önerilecek, çıktı sesi beğenilmezse `quant_report.py::
-_SYSTEM_PROMPT` (Faz 3/rapor özelliğiyle PAYLAŞILAN tek nokta) güncellenebilir.
+fallback yolu böylece uçtan uca doğrulandı; **kullanıcı arayüzden "Oluştur"a
+basınca `Not Found` hatası aldı** (aşağıdaki bölüme bak) — bu düzeltildikten
+sonra hem `/api/share-text` hem `/api/report` gerçek bir Gemini yanıtıyla
+(`used_ai=True`) BAŞARIYLA doğrulandı (THYAO 4H harmonic.carney).
+
+## 2026-09-04 (aynı gün) — GERÇEK HATA: `IndicatorResult.timeframe` HER indikatörde sabit "D1"
+
+Kullanıcı "Paylaşım Metni Oluştur"a basınca **404 Not Found** aldı — kök
+neden, `web/backend/main.py`'ye `share_text` router'ı önceki oturumda
+eklendiği ANDA çalışan `uvicorn --reload` süreci onu hiç YÜKLEMEMİŞTİ
+(WatchFiles bu oturumda İKİ KEZ dosya değişikliğini "algılayıp" reload
+başlattığını LOGLADI ama yeni bir worker süreci HİÇ SPAWN ETMEDİ — `netstat`
+eski PID'i LISTENING gösterirken `tasklist` o PID'in artık var OLMADIĞINI
+gösterdi, güvenilmez bir Windows/WatchFiles etkileşimi). Düzeltme: eski
+süreç ağacı elle `taskkill`lendi, backend TEMİZ yeniden başlatıldı —
+kod tarafında değişiklik GEREKMEDİ, yalnızca dev-server hijyeni.
+
+**Bu teşhis sırasında AYRI, çok daha geniş kapsamlı GERÇEK bir hata
+bulundu:** `IndicatorResult` üreten 18 dosyanın TAMAMI (istisnasız —
+`harmonic.*`, `structure.golden_zone/supply_demand/price_structure/
+swing_fib_abcd`, `patterns.*` [wedge/broadening/double_top_bottom/
+flag_pennant/head_shoulders], `trend.*` [breakouts/ewmac/ma_systems/
+weekly_channel], `momentum.*` [alpha_rank/momentum_rank], `pair.*`
+[relative_momentum/vol_harvest]) kendi `compute()`'unda `timeframe=
+Timeframe.D1`'i SABİT yazıyordu — çünkü `BaseParams`/`for_timeframe()`
+yalnızca `_BAR_FIELDS`'i ölçekler, tf'nin KENDİSİNİ hiçbir params alanında
+SAKLAMAZ; indikatörün kendisi hangi tf'de çalıştığını asla BİLEMEZ.
+
+**Etki, ilk göründüğünden BÜYÜKTÜ** — yalnızca `report_text.py`'nin "Zaman
+Dilimi: ..." metnini değil, `renderer.py::_rangebreaks_for`'un GECE/hafta-
+sonu boşluğu gizleme mantığını da (yalnızca `Timeframe.H1`/`H4` iken
+devreye girer) SESSİZCE devre dışı bırakıyordu — yani TÜM 1H/4H
+grafiklerde mum gövdeleri, 2026-08-30'da BİR KEZ bulunup düzeltilen o
+sorunun ta kendisiyle, gerçekte olduğundan daha sıkışık görünüyordu
+(farklı bir kaynaktan geri gelmiş hâli — o düzeltme `_rangebreaks_for`'un
+KENDİSİNDEydi, ama besleyen `result.timeframe` hiç DOĞRU olmamış).
+
+**Düzeltme** (`tlab/viz/live.py`) — 18 dosyayı TEK TEK değiştirmek yerine
+(mekanik ama riskli, `BaseParams`/`params_hash`'e dokunmayı gerektirirdi),
+`result.symbol = symbol`'la AYNI ZATEN VAR OLAN desen kullanıldı: compute()
+kendi tf'sini bilemediği için, onu BİLEN TEK çağıran nokta (`compute_live`/
+`compute_structure_report`) sonradan atıyor. 5 atama noktası: `compute_live`
+içinde pair/universe/tekil üç dal + `compute_structure_report`'un ps/sf
+sonuçları. Bu TEK nokta hem `report.py` (mevcut "Yapay Zeka Raporu") hem
+YENİ `share_text.py` hem `render_live`→`renderer.py` (rangebreaks) hem
+`chart.py`/`chart_png.py`/`chart_svg.py`'yi KAPSAR — tarayıcı/DB tarafı
+(`scanner/engine.py`) ETKİLENMEDİ, çünkü o zaten kendi `timeframe_value`'sunu
+`result.timeframe`'den BAĞIMSIZ, döngünün kendi değişkeninden yazıyordu.
+
+Doğrulama: 756 test hâlâ yeşil, ruff/mypy baseline'ları DEĞİŞMEDİ; canlı
+sunucuda THYAO 4H `/api/share-text` çıktısı "Zaman Dilimi: 1D" → "4H"
+olarak düzeldi, `/api/chart.png` THYAO 4H'te hatasız render etti (rangebreaks
+regresyonu yok).
 

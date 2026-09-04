@@ -78,7 +78,7 @@ def test_supports_reports_double_top_bottom() -> None:
     # tests/test_viz/test_svg/test_harmonic_scene.py).
     assert supports("harmonic.carney") is True
     # henüz portlanmamış bir gösterge -- False kalmalı.
-    assert supports("structure.golden_zone") is False
+    assert supports("trend.weekly_channel") is False
 
 
 def test_group_patterns_finds_double_bottom_group() -> None:
@@ -112,7 +112,7 @@ def test_render_svg_produces_well_formed_svg_in_all_three_themes(theme) -> None:
 
 def test_render_svg_raises_for_unported_indicator() -> None:
     result, df = _result_and_df()
-    result.indicator = "structure.golden_zone"
+    result.indicator = "trend.weekly_channel"
     with pytest.raises(ValueError, match="henüz portlanmadı"):
         render_svg(result, df)
 

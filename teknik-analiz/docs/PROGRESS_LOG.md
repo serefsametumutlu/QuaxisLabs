@@ -2847,3 +2847,59 @@ map` için de: `confluence.py::build_reversal_map` CATALOG göstergesi değil,
 çoklu-kaynak post-processing fonksiyonu — sahne öncesi `live.py`ye
 `compute_reversal_map` benzeri bir köprü eklenmesi gerekecek.
 
+## 2026-09-04 (aynı gün) — Faz 4a devam: `golden_zone` + `supply_demand` sahneleri portlandı (4/6, 5/6)
+
+Önceki girdide not edildiği gibi vitrinin `sceneGoldenSupply`si iki farklı
+sembolü yan yana gösteren bir DEMO'ydu — gerçek port `structure.golden_zone`
+ve `structure.supply_demand` için İKİ AYRI sahne dosyası olarak yapıldı
+(`live.py::render_structure_report_live`'ın 2026-08-30 "geri alma" kararı
+gereği).
+
+**`tlab/viz/svg/scenes/golden_zone.py`** — mum + EN GÜNCEL swing'in altın
+bölge (0.618–0.786) + alt bant (0.5–0.618) + 0.5 fib çizgisi + REAKSİYON/
+BAŞARILI/BAŞARISIZ işaretleri. 1. iterasyonda (THYAO) GERÇEK bir hata
+bulundu: `Marker` kendi `swing_id`sini taşımaz, yalnızca ZAMAN aralığına
+göre filtrelemek eski/çakışan bir swing'in işaretini de aktif bölgeye
+karıştırıyordu — düzeltme: en büyük `swing_id`ye sahip sinyallerin
+bar_time'larına göre eşleştirme. 4. iterasyonda (THYAO dark) İKİNCİ bir
+hata bulundu: "ALTIN BÖLGE" etiketi ile bölge dışına taşan bir marker
+etiketi (downtrend'de "BAŞARISIZ" bölgenin üst kenarını kırar) üst üste
+biniyordu — düzeltme: bölge etiketi artık kutunun İÇİNE konuyor, marker
+etiketleri fiyatın kutuya göre konumuna göre yön değiştiriyor. 5 iterasyon
+(THYAO classic/dark, BAKAB editorial), 8 yeni test.
+
+**`tlab/viz/svg/scenes/supply_demand.py`** — mum + en yakın (indikatörün
+KENDİ `last_state["nearest_demand"/"nearest_supply"]` seçimi, ATR-normalize)
+açık arz/talep bölgesi + en fazla 2 yakın zamanda kırılmış bölge (kesikli
+çerçeve, referans için) + REAKSİYON/KIRILDI işaretleri. 1. iterasyonda
+(THYAO) ÜÇ gerçek sorun bulundu: (1) bölge fiyatları y-ekseni hesabına
+dahil edilince mumlar sıkışıyordu — swing_fib_abcd'nin AYNI dersi
+uygulandı (eksen yalnızca mum aralığından, bölge ekranın doğal aralığına
+düşmüyorsa çizilmez); (2) sağ kenara çok yakın doğan bir bölgenin etiketi
+panel dışına taşıp kırpılıyordu ("ARZ BÖLGESİ..." yalnızca "A" olarak
+görünüyordu) — etiket artık yetersiz alanda sağa hizalanıyor; (3) hangi
+bölgeye ait olduğu belirsiz "yetim" işaretler (y-ekseni dışına düşüp hiç
+çizilmemiş bir bölgeye ait) görünüyordu — artık yalnızca ÇİZİLEN
+bölgelerin zaman aralığına düşen işaretler gösteriliyor. Ayrı bir tasarım
+gerginliği de fark edildi ve çözüldü: THYAO'nun tek açık talep bölgesi
+güncel fiyattan 3.1 ATR uzaktaydı, TÜM açık bölgeleri çizmek yerine
+yalnızca indikatörün kendi "en yakın" seçimi çizilerek golden_zone/
+report'un "tek odak" ilkesiyle hizalandı (bu belirli THYAO örneğinde tek
+aday zaten oydu, eksen geniş kalması GERÇEK veri — 150 barlık pencerede
+tek bir derin dip barı var — düzeltilecek bir hata değil, kabul edildi).
+3 iterasyon (THYAO classic/dark, BAKAB editorial — BAKAB'da hiç açık
+bölge yoktu, sahne zarifçe yalnızca mumları gösterdi), 9 yeni test.
+
+**Yan bulgu:** `test_double_top_bottom_scene.py`'nin iki testi (`supports`/
+`render_svg raises`) "henüz portlanmamış indikatör" örneği olarak
+`structure.golden_zone`'u kullanıyordu — bu artık YANLIŞ (portlandı),
+`trend.weekly_channel`e güncellendi (bu YENİ örneğin de bir sonraki
+oturumda aynı şekilde bayatlayacağı, o zaman tekrar güncelleneceği not
+edildi — HER Faz 4a sahnesi eklendiğinde bu deseni hatırla).
+
+Toplam 17 yeni test (8+9), 796 test yeşil (779→796 — ruff/mypy/lint_
+lookahead baseline'ları DEĞİŞMEDİ. Detay: `docs/design/iterasyon/
+iter{1..5}_golden_zone_*`, `iter{1..3}_supply_demand_*`.
+
+**Sırada:** Faz 4a'nın kalan 2 sahnesi (weekly/reversal_map).
+

@@ -16,8 +16,10 @@ import pandas as pd
 
 from tlab.core.types import IndicatorResult
 from tlab.viz.svg.scenes import double_top_bottom as _double_top_bottom
+from tlab.viz.svg.scenes import golden_zone as _golden_zone
 from tlab.viz.svg.scenes import harmonic as _harmonic
 from tlab.viz.svg.scenes import report as _report
+from tlab.viz.svg.scenes import supply_demand as _supply_demand
 from tlab.viz.svg.scenes import swing_fib_abcd as _swing_fib_abcd
 from tlab.viz.svg.scenes.base import SceneOut
 from tlab.viz.svg.theme import SVGTheme, resolve_svg_theme
@@ -37,6 +39,8 @@ _SCENES = {
     # etmiyor).
     "structure.report": _report,
     "structure.swing_fib_abcd": _swing_fib_abcd,
+    "structure.golden_zone": _golden_zone,
+    "structure.supply_demand": _supply_demand,
 }
 _SCENES.update({f"harmonic.{school}": _harmonic for school in _HARMONIC_SCHOOLS})
 

@@ -37,7 +37,7 @@ kararları) artık `docs/PROGRESS_LOG.md`'de** — bu dosya CLAUDE.md'nin 150k k
 sınırını aştığı için oraya taşındı (2026-09-02). Aşağıdaki liste yalnızca ÖZET; bir
 fazın TAM detayına ihtiyaç varsa `docs/PROGRESS_LOG.md`'ye bak.
 
-**Durum (2026-09-04): 779 test yeşil (`pytest -q -m "not network"`), ruff/mypy
+**Durum (2026-09-04): 796 test yeşil (`pytest -q -m "not network"`), ruff/mypy
 temiz (baseline: 19 ruff / 1 mypy — hepsi önceden var olan/bilinen false-positive,
 ilgisiz satırlar); lint_lookahead 5 uyarı (`coint_monitor.py`nin eklenmesiyle
 CLAUDE.md'nin eski "3" rakamından güncellenmedi, hepsi bu satırın YAZILDIĞI Faz
@@ -276,6 +276,24 @@ weekly/reversal_map) — `golden_zone`/`supply_demand` BİLİNÇLİ olarak
 AYRI iki sahne olacak (`live.py`'nin 2026-08-30 "geri alma" kararı
 gereği), `reversal_map` için `live.py`ye yeni bir köprü fonksiyonu
 gerekecek.**
+
+**EK (aynı gün) — Faz 4a devam: `golden_zone` + `supply_demand` sahneleri
+portlandı (4/6, 5/6).** İki AYRI sahne dosyası (`tlab/viz/svg/scenes/
+golden_zone.py`, `supply_demand.py`) — vitrinin iki-sembollü demo'su
+DEĞİL. `golden_zone.py`: en güncel swing'in altın bölge/alt bant/0.5 fib
+çizgisi/REAKSİYON-BAŞARILI-BAŞARISIZ işaretleri; 1. iterasyonda (THYAO)
+Marker'ın swing_id taşımaması yüzünden çakışan eski swing işaretlerinin
+karışması, 4. iterasyonda etiket çakışması bulunup düzeltildi (5
+iterasyon, 8 test). `supply_demand.py`: yalnızca indikatörün KENDİ "en
+yakın" (ATR-normalize) seçtiği açık arz/talep bölgesi + en fazla 2 yakın
+kırılmış bölge; 1. iterasyonda (THYAO) üç gerçek sorun (eksen sıkışması,
+sağ kenarda etiket kırpılması, "yetim" işaretler) bulunup düzeltildi (3
+iterasyon, 9 test). `test_double_top_bottom_scene.py`'nin "henüz
+portlanmamış" örneği `structure.golden_zone`'dan `trend.weekly_channel`e
+güncellendi (bayatlamıştı). 796 test yeşil (779→796), ruff/mypy/
+lint_lookahead baseline'ları DEĞİŞMEDİ. Detay: `docs/PROGRESS_LOG.md`nin
+aynı tarihli girdisi. **Sırada: Faz 4a'nın kalan 2 sahnesi (weekly/
+reversal_map).**
 
 ### Tamamlanan fazlar (özet)
 

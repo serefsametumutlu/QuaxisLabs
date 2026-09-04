@@ -2497,3 +2497,54 @@ IS/OOS ayrışmasını (seçim kriterinin OOS yerine IS'e dayanması) düzeltmes
 İleride bu alan tekrar gözden geçirilirse, her iki turun da gerekçesi
 kodda ve bu günlükte duruyor.
 
+## 2026-09-04 (aynı gün) — Faz 3 vitrini geri bildirimi: hologram üçgen düzeltmesi (5. iterasyon)
+
+Kullanıcı, `docs/spec/FAZ3_SVG_MOTORU.md`nin galeri artifact'ini inceledikten
+sonra kendi TradingView referansını (`TOBO.png`, ters omuz-baş-omuz
+formasyonu) paylaşıp `patterns.double_top_bottom` hologramının "yarım
+üçgen gibi" durduğunu belirtti — boyun çizgisinin başladığı yerden tekrar
+oraya gelene kadar devam etmesi gerektiğini söyledi.
+
+**Kök neden bulundu:** hologramın 5 noktalı M/W silüetinde dış köşeler
+(boyun_sol/boyun_sağ) uç noktayla (p1/p2) AYNI zaman damgasını
+paylaşıyordu (Faz 1, 1B'nin bilinçli "dikey direk" tasarımı) — bu, üçgenin
+bir kenarını DİKEY, diğerini EĞİK bırakıyordu, tam da kullanıcının tarif
+ettiği asimetrik görünüm.
+
+**Düzeltme:** `tlab/indicators/patterns/double_top_bottom.py`nin hologram
+noktaları artık dış köşeleri p1↔boyun / boyun↔p2 arasındaki (zaten bilinen)
+bar mesafesini dışa AYNALAYARAK hesaplıyor — iki kenar da eğik, simetrik
+tam üçgen (TradingView referansıyla aynı dil). Bu mesafe yalnızca
+p1/neckline_pivot/p2'ye bağlı olduğu için (hepsi born_idx anında zaten
+bilinir) repaint riski YOK. `tlab/viz/svg/scenes/double_top_bottom.py`nin
+`_pattern_window`ı da hologramın yeni (daha geniş) uzamını HER ZAMAN
+kapsayacak şekilde güncellendi (aksi hâlde dış köşe pencere dışında kalıp
+`bar_index` KeyError fırlatabilirdi).
+
+Kilitleyen test (`test_hologram_polygon_is_five_point_mw_silhouette`)
+yeni geometriye göre güncellendi, golden SVG referansı yeniden üretildi
+(`--update-golden`). Gerçek BIST verisiyle (BAKAB, TUCLK) 3 temada yeniden
+render edilip GÖRÜLEREK doğrulandı (5. iterasyon, `docs/design/iterasyon/
+iter5_*`). 738 test yeşil, ruff/mypy baseline'ları DEĞİŞMEDİ. Galeri
+artifact'i güncellendi (aynı URL, `docs/spec/FAZ3_SVG_MOTORU.md`nin
+iterasyon tablosuna 5. satır eklendi).
+
+Aynı mesajda kullanıcı iki konu daha sordu: (1) CELHA örneğinde "kırılımdan
+2 mum sonra hedef geldiği hâlde retest bekleniyor" izlenimi — gerçek
+sinyal zaman çizelgesi kontrol edildi, `track_breakout_pattern` (`tlab/
+core/pattern_state.py`) hedef kontrolünü retest'ten ÖNCE yapıyor ve hemen
+`break` ediyor (kod zaten doğru), CELHA'nın GÜNCEL verisinde pattern
+aslında hedefe hiç ulaşmadan (46 gün sonra retest, 8 gün sonra süresi
+dolarak) EXPIRED olmuş — kullanıcının tarif ettiğiyle uyuşmuyor, muhtemelen
+daha eski/önbellek bir görünüme bakılmış; kod değişikliği YAPILMADI, yalnızca
+açıklandı. (2) "17 çift yetersiz, bir sinyal kaçırırız" endişesi (GARAN/
+AKBNK örnek olarak verildi, kullanıcı sonra "spesifik çift değil, genel
+endişe" diye netleştirdi) — mimari olarak `config/pairs.yaml`nin "KALICI
+BİR ONAY DEĞİL, periyodik yeniden koşulmalı" (docstring'in kendi notu)
+olduğu hatırlatıldı; somut öneri (henüz UYGULANMADI, kullanıcı onayı
+bekliyor): `pair_denetim.py`nin zamanlanmış/periyodik çalıştırılması
+(ör. aylık cron/Windows Görev Zamanlayıcı) — whole-universe CANLI tarama
+DEĞİL (Faz 2'de 116-çift deneyiyle zaten test edilip reddedildi), yeni
+cointegre olan bir çiftin listeye düzenli aralıklarla eklenmesini sağlayan
+bir OPERASYONEL çözüm.
+

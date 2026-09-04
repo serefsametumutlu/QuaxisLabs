@@ -166,24 +166,32 @@ def test_eq_tol_too_strict_filters_out_pair() -> None:
 def test_hologram_polygon_is_five_point_mw_silhouette() -> None:
     """Faz 1, 1B DÜZELTMESİ (2026-09-04): eski hâli (p1->p2 arası GERÇEK
     kapanış fiyatı yolu, 11 nokta) görsel olarak AMORF bir leke üretiyordu
-    (bkz. STRATEJI_DENETIM_TAM.md — ALTNY örneği). Artık `docs/design/
-    grafik_stil_vitrini.html::sceneDoubleTopBottom`'daki 5 köşeli, boyun
-    seviyesine OTURAN M/W silueti: [boyun_sol, uç1, boyun, uç2, boyun_sağ] —
-    boyun_sol/uç1 VE uç2/boyun_sağ AYNI zaman damgasını (dikey "direk")
-    paylaşır."""
+    (bkz. STRATEJI_DENETIM_TAM.md — ALTNY örneği). 5 köşeli, boyun
+    seviyesine OTURAN M/W silueti: [boyun_sol, uç1, boyun, uç2, boyun_sağ].
+
+    2026-09-04 İKİNCİ DÜZELTME: dış köşeler (boyun_sol/boyun_sağ) artık
+    uç1/uç2 ile AYNI zaman damgasını (dikey "direk") PAYLAŞMIYOR — kullanıcı
+    geri bildirimiyle (TradingView referansı, "yarım üçgen" görünümü)
+    p1<->boyun / boyun<->p2 bar mesafesi dışa doğru aynalanarak eğik kenarlı
+    simetrik üçgenlere çevrildi (bkz. `double_top_bottom.py`nin hologram
+    yorumu). p1(idx2)->boyun(idx7) mesafesi 5 bar, geriye aynalanınca
+    idx=max(0,2-5)=0; boyun(idx7)->p2(idx12) mesafesi 5 bar, ileri
+    aynalanınca idx=min(n-1,12+5)=17."""
     df = _double_bottom_ohlcv()
     result = DoubleTopBottomIndicator(_params()).compute(df)
     hologram = next(p for p in result.polygons if p.style == "pattern_hologram")
     assert len(hologram.points) == 5
     (t0, y0), (t1, y1), (t2, y2), (t3, y3), (t4, y4) = hologram.points
     neckline = 117.0
-    assert t0 == t1 == df.index[2]  # boyun_sol + uç1 (p1) aynı zaman
+    assert t0 == df.index[0]  # boyun_sol -- aynalanmış mesafe df başına clamp edildi
     assert y0 == pytest.approx(neckline)
+    assert t1 == df.index[2]  # uç1 (p1)
     assert y1 == pytest.approx(97.0)  # dip1
     assert t2 == df.index[7]  # boyun (neckline pivot)
     assert y2 == pytest.approx(neckline)
-    assert t3 == t4 == df.index[12]  # uç2 (p2) + boyun_sağ aynı zaman
+    assert t3 == df.index[12]  # uç2 (p2)
     assert y3 == pytest.approx(96.0)  # dip2
+    assert t4 == df.index[17]  # boyun_sağ -- p1<->boyun mesafesi kadar ileri aynalanmış
     assert y4 == pytest.approx(neckline)
 
 

@@ -156,6 +156,23 @@ reversion_default_stop_k_and_max_hold_bars_tuned`) revize edildi. `window`/
 `k` yine DEĞİŞMEDİ (rotasyonel modla paylaşılan alanlar). 738 test hâlâ
 yeşil, ruff/mypy baseline'ları DEĞİŞMEDİ.
 
+**EK (aynı gün) — Faz 3 vitrini geri bildirimi: hologram üçgen düzeltmesi
+(5. iterasyon):** kullanıcı kendi TradingView referansıyla (`TOBO.png`)
+karşılaştırınca `patterns.double_top_bottom` hologramının bir kenarının
+DİKEY (uç noktayla aynı zaman damgası, eski "direk" tasarımı) kaldığını,
+"yarım üçgen" gibi durduğunu belirtti. `tlab/indicators/patterns/
+double_top_bottom.py`nin hologram dış köşeleri artık p1↔boyun/boyun↔p2
+mesafesi dışa AYNALANARAK hesaplanıyor — iki kenar da eğik, simetrik tam
+üçgen (repaint riski yok, yalnızca zaten bilinen pivotlara bağlı).
+Kilitleyen test + golden SVG güncellendi, 3 temada gerçek veriyle yeniden
+GÖRÜLEREK doğrulandı, galeri artifact'i güncellendi. Detay: `docs/
+PROGRESS_LOG.md`nin aynı tarihli girdisi, `docs/spec/FAZ3_SVG_MOTORU.md`
+iterasyon tablosunun 5. satırı. Aynı mesajda gelen iki soru (CELHA'da
+"retest gereksiz" izlenimi — kod zaten doğru, kullanıcı muhtemelen eski
+bir görünüme bakmış; "17 çift yetersiz" endişesi — periyodik `pair_
+denetim.py` çalıştırma ÖNERİLDİ, henüz UYGULANMADI) kod DEĞİŞTİRMEDİ,
+yalnızca açıklandı/notlandı.
+
 ### Tamamlanan fazlar (özet)
 
 - **Faz 0 — İskelet**: `core/types.py`, `core/indicator.py`, `core/params.py`,

@@ -128,10 +128,16 @@ def _latest(groups: dict[str, _PatternGroup], direction: str) -> _PatternGroup |
 
 
 def _pattern_window(
-    df: pd.DataFrame, group: _PatternGroup, *, pad_before: int = 8, pad_after: int = 12,
+    df: pd.DataFrame, group: _PatternGroup, *, pad_before: int = 4, pad_after: int = 8,
 ) -> pd.DataFrame:
-    i1 = bar_index(df, group.p1.t)
-    i2 = bar_index(df, group.last_time)
+    """Pencere HER ZAMAN hologramın kendi dış köşelerini de içerir --
+    hologramın dış köşeleri artık (2026-09-04 düzeltmesi) p1/boyun/p2'nin
+    kendi zamanından dışa aynalandığı için yalnızca `p1.t`e göre pencereleme
+    hologramın sol/sağ ucunu pencere dışında bırakabilir (bar_index KeyError
+    riski)."""
+    holo_indices = [bar_index(df, t) for t, _ in group.hologram.points]
+    i1 = min(holo_indices)
+    i2 = max(max(holo_indices), bar_index(df, group.last_time))
     lo = max(0, i1 - pad_before)
     hi = min(len(df) - 1, i2 + pad_after)
     return df.iloc[lo : hi + 1]

@@ -297,18 +297,34 @@ class DoubleTopBottomIndicator(BaseIndicator):
                 # `docs/design/grafik_stil_vitrini.html::sceneDoubleTopBottom`
                 # 5 köşeli, boyun seviyesine OTURAN, kendi kendini kesmeyen
                 # bir M/W silueti çiziyor — [boyun_sol, uç1, boyun, uç2,
-                # boyun_sağ]. boyun_sol/boyun_sağ, uç1/uç2 ile AYNI zamanda
-                # ama boyun FİYATINDA (dikey bir "direk" ile uca bağlanan
-                # şematik köşeler) — kendi kendini kesmeyen kapalı bir
-                # poligon garantiler.
+                # boyun_sağ].
+                #
+                # 2026-09-04 İKİNCİ DÜZELTME (kullanıcı geri bildirimi, Faz 3
+                # SVG vitrini incelemesi): boyun_sol/boyun_sağ ESKİDEN uç1/
+                # uç2 ile AYNI zaman damgasını taşıyordu (dikey bir "direk")
+                # — bu, kullanıcının bir TradingView referansıyla (TOBO.png)
+                # karşılaştırınca "yarım üçgen" olarak tarif ettiği asimetrik
+                # görünümün kök nedeniydi (üçgenin bir kenarı dikey, diğeri
+                # eğik). Artık dış köşeler p1/p2'nin KENDİ zamanından değil,
+                # p1<->boyun ve boyun<->p2 arasındaki (zaten bilinen, ileriye
+                # bakma İÇERMEYEN) bar mesafesi dışa doğru AYNALANARAK
+                # hesaplanıyor -- iki üçgen de artık simetrik eğik kenarlı.
+                # Bu mesafe yalnızca p1/neckline_pivot/p2'ye (hepsi born_idx
+                # anında zaten bilinir) bağlı olduğu için repaint riski YOK
+                # -- ne bir SONRAKİ pivota (henüz oluşmamış olabilir) ne de
+                # ileri barlara bakar, `df` sınırlarına clamp edilir.
+                left_run = neckline_pivot.bar_idx - p1.bar_idx
+                left_idx = max(0, p1.bar_idx - left_run)
+                right_run = p2.bar_idx - neckline_pivot.bar_idx
+                right_idx = min(n - 1, p2.bar_idx + right_run)
                 polygons.append(
                     Polygon(
                         points=(
-                            (p1.bar_time, neckline_price),
+                            (df.index[left_idx], neckline_price),
                             (p1.bar_time, p1.price),
                             (neckline_pivot.bar_time, neckline_price),
                             (p2.bar_time, p2.price),
-                            (p2.bar_time, neckline_price),
+                            (df.index[right_idx], neckline_price),
                         ),
                         label=f"{pattern_id}_hologram", style="pattern_hologram",
                     )

@@ -105,6 +105,7 @@ Read ile GÖRÜLDÜ. Önce/sonra görüntüleri `docs/design/iterasyon/` altınd
 | 2 | BAKAB | classic | Rozet `resolve_collisions`e taşındı (kenar taşması düzeldi); retest marker eklendi; "1"/"2" rozet dikey ofseti yön-tutarlı hâle getirildi. |
 | 3 | BAKAB | dark, editorial; CELHA (tek sinyal) | 3 temada da doğrulandı (glow/renk/font birebir); tek-pattern (single-panel) yolu doğrulandı; TUCLK (3 aday, çoklu durum) ile "GEÇERSİZ" bir adayın hâlâ "ONAY" rozeti taşıdığı GERÇEK bir hata bulundu. |
 | 4 | TUCLK | classic | Durum rozeti gerçek `breakout`/`retest`/`completed`/`invalidated`/`expired` sinyallerinden türetilecek şekilde düzeltildi; GEÇERSİZ/SÜRESİ DOLDU'da hedef çizgisi artık çizilmiyor. |
+| 5 | BAKAB, TUCLK | classic, dark, editorial | Kullanıcı geri bildirimi (bir TradingView referansıyla, `TOBO.png`, karşılaştırma): hologram üçgenlerinin dış köşeleri (boyun_sol/boyun_sağ) uç noktayla AYNI zaman damgasını paylaşıyordu — dikey bir kenar, "yarım üçgen" görünümü. `tlab/indicators/patterns/double_top_bottom.py`nin hologram geometrisi düzeltildi: dış köşeler artık p1↔boyun / boyun↔p2 bar mesafesi dışa AYNALANARAK hesaplanıyor (yalnızca zaten bilinen pivotlara bağlı, repaint riski yok) — iki kenar da eğik, simetrik tam üçgen. `_pattern_window` de hologramın yeni (daha geniş) uzamını her zaman kapsayacak şekilde güncellendi (aksi hâlde `bar_index` KeyError riski). |
 
 **Bilinen sınırlama:** proje önbelleğindeki (`data/ohlcv/bist/`) TÜM
 semboller ~506 barlık (yfinance varsayılan derinliği) bir pencereye sahip —

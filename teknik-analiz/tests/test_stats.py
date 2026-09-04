@@ -13,7 +13,17 @@ import pytest
 from tlab.core.indicator import BaseIndicator
 from tlab.core.params import BaseParams, params_hash
 from tlab.core.types import IndicatorMeta, IndicatorResult, Signal, Timeframe
-from tlab.features.stats import adf_pvalue, halflife, log_spread, rolling_beta, rolling_corr, zscore
+from tlab.features.stats import (
+    adf_pvalue,
+    benjamini_hochberg,
+    engle_granger_pvalue,
+    halflife,
+    log_spread,
+    ols_spread,
+    rolling_beta,
+    rolling_corr,
+    zscore,
+)
 from tlab.testing.repaint import repaint_test
 
 TZ = ZoneInfo("Europe/Istanbul")
@@ -116,6 +126,115 @@ def test_adf_pvalue_random_walk_is_high() -> None:
     values = np.cumsum(rng.normal(0, 1, n))
     p = adf_pvalue(_series(list(values)))
     assert p > 0.3
+
+
+# --- engle_granger_pvalue (Faz 2, 2A) --------------------------------------
+
+
+def test_engle_granger_pvalue_detects_cointegrated_pair() -> None:
+    rng = np.random.default_rng(21)
+    n = 300
+    x = np.cumsum(rng.normal(0, 1, n)) + 50
+    # y, x'in gürültülü bir katı -- gerçek bir kointegre çift
+    y = 2.0 * x + rng.normal(0, 0.5, n)
+    p = engle_granger_pvalue(_series(list(y)), _series(list(x)))
+    assert p < 0.05
+
+
+def test_engle_granger_pvalue_high_for_independent_random_walks() -> None:
+    rng = np.random.default_rng(21)
+    n = 300
+    y = np.cumsum(rng.normal(0, 1, n)) + 50
+    x = np.cumsum(rng.normal(0, 1, n)) + 50
+    p = engle_granger_pvalue(_series(list(y)), _series(list(x)))
+    assert p > 0.3
+
+
+def test_engle_granger_pvalue_much_stricter_than_raw_adfuller() -> None:
+    """Faz 2 tanısının (b) bulgusu: ham adfuller, TAHMİN EDİLMİŞ bir OLS
+    kalıntısına uygulandığında engle_granger_pvalue'dan SİSTEMATİK olarak
+    daha düşük (daha "durağan görünen") p döner -- iki BAĞIMSIZ rastgele
+    yürüyüşte bile. Tek bir örneklemde bunu doğrudan kanıtlamak gürültülü
+    olabilir, bu yüzden birkaç tohumun ORTALAMASI karşılaştırılır."""
+    diffs = []
+    for seed in range(30, 35):
+        rng = np.random.default_rng(seed)
+        n = 250
+        y = np.cumsum(rng.normal(0, 1, n)) + 50
+        x = np.cumsum(rng.normal(0, 1, n)) + 50
+        y_s, x_s = _series(list(y)), _series(list(x))
+        spread, _alpha, _beta = ols_spread(y_s, x_s)
+        raw_p = adf_pvalue(spread)
+        eg_p = engle_granger_pvalue(y_s, x_s)
+        diffs.append(eg_p - raw_p)
+    assert sum(diffs) / len(diffs) > 0  # engle_granger ORTALAMADA daha yüksek/gevşek değil sıkı
+
+
+def test_engle_granger_pvalue_raises_for_too_few_observations() -> None:
+    with pytest.raises(ValueError):
+        engle_granger_pvalue(_series([1.0, 2.0]), _series([1.0, 2.0]))
+
+
+# --- ols_spread (Faz 2, 2A) --------------------------------------------------
+
+
+def test_ols_spread_recovers_known_alpha_beta() -> None:
+    x = _series([float(i) for i in range(1, 51)])
+    # log(y) = 0.3 + 1.5*log(x) tam olarak (gürültüsüz) -- spread sıfır, alpha/beta tam
+    y = _series([math.exp(0.3 + 1.5 * math.log(i)) for i in range(1, 51)])
+    spread, alpha, beta = ols_spread(y, x)
+    assert math.isclose(alpha, 0.3, abs_tol=1e-6)
+    assert math.isclose(beta, 1.5, abs_tol=1e-6)
+    assert spread.abs().max() < 1e-6
+
+
+def test_ols_spread_raises_for_constant_x() -> None:
+    x = _series([5.0] * 10)
+    y = _series([float(i) for i in range(1, 11)])
+    with pytest.raises(ValueError):
+        ols_spread(y, x)
+
+
+# --- benjamini_hochberg (Faz 2, 2A) -----------------------------------------
+
+
+def test_benjamini_hochberg_known_worked_example() -> None:
+    """Elle hesaplanmış klasik bir BH-FDR örneği (m=10, q=0.05):
+    sıralı p = [0.001, 0.008, 0.039, 0.041, 0.042, 0.06, 0.074, 0.205,
+    0.212, 0.216] -- eşikler k/10*0.05 = [.005,.01,.015,.02,.025,.03,
+    .035,.04,.045,.05]. p_(k)<=eşik yalnızca k=1,2'de sağlanır (0.001<=.005,
+    0.008<=.01) -- k=3'te 0.039>.015 (sağlanmıyor). BH kuralı EN BÜYÜK
+    sağlayan k'yı alır -> yalnızca ilk 2 reddedilir."""
+    pvalues = [0.001, 0.008, 0.039, 0.041, 0.042, 0.06, 0.074, 0.205, 0.212, 0.216]
+    reject = benjamini_hochberg(pvalues, q=0.05)
+    assert list(reject) == [True, True, False, False, False, False, False, False, False, False]
+
+
+def test_benjamini_hochberg_all_pass_when_all_pvalues_tiny() -> None:
+    pvalues = [0.001, 0.002, 0.003]
+    reject = benjamini_hochberg(pvalues, q=0.05)
+    assert all(reject)
+
+
+def test_benjamini_hochberg_none_pass_when_all_pvalues_large() -> None:
+    pvalues = [0.5, 0.6, 0.7]
+    reject = benjamini_hochberg(pvalues, q=0.05)
+    assert not any(reject)
+
+
+def test_benjamini_hochberg_empty_input() -> None:
+    assert list(benjamini_hochberg([], q=0.05)) == []
+
+
+def test_benjamini_hochberg_more_lenient_than_bonferroni() -> None:
+    """BH-FDR, AYNI q/alpha için Bonferroni'den her zaman EN AZ o kadar
+    gevşektir (BH eşiği Bonferroni'nin q/m'sinden k arttıkça büyür)."""
+    rng = np.random.default_rng(9)
+    pvalues = rng.uniform(0, 0.1, 50)
+    bh = benjamini_hochberg(pvalues, q=0.05)
+    bonferroni = pvalues <= (0.05 / len(pvalues))
+    assert bh.sum() >= bonferroni.sum()
+    assert all(b for b, is_bonf in zip(bh, bonferroni, strict=True) if is_bonf)
 
 
 # --- mini-indikatör repaint testi (zscore eşik geçişi) ---------------------

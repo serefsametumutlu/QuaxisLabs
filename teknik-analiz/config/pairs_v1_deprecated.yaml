@@ -1,0 +1,3654 @@
+# Discover edilmiş (discover_pairs() ile DOĞRULANMIŞ) çift evreni.
+#
+# 2026-09-03: tlab/indicators/pairs/discovery.py::discover_pairs() ile
+# config/sectors_bist.yaml'daki (Fintables kaynaklı, 44 sektör / 637 sembol)
+# TAM sektör haritası üzerinde same_sector_only=True ile gerçek 1D kapanış
+# verisiyle çalıştırıldı (corr>=0.7, ADF p<0.05, halflife 5-60 bar,
+# min_overlap_bars=120 -- discover_pairs()'ın varsayılan eşikleri).
+# 606 aday bulundu (622 sembol × 44 sektör, ~8750 aynı-sektör kombinasyonu
+# denendi). ESKİ sürüm yalnızca 4 elle seçilmiş, DOĞRULANMAMIŞ çift
+# içeriyordu ("tlab pair-discover henüz doğrulanmadı" notuyla) -- bu artık
+# GERÇEKTEN doğrulanmış bir liste. Periyodik olarak yeniden koşulmalı (bkz.
+# discovery.py docstring'i, DISIPLIN-06/08 -- discovery KALICI BİR ONAY
+# DEĞİL, anlık bir tarama).
+#
+# y/x: RelativeMomentumPair/VolHarvestPair'in "Y hissesi"/"X hissesi"
+# sözleşmesiyle AYNI (spread = log(Y) - beta*log(X)).
+# corr/adf_p/halflife/beta: discover_pairs()'ın kendi çıktısı, bilgi amaçlı.
+pairs:
+  - y: AKFIS
+    x: SANEL
+    sector: İnşaat
+    corr: 0.797
+    adf_p: 0.0
+    halflife: 6.8
+  - y: DURKN
+    x: SEGMN
+    sector: Gıda ve İçecek
+    corr: 0.837
+    adf_p: 0.0
+    halflife: 7.8
+  - y: AKFYE
+    x: ODAS
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.895
+    adf_p: 0.0
+    halflife: 7.4
+  - y: KZGYO
+    x: ATAGY
+    sector: Gayrimenkul
+    corr: 0.782
+    adf_p: 0.0
+    halflife: 7.8
+  - y: ECOGR
+    x: MOGAN
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.782
+    adf_p: 0.0
+    halflife: 6.6
+  - y: ECOGR
+    x: NTGAZ
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.712
+    adf_p: 0.0
+    halflife: 6.3
+  - y: MTRYO
+    x: GRNYO
+    sector: Menkul Kıymet Yat. Ort.
+    corr: 0.881
+    adf_p: 0.0
+    halflife: 8.3
+  - y: DURDO
+    x: BAKAB
+    sector: Ambalaj
+    corr: 0.738
+    adf_p: 0.0
+    halflife: 9.5
+  - y: ZEDUR
+    x: A1YEN
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.777
+    adf_p: 0.0
+    halflife: 6.7
+  - y: AKFYE
+    x: AYEN
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.886
+    adf_p: 0.0
+    halflife: 7.5
+  - y: ECOGR
+    x: AKSUE
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.879
+    adf_p: 0.0
+    halflife: 5.4
+  - y: RGYAS
+    x: PAGYO
+    sector: Gayrimenkul
+    corr: 0.97
+    adf_p: 0.0
+    halflife: 7.0
+  - y: BIOEN
+    x: ESEN
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.766
+    adf_p: 0.0
+    halflife: 11.0
+  - y: EUYO
+    x: MTRYO
+    sector: Menkul Kıymet Yat. Ort.
+    corr: 0.849
+    adf_p: 0.0
+    halflife: 8.5
+  - y: PNSUT
+    x: PETUN
+    sector: Gıda ve İçecek
+    corr: 0.966
+    adf_p: 0.0
+    halflife: 7.2
+  - y: ATLAS
+    x: EUYO
+    sector: Menkul Kıymet Yat. Ort.
+    corr: 0.864
+    adf_p: 0.0
+    halflife: 7.6
+  - y: AYEN
+    x: ODAS
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.866
+    adf_p: 0.0
+    halflife: 8.7
+  - y: AKBNK
+    x: VAKBN
+    sector: Bankacılık
+    corr: 0.928
+    adf_p: 0.0
+    halflife: 10.4
+  - y: YESIL
+    x: IHLAS
+    sector: Holding
+    corr: 0.763
+    adf_p: 0.0
+    halflife: 12.4
+  - y: AVTUR
+    x: LYDHO
+    sector: Toptan ve Perakende Ticaret
+    corr: 0.844
+    adf_p: 0.0001
+    halflife: 9.9
+  - y: YIGIT
+    x: JANTS
+    sector: Otomotiv Yan Sanayi
+    corr: 0.858
+    adf_p: 0.0001
+    halflife: 12.7
+  - y: BULGS
+    x: HDFGS
+    sector: Girişim Sermayesi Yat. Ort.
+    corr: 0.735
+    adf_p: 0.0001
+    halflife: 11.6
+  - y: YKBNK
+    x: VAKBN
+    sector: Bankacılık
+    corr: 0.886
+    adf_p: 0.0001
+    halflife: 12.4
+  - y: VKGYO
+    x: AKFGY
+    sector: Gayrimenkul
+    corr: 0.911
+    adf_p: 0.0001
+    halflife: 11.8
+  - y: AKFGY
+    x: OZGYO
+    sector: Gayrimenkul
+    corr: 0.949
+    adf_p: 0.0001
+    halflife: 6.5
+  - y: EPLAS
+    x: ALKIM
+    sector: Kimya ve Plastik
+    corr: 0.71
+    adf_p: 0.0002
+    halflife: 8.8
+  - y: FONET
+    x: EDATA
+    sector: Bilişim ve Yazılım
+    corr: 0.966
+    adf_p: 0.0002
+    halflife: 8.8
+  - y: ODAS
+    x: MOGAN
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.857
+    adf_p: 0.0002
+    halflife: 11.8
+  - y: A1YEN
+    x: IZENR
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.743
+    adf_p: 0.0002
+    halflife: 11.0
+  - y: PSDTC
+    x: TGSAS
+    sector: Toptan ve Perakende Ticaret
+    corr: 0.922
+    adf_p: 0.0002
+    halflife: 11.8
+  - y: KLGYO
+    x: SNGYO
+    sector: Gayrimenkul
+    corr: 0.938
+    adf_p: 0.0002
+    halflife: 9.2
+  - y: BIZIM
+    x: MOPAS
+    sector: Gıda Perakendeciliği
+    corr: 0.73
+    adf_p: 0.0002
+    halflife: 7.1
+  - y: GESAN
+    x: EUPWR
+    sector: Enerji Teknolojileri
+    corr: 0.959
+    adf_p: 0.0002
+    halflife: 10.4
+  - y: AKFYE
+    x: ARASE
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.81
+    adf_p: 0.0002
+    halflife: 12.4
+  - y: ULUUN
+    x: DMRGD
+    sector: Gıda ve İçecek
+    corr: 0.887
+    adf_p: 0.0002
+    halflife: 9.2
+  - y: BULGS
+    x: HUBVC
+    sector: Girişim Sermayesi Yat. Ort.
+    corr: 0.769
+    adf_p: 0.0002
+    halflife: 10.3
+  - y: KMPUR
+    x: KORDS
+    sector: Kimya ve Plastik
+    corr: 0.79
+    adf_p: 0.0003
+    halflife: 10.6
+  - y: ACSEL
+    x: KMPUR
+    sector: Kimya ve Plastik
+    corr: 0.729
+    adf_p: 0.0003
+    halflife: 9.9
+  - y: LYDYE
+    x: NTGAZ
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.77
+    adf_p: 0.0003
+    halflife: 12.0
+  - y: BORSK
+    x: FRIGO
+    sector: Gıda ve İçecek
+    corr: 0.776
+    adf_p: 0.0003
+    halflife: 8.3
+  - y: KGYO
+    x: PEKGY
+    sector: Gayrimenkul
+    corr: 0.961
+    adf_p: 0.0003
+    halflife: 16.2
+  - y: DOHOL
+    x: GLYHO
+    sector: Holding
+    corr: 0.94
+    adf_p: 0.0003
+    halflife: 11.9
+  - y: MTRYO
+    x: OYAYO
+    sector: Menkul Kıymet Yat. Ort.
+    corr: 0.864
+    adf_p: 0.0003
+    halflife: 10.8
+  - y: INVES
+    x: VERUS
+    sector: Holding
+    corr: 0.96
+    adf_p: 0.0004
+    halflife: 13.5
+  - y: A1YEN
+    x: ENJSA
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.757
+    adf_p: 0.0004
+    halflife: 10.8
+  - y: BRYAT
+    x: IZINV
+    sector: Holding
+    corr: 0.793
+    adf_p: 0.0004
+    halflife: 7.0
+  - y: ZGYO
+    x: TRGYO
+    sector: Gayrimenkul
+    corr: 0.768
+    adf_p: 0.0004
+    halflife: 5.7
+  - y: BESTE
+    x: AHGAZ
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.74
+    adf_p: 0.0004
+    halflife: 5.1
+  - y: YYLGD
+    x: ATAKP
+    sector: Gıda ve İçecek
+    corr: 0.783
+    adf_p: 0.0004
+    halflife: 10.3
+  - y: A1YEN
+    x: MAGEN
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.75
+    adf_p: 0.0004
+    halflife: 9.9
+  - y: AVOD
+    x: PETUN
+    sector: Gıda ve İçecek
+    corr: 0.872
+    adf_p: 0.0004
+    halflife: 9.7
+  - y: VKGYO
+    x: OZGYO
+    sector: Gayrimenkul
+    corr: 0.89
+    adf_p: 0.0004
+    halflife: 11.5
+  - y: ESCOM
+    x: FONET
+    sector: Bilişim ve Yazılım
+    corr: 0.897
+    adf_p: 0.0005
+    halflife: 11.4
+  - y: AVOD
+    x: DUNYH
+    sector: Gıda ve İçecek
+    corr: 0.875
+    adf_p: 0.0005
+    halflife: 11.0
+  - y: A1YEN
+    x: NTGAZ
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.714
+    adf_p: 0.0005
+    halflife: 11.5
+  - y: YIGIT
+    x: BFREN
+    sector: Otomotiv Yan Sanayi
+    corr: 0.817
+    adf_p: 0.0005
+    halflife: 15.4
+  - y: AVOD
+    x: ATAKP
+    sector: Gıda ve İçecek
+    corr: 0.865
+    adf_p: 0.0005
+    halflife: 10.1
+  - y: AKFYE
+    x: MANAS
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.797
+    adf_p: 0.0005
+    halflife: 11.7
+  - y: PNSUT
+    x: AVOD
+    sector: Gıda ve İçecek
+    corr: 0.824
+    adf_p: 0.0006
+    halflife: 12.0
+  - y: SVGYO
+    x: KGYO
+    sector: Gayrimenkul
+    corr: 0.78
+    adf_p: 0.0006
+    halflife: 5.6
+  - y: NUHCM
+    x: GOLTS
+    sector: Taş, Toprak, Çimento
+    corr: 0.751
+    adf_p: 0.0006
+    halflife: 10.6
+  - y: GARFA
+    x: CRDFA
+    sector: Faktoring
+    corr: 0.814
+    adf_p: 0.0006
+    halflife: 15.8
+  - y: HEDEF
+    x: GLYHO
+    sector: Holding
+    corr: 0.966
+    adf_p: 0.0006
+    halflife: 21.4
+  - y: ECOGR
+    x: AKSEN
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.823
+    adf_p: 0.0006
+    halflife: 6.7
+  - y: ATAGY
+    x: EYGYO
+    sector: Gayrimenkul
+    corr: 0.82
+    adf_p: 0.0006
+    halflife: 11.8
+  - y: CCOLA
+    x: BYDNR
+    sector: Gıda ve İçecek
+    corr: 0.917
+    adf_p: 0.0006
+    halflife: 10.8
+  - y: TARKM
+    x: KORDS
+    sector: Kimya ve Plastik
+    corr: 0.796
+    adf_p: 0.0007
+    halflife: 12.0
+  - y: EDIP
+    x: EGEGY
+    sector: Gayrimenkul
+    corr: 0.873
+    adf_p: 0.0007
+    halflife: 10.9
+  - y: BERA
+    x: PAHOL
+    sector: Holding
+    corr: 0.79
+    adf_p: 0.0007
+    halflife: 5.8
+  - y: OYLUM
+    x: BIGCH
+    sector: Gıda ve İçecek
+    corr: 0.793
+    adf_p: 0.0007
+    halflife: 10.6
+  - y: SNPAM
+    x: MNDRS
+    sector: Tekstil, Giyim ve Deri
+    corr: 0.757
+    adf_p: 0.0007
+    halflife: 19.9
+  - y: SVGYO
+    x: AVPGY
+    sector: Gayrimenkul
+    corr: 0.752
+    adf_p: 0.0007
+    halflife: 5.3
+  - y: RNPOL
+    x: IZFAS
+    sector: Kimya ve Plastik
+    corr: 0.9
+    adf_p: 0.0007
+    halflife: 15.5
+  - y: IDGYO
+    x: AKFGY
+    sector: Gayrimenkul
+    corr: 0.829
+    adf_p: 0.0007
+    halflife: 15.9
+  - y: DURKN
+    x: CCOLA
+    sector: Gıda ve İçecek
+    corr: 0.801
+    adf_p: 0.0008
+    halflife: 10.5
+  - y: VKGYO
+    x: EKGYO
+    sector: Gayrimenkul
+    corr: 0.937
+    adf_p: 0.0008
+    halflife: 11.9
+  - y: INTEM
+    x: AVTUR
+    sector: Toptan ve Perakende Ticaret
+    corr: 0.731
+    adf_p: 0.0008
+    halflife: 13.8
+  - y: ULUUN
+    x: VANGD
+    sector: Gıda ve İçecek
+    corr: 0.859
+    adf_p: 0.0008
+    halflife: 10.7
+  - y: VKGYO
+    x: KGYO
+    sector: Gayrimenkul
+    corr: 0.898
+    adf_p: 0.0009
+    halflife: 11.5
+  - y: A1YEN
+    x: BASGZ
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.732
+    adf_p: 0.0009
+    halflife: 10.7
+  - y: ENTRA
+    x: NTGAZ
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.86
+    adf_p: 0.0009
+    halflife: 12.2
+  - y: OFSYM
+    x: DUNYH
+    sector: Gıda ve İçecek
+    corr: 0.931
+    adf_p: 0.0009
+    halflife: 10.7
+  - y: PETUN
+    x: ATAKP
+    sector: Gıda ve İçecek
+    corr: 0.886
+    adf_p: 0.001
+    halflife: 10.4
+  - y: YYLGD
+    x: AVOD
+    sector: Gıda ve İçecek
+    corr: 0.724
+    adf_p: 0.001
+    halflife: 11.4
+  - y: BORSK
+    x: ALKLC
+    sector: Gıda ve İçecek
+    corr: 0.751
+    adf_p: 0.001
+    halflife: 8.9
+  - y: ACSEL
+    x: KORDS
+    sector: Kimya ve Plastik
+    corr: 0.704
+    adf_p: 0.0011
+    halflife: 10.8
+  - y: RNPOL
+    x: ISKPL
+    sector: Kimya ve Plastik
+    corr: 0.913
+    adf_p: 0.0011
+    halflife: 15.2
+  - y: DURKN
+    x: ALKLC
+    sector: Gıda ve İçecek
+    corr: 0.714
+    adf_p: 0.0011
+    halflife: 12.3
+  - y: ATAGY
+    x: SNGYO
+    sector: Gayrimenkul
+    corr: 0.824
+    adf_p: 0.0011
+    halflife: 11.6
+  - y: AVOD
+    x: PINSU
+    sector: Gıda ve İçecek
+    corr: 0.872
+    adf_p: 0.0011
+    halflife: 11.0
+  - y: AVGYO
+    x: PSGYO
+    sector: Gayrimenkul
+    corr: 0.85
+    adf_p: 0.0012
+    halflife: 12.9
+  - y: MTRYO
+    x: VKFYO
+    sector: Menkul Kıymet Yat. Ort.
+    corr: 0.834
+    adf_p: 0.0012
+    halflife: 12.2
+  - y: MZHLD
+    x: GLRYH
+    sector: Holding
+    corr: 0.7
+    adf_p: 0.0012
+    halflife: 11.1
+  - y: BULGS
+    x: ISGSY
+    sector: Girişim Sermayesi Yat. Ort.
+    corr: 0.762
+    adf_p: 0.0013
+    halflife: 13.2
+  - y: ATLAS
+    x: MTRYO
+    sector: Menkul Kıymet Yat. Ort.
+    corr: 0.828
+    adf_p: 0.0013
+    halflife: 13.8
+  - y: AVOD
+    x: TABGD
+    sector: Gıda ve İçecek
+    corr: 0.881
+    adf_p: 0.0013
+    halflife: 11.2
+  - y: NUGYO
+    x: AKFGY
+    sector: Gayrimenkul
+    corr: 0.887
+    adf_p: 0.0013
+    halflife: 13.2
+  - y: ULUUN
+    x: PENGD
+    sector: Gıda ve İçecek
+    corr: 0.869
+    adf_p: 0.0013
+    halflife: 10.5
+  - y: CGCAM
+    x: SISE
+    sector: Cam, Seramik, Porselen
+    corr: 0.719
+    adf_p: 0.0013
+    halflife: 11.3
+  - y: PRDGS
+    x: ISGSY
+    sector: Girişim Sermayesi Yat. Ort.
+    corr: 0.79
+    adf_p: 0.0013
+    halflife: 11.7
+  - y: LYDYE
+    x: IZENR
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.718
+    adf_p: 0.0014
+    halflife: 14.1
+  - y: GARAN
+    x: YKBNK
+    sector: Bankacılık
+    corr: 0.91
+    adf_p: 0.0014
+    halflife: 15.2
+  - y: AVOD
+    x: OFSYM
+    sector: Gıda ve İçecek
+    corr: 0.874
+    adf_p: 0.0014
+    halflife: 11.0
+  - y: ACSEL
+    x: TARKM
+    sector: Kimya ve Plastik
+    corr: 0.799
+    adf_p: 0.0014
+    halflife: 8.0
+  - y: FONET
+    x: ODINE
+    sector: Bilişim ve Yazılım
+    corr: 0.93
+    adf_p: 0.0014
+    halflife: 15.3
+  - y: AVOD
+    x: KRSTL
+    sector: Gıda ve İçecek
+    corr: 0.85
+    adf_p: 0.0014
+    halflife: 13.5
+  - y: YIGIT
+    x: EGEEN
+    sector: Otomotiv Yan Sanayi
+    corr: 0.779
+    adf_p: 0.0014
+    halflife: 22.3
+  - y: KRVGD
+    x: FRIGO
+    sector: Gıda ve İçecek
+    corr: 0.879
+    adf_p: 0.0014
+    halflife: 12.9
+  - y: BRYAT
+    x: COSMO
+    sector: Holding
+    corr: 0.703
+    adf_p: 0.0015
+    halflife: 11.0
+  - y: EDIP
+    x: PSGYO
+    sector: Gayrimenkul
+    corr: 0.866
+    adf_p: 0.0016
+    halflife: 16.8
+  - y: YYLGD
+    x: KRVGD
+    sector: Gıda ve İçecek
+    corr: 0.771
+    adf_p: 0.0017
+    halflife: 12.4
+  - y: RNPOL
+    x: TRCAS
+    sector: Kimya ve Plastik
+    corr: 0.912
+    adf_p: 0.0017
+    halflife: 12.8
+  - y: MEGMT
+    x: BURVA
+    sector: Ana Metal
+    corr: 0.97
+    adf_p: 0.0017
+    halflife: 14.4
+  - y: ARASE
+    x: ECOGR
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.91
+    adf_p: 0.0018
+    halflife: 6.3
+  - y: JANTS
+    x: EGEEN
+    sector: Otomotiv Yan Sanayi
+    corr: 0.95
+    adf_p: 0.0018
+    halflife: 8.1
+  - y: ECOGR
+    x: MANAS
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.875
+    adf_p: 0.0018
+    halflife: 6.4
+  - y: YKBNK
+    x: HALKB
+    sector: Bankacılık
+    corr: 0.821
+    adf_p: 0.0018
+    halflife: 16.8
+  - y: OZGYO
+    x: PEKGY
+    sector: Gayrimenkul
+    corr: 0.903
+    adf_p: 0.0018
+    halflife: 13.0
+  - y: AKSGY
+    x: RGYAS
+    sector: Gayrimenkul
+    corr: 0.947
+    adf_p: 0.0018
+    halflife: 11.6
+  - y: HLGYO
+    x: KGYO
+    sector: Gayrimenkul
+    corr: 0.957
+    adf_p: 0.0018
+    halflife: 11.6
+  - y: ANGEN
+    x: MEDTR
+    sector: İlaç ve Sağlık
+    corr: 0.761
+    adf_p: 0.0019
+    halflife: 12.1
+  - y: OZGYO
+    x: EKGYO
+    sector: Gayrimenkul
+    corr: 0.912
+    adf_p: 0.0019
+    halflife: 11.8
+  - y: KLSER
+    x: EGSER
+    sector: Cam, Seramik, Porselen
+    corr: 0.877
+    adf_p: 0.0019
+    halflife: 8.0
+  - y: CMENT
+    x: CMBTN
+    sector: Taş, Toprak, Çimento
+    corr: 0.891
+    adf_p: 0.002
+    halflife: 7.6
+  - y: ODAS
+    x: ECOGR
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.826
+    adf_p: 0.002
+    halflife: 6.1
+  - y: MSGYO
+    x: AHSGY
+    sector: Gayrimenkul
+    corr: 0.895
+    adf_p: 0.002
+    halflife: 14.6
+  - y: PNSUT
+    x: ATAKP
+    sector: Gıda ve İçecek
+    corr: 0.827
+    adf_p: 0.002
+    halflife: 14.4
+  - y: TRHOL
+    x: DOHOL
+    sector: Holding
+    corr: 0.921
+    adf_p: 0.0021
+    halflife: 5.3
+  - y: EGEGY
+    x: AKFGY
+    sector: Gayrimenkul
+    corr: 0.899
+    adf_p: 0.0021
+    halflife: 10.3
+  - y: IDGYO
+    x: OZGYO
+    sector: Gayrimenkul
+    corr: 0.806
+    adf_p: 0.0021
+    halflife: 17.3
+  - y: AKMGY
+    x: PAGYO
+    sector: Gayrimenkul
+    corr: 0.812
+    adf_p: 0.0021
+    halflife: 12.8
+  - y: GARFA
+    x: DSTKF
+    sector: Faktoring
+    corr: 0.751
+    adf_p: 0.0023
+    halflife: 14.6
+  - y: AKMGY
+    x: MSGYO
+    sector: Gayrimenkul
+    corr: 0.792
+    adf_p: 0.0023
+    halflife: 13.2
+  - y: AKMGY
+    x: RGYAS
+    sector: Gayrimenkul
+    corr: 0.792
+    adf_p: 0.0024
+    halflife: 12.6
+  - y: YYLGD
+    x: BORSK
+    sector: Gıda ve İçecek
+    corr: 0.777
+    adf_p: 0.0024
+    halflife: 11.1
+  - y: HATSN
+    x: OZATD
+    sector: İmalat
+    corr: 0.73
+    adf_p: 0.0024
+    halflife: 15.3
+  - y: AVOD
+    x: KRVGD
+    sector: Gıda ve İçecek
+    corr: 0.834
+    adf_p: 0.0025
+    halflife: 12.4
+  - y: LYDYE
+    x: MAGEN
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.705
+    adf_p: 0.0025
+    halflife: 15.1
+  - y: BORSK
+    x: KTSKR
+    sector: Gıda ve İçecek
+    corr: 0.812
+    adf_p: 0.0026
+    halflife: 7.9
+  - y: KRDMD
+    x: KRDMB
+    sector: Ana Metal
+    corr: 0.933
+    adf_p: 0.0026
+    halflife: 12.0
+  - y: KTSKR
+    x: BYDNR
+    sector: Gıda ve İçecek
+    corr: 0.874
+    adf_p: 0.0026
+    halflife: 19.4
+  - y: ESCOM
+    x: EDATA
+    sector: Bilişim ve Yazılım
+    corr: 0.872
+    adf_p: 0.0026
+    halflife: 14.3
+  - y: EDIP
+    x: OZGYO
+    sector: Gayrimenkul
+    corr: 0.884
+    adf_p: 0.0027
+    halflife: 12.5
+  - y: BRSAN
+    x: OZYSR
+    sector: Ana Metal
+    corr: 0.797
+    adf_p: 0.0027
+    halflife: 22.6
+  - y: DMSAS
+    x: BMSCH
+    sector: Ana Metal
+    corr: 0.708
+    adf_p: 0.0027
+    halflife: 17.9
+  - y: ISDMR
+    x: KRDMB
+    sector: Ana Metal
+    corr: 0.948
+    adf_p: 0.0028
+    halflife: 13.6
+  - y: BALAT
+    x: DITAS
+    sector: Otomotiv Yan Sanayi
+    corr: 0.779
+    adf_p: 0.0028
+    halflife: 14.1
+  - y: ECZYT
+    x: POLHO
+    sector: Holding
+    corr: 0.939
+    adf_p: 0.0028
+    halflife: 12.3
+  - y: EUYO
+    x: GRNYO
+    sector: Menkul Kıymet Yat. Ort.
+    corr: 0.861
+    adf_p: 0.0029
+    halflife: 11.4
+  - y: AKMGY
+    x: YGGYO
+    sector: Gayrimenkul
+    corr: 0.798
+    adf_p: 0.0029
+    halflife: 13.1
+  - y: YYLGD
+    x: PETUN
+    sector: Gıda ve İçecek
+    corr: 0.759
+    adf_p: 0.0029
+    halflife: 12.2
+  - y: ECOGR
+    x: BASGZ
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.739
+    adf_p: 0.0029
+    halflife: 8.4
+  - y: GARAN
+    x: ALBRK
+    sector: Bankacılık
+    corr: 0.889
+    adf_p: 0.003
+    halflife: 14.3
+  - y: MEYSU
+    x: PENGD
+    sector: Gıda ve İçecek
+    corr: 0.819
+    adf_p: 0.0031
+    halflife: 5.4
+  - y: KMPUR
+    x: TARKM
+    sector: Kimya ve Plastik
+    corr: 0.773
+    adf_p: 0.0031
+    halflife: 12.5
+  - y: PEKGY
+    x: MSGYO
+    sector: Gayrimenkul
+    corr: 0.92
+    adf_p: 0.0031
+    halflife: 15.9
+  - y: ESCOM
+    x: ODINE
+    sector: Bilişim ve Yazılım
+    corr: 0.816
+    adf_p: 0.0031
+    halflife: 16.8
+  - y: BORSK
+    x: DUNYH
+    sector: Gıda ve İçecek
+    corr: 0.71
+    adf_p: 0.0031
+    halflife: 10.0
+  - y: BORSK
+    x: AVOD
+    sector: Gıda ve İçecek
+    corr: 0.767
+    adf_p: 0.0031
+    halflife: 8.4
+  - y: AEFES
+    x: TATGD
+    sector: Gıda ve İçecek
+    corr: 0.746
+    adf_p: 0.0032
+    halflife: 15.3
+  - y: AKFGY
+    x: KGYO
+    sector: Gayrimenkul
+    corr: 0.911
+    adf_p: 0.0032
+    halflife: 12.0
+  - y: ODAS
+    x: MANAS
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.762
+    adf_p: 0.0033
+    halflife: 16.8
+  - y: PETUN
+    x: PINSU
+    sector: Gıda ve İçecek
+    corr: 0.864
+    adf_p: 0.0034
+    halflife: 14.1
+  - y: ADGYO
+    x: PEKGY
+    sector: Gayrimenkul
+    corr: 0.933
+    adf_p: 0.0034
+    halflife: 17.9
+  - y: BEGYO
+    x: LXGYO
+    sector: Gayrimenkul
+    corr: 0.815
+    adf_p: 0.0035
+    halflife: 5.4
+  - y: GUBRF
+    x: OZRDN
+    sector: Kimya ve Plastik
+    corr: 0.903
+    adf_p: 0.0036
+    halflife: 17.9
+  - y: GUBRF
+    x: BAHKM
+    sector: Kimya ve Plastik
+    corr: 0.896
+    adf_p: 0.0036
+    halflife: 18.3
+  - y: TBORG
+    x: GRTHO
+    sector: Gıda ve İçecek
+    corr: 0.815
+    adf_p: 0.0037
+    halflife: 13.4
+  - y: BAYRK
+    x: MNDRS
+    sector: Tekstil, Giyim ve Deri
+    corr: 0.715
+    adf_p: 0.0038
+    halflife: 18.5
+  - y: LUKSK
+    x: ENSRI
+    sector: Tekstil, Giyim ve Deri
+    corr: 0.76
+    adf_p: 0.0038
+    halflife: 13.0
+  - y: MHRGY
+    x: NUGYO
+    sector: Gayrimenkul
+    corr: 0.764
+    adf_p: 0.0039
+    halflife: 13.6
+  - y: UNLU
+    x: OTTO
+    sector: Holding
+    corr: 0.715
+    adf_p: 0.004
+    halflife: 12.8
+  - y: IZMDC
+    x: ISDMR
+    sector: Ana Metal
+    corr: 0.791
+    adf_p: 0.004
+    halflife: 42.9
+  - y: MSGYO
+    x: ADGYO
+    sector: Gayrimenkul
+    corr: 0.886
+    adf_p: 0.0041
+    halflife: 15.4
+  - y: MSGYO
+    x: KGYO
+    sector: Gayrimenkul
+    corr: 0.886
+    adf_p: 0.0041
+    halflife: 15.1
+  - y: BAKAB
+    x: KRPLS
+    sector: Ambalaj
+    corr: 0.795
+    adf_p: 0.0041
+    halflife: 11.6
+  - y: YKBNK
+    x: SKBNK
+    sector: Bankacılık
+    corr: 0.723
+    adf_p: 0.0042
+    halflife: 23.4
+  - y: AVGYO
+    x: KGYO
+    sector: Gayrimenkul
+    corr: 0.818
+    adf_p: 0.0043
+    halflife: 15.6
+  - y: VERUS
+    x: KERVN
+    sector: Holding
+    corr: 0.86
+    adf_p: 0.0043
+    halflife: 19.3
+  - y: A1YEN
+    x: AYEN
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.75
+    adf_p: 0.0043
+    halflife: 11.2
+  - y: ATAGY
+    x: KLGYO
+    sector: Gayrimenkul
+    corr: 0.776
+    adf_p: 0.0043
+    halflife: 14.0
+  - y: AKMGY
+    x: AKSGY
+    sector: Gayrimenkul
+    corr: 0.83
+    adf_p: 0.0045
+    halflife: 11.1
+  - y: ENTRA
+    x: IZENR
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.825
+    adf_p: 0.0045
+    halflife: 13.0
+  - y: OZKGY
+    x: FZLGY
+    sector: Gayrimenkul
+    corr: 0.723
+    adf_p: 0.0045
+    halflife: 23.2
+  - y: KRDMD
+    x: ISDMR
+    sector: Ana Metal
+    corr: 0.938
+    adf_p: 0.0045
+    halflife: 13.3
+  - y: OBASE
+    x: MTRKS
+    sector: Bilişim ve Yazılım
+    corr: 0.71
+    adf_p: 0.0045
+    halflife: 12.7
+  - y: DURKN
+    x: GUNDG
+    sector: Gıda ve İçecek
+    corr: 0.767
+    adf_p: 0.0045
+    halflife: 12.7
+  - y: EDIP
+    x: KUYAS
+    sector: Gayrimenkul
+    corr: 0.848
+    adf_p: 0.0045
+    halflife: 19.7
+  - y: KRSTL
+    x: PINSU
+    sector: Gıda ve İçecek
+    corr: 0.882
+    adf_p: 0.0046
+    halflife: 16.9
+  - y: PNSUT
+    x: PINSU
+    sector: Gıda ve İçecek
+    corr: 0.841
+    adf_p: 0.0047
+    halflife: 16.3
+  - y: VKGYO
+    x: PEKGY
+    sector: Gayrimenkul
+    corr: 0.882
+    adf_p: 0.0047
+    halflife: 15.4
+  - y: ZGYO
+    x: PAGYO
+    sector: Gayrimenkul
+    corr: 0.707
+    adf_p: 0.0048
+    halflife: 7.5
+  - y: AKSGY
+    x: RYGYO
+    sector: Gayrimenkul
+    corr: 0.941
+    adf_p: 0.0048
+    halflife: 13.3
+  - y: KRVGD
+    x: ATAKP
+    sector: Gıda ve İçecek
+    corr: 0.852
+    adf_p: 0.0048
+    halflife: 14.1
+  - y: CCOLA
+    x: ARMGD
+    sector: Gıda ve İçecek
+    corr: 0.955
+    adf_p: 0.0048
+    halflife: 10.8
+  - y: A1YEN
+    x: ARASE
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.713
+    adf_p: 0.0048
+    halflife: 12.5
+  - y: MZHLD
+    x: PAHOL
+    sector: Holding
+    corr: 0.772
+    adf_p: 0.0048
+    halflife: 5.4
+  - y: ECOGR
+    x: AYDEM
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.715
+    adf_p: 0.0049
+    halflife: 10.5
+  - y: DMSAS
+    x: BMSTL
+    sector: Ana Metal
+    corr: 0.72
+    adf_p: 0.0049
+    halflife: 18.7
+  - y: AVOD
+    x: FRIGO
+    sector: Gıda ve İçecek
+    corr: 0.83
+    adf_p: 0.005
+    halflife: 15.0
+  - y: IZINV
+    x: MMCAS
+    sector: Holding
+    corr: 0.861
+    adf_p: 0.005
+    halflife: 12.2
+  - y: ERSU
+    x: KTSKR
+    sector: Gıda ve İçecek
+    corr: 0.833
+    adf_p: 0.0051
+    halflife: 12.1
+  - y: MEPET
+    x: TMPOL
+    sector: Kimya ve Plastik
+    corr: 0.943
+    adf_p: 0.0051
+    halflife: 16.7
+  - y: YESIL
+    x: INVEO
+    sector: Holding
+    corr: 0.741
+    adf_p: 0.0052
+    halflife: 15.4
+  - y: ODAS
+    x: ARASE
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.751
+    adf_p: 0.0052
+    halflife: 18.4
+  - y: KTSKR
+    x: GUNDG
+    sector: Gıda ve İçecek
+    corr: 0.881
+    adf_p: 0.0052
+    halflife: 22.2
+  - y: MERIT
+    x: TEKTU
+    sector: Turizm
+    corr: 0.849
+    adf_p: 0.0052
+    halflife: 13.8
+  - y: ZRGYO
+    x: DAPGM
+    sector: Gayrimenkul
+    corr: 0.776
+    adf_p: 0.0053
+    halflife: 26.8
+  - y: ATAGY
+    x: MRGYO
+    sector: Gayrimenkul
+    corr: 0.768
+    adf_p: 0.0053
+    halflife: 14.7
+  - y: ATAGY
+    x: KZBGY
+    sector: Gayrimenkul
+    corr: 0.751
+    adf_p: 0.0054
+    halflife: 14.7
+  - y: TSKB
+    x: ISCTR
+    sector: Bankacılık
+    corr: 0.762
+    adf_p: 0.0054
+    halflife: 15.7
+  - y: OSTIM
+    x: PAHOL
+    sector: Holding
+    corr: 0.811
+    adf_p: 0.0055
+    halflife: 5.5
+  - y: TRGYO
+    x: YGGYO
+    sector: Gayrimenkul
+    corr: 0.967
+    adf_p: 0.0056
+    halflife: 13.8
+  - y: ERSU
+    x: BYDNR
+    sector: Gıda ve İçecek
+    corr: 0.771
+    adf_p: 0.0056
+    halflife: 16.4
+  - y: VKGYO
+    x: NUGYO
+    sector: Gayrimenkul
+    corr: 0.799
+    adf_p: 0.0056
+    halflife: 19.2
+  - y: BORSK
+    x: BYDNR
+    sector: Gıda ve İçecek
+    corr: 0.811
+    adf_p: 0.0057
+    halflife: 7.7
+  - y: AVGYO
+    x: RGYAS
+    sector: Gayrimenkul
+    corr: 0.807
+    adf_p: 0.0058
+    halflife: 17.2
+  - y: AVGYO
+    x: PEKGY
+    sector: Gayrimenkul
+    corr: 0.822
+    adf_p: 0.0059
+    halflife: 17.6
+  - y: INTEK
+    x: LINK
+    sector: Bilişim ve Yazılım
+    corr: 0.85
+    adf_p: 0.0059
+    halflife: 18.9
+  - y: DURKN
+    x: KTSKR
+    sector: Gıda ve İçecek
+    corr: 0.719
+    adf_p: 0.0059
+    halflife: 13.9
+  - y: BYDNR
+    x: GUNDG
+    sector: Gıda ve İçecek
+    corr: 0.937
+    adf_p: 0.006
+    halflife: 13.3
+  - y: GARFA
+    x: LIDFA
+    sector: Faktoring
+    corr: 0.816
+    adf_p: 0.006
+    halflife: 15.9
+  - y: MHRGY
+    x: ADESE
+    sector: Gayrimenkul
+    corr: 0.781
+    adf_p: 0.0062
+    halflife: 14.1
+  - y: DOHOL
+    x: METRO
+    sector: Holding
+    corr: 0.911
+    adf_p: 0.0064
+    halflife: 15.4
+  - y: LUKSK
+    x: MNDRS
+    sector: Tekstil, Giyim ve Deri
+    corr: 0.74
+    adf_p: 0.0065
+    halflife: 13.9
+  - y: MSGYO
+    x: HLGYO
+    sector: Gayrimenkul
+    corr: 0.913
+    adf_p: 0.0067
+    halflife: 14.0
+  - y: IDGYO
+    x: NUGYO
+    sector: Gayrimenkul
+    corr: 0.827
+    adf_p: 0.0067
+    halflife: 13.7
+  - y: AKBNK
+    x: HALKB
+    sector: Bankacılık
+    corr: 0.801
+    adf_p: 0.0068
+    halflife: 20.9
+  - y: TRGYO
+    x: RGYAS
+    sector: Gayrimenkul
+    corr: 0.967
+    adf_p: 0.0069
+    halflife: 10.4
+  - y: FZLGY
+    x: IDGYO
+    sector: Gayrimenkul
+    corr: 0.722
+    adf_p: 0.0069
+    halflife: 26.0
+  - y: BRYAT
+    x: MMCAS
+    sector: Holding
+    corr: 0.724
+    adf_p: 0.0069
+    halflife: 11.0
+  - y: SNGYO
+    x: EYGYO
+    sector: Gayrimenkul
+    corr: 0.856
+    adf_p: 0.0069
+    halflife: 15.4
+  - y: AKMGY
+    x: RYGYO
+    sector: Gayrimenkul
+    corr: 0.761
+    adf_p: 0.007
+    halflife: 15.1
+  - y: DURKN
+    x: ARMGD
+    sector: Gıda ve İçecek
+    corr: 0.777
+    adf_p: 0.007
+    halflife: 11.8
+  - y: VKGYO
+    x: IDGYO
+    sector: Gayrimenkul
+    corr: 0.788
+    adf_p: 0.0071
+    halflife: 16.7
+  - y: TTKOM
+    x: IHAAS
+    sector: Haberleşme
+    corr: 0.773
+    adf_p: 0.0071
+    halflife: 14.7
+  - y: METRO
+    x: HEDEF
+    sector: Holding
+    corr: 0.955
+    adf_p: 0.0071
+    halflife: 23.5
+  - y: AKFYE
+    x: MOGAN
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.872
+    adf_p: 0.0072
+    halflife: 10.2
+  - y: PNSUT
+    x: BORSK
+    sector: Gıda ve İçecek
+    corr: 0.748
+    adf_p: 0.0073
+    halflife: 16.4
+  - y: HLGYO
+    x: TRGYO
+    sector: Gayrimenkul
+    corr: 0.969
+    adf_p: 0.0073
+    halflife: 13.5
+  - y: RNPOL
+    x: EGGUB
+    sector: Kimya ve Plastik
+    corr: 0.837
+    adf_p: 0.0073
+    halflife: 20.0
+  - y: AKMGY
+    x: TRGYO
+    sector: Gayrimenkul
+    corr: 0.763
+    adf_p: 0.0074
+    halflife: 15.2
+  - y: GRTHO
+    x: BALSU
+    sector: Gıda ve İçecek
+    corr: 0.778
+    adf_p: 0.0074
+    halflife: 14.3
+  - y: MEYSU
+    x: BORSK
+    sector: Gıda ve İçecek
+    corr: 0.708
+    adf_p: 0.0075
+    halflife: 6.3
+  - y: PETUN
+    x: MEYSU
+    sector: Gıda ve İçecek
+    corr: 0.759
+    adf_p: 0.0076
+    halflife: 5.9
+  - y: MNDRS
+    x: ENSRI
+    sector: Tekstil, Giyim ve Deri
+    corr: 0.851
+    adf_p: 0.0077
+    halflife: 15.6
+  - y: ESCOM
+    x: ARDYZ
+    sector: Bilişim ve Yazılım
+    corr: 0.868
+    adf_p: 0.0077
+    halflife: 14.8
+  - y: BYDNR
+    x: SEGMN
+    sector: Gıda ve İçecek
+    corr: 0.919
+    adf_p: 0.0078
+    halflife: 14.4
+  - y: ZGYO
+    x: RGYAS
+    sector: Gayrimenkul
+    corr: 0.717
+    adf_p: 0.0079
+    halflife: 7.8
+  - y: OZGYO
+    x: HLGYO
+    sector: Gayrimenkul
+    corr: 0.9
+    adf_p: 0.0079
+    halflife: 14.7
+  - y: MANAS
+    x: CATES
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.759
+    adf_p: 0.0079
+    halflife: 25.7
+  - y: KLGYO
+    x: EYGYO
+    sector: Gayrimenkul
+    corr: 0.819
+    adf_p: 0.008
+    halflife: 14.7
+  - y: DGATE
+    x: MOBTL
+    sector: Teknolojik Ürün Ticareti
+    corr: 0.887
+    adf_p: 0.008
+    halflife: 18.7
+  - y: KRPLS
+    x: KAPLM
+    sector: Ambalaj
+    corr: 0.852
+    adf_p: 0.008
+    halflife: 12.4
+  - y: VAKBN
+    x: HALKB
+    sector: Bankacılık
+    corr: 0.918
+    adf_p: 0.008
+    halflife: 17.6
+  - y: EGEGY
+    x: KGYO
+    sector: Gayrimenkul
+    corr: 0.921
+    adf_p: 0.0081
+    halflife: 11.2
+  - y: MHRGY
+    x: OZGYO
+    sector: Gayrimenkul
+    corr: 0.776
+    adf_p: 0.0081
+    halflife: 13.9
+  - y: OZGYO
+    x: KGYO
+    sector: Gayrimenkul
+    corr: 0.937
+    adf_p: 0.0081
+    halflife: 7.2
+  - y: ADGYO
+    x: KGYO
+    sector: Gayrimenkul
+    corr: 0.923
+    adf_p: 0.0082
+    halflife: 14.7
+  - y: BORSK
+    x: TABGD
+    sector: Gıda ve İçecek
+    corr: 0.71
+    adf_p: 0.0082
+    halflife: 10.8
+  - y: YKBNK
+    x: ALBRK
+    sector: Bankacılık
+    corr: 0.837
+    adf_p: 0.0083
+    halflife: 21.4
+  - y: BAYRK
+    x: DESA
+    sector: Tekstil, Giyim ve Deri
+    corr: 0.726
+    adf_p: 0.0084
+    halflife: 17.2
+  - y: MHRGY
+    x: PSGYO
+    sector: Gayrimenkul
+    corr: 0.792
+    adf_p: 0.0084
+    halflife: 13.7
+  - y: GARAN
+    x: HALKB
+    sector: Bankacılık
+    corr: 0.782
+    adf_p: 0.0087
+    halflife: 17.8
+  - y: TSKB
+    x: GARAN
+    sector: Bankacılık
+    corr: 0.736
+    adf_p: 0.0087
+    halflife: 16.1
+  - y: GARAN
+    x: VAKBN
+    sector: Bankacılık
+    corr: 0.87
+    adf_p: 0.0087
+    halflife: 16.4
+  - y: RGYAS
+    x: YGGYO
+    sector: Gayrimenkul
+    corr: 0.951
+    adf_p: 0.0088
+    halflife: 14.3
+  - y: AVGYO
+    x: ADGYO
+    sector: Gayrimenkul
+    corr: 0.798
+    adf_p: 0.0088
+    halflife: 17.0
+  - y: BORSK
+    x: KRVGD
+    sector: Gıda ve İçecek
+    corr: 0.834
+    adf_p: 0.0088
+    halflife: 8.1
+  - y: EUYO
+    x: OYAYO
+    sector: Menkul Kıymet Yat. Ort.
+    corr: 0.834
+    adf_p: 0.009
+    halflife: 14.1
+  - y: ULUUN
+    x: GUNDG
+    sector: Gıda ve İçecek
+    corr: 0.785
+    adf_p: 0.009
+    halflife: 14.8
+  - y: BAKAB
+    x: KAPLM
+    sector: Ambalaj
+    corr: 0.749
+    adf_p: 0.0092
+    halflife: 15.1
+  - y: DURKN
+    x: BYDNR
+    sector: Gıda ve İçecek
+    corr: 0.809
+    adf_p: 0.0092
+    halflife: 8.7
+  - y: ADGYO
+    x: AHSGY
+    sector: Gayrimenkul
+    corr: 0.941
+    adf_p: 0.0092
+    halflife: 14.4
+  - y: ULUUN
+    x: KTSKR
+    sector: Gıda ve İçecek
+    corr: 0.822
+    adf_p: 0.0094
+    halflife: 14.3
+  - y: OBASE
+    x: PKART
+    sector: Bilişim ve Yazılım
+    corr: 0.72
+    adf_p: 0.0094
+    halflife: 12.7
+  - y: EGGUB
+    x: IZFAS
+    sector: Kimya ve Plastik
+    corr: 0.865
+    adf_p: 0.0095
+    halflife: 19.6
+  - y: KUVVA
+    x: DUNYH
+    sector: Gıda ve İçecek
+    corr: 0.911
+    adf_p: 0.0101
+    halflife: 20.7
+  - y: NUGYO
+    x: OZGYO
+    sector: Gayrimenkul
+    corr: 0.861
+    adf_p: 0.0101
+    halflife: 12.6
+  - y: AVGYO
+    x: AKSGY
+    sector: Gayrimenkul
+    corr: 0.755
+    adf_p: 0.0102
+    halflife: 19.2
+  - y: VKGYO
+    x: AHSGY
+    sector: Gayrimenkul
+    corr: 0.825
+    adf_p: 0.0103
+    halflife: 19.5
+  - y: EKGYO
+    x: AKFGY
+    sector: Gayrimenkul
+    corr: 0.914
+    adf_p: 0.0104
+    halflife: 16.2
+  - y: ARCLK
+    x: ARZUM
+    sector: Dayanıklı Tüketim Ürünleri
+    corr: 0.817
+    adf_p: 0.0104
+    halflife: 15.4
+  - y: AKMGY
+    x: HLGYO
+    sector: Gayrimenkul
+    corr: 0.768
+    adf_p: 0.0104
+    halflife: 15.4
+  - y: MARTI
+    x: PKENT
+    sector: Turizm
+    corr: 0.875
+    adf_p: 0.0104
+    halflife: 16.6
+  - y: GRNYO
+    x: OYAYO
+    sector: Menkul Kıymet Yat. Ort.
+    corr: 0.897
+    adf_p: 0.0105
+    halflife: 16.7
+  - y: MNDRS
+    x: DESA
+    sector: Tekstil, Giyim ve Deri
+    corr: 0.847
+    adf_p: 0.0105
+    halflife: 13.1
+  - y: EDIP
+    x: ADGYO
+    sector: Gayrimenkul
+    corr: 0.787
+    adf_p: 0.0105
+    halflife: 26.9
+  - y: EDIP
+    x: IDGYO
+    sector: Gayrimenkul
+    corr: 0.796
+    adf_p: 0.0105
+    halflife: 19.2
+  - y: AVGYO
+    x: PAGYO
+    sector: Gayrimenkul
+    corr: 0.805
+    adf_p: 0.0106
+    halflife: 18.2
+  - y: AYGAZ
+    x: BAHKM
+    sector: Kimya ve Plastik
+    corr: 0.913
+    adf_p: 0.0107
+    halflife: 21.5
+  - y: ZRGYO
+    x: KUYAS
+    sector: Gayrimenkul
+    corr: 0.77
+    adf_p: 0.0109
+    halflife: 36.0
+  - y: MHRGY
+    x: AKFGY
+    sector: Gayrimenkul
+    corr: 0.732
+    adf_p: 0.0109
+    halflife: 15.9
+  - y: AVGYO
+    x: TRGYO
+    sector: Gayrimenkul
+    corr: 0.803
+    adf_p: 0.011
+    halflife: 18.2
+  - y: BYDNR
+    x: ALKLC
+    sector: Gıda ve İçecek
+    corr: 0.917
+    adf_p: 0.0111
+    halflife: 16.3
+  - y: ATAGY
+    x: DAPGM
+    sector: Gayrimenkul
+    corr: 0.728
+    adf_p: 0.0112
+    halflife: 17.8
+  - y: GUNDG
+    x: AKHAN
+    sector: Gıda ve İçecek
+    corr: 0.794
+    adf_p: 0.0113
+    halflife: 11.6
+  - y: LUKSK
+    x: SNPAM
+    sector: Tekstil, Giyim ve Deri
+    corr: 0.704
+    adf_p: 0.0113
+    halflife: 15.0
+  - y: AVPGY
+    x: IHLGM
+    sector: Gayrimenkul
+    corr: 0.734
+    adf_p: 0.0113
+    halflife: 15.8
+  - y: EDIP
+    x: AKFGY
+    sector: Gayrimenkul
+    corr: 0.896
+    adf_p: 0.0113
+    halflife: 12.9
+  - y: KRSTL
+    x: OFSYM
+    sector: Gıda ve İçecek
+    corr: 0.908
+    adf_p: 0.0113
+    halflife: 14.4
+  - y: OBASE
+    x: ATATP
+    sector: Bilişim ve Yazılım
+    corr: 0.762
+    adf_p: 0.0114
+    halflife: 11.5
+  - y: ULUFA
+    x: DSTKF
+    sector: Faktoring
+    corr: 0.775
+    adf_p: 0.0114
+    halflife: 12.1
+  - y: PETUN
+    x: BORSK
+    sector: Gıda ve İçecek
+    corr: 0.78
+    adf_p: 0.0115
+    halflife: 13.2
+  - y: ENTRA
+    x: ENERY
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.806
+    adf_p: 0.0115
+    halflife: 16.6
+  - y: PAHOL
+    x: UNLU
+    sector: Holding
+    corr: 0.728
+    adf_p: 0.0117
+    halflife: 6.3
+  - y: AVGYO
+    x: OZGYO
+    sector: Gayrimenkul
+    corr: 0.781
+    adf_p: 0.012
+    halflife: 18.1
+  - y: INTEM
+    x: LYDHO
+    sector: Toptan ve Perakende Ticaret
+    corr: 0.804
+    adf_p: 0.0121
+    halflife: 17.0
+  - y: OZKGY
+    x: EKGYO
+    sector: Gayrimenkul
+    corr: 0.862
+    adf_p: 0.0122
+    halflife: 15.9
+  - y: TCELL
+    x: IHAAS
+    sector: Haberleşme
+    corr: 0.715
+    adf_p: 0.0123
+    halflife: 15.7
+  - y: TRMET
+    x: TRALT
+    sector: Madencilik ve Taş Ocakçılığı
+    corr: 0.952
+    adf_p: 0.0124
+    halflife: 19.8
+  - y: YKSLN
+    x: TUCLK
+    sector: Ana Metal
+    corr: 0.931
+    adf_p: 0.0124
+    halflife: 12.1
+  - y: DOHOL
+    x: HEDEF
+    sector: Holding
+    corr: 0.918
+    adf_p: 0.0125
+    halflife: 15.4
+  - y: ULUUN
+    x: ALKLC
+    sector: Gıda ve İçecek
+    corr: 0.792
+    adf_p: 0.0125
+    halflife: 16.0
+  - y: INVES
+    x: KERVN
+    sector: Holding
+    corr: 0.858
+    adf_p: 0.0126
+    halflife: 26.3
+  - y: SARKY
+    x: BURVA
+    sector: Ana Metal
+    corr: 0.934
+    adf_p: 0.0126
+    halflife: 24.6
+  - y: KLKIM
+    x: EKIZ
+    sector: Kimya ve Plastik
+    corr: 0.716
+    adf_p: 0.0126
+    halflife: 16.3
+  - y: EGEGY
+    x: OZGYO
+    sector: Gayrimenkul
+    corr: 0.91
+    adf_p: 0.0126
+    halflife: 7.9
+  - y: IDGYO
+    x: MSGYO
+    sector: Gayrimenkul
+    corr: 0.774
+    adf_p: 0.0126
+    halflife: 19.0
+  - y: DAGI
+    x: BRMEN
+    sector: Tekstil, Giyim ve Deri
+    corr: 0.794
+    adf_p: 0.0127
+    halflife: 22.4
+  - y: VKGYO
+    x: HLGYO
+    sector: Gayrimenkul
+    corr: 0.918
+    adf_p: 0.0127
+    halflife: 18.4
+  - y: VKGYO
+    x: OZKGY
+    sector: Gayrimenkul
+    corr: 0.874
+    adf_p: 0.0128
+    halflife: 15.7
+  - y: KUYAS
+    x: EGEGY
+    sector: Gayrimenkul
+    corr: 0.86
+    adf_p: 0.0129
+    halflife: 15.4
+  - y: ATLAS
+    x: GRNYO
+    sector: Menkul Kıymet Yat. Ort.
+    corr: 0.791
+    adf_p: 0.0129
+    halflife: 14.8
+  - y: ZOREN
+    x: NATEN
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.805
+    adf_p: 0.0131
+    halflife: 20.5
+  - y: TABGD
+    x: DUNYH
+    sector: Gıda ve İçecek
+    corr: 0.944
+    adf_p: 0.0131
+    halflife: 13.6
+  - y: MOGAN
+    x: MANAS
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.783
+    adf_p: 0.0131
+    halflife: 23.8
+  - y: LXGYO
+    x: ADESE
+    sector: Gayrimenkul
+    corr: 0.763
+    adf_p: 0.0133
+    halflife: 8.0
+  - y: SRVGY
+    x: TSGYO
+    sector: Gayrimenkul
+    corr: 0.787
+    adf_p: 0.0133
+    halflife: 23.6
+  - y: BASGZ
+    x: MAGEN
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.959
+    adf_p: 0.0133
+    halflife: 16.0
+  - y: MTRKS
+    x: ATATP
+    sector: Bilişim ve Yazılım
+    corr: 0.783
+    adf_p: 0.0134
+    halflife: 19.9
+  - y: EDIP
+    x: PEKGY
+    sector: Gayrimenkul
+    corr: 0.846
+    adf_p: 0.0134
+    halflife: 21.8
+  - y: MHRGY
+    x: DAPGM
+    sector: Gayrimenkul
+    corr: 0.744
+    adf_p: 0.0135
+    halflife: 16.1
+  - y: PNSUT
+    x: OFSYM
+    sector: Gıda ve İçecek
+    corr: 0.711
+    adf_p: 0.0135
+    halflife: 22.2
+  - y: DSTKF
+    x: LIDFA
+    sector: Faktoring
+    corr: 0.925
+    adf_p: 0.0136
+    halflife: 15.7
+  - y: AKFGY
+    x: PEKGY
+    sector: Gayrimenkul
+    corr: 0.871
+    adf_p: 0.0136
+    halflife: 20.2
+  - y: PAHOL
+    x: IHLAS
+    sector: Holding
+    corr: 0.723
+    adf_p: 0.0137
+    halflife: 6.4
+  - y: MTRYO
+    x: ETYAT
+    sector: Menkul Kıymet Yat. Ort.
+    corr: 0.825
+    adf_p: 0.0137
+    halflife: 15.5
+  - y: RNPOL
+    x: MEPET
+    sector: Kimya ve Plastik
+    corr: 0.877
+    adf_p: 0.0138
+    halflife: 16.4
+  - y: IDGYO
+    x: HLGYO
+    sector: Gayrimenkul
+    corr: 0.844
+    adf_p: 0.0139
+    halflife: 16.6
+  - y: ZRGYO
+    x: SNGYO
+    sector: Gayrimenkul
+    corr: 0.75
+    adf_p: 0.014
+    halflife: 29.1
+  - y: LUKSK
+    x: DESA
+    sector: Tekstil, Giyim ve Deri
+    corr: 0.816
+    adf_p: 0.014
+    halflife: 9.5
+  - y: LYDHO
+    x: GMTAS
+    sector: Toptan ve Perakende Ticaret
+    corr: 0.867
+    adf_p: 0.014
+    halflife: 23.3
+  - y: KRSTL
+    x: DUNYH
+    sector: Gıda ve İçecek
+    corr: 0.928
+    adf_p: 0.0141
+    halflife: 14.0
+  - y: GESAN
+    x: ASTOR
+    sector: Enerji Teknolojileri
+    corr: 0.85
+    adf_p: 0.0141
+    halflife: 19.8
+  - y: PNSUT
+    x: KRSTL
+    sector: Gıda ve İçecek
+    corr: 0.729
+    adf_p: 0.0141
+    halflife: 20.0
+  - y: METRO
+    x: IEYHO
+    sector: Holding
+    corr: 0.944
+    adf_p: 0.0143
+    halflife: 25.1
+  - y: KOCMT
+    x: IZMDC
+    sector: Ana Metal
+    corr: 0.776
+    adf_p: 0.0144
+    halflife: 21.1
+  - y: DYOBY
+    x: SANFM
+    sector: Kimya ve Plastik
+    corr: 0.807
+    adf_p: 0.0144
+    halflife: 24.3
+  - y: HATEK
+    x: DERHL
+    sector: Tekstil, Giyim ve Deri
+    corr: 0.811
+    adf_p: 0.0145
+    halflife: 21.4
+  - y: KLGYO
+    x: DAPGM
+    sector: Gayrimenkul
+    corr: 0.822
+    adf_p: 0.0147
+    halflife: 16.4
+  - y: AVGYO
+    x: HLGYO
+    sector: Gayrimenkul
+    corr: 0.793
+    adf_p: 0.0149
+    halflife: 20.0
+  - y: KRSTL
+    x: TABGD
+    sector: Gıda ve İçecek
+    corr: 0.916
+    adf_p: 0.0149
+    halflife: 16.6
+  - y: PNSUT
+    x: DUNYH
+    sector: Gıda ve İçecek
+    corr: 0.719
+    adf_p: 0.015
+    halflife: 23.0
+  - y: DAPGM
+    x: SNGYO
+    sector: Gayrimenkul
+    corr: 0.83
+    adf_p: 0.0152
+    halflife: 23.9
+  - y: TBORG
+    x: EFOR
+    sector: Gıda ve İçecek
+    corr: 0.763
+    adf_p: 0.0152
+    halflife: 17.2
+  - y: NUGYO
+    x: KGYO
+    sector: Gayrimenkul
+    corr: 0.797
+    adf_p: 0.0153
+    halflife: 18.3
+  - y: IDGYO
+    x: EGEGY
+    sector: Gayrimenkul
+    corr: 0.788
+    adf_p: 0.0153
+    halflife: 15.0
+  - y: AVGYO
+    x: YGGYO
+    sector: Gayrimenkul
+    corr: 0.79
+    adf_p: 0.0154
+    halflife: 20.0
+  - y: HUBVC
+    x: ISGSY
+    sector: Girişim Sermayesi Yat. Ort.
+    corr: 0.797
+    adf_p: 0.0155
+    halflife: 24.3
+  - y: RALYH
+    x: TRHOL
+    sector: Holding
+    corr: 0.936
+    adf_p: 0.0156
+    halflife: 6.0
+  - y: VKGYO
+    x: ADGYO
+    sector: Gayrimenkul
+    corr: 0.832
+    adf_p: 0.0158
+    halflife: 19.8
+  - y: ULUUN
+    x: AVOD
+    sector: Gıda ve İçecek
+    corr: 0.762
+    adf_p: 0.0158
+    halflife: 15.9
+  - y: AVGYO
+    x: RYGYO
+    sector: Gayrimenkul
+    corr: 0.763
+    adf_p: 0.0158
+    halflife: 20.4
+  - y: VKGYO
+    x: MSGYO
+    sector: Gayrimenkul
+    corr: 0.845
+    adf_p: 0.0159
+    halflife: 17.6
+  - y: AVGYO
+    x: MSGYO
+    sector: Gayrimenkul
+    corr: 0.751
+    adf_p: 0.0159
+    halflife: 19.9
+  - y: LUKSK
+    x: BRMEN
+    sector: Tekstil, Giyim ve Deri
+    corr: 0.719
+    adf_p: 0.0159
+    halflife: 15.2
+  - y: ODINE
+    x: EDATA
+    sector: Bilişim ve Yazılım
+    corr: 0.946
+    adf_p: 0.016
+    halflife: 27.6
+  - y: ULUUN
+    x: KUVVA
+    sector: Gıda ve İçecek
+    corr: 0.749
+    adf_p: 0.016
+    halflife: 17.2
+  - y: FZLGY
+    x: EDIP
+    sector: Gayrimenkul
+    corr: 0.801
+    adf_p: 0.0163
+    halflife: 29.7
+  - y: CMBTN
+    x: KONYA
+    sector: Taş, Toprak, Çimento
+    corr: 0.945
+    adf_p: 0.0163
+    halflife: 14.1
+  - y: SUNTK
+    x: DAGI
+    sector: Tekstil, Giyim ve Deri
+    corr: 0.716
+    adf_p: 0.0165
+    halflife: 23.4
+  - y: BAKAB
+    x: SEKUR
+    sector: Ambalaj
+    corr: 0.748
+    adf_p: 0.0166
+    halflife: 15.5
+  - y: TRCAS
+    x: IZFAS
+    sector: Kimya ve Plastik
+    corr: 0.917
+    adf_p: 0.0167
+    halflife: 18.9
+  - y: AVGYO
+    x: EDIP
+    sector: Gayrimenkul
+    corr: 0.747
+    adf_p: 0.0167
+    halflife: 20.7
+  - y: BORSK
+    x: PINSU
+    sector: Gıda ve İçecek
+    corr: 0.73
+    adf_p: 0.0168
+    halflife: 10.3
+  - y: UFUK
+    x: RALYH
+    sector: Holding
+    corr: 0.904
+    adf_p: 0.0168
+    halflife: 27.5
+  - y: EDIP
+    x: EKGYO
+    sector: Gayrimenkul
+    corr: 0.861
+    adf_p: 0.0171
+    halflife: 20.4
+  - y: BORSK
+    x: GUNDG
+    sector: Gıda ve İçecek
+    corr: 0.723
+    adf_p: 0.0173
+    halflife: 11.5
+  - y: MERIT
+    x: MAALT
+    sector: Turizm
+    corr: 0.776
+    adf_p: 0.0174
+    halflife: 16.7
+  - y: RGYAS
+    x: RYGYO
+    sector: Gayrimenkul
+    corr: 0.939
+    adf_p: 0.0175
+    halflife: 16.5
+  - y: IDGYO
+    x: KGYO
+    sector: Gayrimenkul
+    corr: 0.817
+    adf_p: 0.0175
+    halflife: 18.0
+  - y: GUNDG
+    x: ARMGD
+    sector: Gıda ve İçecek
+    corr: 0.973
+    adf_p: 0.0177
+    halflife: 21.7
+  - y: UFUK
+    x: TRHOL
+    sector: Holding
+    corr: 0.938
+    adf_p: 0.0177
+    halflife: 5.6
+  - y: MPARK
+    x: EGEPO
+    sector: İlaç ve Sağlık
+    corr: 0.787
+    adf_p: 0.0177
+    halflife: 16.8
+  - y: EDIP
+    x: NUGYO
+    sector: Gayrimenkul
+    corr: 0.788
+    adf_p: 0.0178
+    halflife: 20.6
+  - y: CIMSA
+    x: LMKDC
+    sector: Taş, Toprak, Çimento
+    corr: 0.817
+    adf_p: 0.0179
+    halflife: 17.0
+  - y: KLGYO
+    x: TDGYO
+    sector: Gayrimenkul
+    corr: 0.741
+    adf_p: 0.018
+    halflife: 21.5
+  - y: OZKGY
+    x: OZGYO
+    sector: Gayrimenkul
+    corr: 0.77
+    adf_p: 0.0184
+    halflife: 17.9
+  - y: VKGYO
+    x: EDIP
+    sector: Gayrimenkul
+    corr: 0.836
+    adf_p: 0.0185
+    halflife: 18.7
+  - y: KRSTL
+    x: PETUN
+    sector: Gıda ve İçecek
+    corr: 0.757
+    adf_p: 0.0188
+    halflife: 23.5
+  - y: OFSYM
+    x: PINSU
+    sector: Gıda ve İçecek
+    corr: 0.879
+    adf_p: 0.0189
+    halflife: 16.9
+  - y: IHYAY
+    x: PAHOL
+    sector: Holding
+    corr: 0.794
+    adf_p: 0.019
+    halflife: 7.2
+  - y: BAGFS
+    x: EGGUB
+    sector: Kimya ve Plastik
+    corr: 0.824
+    adf_p: 0.0191
+    halflife: 22.6
+  - y: EREGL
+    x: KRDMB
+    sector: Ana Metal
+    corr: 0.929
+    adf_p: 0.0192
+    halflife: 17.4
+  - y: AGROT
+    x: BANVT
+    sector: Gıda ve İçecek
+    corr: 0.936
+    adf_p: 0.0193
+    halflife: 15.6
+  - y: MSGYO
+    x: OZGYO
+    sector: Gayrimenkul
+    corr: 0.798
+    adf_p: 0.0193
+    halflife: 21.2
+  - y: ECILC
+    x: ONCSM
+    sector: İlaç ve Sağlık
+    corr: 0.878
+    adf_p: 0.0193
+    halflife: 28.7
+  - y: MRGYO
+    x: EYGYO
+    sector: Gayrimenkul
+    corr: 0.778
+    adf_p: 0.0193
+    halflife: 27.1
+  - y: PETUN
+    x: DUNYH
+    sector: Gıda ve İçecek
+    corr: 0.765
+    adf_p: 0.0195
+    halflife: 19.5
+  - y: DESA
+    x: ENSRI
+    sector: Tekstil, Giyim ve Deri
+    corr: 0.84
+    adf_p: 0.0195
+    halflife: 17.2
+  - y: AVPGY
+    x: MHRGY
+    sector: Gayrimenkul
+    corr: 0.73
+    adf_p: 0.0199
+    halflife: 14.2
+  - y: GLRMK
+    x: ENKAI
+    sector: İnşaat
+    corr: 0.71
+    adf_p: 0.0199
+    halflife: 15.8
+  - y: ALARK
+    x: KCHOL
+    sector: Holding
+    corr: 0.702
+    adf_p: 0.02
+    halflife: 22.1
+  - y: KCHOL
+    x: IEYHO
+    sector: Holding
+    corr: 0.747
+    adf_p: 0.0202
+    halflife: 18.6
+  - y: AYEN
+    x: ARASE
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.817
+    adf_p: 0.0203
+    halflife: 16.7
+  - y: ATAKP
+    x: BORSK
+    sector: Gıda ve İçecek
+    corr: 0.771
+    adf_p: 0.0204
+    halflife: 15.8
+  - y: EGPRO
+    x: BAHKM
+    sector: Kimya ve Plastik
+    corr: 0.828
+    adf_p: 0.0204
+    halflife: 27.4
+  - y: REEDR
+    x: INTEK
+    sector: Bilişim ve Yazılım
+    corr: 0.879
+    adf_p: 0.0205
+    halflife: 18.0
+  - y: ERSU
+    x: SOKE
+    sector: Gıda ve İçecek
+    corr: 0.792
+    adf_p: 0.0206
+    halflife: 15.4
+  - y: KTSKR
+    x: ALKLC
+    sector: Gıda ve İçecek
+    corr: 0.882
+    adf_p: 0.0207
+    halflife: 23.1
+  - y: ARCLK
+    x: VESBE
+    sector: Dayanıklı Tüketim Ürünleri
+    corr: 0.893
+    adf_p: 0.0207
+    halflife: 16.3
+  - y: AKMGY
+    x: KGYO
+    sector: Gayrimenkul
+    corr: 0.705
+    adf_p: 0.0207
+    halflife: 17.5
+  - y: OZKGY
+    x: NUGYO
+    sector: Gayrimenkul
+    corr: 0.753
+    adf_p: 0.0209
+    halflife: 19.4
+  - y: PRDGS
+    x: HUBVC
+    sector: Girişim Sermayesi Yat. Ort.
+    corr: 0.727
+    adf_p: 0.0209
+    halflife: 16.9
+  - y: ATAKP
+    x: PINSU
+    sector: Gıda ve İçecek
+    corr: 0.865
+    adf_p: 0.021
+    halflife: 15.2
+  - y: ATAGY
+    x: ADESE
+    sector: Gayrimenkul
+    corr: 0.74
+    adf_p: 0.021
+    halflife: 18.3
+  - y: VKGYO
+    x: ALGYO
+    sector: Gayrimenkul
+    corr: 0.743
+    adf_p: 0.0211
+    halflife: 26.6
+  - y: OZKGY
+    x: PEKGY
+    sector: Gayrimenkul
+    corr: 0.766
+    adf_p: 0.0212
+    halflife: 18.1
+  - y: MHRGY
+    x: FZLGY
+    sector: Gayrimenkul
+    corr: 0.709
+    adf_p: 0.0213
+    halflife: 17.6
+  - y: IZINV
+    x: KLRHO
+    sector: Holding
+    corr: 0.726
+    adf_p: 0.0217
+    halflife: 22.2
+  - y: OZKGY
+    x: KGYO
+    sector: Gayrimenkul
+    corr: 0.746
+    adf_p: 0.0217
+    halflife: 18.0
+  - y: ATLAS
+    x: OYAYO
+    sector: Menkul Kıymet Yat. Ort.
+    corr: 0.732
+    adf_p: 0.0222
+    halflife: 20.6
+  - y: ULUUN
+    x: BYDNR
+    sector: Gıda ve İçecek
+    corr: 0.767
+    adf_p: 0.0223
+    halflife: 17.7
+  - y: KRPLS
+    x: SEKUR
+    sector: Ambalaj
+    corr: 0.74
+    adf_p: 0.0224
+    halflife: 17.4
+  - y: VANGD
+    x: DMRGD
+    sector: Gıda ve İçecek
+    corr: 0.94
+    adf_p: 0.0225
+    halflife: 23.3
+  - y: EDIP
+    x: MHRGY
+    sector: Gayrimenkul
+    corr: 0.706
+    adf_p: 0.0225
+    halflife: 26.4
+  - y: BYDNR
+    x: ARMGD
+    sector: Gıda ve İçecek
+    corr: 0.933
+    adf_p: 0.0227
+    halflife: 14.3
+  - y: PSGYO
+    x: KGYO
+    sector: Gayrimenkul
+    corr: 0.903
+    adf_p: 0.0228
+    halflife: 17.8
+  - y: EDIP
+    x: KGYO
+    sector: Gayrimenkul
+    corr: 0.85
+    adf_p: 0.0229
+    halflife: 18.8
+  - y: YKBNK
+    x: AKBNK
+    sector: Bankacılık
+    corr: 0.939
+    adf_p: 0.0229
+    halflife: 20.3
+  - y: NUGYO
+    x: PEKGY
+    sector: Gayrimenkul
+    corr: 0.795
+    adf_p: 0.0231
+    halflife: 21.1
+  - y: FZLGY
+    x: EKGYO
+    sector: Gayrimenkul
+    corr: 0.868
+    adf_p: 0.0232
+    halflife: 28.3
+  - y: OTKAR
+    x: TMSN
+    sector: Otomotiv
+    corr: 0.733
+    adf_p: 0.0232
+    halflife: 20.1
+  - y: EGEGY
+    x: EKGYO
+    sector: Gayrimenkul
+    corr: 0.881
+    adf_p: 0.0233
+    halflife: 13.7
+  - y: ENTRA
+    x: YAYLA
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.747
+    adf_p: 0.0233
+    halflife: 16.7
+  - y: OZKGY
+    x: AKFGY
+    sector: Gayrimenkul
+    corr: 0.805
+    adf_p: 0.0234
+    halflife: 19.8
+  - y: DOHOL
+    x: IEYHO
+    sector: Holding
+    corr: 0.915
+    adf_p: 0.0238
+    halflife: 16.2
+  - y: ISCTR
+    x: VAKBN
+    sector: Bankacılık
+    corr: 0.769
+    adf_p: 0.024
+    halflife: 22.1
+  - y: YUNSA
+    x: ARSAN
+    sector: Tekstil, Giyim ve Deri
+    corr: 0.833
+    adf_p: 0.024
+    halflife: 18.6
+  - y: MSGYO
+    x: AKSGY
+    sector: Gayrimenkul
+    corr: 0.864
+    adf_p: 0.0242
+    halflife: 21.6
+  - y: MTRKS
+    x: PKART
+    sector: Bilişim ve Yazılım
+    corr: 0.717
+    adf_p: 0.0243
+    halflife: 24.9
+  - y: DAPGM
+    x: KZBGY
+    sector: Gayrimenkul
+    corr: 0.757
+    adf_p: 0.0243
+    halflife: 36.4
+  - y: DUNYH
+    x: PINSU
+    sector: Gıda ve İçecek
+    corr: 0.919
+    adf_p: 0.0245
+    halflife: 18.4
+  - y: AEFES
+    x: ARMGD
+    sector: Gıda ve İçecek
+    corr: 0.811
+    adf_p: 0.0246
+    halflife: 14.4
+  - y: ATAGY
+    x: NUGYO
+    sector: Gayrimenkul
+    corr: 0.779
+    adf_p: 0.0247
+    halflife: 16.5
+  - y: EGEGY
+    x: ADGYO
+    sector: Gayrimenkul
+    corr: 0.917
+    adf_p: 0.0248
+    halflife: 12.9
+  - y: TRMET
+    x: TRENJ
+    sector: Madencilik ve Taş Ocakçılığı
+    corr: 0.967
+    adf_p: 0.0253
+    halflife: 18.3
+  - y: RNPOL
+    x: TMPOL
+    sector: Kimya ve Plastik
+    corr: 0.907
+    adf_p: 0.0253
+    halflife: 17.0
+  - y: COSMO
+    x: KLRHO
+    sector: Holding
+    corr: 0.875
+    adf_p: 0.0254
+    halflife: 20.8
+  - y: ULUUN
+    x: ERSU
+    sector: Gıda ve İçecek
+    corr: 0.739
+    adf_p: 0.0257
+    halflife: 15.1
+  - y: METRO
+    x: GLYHO
+    sector: Holding
+    corr: 0.938
+    adf_p: 0.0257
+    halflife: 23.4
+  - y: ISGYO
+    x: AKSGY
+    sector: Gayrimenkul
+    corr: 0.876
+    adf_p: 0.0257
+    halflife: 18.3
+  - y: ISSEN
+    x: SASA
+    sector: Kimya ve Plastik
+    corr: 0.752
+    adf_p: 0.0257
+    halflife: 16.3
+  - y: SNPAM
+    x: DESA
+    sector: Tekstil, Giyim ve Deri
+    corr: 0.769
+    adf_p: 0.0257
+    halflife: 20.1
+  - y: ERSU
+    x: GUNDG
+    sector: Gıda ve İçecek
+    corr: 0.841
+    adf_p: 0.0258
+    halflife: 13.7
+  - y: BORSK
+    x: ERSU
+    sector: Gıda ve İçecek
+    corr: 0.754
+    adf_p: 0.0259
+    halflife: 9.1
+  - y: CCOLA
+    x: GUNDG
+    sector: Gıda ve İçecek
+    corr: 0.908
+    adf_p: 0.0261
+    halflife: 18.2
+  - y: IDGYO
+    x: AHSGY
+    sector: Gayrimenkul
+    corr: 0.788
+    adf_p: 0.0262
+    halflife: 20.7
+  - y: POLHO
+    x: HEDEF
+    sector: Holding
+    corr: 0.963
+    adf_p: 0.0264
+    halflife: 18.1
+  - y: AKFYE
+    x: CATES
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.793
+    adf_p: 0.0264
+    halflife: 16.2
+  - y: OZRDN
+    x: BAHKM
+    sector: Kimya ve Plastik
+    corr: 0.954
+    adf_p: 0.0265
+    halflife: 12.8
+  - y: MERIT
+    x: BLUME
+    sector: Turizm
+    corr: 0.778
+    adf_p: 0.0265
+    halflife: 18.9
+  - y: BUCIM
+    x: CMENT
+    sector: Taş, Toprak, Çimento
+    corr: 0.794
+    adf_p: 0.0269
+    halflife: 17.9
+  - y: GESAN
+    x: YEOTK
+    sector: Enerji Teknolojileri
+    corr: 0.841
+    adf_p: 0.027
+    halflife: 22.6
+  - y: TRGYO
+    x: PAGYO
+    sector: Gayrimenkul
+    corr: 0.963
+    adf_p: 0.0271
+    halflife: 14.3
+  - y: ERSU
+    x: CCOLA
+    sector: Gıda ve İçecek
+    corr: 0.738
+    adf_p: 0.0273
+    halflife: 21.7
+  - y: LIDFA
+    x: CRDFA
+    sector: Faktoring
+    corr: 0.941
+    adf_p: 0.0274
+    halflife: 18.6
+  - y: MSGYO
+    x: AKFGY
+    sector: Gayrimenkul
+    corr: 0.784
+    adf_p: 0.0278
+    halflife: 25.5
+  - y: ADGYO
+    x: OZGYO
+    sector: Gayrimenkul
+    corr: 0.866
+    adf_p: 0.0279
+    halflife: 18.3
+  - y: EUYO
+    x: VKFYO
+    sector: Menkul Kıymet Yat. Ort.
+    corr: 0.743
+    adf_p: 0.028
+    halflife: 19.2
+  - y: EKGYO
+    x: KGYO
+    sector: Gayrimenkul
+    corr: 0.891
+    adf_p: 0.0282
+    halflife: 18.7
+  - y: FZLGY
+    x: AKFGY
+    sector: Gayrimenkul
+    corr: 0.755
+    adf_p: 0.0282
+    halflife: 29.8
+  - y: VKGYO
+    x: PSGYO
+    sector: Gayrimenkul
+    corr: 0.839
+    adf_p: 0.0287
+    halflife: 22.6
+  - y: IDGYO
+    x: PSGYO
+    sector: Gayrimenkul
+    corr: 0.774
+    adf_p: 0.0287
+    halflife: 21.1
+  - y: TRHOL
+    x: METRO
+    sector: Holding
+    corr: 0.915
+    adf_p: 0.029
+    halflife: 6.7
+  - y: ECZYT
+    x: HEDEF
+    sector: Holding
+    corr: 0.91
+    adf_p: 0.0293
+    halflife: 21.2
+  - y: LXGYO
+    x: ATAGY
+    sector: Gayrimenkul
+    corr: 0.838
+    adf_p: 0.0296
+    halflife: 6.0
+  - y: SNGYO
+    x: MRGYO
+    sector: Gayrimenkul
+    corr: 0.798
+    adf_p: 0.0296
+    halflife: 23.3
+  - y: BIENY
+    x: USAK
+    sector: Cam, Seramik, Porselen
+    corr: 0.892
+    adf_p: 0.0298
+    halflife: 19.1
+  - y: AYEN
+    x: MANAS
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.719
+    adf_p: 0.0298
+    halflife: 19.1
+  - y: AVGYO
+    x: AKFGY
+    sector: Gayrimenkul
+    corr: 0.727
+    adf_p: 0.0301
+    halflife: 22.7
+  - y: KTSKR
+    x: FRIGO
+    sector: Gıda ve İçecek
+    corr: 0.768
+    adf_p: 0.0304
+    halflife: 36.7
+  - y: LXGYO
+    x: VRGYO
+    sector: Gayrimenkul
+    corr: 0.843
+    adf_p: 0.0306
+    halflife: 7.4
+  - y: KTSKR
+    x: KRVGD
+    sector: Gıda ve İçecek
+    corr: 0.791
+    adf_p: 0.0307
+    halflife: 28.4
+  - y: ULUFA
+    x: CRDFA
+    sector: Faktoring
+    corr: 0.789
+    adf_p: 0.0308
+    halflife: 18.7
+  - y: AVGYO
+    x: NUGYO
+    sector: Gayrimenkul
+    corr: 0.704
+    adf_p: 0.0308
+    halflife: 21.4
+  - y: VKGYO
+    x: TRGYO
+    sector: Gayrimenkul
+    corr: 0.891
+    adf_p: 0.0311
+    halflife: 19.0
+  - y: IDGYO
+    x: PEKGY
+    sector: Gayrimenkul
+    corr: 0.797
+    adf_p: 0.0313
+    halflife: 21.5
+  - y: ADGYO
+    x: HLGYO
+    sector: Gayrimenkul
+    corr: 0.895
+    adf_p: 0.0314
+    halflife: 25.7
+  - y: BRYAT
+    x: PAHOL
+    sector: Holding
+    corr: 0.794
+    adf_p: 0.0314
+    halflife: 5.1
+  - y: OZYSR
+    x: BURVA
+    sector: Ana Metal
+    corr: 0.937
+    adf_p: 0.0317
+    halflife: 20.0
+  - y: NTGAZ
+    x: IZENR
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.921
+    adf_p: 0.0319
+    halflife: 20.4
+  - y: PETUN
+    x: TABGD
+    sector: Gıda ve İçecek
+    corr: 0.73
+    adf_p: 0.0319
+    halflife: 23.3
+  - y: OZKGY
+    x: AHSGY
+    sector: Gayrimenkul
+    corr: 0.716
+    adf_p: 0.0322
+    halflife: 20.6
+  - y: SNGYO
+    x: KZBGY
+    sector: Gayrimenkul
+    corr: 0.857
+    adf_p: 0.0323
+    halflife: 25.8
+  - y: KCHOL
+    x: METRO
+    sector: Holding
+    corr: 0.731
+    adf_p: 0.0323
+    halflife: 20.4
+  - y: DARDL
+    x: BANVT
+    sector: Gıda ve İçecek
+    corr: 0.89
+    adf_p: 0.0325
+    halflife: 19.2
+  - y: TATEN
+    x: YAYLA
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.717
+    adf_p: 0.0327
+    halflife: 22.3
+  - y: NUGYO
+    x: ADGYO
+    sector: Gayrimenkul
+    corr: 0.803
+    adf_p: 0.0328
+    halflife: 20.9
+  - y: RALYH
+    x: GLYHO
+    sector: Holding
+    corr: 0.904
+    adf_p: 0.0331
+    halflife: 33.5
+  - y: TRGYO
+    x: KGYO
+    sector: Gayrimenkul
+    corr: 0.931
+    adf_p: 0.0332
+    halflife: 19.3
+  - y: AVOD
+    x: ALKLC
+    sector: Gıda ve İçecek
+    corr: 0.814
+    adf_p: 0.0332
+    halflife: 18.8
+  - y: OFSYM
+    x: TABGD
+    sector: Gıda ve İçecek
+    corr: 0.916
+    adf_p: 0.0334
+    halflife: 13.9
+  - y: KLGYO
+    x: ADESE
+    sector: Gayrimenkul
+    corr: 0.815
+    adf_p: 0.0337
+    halflife: 19.5
+  - y: ARCLK
+    x: VESTL
+    sector: Dayanıklı Tüketim Ürünleri
+    corr: 0.874
+    adf_p: 0.0337
+    halflife: 21.6
+  - y: AKFGY
+    x: ADGYO
+    sector: Gayrimenkul
+    corr: 0.852
+    adf_p: 0.0338
+    halflife: 23.7
+  - y: TRCAS
+    x: TMPOL
+    sector: Kimya ve Plastik
+    corr: 0.911
+    adf_p: 0.0339
+    halflife: 23.8
+  - y: ENJSA
+    x: AKSEN
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.954
+    adf_p: 0.034
+    halflife: 20.0
+  - y: GUBRF
+    x: TMPOL
+    sector: Kimya ve Plastik
+    corr: 0.892
+    adf_p: 0.0342
+    halflife: 26.9
+  - y: BESTE
+    x: ARASE
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.704
+    adf_p: 0.0343
+    halflife: 7.1
+  - y: ECZYT
+    x: DOHOL
+    sector: Holding
+    corr: 0.892
+    adf_p: 0.0345
+    halflife: 19.6
+  - y: RODRG
+    x: YUNSA
+    sector: Tekstil, Giyim ve Deri
+    corr: 0.827
+    adf_p: 0.0345
+    halflife: 12.0
+  - y: EDIP
+    x: TRGYO
+    sector: Gayrimenkul
+    corr: 0.853
+    adf_p: 0.0348
+    halflife: 23.4
+  - y: AKMGY
+    x: PEKGY
+    sector: Gayrimenkul
+    corr: 0.701
+    adf_p: 0.0349
+    halflife: 19.5
+  - y: ALKA
+    x: KONKA
+    sector: Kağıt ve Kağıt Ürünleri
+    corr: 0.794
+    adf_p: 0.035
+    halflife: 18.8
+  - y: AVGYO
+    x: AHSGY
+    sector: Gayrimenkul
+    corr: 0.733
+    adf_p: 0.0352
+    halflife: 23.9
+  - y: IZINV
+    x: ECZYT
+    sector: Holding
+    corr: 0.784
+    adf_p: 0.0353
+    halflife: 18.7
+  - y: VKFYO
+    x: OYAYO
+    sector: Menkul Kıymet Yat. Ort.
+    corr: 0.862
+    adf_p: 0.0354
+    halflife: 21.9
+  - y: REEDR
+    x: LINK
+    sector: Bilişim ve Yazılım
+    corr: 0.73
+    adf_p: 0.0355
+    halflife: 37.6
+  - y: ENTRA
+    x: AHGAZ
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.768
+    adf_p: 0.0356
+    halflife: 18.4
+  - y: NUGYO
+    x: EYGYO
+    sector: Gayrimenkul
+    corr: 0.73
+    adf_p: 0.0356
+    halflife: 22.6
+  - y: SAFKR
+    x: MAKTK
+    sector: Metal Eşya ve Makine
+    corr: 0.824
+    adf_p: 0.0357
+    halflife: 26.1
+  - y: AYDEM
+    x: MANAS
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.791
+    adf_p: 0.0361
+    halflife: 20.3
+  - y: NUGYO
+    x: ADESE
+    sector: Gayrimenkul
+    corr: 0.764
+    adf_p: 0.0363
+    halflife: 24.0
+  - y: GSDHO
+    x: GSDDE
+    sector: Ulaştırma
+    corr: 0.87
+    adf_p: 0.0365
+    halflife: 17.7
+  - y: LXGYO
+    x: DAPGM
+    sector: Gayrimenkul
+    corr: 0.824
+    adf_p: 0.0365
+    halflife: 6.5
+  - y: SNPAM
+    x: ENSRI
+    sector: Tekstil, Giyim ve Deri
+    corr: 0.764
+    adf_p: 0.0366
+    halflife: 29.7
+  - y: KLGYO
+    x: MRGYO
+    sector: Gayrimenkul
+    corr: 0.788
+    adf_p: 0.0366
+    halflife: 21.1
+  - y: EYGYO
+    x: DAPGM
+    sector: Gayrimenkul
+    corr: 0.816
+    adf_p: 0.0368
+    halflife: 23.9
+  - y: SNPAM
+    x: SONME
+    sector: Tekstil, Giyim ve Deri
+    corr: 0.718
+    adf_p: 0.037
+    halflife: 31.9
+  - y: EGEGY
+    x: PEKGY
+    sector: Gayrimenkul
+    corr: 0.891
+    adf_p: 0.0371
+    halflife: 19.4
+  - y: ULUUN
+    x: KRSTL
+    sector: Gıda ve İçecek
+    corr: 0.754
+    adf_p: 0.0373
+    halflife: 19.2
+  - y: KTSKR
+    x: AVOD
+    sector: Gıda ve İçecek
+    corr: 0.745
+    adf_p: 0.0378
+    halflife: 24.5
+  - y: ODAS
+    x: AYDEM
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.739
+    adf_p: 0.0378
+    halflife: 23.4
+  - y: COSMO
+    x: IZINV
+    sector: Holding
+    corr: 0.722
+    adf_p: 0.0379
+    halflife: 24.1
+  - y: ISSEN
+    x: HEKTS
+    sector: Kimya ve Plastik
+    corr: 0.758
+    adf_p: 0.038
+    halflife: 6.7
+  - y: GARFA
+    x: ULUFA
+    sector: Faktoring
+    corr: 0.737
+    adf_p: 0.0381
+    halflife: 17.4
+  - y: ALBRK
+    x: HALKB
+    sector: Bankacılık
+    corr: 0.877
+    adf_p: 0.0383
+    halflife: 23.5
+  - y: KATMR
+    x: IMASM
+    sector: Metal Eşya ve Makine
+    corr: 0.748
+    adf_p: 0.0384
+    halflife: 20.7
+  - y: VKGYO
+    x: AVGYO
+    sector: Gayrimenkul
+    corr: 0.701
+    adf_p: 0.0386
+    halflife: 24.9
+  - y: DOHOL
+    x: RALYH
+    sector: Holding
+    corr: 0.862
+    adf_p: 0.0387
+    halflife: 21.2
+  - y: CIMSA
+    x: OYAKC
+    sector: Taş, Toprak, Çimento
+    corr: 0.826
+    adf_p: 0.0388
+    halflife: 21.4
+  - y: AKSGY
+    x: YGGYO
+    sector: Gayrimenkul
+    corr: 0.923
+    adf_p: 0.0391
+    halflife: 19.3
+  - y: IDGYO
+    x: AVGYO
+    sector: Gayrimenkul
+    corr: 0.727
+    adf_p: 0.0392
+    halflife: 21.5
+  - y: OZGYO
+    x: PSGYO
+    sector: Gayrimenkul
+    corr: 0.91
+    adf_p: 0.0394
+    halflife: 11.3
+  - y: NUGYO
+    x: EKGYO
+    sector: Gayrimenkul
+    corr: 0.818
+    adf_p: 0.0394
+    halflife: 21.0
+  - y: DOFRB
+    x: OZATD
+    sector: İmalat
+    corr: 0.715
+    adf_p: 0.0398
+    halflife: 14.5
+  - y: BUCIM
+    x: CMBTN
+    sector: Taş, Toprak, Çimento
+    corr: 0.802
+    adf_p: 0.0398
+    halflife: 27.3
+  - y: AVOD
+    x: KUVVA
+    sector: Gıda ve İçecek
+    corr: 0.765
+    adf_p: 0.0404
+    halflife: 20.4
+  - y: EGPRO
+    x: OZRDN
+    sector: Kimya ve Plastik
+    corr: 0.886
+    adf_p: 0.0407
+    halflife: 20.4
+  - y: FZLGY
+    x: MSGYO
+    sector: Gayrimenkul
+    corr: 0.869
+    adf_p: 0.0408
+    halflife: 24.0
+  - y: SVGYO
+    x: TRGYO
+    sector: Gayrimenkul
+    corr: 0.752
+    adf_p: 0.0411
+    halflife: 8.2
+  - y: NUGYO
+    x: DAPGM
+    sector: Gayrimenkul
+    corr: 0.756
+    adf_p: 0.0418
+    halflife: 21.3
+  - y: ISGYO
+    x: RYGYO
+    sector: Gayrimenkul
+    corr: 0.828
+    adf_p: 0.0419
+    halflife: 20.6
+  - y: TDGYO
+    x: EYGYO
+    sector: Gayrimenkul
+    corr: 0.742
+    adf_p: 0.0423
+    halflife: 30.7
+  - y: AVTUR
+    x: TGSAS
+    sector: Toptan ve Perakende Ticaret
+    corr: 0.746
+    adf_p: 0.0424
+    halflife: 22.3
+  - y: PNSUT
+    x: KRVGD
+    sector: Gıda ve İçecek
+    corr: 0.723
+    adf_p: 0.0429
+    halflife: 24.4
+  - y: MHRGY
+    x: VKGYO
+    sector: Gayrimenkul
+    corr: 0.706
+    adf_p: 0.0431
+    halflife: 19.9
+  - y: MANAS
+    x: ARASE
+    sector: Enerji Üretim ve Dağıtım
+    corr: 0.836
+    adf_p: 0.0432
+    halflife: 26.9
+  - y: GSDHO
+    x: PASEU
+    sector: Ulaştırma
+    corr: 0.753
+    adf_p: 0.0432
+    halflife: 20.0
+  - y: PETUN
+    x: OFSYM
+    sector: Gıda ve İçecek
+    corr: 0.767
+    adf_p: 0.0432
+    halflife: 19.5
+  - y: ZERGY
+    x: LXGYO
+    sector: Gayrimenkul
+    corr: 0.847
+    adf_p: 0.0432
+    halflife: 7.2
+  - y: SNPAM
+    x: BRMEN
+    sector: Tekstil, Giyim ve Deri
+    corr: 0.705
+    adf_p: 0.0435
+    halflife: 28.8
+  - y: EMPAE
+    x: EBEBK
+    sector: Toptan ve Perakende Ticaret
+    corr: 0.71
+    adf_p: 0.0437
+    halflife: 12.1
+  - y: SILVR
+    x: KLMSN
+    sector: Dayanıklı Tüketim Ürünleri
+    corr: 0.712
+    adf_p: 0.0437
+    halflife: 11.9
+  - y: MSGYO
+    x: EDIP
+    sector: Gayrimenkul
+    corr: 0.764
+    adf_p: 0.0439
+    halflife: 27.5
+  - y: GUBRF
+    x: EGPRO
+    sector: Kimya ve Plastik
+    corr: 0.819
+    adf_p: 0.044
+    halflife: 29.7
+  - y: MEGMT
+    x: SARKY
+    sector: Ana Metal
+    corr: 0.938
+    adf_p: 0.0442
+    halflife: 29.6
+  - y: SNGYO
+    x: ADESE
+    sector: Gayrimenkul
+    corr: 0.865
+    adf_p: 0.0443
+    halflife: 21.8
+  - y: ESCOM
+    x: ATATP
+    sector: Bilişim ve Yazılım
+    corr: 0.728
+    adf_p: 0.0445
+    halflife: 24.6
+  - y: ALGYO
+    x: MSGYO
+    sector: Gayrimenkul
+    corr: 0.765
+    adf_p: 0.0445
+    halflife: 33.6
+  - y: OZKGY
+    x: RYGYO
+    sector: Gayrimenkul
+    corr: 0.716
+    adf_p: 0.0448
+    halflife: 26.0
+  - y: EGEGY
+    x: VKGYO
+    sector: Gayrimenkul
+    corr: 0.87
+    adf_p: 0.0449
+    halflife: 12.5
+  - y: CMENT
+    x: KONYA
+    sector: Taş, Toprak, Çimento
+    corr: 0.836
+    adf_p: 0.0454
+    halflife: 11.7
+  - y: KTSKR
+    x: VANGD
+    sector: Gıda ve İçecek
+    corr: 0.831
+    adf_p: 0.0455
+    halflife: 29.0
+  - y: ERSU
+    x: ARMGD
+    sector: Gıda ve İçecek
+    corr: 0.833
+    adf_p: 0.0459
+    halflife: 17.2
+  - y: EGEGY
+    x: PSGYO
+    sector: Gayrimenkul
+    corr: 0.861
+    adf_p: 0.0461
+    halflife: 17.1
+  - y: OZKGY
+    x: ADGYO
+    sector: Gayrimenkul
+    corr: 0.72
+    adf_p: 0.0462
+    halflife: 22.2
+  - y: EKGYO
+    x: PEKGY
+    sector: Gayrimenkul
+    corr: 0.893
+    adf_p: 0.0463
+    halflife: 24.7
+  - y: KCHOL
+    x: VERUS
+    sector: Holding
+    corr: 0.7
+    adf_p: 0.0465
+    halflife: 21.2
+  - y: GLCVY
+    x: BRKVY
+    sector: Varlık Yönetimi
+    corr: 0.872
+    adf_p: 0.0472
+    halflife: 19.9
+  - y: IDGYO
+    x: ADGYO
+    sector: Gayrimenkul
+    corr: 0.793
+    adf_p: 0.0474
+    halflife: 21.2
+  - y: AVOD
+    x: PENGD
+    sector: Gıda ve İçecek
+    corr: 0.735
+    adf_p: 0.0474
+    halflife: 21.2
+  - y: AVOD
+    x: BYDNR
+    sector: Gıda ve İçecek
+    corr: 0.763
+    adf_p: 0.0476
+    halflife: 21.1
+  - y: EKGYO
+    x: ADGYO
+    sector: Gayrimenkul
+    corr: 0.84
+    adf_p: 0.0477
+    halflife: 29.4
+  - y: HLGYO
+    x: PEKGY
+    sector: Gayrimenkul
+    corr: 0.936
+    adf_p: 0.0478
+    halflife: 26.7
+  - y: EDIP
+    x: AHSGY
+    sector: Gayrimenkul
+    corr: 0.756
+    adf_p: 0.048
+    halflife: 29.2
+  - y: FZLGY
+    x: DAPGM
+    sector: Gayrimenkul
+    corr: 0.868
+    adf_p: 0.0481
+    halflife: 25.4
+  - y: PNSUT
+    x: ULUUN
+    sector: Gıda ve İçecek
+    corr: 0.722
+    adf_p: 0.0481
+    halflife: 23.0
+  - y: GUBRF
+    x: MEPET
+    sector: Kimya ve Plastik
+    corr: 0.862
+    adf_p: 0.0481
+    halflife: 24.6
+  - y: ISKPL
+    x: MEPET
+    sector: Kimya ve Plastik
+    corr: 0.882
+    adf_p: 0.0482
+    halflife: 29.8
+  - y: MRGYO
+    x: IHLGM
+    sector: Gayrimenkul
+    corr: 0.808
+    adf_p: 0.0484
+    halflife: 22.7
+  - y: ATLAS
+    x: VKFYO
+    sector: Menkul Kıymet Yat. Ort.
+    corr: 0.729
+    adf_p: 0.0484
+    halflife: 20.1
+  - y: LXGYO
+    x: SEGYO
+    sector: Gayrimenkul
+    corr: 0.71
+    adf_p: 0.0485
+    halflife: 5.8
+  - y: IZMDC
+    x: KRDMB
+    sector: Ana Metal
+    corr: 0.813
+    adf_p: 0.0487
+    halflife: 38.3
+  - y: PKART
+    x: ODINE
+    sector: Bilişim ve Yazılım
+    corr: 0.855
+    adf_p: 0.0488
+    halflife: 22.3
+  - y: NUGYO
+    x: EGEGY
+    sector: Gayrimenkul
+    corr: 0.783
+    adf_p: 0.0488
+    halflife: 17.5
+  - y: AVOD
+    x: VANGD
+    sector: Gıda ve İçecek
+    corr: 0.763
+    adf_p: 0.049
+    halflife: 21.2
+  - y: NUGYO
+    x: PSGYO
+    sector: Gayrimenkul
+    corr: 0.795
+    adf_p: 0.0492
+    halflife: 21.5
+  - y: CCOLA
+    x: SEGMN
+    sector: Gıda ve İçecek
+    corr: 0.862
+    adf_p: 0.0494
+    halflife: 23.1
+  - y: BRSAN
+    x: SARKY
+    sector: Ana Metal
+    corr: 0.848
+    adf_p: 0.0495
+    halflife: 19.2
+  - y: RALYH
+    x: HEDEF
+    sector: Holding
+    corr: 0.91
+    adf_p: 0.0496
+    halflife: 46.0
+  - y: MAKIM
+    x: SNICA
+    sector: Metal Eşya ve Makine
+    corr: 0.749
+    adf_p: 0.0497
+    halflife: 15.2
+  - y: GLYHO
+    x: POLHO
+    sector: Holding
+    corr: 0.932
+    adf_p: 0.0498
+    halflife: 22.3
+  - y: KUVVA
+    x: OFSYM
+    sector: Gıda ve İçecek
+    corr: 0.872
+    adf_p: 0.05
+    halflife: 21.5

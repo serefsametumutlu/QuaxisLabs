@@ -77,8 +77,29 @@ göre ölçeklendiği için) — `_BAR_FIELDS`'ten TAMAMEN çıkarıldı. Sonuç
 Diğer görsel-inceleme bulguları (renderer `last_n` hatası, `patterns.
 broadening` hologramının kama gibi görünmesi, ISBTR veri kalitesi şüphesi,
 BULUNAN HATA 1'in 3 yeni örneği) aşağıdaki "Kaldığı yer" bölümünde KALDI
-(kapsam dışı, Faz 3/4'e bırakıldı). **Sırada: Adım 4 (Faz 2 — istatistiksel
-arbitraj v2).**
+(kapsam dışı, Faz 3/4'e bırakıldı).
+
+**Adım 4 / Faz 2 (istatistiksel arbitraj v2) DEVAM EDİYOR** — onaylandı,
+2A (`stats.py`: `engle_granger_pvalue`/`ols_spread`/`benjamini_hochberg`)
++ 2B (`discovery.py` v2: Šidák + FDR + OOS + `economic_link_map`) + 2C
+(`pairs_engine.py::run_pair_backtest_market_neutral` — GERÇEK bir muhasebe
+hatası bulunup düzeltildi, anaparanın pozisyon kapanışında unutulması +
+`RelativeMomentumParams.mode="mean_reversion"` + YENİ `coint_monitor.py`)
++ 2E (arayüz etiketi) TAMAMLANDI, 702 test yeşil, detay `docs/PROGRESS_LOG.
+md`'nin "Faz 2" bölümünde. **2D (doğrulama) TAMAMLANDI** — `docs/spec/
+ARBITRAJ_DENETIM_v2.md` yazıldı. **KARAR GEREKTİREN BULGU:** mevcut 606
+çiftin yeniden doğrulaması 288'e (ham p<0.05) / 141'e (+FDR) indi — tanının
+beklentisini doğruladı. Ama `discover_pairs` v2'nin varsayılanlarıyla
+(`fdr_q=0.05` + `oos_split=0.5` AYNI ANDA) BIST evreninden SIFIRDAN
+yeniden keşif **606 → yalnızca 1 çifte** (PEKGY/EYGYO) indi — tanının
+"20-40" hedefinin ÇOK altında. Kök neden ayrıştırıldı: OOS TEK BAŞINA en
+agresif filtre (222→17→**1**; FDR 222'den 17'ye, OOS AYRICA 17'den 1'e —
+OOS, FDR'den bile daha sert). `config/pairs.yaml` şu an bu 1 çiftlik
+sonuçla YENİDEN ÜRETİLMİŞ durumda (eski 606'lık liste `config/pairs_v1_
+deprecated.yaml`'a taşındı). 3 seçenek raporda (`oos_split=None`→17 çift,
+tanının hedefine daha yakın; `oos_split` gevşetilebilir; ya da mevcut
+en-katı ayar korunabilir) — Adım 5'e geçmeden ÖNCE kullanıcı kararı
+gerekiyor.
 
 ### Tamamlanan fazlar (özet)
 

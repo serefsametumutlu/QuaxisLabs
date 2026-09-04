@@ -260,3 +260,184 @@ def run_pair_backtest_weighted(
         rebalanced=rebalanced, rebalance_count=rebalance_count, net_pnl=net_pnl,
         return_pct=return_pct, max_drawdown=max_drawdown,
     )
+
+
+@dataclass(frozen=True)
+class MarketNeutralTrade:
+    """Faz 2, 2C — `run_pair_backtest`'in `Trade`'inden FARKLI: tek bir
+    sembolde değil, EŞ ZAMANLI iki bacakta (Y+X) tutulan bir pozisyon."""
+
+    entry_idx: int
+    entry_time: pd.Timestamp
+    exit_idx: int | None
+    exit_time: pd.Timestamp | None
+    direction: Literal["long_y_short_x", "short_y_long_x"]
+    beta: float
+    entry_price_y: float
+    entry_price_x: float
+    exit_price_y: float | None
+    exit_price_x: float | None
+    pnl: float | None
+
+
+@dataclass(frozen=True)
+class MarketNeutralBacktestResult:
+    portfolio: pd.Series
+    trades: tuple[MarketNeutralTrade, ...] = field(default_factory=tuple)
+    net_pnl: float = 0.0
+    return_pct: float = 0.0
+    n_trades: int = 0
+    max_drawdown: float = 0.0
+    win_rate: float = 0.0
+    avg_holding_bars: float = 0.0
+
+
+def run_pair_backtest_market_neutral(
+    y: pd.Series,
+    x: pd.Series,
+    position: pd.Series,
+    beta: pd.Series,
+    start_capital: float = 100_000.0,
+    commission_bps: float = 10.0,
+    execution: Execution = "close",
+    y_open: pd.Series | None = None,
+    x_open: pd.Series | None = None,
+) -> MarketNeutralBacktestResult:
+    """Faz 2, 2C — `RelativeMomentumPair(mode="mean_reversion")` için beta-
+    ölçekli EŞ ZAMANLI long/short muhasebesi (CLAUDE.md backlog madde 5'in
+    uygulanması). `run_pair_backtest`'in (ROTASYONEL, her an ya Y ya X'te
+    %100) AKSİNE burada Y VE X aynı anda, TERS yönlerde tutulur.
+
+    `position[t]`: `+1.0` = Y long / X short, `-1.0` = Y short / X long,
+    `0.0` = nakit (flat, pozisyon YOK), `NaN` = henüz sinyal yok (nakitte,
+    `start_capital` sabit -- `run_pair_backtest`'in NaN semantiğiyle AYNI).
+    `beta[t]`: pozisyon AÇILDIĞI bardaki hedge oranı (spread = log(Y) -
+    beta*log(X) ile AYNI beta) kullanılır ve pozisyon KAPANANA kadar SABİT
+    kalır (pozisyon içindeyken rolling beta'nın değişmesi muhasebeyi
+    karmaşıklaştırmasın diye -- sinyal katmanının sorumluluğu, bu motor
+    yalnızca MUHASEBELEŞTİRİR, sinyal üretmez).
+
+    Dolar tahsisi: mevcut nakitin `n_y = nakit/(1+beta)` payı Y'ye, kalanı
+    (`beta*n_y`) X'e -- toplam brüt maruziyet nakite eşit. Bu oran, spread'in
+    KENDİ hassasiyet katsayısını (dY/Y ~ d(log Y) küçük hareketler için)
+    dolar-getiri uzayına taşır: pozisyon değeri `sign*n_y*(Y_t/Y_0-1) -
+    sign*n_x*(X_t/X_0-1)` şeklinde, X'teki beta-ölçekli hareket Y'dekini
+    KISMEN dengeler. `beta<=0` (geçersiz/anlamsız hedge) ise o barda
+    pozisyon AÇILMAZ (nakitte kalınır) -- sinyal katmanı bunu ÖNCEDEN
+    filtrelemeli, burada yalnızca bir güvenlik ağı."""
+    n = len(y)
+    commission = commission_bps / 10_000.0
+    portfolio = pd.Series(start_capital, index=y.index, dtype=float)
+    trades: list[MarketNeutralTrade] = []
+
+    shares_y = 0.0
+    shares_x = 0.0
+    current_dir: Literal["long_y_short_x", "short_y_long_x"] | None = None
+    cash = start_capital
+    entry_idx: int | None = None
+    entry_time: pd.Timestamp | None = None
+    entry_price_y: float | None = None
+    entry_price_x: float | None = None
+    position_gross = 0.0
+
+    for i in range(n):
+        p = position.iloc[i]
+        target_dir: Literal["long_y_short_x", "short_y_long_x"] | None
+        if pd.isna(p):
+            target_dir = None
+        elif p >= 0.5:
+            target_dir = "long_y_short_x"
+        elif p <= -0.5:
+            target_dir = "short_y_long_x"
+        else:
+            target_dir = None
+
+        if target_dir != current_dir:
+            if execution == "close":
+                exec_idx = i
+            else:
+                exec_idx = min(i + 1, n - 1)
+            price_y = float((y_open if y_open is not None else y).iloc[exec_idx]) \
+                if execution == "next_open" else float(y.iloc[exec_idx])
+            price_x = float((x_open if x_open is not None else x).iloc[exec_idx]) \
+                if execution == "next_open" else float(x.iloc[exec_idx])
+
+            if current_dir is not None:
+                assert entry_price_y is not None and entry_price_x is not None
+                assert entry_idx is not None and entry_time is not None
+                sign = 1.0 if current_dir == "long_y_short_x" else -1.0
+                pnl = (
+                    sign * shares_y * (price_y - entry_price_y)
+                    - sign * shares_x * (price_x - entry_price_x)
+                )
+                exit_notional = abs(shares_y) * price_y + abs(shares_x) * price_x
+                cash += position_gross + pnl - exit_notional * commission
+                position_gross = 0.0
+                trades.append(
+                    MarketNeutralTrade(
+                        entry_idx=entry_idx, entry_time=entry_time,
+                        exit_idx=exec_idx, exit_time=y.index[exec_idx],
+                        direction=current_dir, beta=shares_x / shares_y if shares_y else 0.0,
+                        entry_price_y=entry_price_y, entry_price_x=entry_price_x,
+                        exit_price_y=price_y, exit_price_x=price_x, pnl=pnl,
+                    )
+                )
+                shares_y = shares_x = 0.0
+                current_dir = None
+
+            if target_dir is not None:
+                beta_t = float(beta.iloc[i])
+                if not (beta_t > 0):
+                    target_dir = None
+                else:
+                    gross = cash * (1.0 - commission)
+                    n_y = gross / (1.0 + beta_t)
+                    n_x = gross - n_y
+                    shares_y = n_y / price_y
+                    shares_x = n_x / price_x
+                    cash = 0.0
+                    position_gross = gross
+                    current_dir = target_dir
+                    entry_idx, entry_time = exec_idx, y.index[exec_idx]
+                    entry_price_y, entry_price_x = price_y, price_x
+
+        if current_dir is None:
+            portfolio.iloc[i] = cash
+        else:
+            assert entry_price_y is not None and entry_price_x is not None
+            sign = 1.0 if current_dir == "long_y_short_x" else -1.0
+            price_y_now, price_x_now = float(y.iloc[i]), float(x.iloc[i])
+            unrealized = (
+                sign * shares_y * (price_y_now - entry_price_y)
+                - sign * shares_x * (price_x_now - entry_price_x)
+            )
+            portfolio.iloc[i] = cash + position_gross + unrealized
+
+    if current_dir is not None and entry_idx is not None and entry_time is not None:
+        assert entry_price_y is not None and entry_price_x is not None
+        trades.append(
+            MarketNeutralTrade(
+                entry_idx=entry_idx, entry_time=entry_time, exit_idx=None, exit_time=None,
+                direction=current_dir, beta=shares_x / shares_y if shares_y else 0.0,
+                entry_price_y=entry_price_y, entry_price_x=entry_price_x,
+                exit_price_y=None, exit_price_x=None, pnl=None,
+            )
+        )
+
+    closed = [t for t in trades if t.pnl is not None]
+    net_pnl = float(portfolio.iloc[-1] - start_capital)
+    return_pct = net_pnl / start_capital * 100.0
+    running_max = portfolio.cummax()
+    drawdown = (portfolio - running_max) / running_max
+    max_drawdown = float(drawdown.min()) * 100.0 if len(drawdown) else 0.0
+    wins = sum(1 for t in closed if (t.pnl or 0.0) > 0)
+    win_rate = (wins / len(closed) * 100.0) if closed else 0.0
+    avg_holding = (
+        sum((t.exit_idx or 0) - t.entry_idx for t in closed) / len(closed) if closed else 0.0
+    )
+
+    return MarketNeutralBacktestResult(
+        portfolio=portfolio, trades=tuple(trades), net_pnl=net_pnl, return_pct=return_pct,
+        n_trades=len(trades), max_drawdown=max_drawdown, win_rate=win_rate,
+        avg_holding_bars=avg_holding,
+    )

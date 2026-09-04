@@ -6,7 +6,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from tlab.backtest.pairs_engine import run_pair_backtest, run_pair_backtest_weighted
+from tlab.backtest.pairs_engine import (
+    run_pair_backtest,
+    run_pair_backtest_market_neutral,
+    run_pair_backtest_weighted,
+)
 
 
 def _idx(n: int) -> pd.DatetimeIndex:
@@ -138,6 +142,112 @@ def test_weighted_rebalance_triggers_when_band_exceeded() -> None:
     assert bool(result.rebalanced.iloc[2])
     assert not result.rebalanced.iloc[3]
     assert result.actual_weight.iloc[2] == pytest.approx(0.9, abs=1e-6)
+
+
+# --- run_pair_backtest_market_neutral (Faz 2, 2C) ---------------------------
+
+
+def test_market_neutral_no_position_stays_flat_at_start_capital() -> None:
+    index = _idx(5)
+    y = pd.Series([100.0, 102, 104, 106, 108], index=index)
+    x = pd.Series([50.0, 50, 50, 50, 50], index=index)
+    position = pd.Series([np.nan] * 5, index=index)
+    beta = pd.Series([2.0] * 5, index=index)
+    result = run_pair_backtest_market_neutral(y, x, position, beta, start_capital=100_000.0)
+    assert (result.portfolio == 100_000.0).all()
+    assert result.n_trades == 0
+
+
+def test_market_neutral_round_trip_with_price_reverting_returns_full_principal() -> None:
+    """Faz 2, 2C GERÇEK bir muhasebe hatasını kilitleyen regresyon testi:
+    ilk uygulamada pozisyon KAPANDIĞINDA yalnızca gerçekleşen PnL nakite
+    eklenip pozisyona YATIRILAN ANAPARA (position_gross) unutuluyordu --
+    fiyat giriş seviyesine dönüp PnL=0 olduğunda bile portföy 0'a
+    düşüyordu. Y 100->110->100 (X sabit): PnL=0, komisyon=0 -> tam anapara
+    (100.000) geri dönmeli."""
+    index = _idx(3)
+    y = pd.Series([100.0, 110.0, 100.0], index=index)
+    x = pd.Series([50.0, 50.0, 50.0], index=index)
+    position = pd.Series([1.0, 1.0, 0.0], index=index)
+    beta = pd.Series([2.0, 2.0, 2.0], index=index)
+    result = run_pair_backtest_market_neutral(
+        y, x, position, beta, start_capital=100_000.0, commission_bps=0,
+    )
+    assert result.portfolio.iloc[0] == pytest.approx(100_000.0)
+    assert result.portfolio.iloc[1] == pytest.approx(103_333.33, abs=0.5)
+    assert result.portfolio.iloc[2] == pytest.approx(100_000.0, abs=1e-6)
+    assert result.n_trades == 1
+    assert result.trades[0].pnl == pytest.approx(0.0, abs=1e-6)
+
+
+def test_market_neutral_long_y_short_x_profits_when_y_rises_x_flat() -> None:
+    index = _idx(2)
+    y = pd.Series([100.0, 110.0], index=index)
+    x = pd.Series([50.0, 50.0], index=index)
+    position = pd.Series([1.0, 1.0], index=index)
+    beta = pd.Series([2.0, 2.0], index=index)
+    result = run_pair_backtest_market_neutral(
+        y, x, position, beta, start_capital=100_000.0, commission_bps=0,
+    )
+    # gross=100000, n_y=100000/3=33333.33 -> shares_y=333.333; Y +10 -> +3333.33
+    assert result.portfolio.iloc[-1] == pytest.approx(103_333.33, abs=0.5)
+
+
+def test_market_neutral_short_y_long_x_profits_when_y_falls() -> None:
+    index = _idx(2)
+    y = pd.Series([100.0, 90.0], index=index)
+    x = pd.Series([50.0, 50.0], index=index)
+    position = pd.Series([-1.0, -1.0], index=index)
+    beta = pd.Series([2.0, 2.0], index=index)
+    result = run_pair_backtest_market_neutral(
+        y, x, position, beta, start_capital=100_000.0, commission_bps=0,
+    )
+    # short Y: Y düşünce KAZANÇ. shares_y=333.333, düşüş -10 -> +3333.33
+    assert result.portfolio.iloc[-1] == pytest.approx(103_333.33, abs=0.5)
+
+
+def test_market_neutral_commission_charged_once_on_entry() -> None:
+    index = _idx(2)
+    y = pd.Series([100.0, 100.0], index=index)
+    x = pd.Series([50.0, 50.0], index=index)
+    position = pd.Series([1.0, 1.0], index=index)
+    beta = pd.Series([2.0, 2.0], index=index)
+    result = run_pair_backtest_market_neutral(
+        y, x, position, beta, start_capital=100_000.0, commission_bps=100,
+    )
+    expected = 100_000.0 * (1 - 0.01)
+    assert result.portfolio.iloc[-1] == pytest.approx(expected)
+
+
+def test_market_neutral_invalid_beta_skips_entry() -> None:
+    """beta<=0 -- geçersiz/anlamsız hedge -- pozisyon AÇILMAZ, nakitte kalınır."""
+    index = _idx(3)
+    y = pd.Series([100.0, 110.0, 120.0], index=index)
+    x = pd.Series([50.0, 50.0, 50.0], index=index)
+    position = pd.Series([1.0, 1.0, 1.0], index=index)
+    beta = pd.Series([-1.0, -1.0, -1.0], index=index)
+    result = run_pair_backtest_market_neutral(y, x, position, beta, start_capital=100_000.0)
+    assert (result.portfolio == 100_000.0).all()
+    assert result.n_trades == 0
+
+
+def test_market_neutral_flip_direction_closes_and_reopens() -> None:
+    """+1 -> -1 doğrudan geçiş: eski pozisyon KAPANIR, YENİ (ters) pozisyon
+    AÇILIR -- iki ayrı trade (bkz. n_trades)."""
+    index = _idx(3)
+    y = pd.Series([100.0, 100.0, 100.0], index=index)
+    x = pd.Series([50.0, 50.0, 50.0], index=index)
+    position = pd.Series([1.0, -1.0, -1.0], index=index)
+    beta = pd.Series([2.0, 2.0, 2.0], index=index)
+    result = run_pair_backtest_market_neutral(
+        y, x, position, beta, start_capital=100_000.0, commission_bps=0,
+    )
+    assert result.n_trades == 2
+    assert result.trades[0].direction == "long_y_short_x"
+    assert result.trades[0].exit_idx is not None  # ilk pozisyon KAPANDI
+    assert result.trades[1].direction == "short_y_long_x"
+    assert result.trades[1].exit_idx is None  # ikinci pozisyon dizinin sonunda HÂLÂ açık
+    assert result.trades[1].pnl is None
 
 
 def test_weighted_harvest_is_zero_when_never_rebalanced() -> None:

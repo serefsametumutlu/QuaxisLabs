@@ -1,0 +1,38 @@
+# Sektör haritasının (config/sectors_bist.yaml) KAÇIRDIĞI ekonomik bağlar --
+# holding-iştirak, aynı emtia/girdi, aynı endeks gibi discover_pairs()'ın
+# same_sector_only=True iken görmediği ama gerçek bir ekonomik ilişki
+# taşıyan çiftler (Faz 2, 2B — docs/TANI_VE_YOL_HARITASI_v2.md ## FAZ 2).
+#
+# Format: `links:` altında her biri bir GRUP (liste) — aynı grup içindeki
+# HER sembol birbirine bağlı sayılır (discover_pairs bunu simetrik/geçişli
+# OLARAK değil, yalnızca İKİLİ üyelik olarak kullanır -- bir grupta A,B,C
+# varsa A-B, A-C, B-C üçü de "bağlı" sayılır).
+#
+# BİLİNÇLİ OLARAK KÜÇÜK TUTULDU: yalnızca kullanıcının/genel kamuya açık
+# kaynaklardan (KAP/şirket web siteleri) DOĞRULANABİLİR, bariz bağlar --
+# `config/sectors_bist.yaml`'ın kendi "bilmediğin sektörü uydurma" ilkesiyle
+# AYNI disiplin. Boş/eksik bırakmak GÜVENLİDİR (discover_pairs same_sector_
+# only davranışını değiştirmez); YANLIŞ bir bağ eklemek DEĞİLDİR.
+#
+# Genişletmek için: KAP'ta (kap.org.tr) şirketin "İştirakler" bölümünden
+# veya şirketin kendi yatırımcı ilişkileri sayfasından doğrulanmış bir
+# iştirak/kontrol ilişkisi bulunca buraya bir grup olarak ekle.
+
+links:
+  # Koç Holding ve doğrudan/majoritedeki BIST'te işlem gören iştirakleri.
+  - [KCHOL, TUPRS, ARCLK, FROTO, YKBNK, TOASO]
+
+  # Sabancı Holding ve iştirakleri.
+  - [SAHOL, AKBNK, SISE, CIMSA, ENJSA, TAVHL]
+
+  # Şişecam grubu (SISE'nin kendisi de Sabancı grubunda -- ayrıca alt
+  # yapılar için ayrı bir grup, farklı iş kolları aynı hammadde/emtia
+  # (soda/cam) girdisine bağlı).
+  - [SISE, CIMSA, TRKCM]
+
+  # Aynı ana metal/çelik girdisine (demir cevheri/hurda) bağlı iki üretici.
+  - [EREGL, KRDMD]
+
+  # Aynı yakıt/petrokimya emtiasına maruz iki şirket (biri üretici, biri
+  # ana müşteri/dağıtıcı zinciri).
+  - [TUPRS, PETKM]

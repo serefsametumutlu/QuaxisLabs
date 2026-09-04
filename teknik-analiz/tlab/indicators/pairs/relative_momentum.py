@@ -35,7 +35,7 @@ from typing import Any, Literal
 
 import pandas as pd
 
-from tlab.backtest.pairs_engine import run_pair_backtest
+from tlab.backtest.pairs_engine import run_pair_backtest, run_pair_backtest_market_neutral
 from tlab.core.indicator import BaseIndicator
 from tlab.core.params import BaseParams, params_hash
 from tlab.core.types import (
@@ -48,10 +48,12 @@ from tlab.core.types import (
     Timeframe,
 )
 from tlab.features.stats import adf_pvalue, halflife, log_spread, rolling_beta, rolling_corr, zscore
+from tlab.indicators.pairs.coint_monitor import cointegration_broken
 
 BetaMethod = Literal["one", "rolling_ols"]
 InitialHolding = Literal["y", "x", "none_until_signal"]
 Execution = Literal["close", "next_open"]
+Mode = Literal["rotational", "mean_reversion"]
 
 
 @dataclass(frozen=True)
@@ -91,6 +93,39 @@ class RelativeMomentumParams(BaseParams):
     # SİLİNMEZ. Sabit bir bar (`switch_idx + freshness_bars`) kullanılır --
     # tarama HANGİ günü çalışırsa çalışsın AYNI sonucu verir (non-repaint).
     freshness_bars: int = 3
+    # Faz 2, 2C (docs/TANI_VE_YOL_HARITASI_v2.md ## FAZ 2) -- mevcut
+    # ROTASYONEL motoru BOZMADAN yanına gerçek bir istatistiksel arbitraj
+    # modu: "rotational" (varsayılan, davranış AYNEN korunuyor -- aşağıdaki
+    # 5 alan bu modda HİÇ okunmaz) vs "mean_reversion" (referans:
+    # awesome-quant-ai chapter2 -- Faz 2 tanısının (f) bulgusu: eski motorda
+    # çıkış/zarar-kes/zaman-stopu/kilit YOKTU, her an ya Y ya X'te %100
+    # long'du, "nakit/flat" hâli hiç yoktu -- market-neutral istatistiksel
+    # arbitraj DEĞİL, sürekli piyasa beta'sına maruz bir rotasyondu).
+    mode: Mode = "rotational"
+    # |z| < exit_k -> pozisyon KAPATILIR (nakit/flat -- mean_reversion'ın
+    # rotasyoneldeki "hep bir tarafta" sorununu çözen asıl mekanizma).
+    exit_k: float = 0.5
+    # |z| > stop_k -> zorunlu tasfiye (spread beklenenden fazla ıraksadı --
+    # eşbütünleşme kırılmış olabilir, k'nin GİRİŞ eşiği olduğunu unutma).
+    stop_k: float = 3.0
+    # Giriş barından bu kadar bar sonra -- z hâlâ dönmediyse -- zorunlu kapat
+    # (zaman stopu, referans uygulamadaki "30 gün sonra kapat" kuralı).
+    max_hold_bars: int = 30
+    # Zorunlu tasfiye (stop_k) SONRASI z tekrar GİRİŞ bandının (±k) içine
+    # dönene kadar yeni giriş YOK -- "kırılmış" bir eşbütünleşmenin hemen
+    # ardından aynı yönde yeniden girmeyi önler (normal exit_k çıkışı ya da
+    # zaman stopu SONRASI kilit UYGULANMAZ, yalnızca stop_k -- ikisi
+    # "beklenen" bir dönüş, stop "beklenmeyen" bir kırılma sinyali).
+    lockout_until_reentry: bool = True
+    # Faz 2, 2C -- YENİ: tlab/indicators/pairs/coint_monitor.py (CLAUDE.md
+    # backlog madde 4) opsiyonel entegrasyonu. `None` (varsayılan) =
+    # KAPALI, davranış DEĞİŞMEZ. Verilirse: aktif bir pozisyonun spread'i
+    # üzerinde ROLLING Engle-Granger p-değeri izlenir, eşiği (`coint_break_
+    # p_threshold`) geri aşarsa (yapısal kırılma) z HENÜZ dönmemiş olsa
+    # bile pozisyon zorunlu kapatılır (`mr_cointegration_broken` olayı) --
+    # stop_k/exit_k/max_hold_bars'tan BAĞIMSIZ, EK bir çıkış tetikleyicisi.
+    coint_monitor_window: int | None = None
+    coint_break_p_threshold: float = 0.10
 
 
 def _beta_series(y_log: pd.Series, x_log: pd.Series, p: RelativeMomentumParams) -> pd.Series:
@@ -150,6 +185,33 @@ class RelativeMomentumPair(BaseIndicator):
         n = len(common_idx)
         first_signal_ok = max(p.window, p.beta_window, p.min_periods)
 
+        if p.mode == "mean_reversion":
+            signals, markers, boxes, series, last_state = self._compute_mean_reversion(
+                p, common_idx, y, x, y_open, x_open, beta, spread, z, n, first_signal_ok,
+            )
+        else:
+            signals, markers, boxes, series, last_state = self._compute_rotational(
+                p, common_idx, y, x, y_open, x_open, beta, spread, z, corr_series, n,
+                first_signal_ok, dropped_y, dropped_x,
+            )
+
+        return IndicatorResult(
+            indicator=self.meta.name, version=self.meta.version,
+            params_hash=params_hash(p), symbol=f"{p.y_symbol}/{p.x_symbol}",
+            timeframe=Timeframe.D1,
+            signals=signals, boxes=boxes, markers=markers,
+            series=series, last_state=last_state,
+        )
+
+    def _compute_rotational(
+        self, p: RelativeMomentumParams, common_idx: pd.Index,
+        y: pd.Series, x: pd.Series, y_open: pd.Series | None, x_open: pd.Series | None,
+        beta: pd.Series, spread: pd.Series, z: pd.Series, corr_series: pd.Series,
+        n: int, first_signal_ok: int, dropped_y: int, dropped_x: int,
+    ) -> tuple[list[Signal], list[Marker], list[Box], dict[str, pd.Series], dict[str, Any]]:
+        """Faz 0'dan beri var olan ROTASYONEL davranış -- BİREBİR korunuyor
+        (Faz 2, 2C'nin `mode="mean_reversion"` eklemesi bunu HİÇ değiştirmez,
+        yalnızca `compute()`'tan buraya taşındı)."""
         holding = _initial_holding_series(common_idx, p.initial_holding)
         signals: list[Signal] = []
         markers: list[Marker] = []
@@ -267,13 +329,157 @@ class RelativeMomentumPair(BaseIndicator):
             "dropped_bars_x": dropped_x,
             "zone_state": _zone_state(z_today, p.k),
         }
+        return signals, markers, boxes, series, last_state
 
-        return IndicatorResult(
-            indicator=self.meta.name, version=self.meta.version,
-            params_hash=params_hash(p), symbol=f"{p.y_symbol}/{p.x_symbol}",
-            timeframe=Timeframe.D1,
-            signals=signals, boxes=boxes, markers=markers,
-            series=series, last_state=last_state,
+    def _compute_mean_reversion(
+        self, p: RelativeMomentumParams, common_idx: pd.Index,
+        y: pd.Series, x: pd.Series, y_open: pd.Series | None, x_open: pd.Series | None,
+        beta: pd.Series, spread: pd.Series, z: pd.Series, n: int, first_signal_ok: int,
+    ) -> tuple[list[Signal], list[Marker], list[Box], dict[str, pd.Series], dict[str, Any]]:
+        """Faz 2, 2C -- GERÇEK istatistiksel arbitraj modu (bkz. `Relative
+        MomentumParams.mode` docstring'i): `position[t]` +1 (Y uzun/X kısa,
+        z<=-k'da girilir), -1 (Y kısa/X uzun, z>=+k'da girilir), 0 (nakit).
+        Referans: awesome-quant-ai chapter2 -- giriş eşiği AŞILDIĞINDA
+        (rotasyonel moddaki gibi bandın İÇİNE dönüşü BEKLEMEDEN) girilir,
+        çünkü burada bahis "aşırı sapmanın devam eden ortalamaya dönüşü"
+        üzerine (rotasyonelin "dönüş zaten onaylandı, ucuz tarafa geç"
+        mantığından FARKLI)."""
+        position = pd.Series(0.0, index=common_idx, dtype=float)
+        signals: list[Signal] = []
+        markers: list[Marker] = []
+
+        # Faz 2, 2C -- opsiyonel kointegrasyon çürüme izleyicisi (bkz.
+        # `coint_monitor.py` + `RelativeMomentumParams.coint_monitor_window`
+        # docstring'i). TEK SEFERDE önceden hesaplanır (döngü içinde her
+        # bar için yeniden `engle_granger_pvalue` çağırmak O(n*window) yerine
+        # O(n^2*window) olurdu).
+        coint_broken = (
+            cointegration_broken(y, x, p.coint_monitor_window, p.coint_break_p_threshold)
+            if p.coint_monitor_window is not None else None
+        )
+
+        current = 0.0
+        entry_idx: int | None = None
+        locked_out = False
+
+        for t in range(n):
+            if t < first_signal_ok:
+                continue
+            zt = z.iloc[t]
+            if pd.isna(zt):
+                position.iloc[t] = current
+                continue
+
+            if current == 0.0:
+                if locked_out and abs(zt) < p.k:
+                    locked_out = False
+                if not locked_out:
+                    if zt <= -p.k:
+                        current, entry_idx = 1.0, t
+                        self._emit_mr_signal(
+                            signals, markers, common_idx, t, "mr_entry_long", "long",
+                            p.y_symbol, zt, beta,
+                        )
+                    elif zt >= p.k:
+                        current, entry_idx = -1.0, t
+                        self._emit_mr_signal(
+                            signals, markers, common_idx, t, "mr_entry_short", "short",
+                            p.x_symbol, zt, beta,
+                        )
+            else:
+                assert entry_idx is not None
+                az = abs(zt)
+                bars_held = t - entry_idx
+                exit_event: str | None = None
+                if coint_broken is not None and bool(coint_broken.iloc[t]):
+                    exit_event = "mr_cointegration_broken"
+                elif az > p.stop_k:
+                    exit_event = "mr_stop"
+                elif az < p.exit_k:
+                    exit_event = "mr_exit"
+                elif bars_held >= p.max_hold_bars:
+                    exit_event = "mr_time_stop"
+                if exit_event is not None:
+                    prior_dir: Direction = "long" if current > 0 else "short"
+                    self._emit_mr_signal(
+                        signals, markers, common_idx, t, exit_event, prior_dir,
+                        p.y_symbol if current > 0 else p.x_symbol, zt, beta, state="completed",
+                    )
+                    current, entry_idx = 0.0, None
+                    if exit_event == "mr_stop" and p.lockout_until_reentry:
+                        locked_out = True
+            position.iloc[t] = current
+
+        result = run_pair_backtest_market_neutral(
+            y, x, position, beta, p.start_capital, p.commission_bps, p.execution, y_open, x_open,
+        )
+        boxes = _position_boxes(common_idx, position, y, x, p.y_symbol, p.x_symbol)
+
+        series = {
+            "y_norm": y / y.iloc[0] * 100.0,
+            "x_norm": x / x.iloc[0] * 100.0,
+            "z": z,
+            "upper": pd.Series(p.k, index=common_idx),
+            "lower": pd.Series(-p.k, index=common_idx),
+            "exit_upper": pd.Series(p.exit_k, index=common_idx),
+            "exit_lower": pd.Series(-p.exit_k, index=common_idx),
+            "stop_upper": pd.Series(p.stop_k, index=common_idx),
+            "stop_lower": pd.Series(-p.stop_k, index=common_idx),
+            "portfolio": result.portfolio,
+            "position": position,
+        }
+
+        z_today = float(z.iloc[-1]) if not pd.isna(z.iloc[-1]) else None
+        z_yesterday = float(z.iloc[-2]) if n > 1 and not pd.isna(z.iloc[-2]) else None
+        last_signal = signals[-1] if signals else None
+        fired_today = last_signal is not None and last_signal.bar_time == common_idx[-1]
+        last_position = position.iloc[-1]
+        position_label = (
+            f"{p.y_symbol} UZUN / {p.x_symbol} KISA" if last_position > 0
+            else f"{p.y_symbol} KISA / {p.x_symbol} UZUN" if last_position < 0
+            else "NAKİT"
+        )
+        last_state = {
+            "z_today": z_today,
+            "z_yesterday": z_yesterday,
+            "position": position_label,
+            "signal_today": (
+                last_signal.payload["event"] if fired_today and last_signal is not None else None
+            ),
+            "portfolio_value": float(result.portfolio.iloc[-1]),
+            "net_pnl": result.net_pnl,
+            "return_pct": result.return_pct,
+            "n_trades": result.n_trades,
+            "max_drawdown_pct": result.max_drawdown,
+            "win_rate_pct": result.win_rate,
+            "avg_holding_bars": result.avg_holding_bars,
+            "zone_state": _zone_state(z_today, p.k),
+        }
+        return signals, markers, boxes, series, last_state
+
+    @staticmethod
+    def _emit_mr_signal(
+        signals: list[Signal], markers: list[Marker], common_idx: pd.Index, t: int,
+        event: str, direction: Direction, symbol: str, zt: float, beta: pd.Series,
+        state: Literal["confirmed", "completed"] = "confirmed",
+    ) -> None:
+        beta_t = beta.iloc[t]
+        payload = {
+            "event": event, "symbol": symbol, "z": float(zt),
+            "beta": float(beta_t) if not pd.isna(beta_t) else None,
+        }
+        signals.append(
+            Signal(
+                bar_time=common_idx[t], detected_at=common_idx[t], direction=direction,
+                state=state, score=1.0, payload=payload,
+            )
+        )
+        text = {
+            "mr_entry_long": "AL", "mr_entry_short": "SAT", "mr_exit": "ÇIK",
+            "mr_stop": "STOP", "mr_time_stop": "SÜRE", "mr_cointegration_broken": "KIRILDI",
+        }[event]
+        markers.append(
+            Marker(t=common_idx[t], price=float(zt), text=f"{symbol} {text}", kind="pair_mr_signal")
         )
 
 
@@ -337,6 +543,45 @@ def _holding_boxes(
     for i in range(n):
         h = holding.iloc[i]
         side = None if pd.isna(h) else (1.0 if h >= 0.5 else 0.0)
+        if side != run_side:
+            if run_start is not None and run_side is not None:
+                emit(run_start, i - 1, run_side)
+            run_start, run_side = (i, side) if side is not None else (None, None)
+    if run_start is not None and run_side is not None:
+        emit(run_start, n - 1, run_side)
+    return boxes
+
+
+def _position_boxes(
+    index: pd.Index, position: pd.Series, y: pd.Series, x: pd.Series, y_symbol: str, x_symbol: str
+) -> list[Box]:
+    """`_holding_boxes`'ın Faz 2, 2C (`mode="mean_reversion"`) eşdeğeri --
+    TEK fark: `position` üç değer alır (+1/-1/0), `0` (nakit/flat) hiçbir
+    kutu ÜRETMEZ (rotasyonel modun aksine, burada gerçek bir "pozisyon
+    dışı" hâli var -- extend-only/sabitlenmiş-sınır sözleşmesi AYNI)."""
+    boxes: list[Box] = []
+    n = len(index)
+    run_start: int | None = None
+    run_side: float | None = None
+
+    def emit(start: int, end: int, side: float) -> None:
+        symbol_pair = (
+            f"{y_symbol} UZUN / {x_symbol} KISA" if side > 0
+            else f"{y_symbol} KISA / {x_symbol} UZUN"
+        )
+        style = "y_holding" if side > 0 else "x_holding"
+        entry_low = float(min(y.iloc[start], x.iloc[start]))
+        entry_high = float(max(y.iloc[start], x.iloc[start]))
+        boxes.append(
+            Box(
+                t0=index[start], t1=index[end], low=entry_low, high=entry_high,
+                label=symbol_pair, style=style,
+            )
+        )
+
+    for i in range(n):
+        p_i = position.iloc[i]
+        side = None if pd.isna(p_i) or p_i == 0.0 else (1.0 if p_i > 0 else -1.0)
         if side != run_side:
             if run_start is not None and run_side is not None:
                 emit(run_start, i - 1, run_side)

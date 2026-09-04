@@ -64,7 +64,14 @@ DIRECTION_TR: dict[str, str] = {"long": "AL", "short": "SAT", "neutral": "NÖTR"
 INDICATOR_CATEGORY_TR: dict[str, str] = {
     "harmonics": "Harmonik Formasyon",
     "structure": "Fiyat Yapısı",
-    "pair": "Pair (Rölatif Momentum)",
+    # Faz 2, 2E (docs/TANI_VE_YOL_HARITASI_v2.md ## FAZ 2): "Arbitraj" YERİNE
+    # "İstatistiksel Arbitraj" -- gerçek (risksiz) arbitraj (nakit-vadeli,
+    # put-call paritesi, dönüştürülebilir tahvil arbitrajı) tlab'ın tek-
+    # sembol spot-veri mimarisiyle UYUŞMUYOR ve KAPSAM DIŞI (bkz. CLAUDE.md
+    # "Gelecek Entegrasyonlar" altındaki not) -- pair.* göstergeleri
+    # "ortalamaya dönüş bahsi" (istatistiksel arbitraj), risksiz DEĞİL; bu
+    # ayrım arayüzde net olmazsa kullanıcı beklentisi hep yanlış kalibre olur.
+    "pair": "İstatistiksel Arbitraj",
     "trend": "Trend",
     "patterns": "Klasik Formasyon",
     "momentum": "Momentum/Alfa Sıralaması",

@@ -2156,11 +2156,90 @@ yeşil (655→656, +1 yeni regresyon testi), ruff/mypy/lint_lookahead baseline
 ile birebir. `docs/spec/FORMASYON_DENETIM_v2.md`'ye "KAPATILDI" bölümü
 eklendi (orijinal 4-seçenekli analiz ARŞİV olarak dosyada kalıyor).
 
-**Faz 1 TAMAMEN BİTTİ.** Sırada: **Adım 4 — Faz 2 (istatistiksel arbitraj
-v2)**, `docs/TANI_VE_YOL_HARITASI_v2.md`'nin `## FAZ 2` bölümü. Amaç: 606
-sahte çifti ~20-40 gerçek çifte indirmek (ham ADF yerine Engle-Granger,
-Šidák/BH-FDR düzeltmesi, OOS doğrulama) + `RelativeMomentumPair`'e gerçek
-bir `mean_reversion` modu (çıkış/stop/zaman-stopu/kilit) eklemek + kalıcı
-kointegrasyon çürüme izleyicisi (`coint_monitor.py`) + `scripts/pair_
-denetim.py` ile yeniden keşif + `docs/spec/ARBITRAJ_DENETIM_v2.md`.
+**Faz 1 TAMAMEN BİTTİ.**
+
+## Faz 2 — İstatistiksel arbitraj v2 (Adım 4, `docs/TANI_VE_YOL_HARITASI_v2.md` `## FAZ 2`)
+
+Kullanıcı onayıyla başladı (2026-09-04). Amaç: "arbitraj çok fazla sinyal veriyor"
+şikayetinin GERÇEK kökü (ham ADF'nin tahmin edilmiş kalıntıya yanlış uygulanması +
+düzeltmesiz çoklu-test, bkz. tanı bölüm 1.4) — 606 sahte çifti ~20-40 gerçeğe indirmek
++ rotasyonel motorun yanına gerçek bir market-neutral mod eklemek.
+
+**2A — `tlab/features/stats.py` (YENİ fonksiyonlar):** TAMAMLANDI.
+`engle_granger_pvalue` (statsmodels `coint`, MacKinnon kritik değerleri — `adf_pvalue`'nun
+"TAHMİN EDİLMİŞ kalıntıya UYGULAMA" uyarısıyla belgelendi), `ols_spread` (intercept'li TEK
+OLS, tanının (e) bulgusu: eski `log_spread` alpha'yı hiç çıkarmıyordu), `benjamini_hochberg`
+(standart BH-FDR, elle hesaplanmış klasik bir örnekle doğrulandı). 24 yeni test
+(`tests/test_stats.py`).
+
+**2B — `tlab/indicators/pairs/discovery.py` v2:** TAMAMLANDI. `adf_pvalue`→
+`engle_granger_pvalue`; iki yönün minimumuna Šidák düzeltmesi (`p_cift=1-(1-min(p1,p2))^2`);
+YENİ `fdr_q=0.05` (TÜM denenen kombinasyon sayısı `n_tests` üzerinden BH-FDR — Faz 2
+tanısının referans M'siyle AYNI yöntem, corr/halflife eşiklerinden BAĞIMSIZ hesaplanır);
+YENİ `oos_split=0.5` (seçim ilk yarıda, kointegrasyon ikinci yarıda YENİDEN test edilir —
+DISIPLIN-06'nın fiili çözümü); YENİ `economic_link_map` (+ `config/economic_links.yaml`,
+5 grup — KCHOL/Sabancı/Şişecam/EREGL-KRDMD/TUPRS-PETKM). `same_sector_only=False` (tüm
+evren) artık `fdr_q` ZORUNLU kılıyor (`ValueError`) — "SEKTÖR MU TÜM EVREN Mİ" kararı
+(Do & Faff 2010 + 24x çoklu-test yükü farkı) docstring'e işlendi. `PairCandidate`'e
+`p_raw`/`p_adjusted`/`n_tests`/`fdr_passed`/`adf_p_is`/`adf_p_oos` eklendi. 14 test.
+
+**2C — Pair motoru v2:** TAMAMLANDI. `tlab/backtest/pairs_engine.py::
+run_pair_backtest_market_neutral` (YENİ) — beta-ölçekli EŞ ZAMANLI long/short muhasebesi
+(`MarketNeutralTrade`/`MarketNeutralBacktestResult`); GERÇEK bir muhasebe hatası bulunup
+düzeltildi (ilk taslak, pozisyon KAPANDIĞINDA yalnızca gerçekleşen PnL'i nakite ekleyip
+YATIRILAN ANAPARAYI unutuyordu — fiyat giriş seviyesine dönüp PnL=0 olduğunda bile portföy
+0'a düşüyordu; `position_gross` takibiyle düzeltildi, regresyon testiyle kilitlendi).
+`tlab/indicators/pairs/relative_momentum.py::RelativeMomentumParams.mode="mean_reversion"`
+(YENİ, "rotational" varsayılanı BİREBİR korunuyor — `_compute_rotational`/`_compute_mean_
+reversion` olarak ikiye ayrıldı) — `exit_k`/`stop_k`/`max_hold_bars`/`lockout_until_reentry`
+ile gerçek bir nakit/flat hâli olan istatistiksel arbitraj (referans: awesome-quant-ai
+chapter2). YENİ `tlab/indicators/pairs/coint_monitor.py` (CLAUDE.md backlog madde 4) —
+rolling Engle-Granger p-değeri izleyicisi, `RelativeMomentumParams.coint_monitor_window`
+(opsiyonel, varsayılan `None`=kapalı) ile mean_reversion moduna "mr_cointegration_broken"
+zorunlu-çıkış olarak bağlandı. 22 + 17 + 6 test (relative_momentum/pairs_engine/coint_monitor).
+
+**2E — Arayüz adlandırması:** TAMAMLANDI. `tlab/viz/labels_tr.py`'de `INDICATOR_CATEGORY_TR
+["pair"]` "Pair (Rölatif Momentum)"→"İstatistiksel Arbitraj". Gerçek (risksiz) arbitrajın
+kapsam dışı olduğu notu CLAUDE.md'de zaten mevcuttu (K2 STRAT-09/ch3, "PARK").
+
+**Test durumu:** 702/702 yeşil (655→702, Faz 1 sonrasından +47), `ruff check tlab/ tests/`
+19 hata (BASELINE İLE AYNI), `mypy tlab/` 1 hata (BASELINE). `lint_lookahead` 3→**5**
+(YENİ 2'si `coint_monitor.py`'nin `.iloc[t-window+1:t+1]` pencere dilimlemesi — mevcut 3
+baseline false-positive'iyle AYNI kalıp, geriye-bakan/non-repaint, `rolling_beta`/pattern_
+context.py'nin ZATEN kullandığı desen, LA004'ün naif regex'i yakalıyor).
+
+**Sırada — 2D (doğrulama):** `scripts/pair_denetim.py` (YENİ) yazıldı, çalıştırılıyor —
+mevcut 606 çifti `engle_granger_pvalue` ile yeniden doğrular + `discover_pairs` v2'yi
+(coint+Šidák+FDR+OOS) sıfırdan koşup `config/pairs.yaml`'ı yeniden üretir (eskisi
+`config/pairs_v1_deprecated.yaml`'a taşınır) + `docs/spec/ARBITRAJ_DENETIM_v2.md` yazar.
+**İlk sonuç (606 eski çiftin yeniden doğrulaması TAMAMLANDI):** 606 çiftten yalnızca 288'i
+hâlâ ham p<0.05 (yarısından fazlası zaten ESKİ testin kendi şişirmesinden kaynaklıydı),
+BH-FDR (q=0.05, M=579 fiyatlanabilen çift) geçen yalnızca **141** — tanının "606→20-40"
+beklentisinden BİLE daha az agresif ama AYNI yönde güçlü bir doğrulama. `discover_pairs`
+v2'nin sıfırdan taraması (7334 aynı-sektör+ekonomik-bağ kombinasyonu)
+TAMAMLANDI (`docs/spec/ARBITRAJ_DENETIM_v2.md` yazıldı).
+
+**KARAR GEREKTİREN GERÇEK BULGU:** sıfırdan keşif `fdr_q=0.05` + `oos_split=0.5`'in
+(discover_pairs()'ın KOD OLARAK sevk edilen varsayılanları, AYNI ANDA) BİRLEŞİK etkisiyle
+606 çifti yalnızca **1**'e indirdi (PEKGY/EYGYO, Gayrimenkul). Elenme sebebi ayrıştırıldı
+(aynı 7334-kombinasyonluk veri, kademeli sıkılaştırma): düzeltilmiş test (coint+Šidák+
+corr/halflife) → **222**; + BH-FDR (q=0.05) → **17** (A'dan %92 azalma); + OOS (oos_
+split=0.5) → **1** (B'den %94 azalma). **OOS, FDR'den bile daha agresif bir filtre** —
+Faz 2 tanısının kaynak tablosundaki "606→36" rakamı yalnızca FDR'yi temsil ediyordu
+(B satırına yakın, 17 vs 36, aynı mertebe), OOS'u DEĞİL; `discover_pairs()`'ın ikisini
+BİRDEN varsayılan yapması 2B'de bilinçli bir tasarım kararıydı (DISIPLIN-06'yı koda
+gömmek) ama SONUCU (1 çift) o an ÖLÇÜLMEMİŞTİ. `config/pairs.yaml` bu 1 çiftlik sonuçla
+YENİDEN ÜRETİLDİ (eski liste `config/pairs_v1_deprecated.yaml`'a taşındı). 3 seçenek
+raporda: (1) mevcut en-katı ayarı koru (1 çift, ama `LOOKBACK_BARS` artırılırsa OOS'un
+gücü artabilir, ÖLÇÜLMEDİ), (2) `oos_split=None`'a çek (yalnızca FDR, **17 çift** —
+tanının hedefine ÇOK daha yakın, OOS mekanizması SİLİNMİYOR, elle hâlâ kullanılabilir),
+(3) `oos_split`'i gevşet (ör. 0.7, ÖLÇÜLMEDİ). Kâr/zarar karşılaştırması (mean_reversion
+vs rotasyonel) N=1 çiftle istatistiksel olarak ANLAMSIZ olduğu için AYRI bir tura
+bırakıldı (kullanıcı kararından sonra, ≥17 çiftle yapılmalı).
+
+**Adım 4 sonrası onay kapısı:** Faz 2'nin 2A/2B/2C/2E kod değişiklikleri + 2D doğrulaması
+TAMAMLANDI (702 test yeşil, ruff/mypy baseline ile birebir, lint_lookahead 3→5 — 2 yenisi
+`coint_monitor.py`'nin mevcut 3 baseline false-positive'iyle AYNI kalıp). `docs/spec/
+ARBITRAJ_DENETIM_v2.md`'nin özeti kullanıcıya sunulup, ÖZELLİKLE OOS+FDR'nin çifti 1'e
+indirmesi konusunda karar alınmadan Adım 5'e geçilmeyecek.
 

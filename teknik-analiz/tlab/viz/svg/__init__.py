@@ -15,10 +15,13 @@ from __future__ import annotations
 import pandas as pd
 
 from tlab.core.types import IndicatorResult
+from tlab.viz.svg.scenes import breakout_fvg as _breakout_fvg
 from tlab.viz.svg.scenes import broadening as _broadening
 from tlab.viz.svg.scenes import double_top_bottom as _double_top_bottom
+from tlab.viz.svg.scenes import flag_pennant as _flag_pennant
 from tlab.viz.svg.scenes import golden_zone as _golden_zone
 from tlab.viz.svg.scenes import harmonic as _harmonic
+from tlab.viz.svg.scenes import head_shoulders as _head_shoulders
 from tlab.viz.svg.scenes import report as _report
 from tlab.viz.svg.scenes import reversal_map as _reversal_map
 from tlab.viz.svg.scenes import supply_demand as _supply_demand
@@ -50,6 +53,9 @@ _SCENES = {
     "patterns.wedge": _wedge_triangle,
     "patterns.triangle": _wedge_triangle,
     "patterns.broadening": _broadening,
+    "patterns.head_shoulders": _head_shoulders,
+    "patterns.flag_pennant": _flag_pennant,
+    "patterns.breakout_fvg": _breakout_fvg,
 }
 _SCENES.update({f"harmonic.{school}": _harmonic for school in _HARMONIC_SCHOOLS})
 

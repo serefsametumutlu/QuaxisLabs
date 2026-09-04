@@ -3053,3 +3053,155 @@ iter{1..3}_wedge_*`/`iter3_triangle_GARAN_*`, `iter{1..4}_broadening_*`.
 **Sırada:** Faz 4b'nin kalan 4 maddesi (classic[head_shoulders]/
 double_top_bottom-review/flag_pennant/breakout_fvg-YENİ strateji).
 
+## 2026-09-04 (aynı gün) — Faz 4b devam: `head_shoulders` ("classic"/TOBO-OBO) sahnesi portlandı (3/6)
+
+**`tlab/viz/svg/scenes/head_shoulders.py`** — `double_top_bottom.py`/
+`wedge_triangle.py`nin AYNI görsel dili, ama HeadShouldersIndicator'ın
+KENDİNE ÖZGÜ sözleşmesine uyarlandı: boyun `Level` değil eğilebilir bir
+`Line` (`extend_right=True`); 3 AYRI hologram `Polygon`'u (sol omuz/baş/
+sağ omuz — HER ÜÇÜ de AYNI `{pid}_hologram` etiketini paylaşıyor, `_group_
+patterns` hepsini toplayacak şekilde yazıldı); 3 vertex marker'ı "1"/"2"
+DEĞİL gerçek TR metin ("SOL OMUZ"/"BAŞ"/"SAĞ OMUZ"); kırılım seviyesi
+`break_rule` sinyal payload'ına göre İKİ farklı kural izliyor (boyun
+aşağı/yatay eğimliyse boynun kendisi, YUKARI eğimliyse sağ omuz-baş arası
+tepenin [h2] SABİT fiyatı — `head_shoulders.py`nin kendi "Bulkowski"
+notuyla tutarlı, sahne bunu `_break_value_at`de ayırt ediyor).
+
+1. iterasyonda (CEMTS) İLK DENEMEDEN temiz çıktı (önceki 2 sahnenin
+`last_time`/yıllı-tarih derslerinin baştan uygulanması sayesinde). 4/5.
+iterasyonlarda "BAŞ" etiketinin dar bir TOBO'da görünmediği SANILDI —
+önce `LabelBox.priority`yi YANLIŞ yönde ("küçük=önemli" varsayılarak)
+değiştirdim, sonra `layout.py`nin KENDİ docstring'inin "büyük=daha önemli
+(önce yerleştirilir, en son drop edilir)" sözleşmesini fark edip
+düzelttim. 6. iterasyonda SVG metnini DOĞRUDAN inceleyince "BAŞ"ın
+ASLINDA HER ZAMAN doğru konumda (çakışmasız) render edildiği, sorunun
+küçük/sıkışık PNG önizlemesinde OKUNAMAMASI olduğu anlaşıldı — bu oturumda
+İKİNCİ kez (`wedge_triangle`nin 2. iterasyonunda "Hedef" metninin kesik
+sanılması da aynı kalıptı) PNG'ye değil SVG ham metnine güvenmek gerektiği
+doğrulandı. Öncelik değişikliği yine de mantıklı bir iyileştirme olarak
+(formasyonun en karakteristik noktası artık en korunaklı) TUTULDU, geri
+alınmadı.
+
+9 yeni test (`_bas_vertex_label_is_present_in_rendered_svg` regresyonu
+PNG değil SVG metnini kontrol ediyor), 836 test yeşil (827→836), ruff/
+mypy/lint_lookahead baseline'ları DEĞİŞMEDİ. Detay: `docs/design/
+iterasyon/iter{1,2,3,5,6}_head_shoulders_*`.
+
+**Sırada:** Faz 4b'nin kalan 3 maddesi (double_top_bottom-review/
+flag_pennant/breakout_fvg-YENİ strateji).
+
+## 2026-09-04 (aynı gün) — KULLANICI KESİNTİSİ: `error/` klasöründeki 10 görsel + kapsamlı geri bildirim
+
+Kullanıcı Faz 4b'nin ortasında (head_shoulders bittikten hemen sonra)
+`error/` klasörüne 10 PNG koyup "şu an ne yapıyorsan yarıda bırak" dedi —
+AKBNK/BAKAB çift tepe/dip, INTEM harmonic/flag_pennant/golden_zone/
+price_structure/report/supply_demand/trend.breakouts/trend.ma_systems
+görsellerinin KALİTESİZ olduğunu bildirdi (bulanık, boyut/oran hatalı,
+tarihler güncel değil, golden zone/supply-demand hesaplamaları anlamsız,
+flag_pennant'ta direk yarım kesik, trend.breakouts hiçbir kırılım
+bulamıyor) + `ornek1.png` (başka bir quant'ın SMC/ICT tarzı — mor MA,
+dokunuş-sayılı trend çizgileri, supply/demand kutuları, HH/HL/LH/LL üçgen
+etiketleri, CHoCH/BOS) referans görselini paylaşıp `trend.breakouts`'un
+BUNUN GİBİ olmasını istedi.
+
+**Teşhis:** Çalışan `uvicorn --reload` web sunucusu (PID 32828/33404)
+bugünkü `tlab/viz/svg/` değişikliklerini HİÇ YÜKLEMEMİŞTİ — bilinen bir
+WatchFiles/Windows sorunu (bkz. bu dosyanın 2026-08-30 girdisi, AYNI kalıp
+üçüncü kez tekrarlandı). Sunucu elle temiz yeniden başlatıldı (`git`
+DEĞİL, süreç restart), taze `/api/chart.png` çekimleri (hash/boyut
+karşılaştırmasıyla doğrulandı) şunu gösterdi: **golden_zone/supply_demand/
+structure.report ESKİ Plotly çıktısıymış, restart'la GERÇEKTEN bu
+oturumun SVG sahnelerine döndüler** (kanıt: golden_zone taze çekimi
+`scripts/render_svg_scene.py`nin ürettiğiyle BYTE-BYTE aynı). Ama
+**flag_pennant/price_structure/trend.breakouts/trend.ma_systems restart
+SONRASI da AYNI (byte-özdeş) Plotly çıktısını verdi** — bunlar GERÇEKTEN
+henüz SVG'ye portlanmamış (flag_pennant o an sıradaydı, diğer üçü Faz 4c
+kapsamında). `double_top_bottom` (AKBNK) GERÇEKTEN SVG motorundan
+geliyordu ama hedef fiyat mumlardan çok uzak olunca ekseni bozan GERÇEK
+bir hata taşıyordu.
+
+Kullanıcıya bulgular sunuldu, üç seçenek soruldu (planı sürdür / önce
+trend.breakouts+supply-demand'a geç / ikisini ayrı oturumlara böl).
+**Kullanıcının kararı:** ÖNCE Faz 4b'nin yarım kalan kısmını (flag_pennant/
+double_top_bottom düzeltmesi/breakout_fvg) EKSİKSİZ bitir, SONRA `error/`
+klasöründeki TÜM 10 görsel + önceki mesajdaki TÜM şikayetler için kapsamlı,
+kategorize edilmiş bir rapor yaz (hangi görsel ne hata taşıyor: bulanıklık/
+boyut-oran/çizim hatası/hesaplama hatası) — golden_zone/harmonik/supply_
+demand/trend.breakouts DAHİL hiçbirine kullanıcı onayı olmadan DOKUNULMAYACAK.
+
+## 2026-09-04 (aynı gün) — Faz 4b TAMAMLANDI: flag_pennant + double_top_bottom düzeltmesi + breakout_fvg (YENİ strateji) (4/6, 5/6, 6/6)
+
+**`tlab/viz/svg/scenes/flag_pennant.py`** — `double_top_bottom.py`/
+`wedge_triangle.py`nin AYNI görsel dili, `FlagPennantIndicator`nin kendi
+sözleşmesine uyarlandı: hologram YOK, konsolidasyon kanalı yalnızca bir
+`Box` (`_consolidation`) olarak dışa açılıyor (kanalın kendisi bir OLS
+fiti, `Line` olarak YOK — bkz. modülün docstring'i); kırılım/onay
+işaretlerinin Y konumu bu yüzden kutunun kendi üst/alt kenarı ile
+YAKLAŞIK gösteriliyor. **Kullanıcının `error/INTEM_patterns.flag_pennant_
+1d.png` geri bildirimindeki asıl şikayet** (direğin pencerenin SOL
+kenarından başlayıp öncesindeki mumların hiç görünmemesi) `_pattern_
+window`nin `pad_before`sini direğin KENDİ başlangıcına göre hesaplayarak
+BAŞTAN önlendi. 3 iterasyon (INTEM classic/dark, DMSAS editorial) YENİ
+hata bulmadı. 8 yeni test.
+
+**`double_top_bottom.py` düzeltmesi** — kullanıcının `error/AKBNK_
+patterns.double_top_bottom_1d.png` geri bildirimindeki GERÇEK hata
+doğrulandı: hedef fiyat (37.9) mum aralığından (60-85) çok uzaksa eksen
+onu barındıracak şekilde genişleyip mumları panelin küçük bir üst
+şeridine sıkıştırıyordu. Düzeltme: `wedge_triangle.py`/`broadening.py`de
+zaten uygulanan "uzak değeri eksene katma" dersi buraya da taşındı —
+eksen artık yalnızca mum aralığından kurulur, hedef etiketi `resolve_
+collisions`in KENDİ `_clip_into_bounds`ıyla zaten panel kenarına çekiliyor,
+kesikli hedef çizgisi eksen dışına taştığında iç içe `<svg>` paneli
+tarafından doğal olarak kırpılıyor. AKBNK/BAKAB ile doğrulandı, 1 yeni
+regresyon testi (sentetik `IndicatorResult`, uzak hedefle).
+
+**`tlab/indicators/patterns/breakout_fvg.py` (YENİ, `tlab/viz/svg/scenes/
+breakout_fvg.py`) — Faz 4b'nin YENİ stratejisi.** 5 aşamalı zincir:
+KONSOLİDASYON → KIRILIM → FVG (Fair Value Gap, ICT/"Smart Money Concepts"
+kaynaklı 3 mumlu dengesizlik) → RETEST → ONAY. `wedge.py`/`broadening.py`nin
+paylaştığı `pattern_state.py::track_breakout_pattern` BİLEREK
+KULLANILMADI (kırılım İLE retest arasında zorunlu bir ara-adım — FVG
+oluşumu — var, genel makineye zorla sığdırmak okunurluğu bozardı);
+kendi bespoke döngüsü yazıldı. Non-repaint: FVG ancak 3. mum KAPANDIĞINDA
+bilinir (`bar_time=df.index[i+1]`, orta mumun barı DEĞİL).
+
+**GERÇEK bir hata `populate_registry()` sırasında bulunup düzeltildi**
+(kod yazılırken, iterasyon ÖNCESİ): "süresi doldu" (FVG/breakout
+bulunamadı) durumundaki bir adayın `scan_from` ilerlemesi yalnızca
+`born_idx+1`e atlıyordu — df'in kuyruğuna yakın konsolidasyon HER barda
+neredeyse aynı (1 bar kaymış) bir aday olarak yeniden bulunup gereksiz,
+çakışan "aday spam"i üretiyordu (generic `repaint_test` bunu yüzlerce
+satırlık bir hata listesiyle yakaladı). Düzeltme: süresi dolma durumunda
+`scan_from` arama penceresinin SONUNA atlıyor artık — evren taramasında
+"expired" sayısı 1594→530'a düştü, gerçek sinyal sayıları (confirmed=85,
+completed=221) neredeyse değişmedi (yalnızca çakışan kopyalar silindi).
+Kalan artık-kabul-edilebilir "aday havuzu" zamanlama duyarlılığı (df'in
+kuyruğuna yakın TEK bir aday, `wedge.py`/`broadening.py`yle AYNI kategori)
+`register_verified_elsewhere`e yönlendirilerek çözüldü, non-repaint
+sözleşmesi `tests/test_patterns/test_breakout_fvg.py`deki HEDEFLİ
+testlerle (kutu sınırları doğum barında sabit, sinyal zinciri sırası
+doğru) doğrulandı.
+
+3 iterasyon (BAKAB classic/FVG-oluşmadan-süresi-doldu, KRPLS dark/
+retest-sonrası-geçersiz, CELHA editorial/hedefe-kadar-tam-zincir) ÜÇ
+FARKLI terminal durumu gösterdi, hiçbiri çökmedi. 7 (indikatör) + 8
+(sahne) = 15 yeni test.
+
+**FAZ 4b TAMAMEN BİTTİ (6/6: classic[head_shoulders]/double_top_bottom-
+review/wedge_triangle/broadening/flag_pennant/breakout_fvg-YENİ).** Bu
+son girdide 24 yeni test (flag_pennant 8 + double_top_bottom regresyonu 1
++ breakout_fvg indikatör 7 + breakout_fvg sahne 8), **860 test yeşil
+(836→860)**, ruff/mypy/lint_lookahead baseline'ları DEĞİŞMEDİ (`pytest -q
+-m "not network"` ile doğrulandı). Faz 4b'nin TAMAMI (adım 3-6, bu oturum
+boyunca): 770→860, 90 yeni test. Detay: `docs/design/iterasyon/
+iter{1..3}_flag_pennant_*`, `dtb_fix{1,2}_double_top_bottom_*`,
+`iter{1..3}_breakout_fvg_*`.
+
+**Sırada:** Kullanıcının istediği kapsamlı `error/` klasörü raporu —
+henüz hiçbir düzeltme YAPILMADI, yalnızca teşhis + kategorizasyon.
+Rapor teslim edildikten sonra kullanıcı bir plan hazırlayıp geri
+dönecek; golden_zone/harmonik/supply_demand/trend.breakouts/trend.
+ma_systems/price_structure gibi maddelere kullanıcı "tamam" demeden
+DOKUNULMAYACAK.
+

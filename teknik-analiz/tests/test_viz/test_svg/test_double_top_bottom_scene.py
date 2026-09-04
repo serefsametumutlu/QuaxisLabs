@@ -9,7 +9,7 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from tlab.core.types import Timeframe
+from tlab.core.types import IndicatorResult, Level, Marker, Polygon, Signal, Timeframe
 from tlab.indicators.patterns.double_top_bottom import (
     DoubleTopBottomIndicator,
     DoubleTopBottomParams,
@@ -128,3 +128,49 @@ def test_render_svg_empty_panel_when_no_pattern_candidates() -> None:
     result.symbol = "EMPTYX"
     svg_text = render_svg(result, df, theme="classic")
     assert "Çift tepe/dip adayı yok" in svg_text
+
+
+def test_distant_target_does_not_compress_candle_axis() -> None:
+    """GERÇEK hata (kullanıcı geri bildirimi, 2026-09-04, AKBNK): hedef mum
+    aralığından çok uzaksa (burada mumlar ~60-85, hedef 37.9) eksen hedefi
+    barındıracak şekilde genişleyip mumları panelin küçük bir üst şeridine
+    sıkıştırıyordu. Artık eksen yalnızca mum aralığından kurulur -- fiyat
+    ekseni etiketleri mum aralığına yakın kalmalı, hedefin ~%50 altına
+    inmemeli."""
+    idx = pd.date_range("2024-01-02", periods=40, freq="1D", tz=_TZ)
+    df = pd.DataFrame(
+        {
+            "open": [72.0] * 40, "close": [72.0] * 40,
+            "high": [85.0] * 5 + [72.0] * 35, "low": [60.0] * 5 + [72.0] * 35,
+            "volume": 1000.0,
+        },
+        index=idx,
+    )
+    pid = "double_top_test_short"
+    neckline = Level(price=65.0, label=f"{pid}_neckline", style="pattern_boundary", start=idx[10])
+    target = Level(price=37.9, label=f"{pid}_target", style="pattern_target", start=idx[10])
+    hologram = Polygon(
+        points=((idx[2], 82.0), (idx[6], 65.0), (idx[10], 80.0), (idx[10], 65.0), (idx[2], 65.0)),
+        label=f"{pid}_hologram", style="pattern_hologram",
+    )
+    p1 = Marker(t=idx[2], price=82.0, text="1", kind=f"pattern_vertex:{pid}")
+    p2 = Marker(t=idx[10], price=80.0, text="2", kind=f"pattern_vertex:{pid}")
+    pending = Signal(
+        bar_time=idx[10], detected_at=idx[10], direction="short", state="pending", score=0.5,
+        payload={"pattern_id": pid, "event": "double_top_pending"},
+    )
+    result = IndicatorResult(
+        indicator="patterns.double_top_bottom", version="1", params_hash="x", symbol="TEST",
+        timeframe=Timeframe.D1, signals=[pending], levels=[neckline, target],
+        polygons=[hologram], markers=[p1, p2],
+    )
+    out = build(result, df, CLASSIC)
+    svg_text = "".join(p.svg for p in (out.panels or [])) + "".join(
+        tu.svg for tu in (out.two_up or [])
+    )
+    assert "Hedef: 37.9" in svg_text, "hedef metni yine de doğru gösterilmeli"
+    # mum aralığı (60-85) yalnızca ~%10 pad_range alır -- eksen hedefi (37.9)
+    # barındıracak şekilde genişlemişse 50.0 gibi düşük bir ızgara etiketi
+    # görünürdü, artık görünmemeli.
+    assert "50.0" not in svg_text
+    assert "40.0" not in svg_text

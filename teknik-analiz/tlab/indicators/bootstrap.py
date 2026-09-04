@@ -39,6 +39,15 @@ non-repaint'tir; sorun yalnızca HER MA'nın TAM (büyüyen) serisini tek bir
 `repaint_test`'in Line eşleştirmesi `(points, label)` TAM eşitliği aradığı
 için bunu "değişti" sanır). Sinyallerin GERÇEK non-repaint'liği `tests/
 test_trend/test_ma_systems.py`'de hedefli testlerle doğrulanır.
+Faz 4b (`BreakoutFvgIndicator`, `patterns.breakout_fvg` — YENİ strateji)
+de AYNI istisna yolunu kullanır: `_find_consolidation_box`'un kayan
+penceresi df'in KUYRUĞUNA yakın adaylar için "aday havuzu" zamanlama
+duyarlılığı taşır (bir adayın "SÜRESİ DOLDU" mu yoksa henüz kırılım/FVG/
+retest arıyor mu olduğu, df ne kadar uzadığına bağlı olabilir — `wedge.py`/
+`broadening.py`nin trendline aday havuzuyla AYNI kategori). Non-repaint
+sözleşmesi `tests/test_patterns/test_breakout_fvg.py`de hedefli testlerle
+(kutu/FVG sınırlarının doğduğu barda SABİTLENDİĞİ, sinyal zincirinin
+extend-only olduğu) doğrulanır.
 
 `CATALOG`: {indikatör_adı: IndicatorSpec} — scanner motoru (Faz 6) bunu
 kullanır (`Registry`'nin kendisi değil), çünkü motor context'li (pair)
@@ -60,6 +69,7 @@ from tlab.indicators.momentum.alpha_rank import AlphaRank, AlphaRankParams
 from tlab.indicators.momentum.momentum_rank import MomentumRank, MomentumRankParams
 from tlab.indicators.pairs.relative_momentum import RelativeMomentumPair, RelativeMomentumParams
 from tlab.indicators.pairs.vol_harvest import VolHarvestPair, VolHarvestParams
+from tlab.indicators.patterns.breakout_fvg import BreakoutFvgIndicator, BreakoutFvgParams
 from tlab.indicators.patterns.broadening import BroadeningIndicator, BroadeningParams
 from tlab.indicators.patterns.double_top_bottom import (
     DoubleTopBottomIndicator,
@@ -166,6 +176,10 @@ def build_catalog() -> dict[str, IndicatorSpec]:
     catalog["patterns.broadening"] = IndicatorSpec(
         name="patterns.broadening", category="patterns",
         factory=lambda: BroadeningIndicator(BroadeningParams()),
+    )
+    catalog["patterns.breakout_fvg"] = IndicatorSpec(
+        name="patterns.breakout_fvg", category="patterns",
+        factory=lambda: BreakoutFvgIndicator(BreakoutFvgParams()),
     )
     catalog["trend.ewmac"] = IndicatorSpec(
         name="trend.ewmac", category="trend",
@@ -292,6 +306,7 @@ def populate_registry() -> None:
                 "structure.supply_demand", "trend.weekly_channel",
                 "patterns.wedge", "patterns.triangle",
                 "patterns.flag_pennant", "patterns.broadening",
+                "patterns.breakout_fvg",
                 "trend.ma_systems",
             ):
                 registry.register_verified_elsewhere(instance)

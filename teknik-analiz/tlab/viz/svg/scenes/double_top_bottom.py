@@ -167,12 +167,19 @@ def _panel_svg(window: pd.DataFrame, group: _PatternGroup, theme: SVGTheme, filt
     def pos(t: pd.Timestamp) -> int:
         return bar_index(window, t)
 
+    # GERÇEK hata (kullanıcı geri bildirimi, 2026-09-04, AKBNK): hedef fiyat
+    # mum aralığından ÇOK uzaksa (ör. hedef 37.9 iken mumlar 60-85 TL
+    # bandında), ekseni hedefi barındıracak şekilde genişletmek mumları
+    # panelin küçük bir üst/alt şeridine sıkıştırıyordu -- `wedge_triangle.py`/
+    # `broadening.py`de bulunan "uzak bir değeri eksene katma" dersinin AYNISI,
+    # burada da uygulandı. Eksen artık YALNIZCA mum aralığından kurulur;
+    # hedef etiketi panelin kenarına `resolve_collisions`in kendi `_clip_
+    # into_bounds`ıyla zaten çekiliyor (aşağıdaki `add(target_label, ...)`),
+    # kesikli hedef çizgisi de eksen dışına taştığında iç içe <svg> paneli
+    # tarafından doğal olarak kırpılır -- "hedef ekranın dışında" izlenimi
+    # YANLIŞ değil, doğru bir sinyal.
     lo, hi = pad_range(float(window["low"].min()), float(window["high"].max()), 0.1)
     target_price = group.target.price
-    if group.direction == "short" and target_price < lo:
-        lo = target_price - (hi - lo) * 0.08
-    if group.direction == "long" and target_price > hi:
-        hi = target_price + (hi - lo) * 0.08
 
     chart = Chart(
         w=_W, h=_H, margin_l=44, margin_r=12, margin_t=20, margin_b=28,

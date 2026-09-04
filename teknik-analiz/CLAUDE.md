@@ -37,7 +37,7 @@ kararları) artık `docs/PROGRESS_LOG.md`'de** — bu dosya CLAUDE.md'nin 150k k
 sınırını aştığı için oraya taşındı (2026-09-02). Aşağıdaki liste yalnızca ÖZET; bir
 fazın TAM detayına ihtiyaç varsa `docs/PROGRESS_LOG.md`'ye bak.
 
-**Durum (2026-09-04): 827 test yeşil (`pytest -q -m "not network"`), ruff/mypy
+**Durum (2026-09-04): 860 test yeşil (`pytest -q -m "not network"`), ruff/mypy
 temiz (baseline: 19 ruff / 1 mypy — hepsi önceden var olan/bilinen false-positive,
 ilgisiz satırlar); lint_lookahead 5 uyarı (`coint_monitor.py`nin eklenmesiyle
 CLAUDE.md'nin eski "3" rakamından güncellenmedi, hepsi bu satırın YAZILDIĞI Faz
@@ -344,6 +344,43 @@ test, 827 test yeşil (810→827), ruff/mypy/lint_lookahead baseline'ları
 DEĞİŞMEDİ. Detay: `docs/PROGRESS_LOG.md`nin aynı tarihli girdisi.
 **Sırada: Faz 4b'nin kalan 4 maddesi (classic[head_shoulders]/double_top_
 bottom-review/flag_pennant/breakout_fvg-YENİ strateji).**
+
+**EK (aynı gün) — Faz 4b devam: `head_shoulders` ("classic"/TOBO-OBO)
+sahnesi portlandı (3/6).** `double_top_bottom.py`/`wedge_triangle.py`nin
+AYNI görsel dili, `HeadShouldersIndicator`nin kendine özgü sözleşmesine
+uyarlandı (3 ayrı hologram üçgeni, eğilebilir boyun `Line`'ı, gerçek TR
+vertex metinleri, `break_rule`e göre iki farklı kırılım seviyesi kuralı).
+1. iterasyon ilk denemeden temiz çıktı. 4/5. iterasyonlarda "BAŞ"
+etiketinin kaybolduğu SANILDI — `LabelBox.priority`yi önce YANLIŞ yönde
+değiştirdim, sonra `layout.py`nin "büyük=daha önemli" sözleşmesini fark
+edip düzelttim; 6. iterasyonda SVG metnini DOĞRUDAN inceleyince "BAŞ"ın
+HER ZAMAN doğru render edildiği, sorunun küçük PNG önizlemesinde okunamama
+olduğu anlaşıldı (bu oturumda PNG yerine SVG'ye güvenmenin gerekliliğinin
+İKİNCİ kanıtı). 9 yeni test, 836 test yeşil (827→836), ruff/mypy/
+lint_lookahead baseline'ları DEĞİŞMEDİ. Detay: `docs/PROGRESS_LOG.md`nin
+aynı tarihli girdisi. **Sırada: Faz 4b'nin kalan 3 maddesi (double_top_
+bottom-review/flag_pennant/breakout_fvg-YENİ strateji).**
+
+**EK (aynı gün) — KULLANICI KESİNTİSİ + FAZ 4b TAMAMLANDI.** Kullanıcı
+`error/` klasörüne 10 "kalitesiz görsel" koyup mevcut işi yarıda bırakmamı
+istedi; teşhis: çalışan web sunucusu bugünkü kod değişikliklerini hiç
+yüklememişti (bilinen, TEKRARLANAN WatchFiles sorunu — restart'la
+golden_zone/supply_demand/report DÜZELDİ), ama flag_pennant/price_
+structure/trend.breakouts/trend.ma_systems GERÇEKTEN henüz SVG'ye
+portlanmamış, double_top_bottom'da (AKBNK) GERÇEK bir eksen hatası vardı.
+Kullanıcı kararı: önce Faz 4b'yi bitir, sonra `error/` + önceki mesajın
+TAMAMI için kapsamlı bir rapor ver — golden_zone/harmonik/supply_demand/
+trend.breakouts'a onay olmadan DOKUNMA. Detay: `docs/PROGRESS_LOG.md`.
+
+Faz 4b bitirildi: `flag_pennant.py` (direk artık pencerede tam görünüyor,
+8 test), `double_top_bottom.py` düzeltmesi (uzak hedef artık ekseni
+bozmuyor, AKBNK/BAKAB ile doğrulandı, 1 test), YENİ `patterns/
+breakout_fvg.py` + sahnesi (konsolidasyon→kırılım→FVG→retest→onay
+zinciri, ICT/SMC kaynaklı; kod incelemesinde GERÇEK bir "aday spam"
+hatası bulunup düzeltildi — expired sayısı 1594→530; 15 test). **FAZ 4b
+TAMAMEN BİTTİ (6/6).** 860 test yeşil (836→860), ruff/mypy/lint_lookahead
+baseline'ları DEĞİŞMEDİ. **Sırada: kullanıcının istediği kapsamlı `error/`
+raporu — henüz hiçbir düzeltme YAPILMADI.**
 
 ### Tamamlanan fazlar (özet)
 

@@ -17,6 +17,7 @@ import pandas as pd
 from tlab.core.types import IndicatorResult
 from tlab.viz.svg.scenes import double_top_bottom as _double_top_bottom
 from tlab.viz.svg.scenes import harmonic as _harmonic
+from tlab.viz.svg.scenes import report as _report
 from tlab.viz.svg.scenes.base import SceneOut
 from tlab.viz.svg.theme import SVGTheme, resolve_svg_theme
 
@@ -27,7 +28,14 @@ _HARMONIC_SCHOOLS = (
     "navarro200", "five_zero", "three_drives",
 )
 
-_SCENES = {"patterns.double_top_bottom": _double_top_bottom}
+_SCENES = {
+    "patterns.double_top_bottom": _double_top_bottom,
+    # "structure.report" gerçek bir CATALOG adı DEĞİL -- live.py::
+    # STRUCTURE_REPORT_NAME'in birebir kopyası (import döngüsünü önlemek
+    # için burada ayrıca string olarak yazıldı, iki modül birbirini import
+    # etmiyor).
+    "structure.report": _report,
+}
 _SCENES.update({f"harmonic.{school}": _harmonic for school in _HARMONIC_SCHOOLS})
 
 _GAP = 16.0
@@ -54,12 +62,24 @@ def _wrap_svg(scene_out: SceneOut, theme: SVGTheme) -> str:
             xoff += tu.vb[0] + _GAP
     else:
         v_panels = scene_out.panels or []
-        total_w = max((pv.vb[0] for pv in v_panels), default=486.0)
-        total_h = sum(pv.vb[1] for pv in v_panels) + _GAP * max(0, len(v_panels) - 1)
+        stack_w = max((pv.vb[0] for pv in v_panels), default=486.0)
+        stack_h = sum(pv.vb[1] for pv in v_panels) + _GAP * max(0, len(v_panels) - 1)
         yoff = 0.0
         for pv in v_panels:
             parts.append(_panel_svg_tag(pv.vb[0], pv.vb[1], 0.0, yoff, pv.svg, theme))
             yoff += pv.vb[1] + _GAP
+        if scene_out.side is not None:
+            # `report` sahnesinin DİKEY hacim profili paneli -- sol
+            # yığının SAĞINA, aynı üst kenardan hizalı (artifact'in
+            # sceneReport'undaki `side: {vb, svg}` karşılığı).
+            side = scene_out.side
+            side_x = stack_w + _GAP
+            parts.append(_panel_svg_tag(side.vb[0], side.vb[1], side_x, 0.0, side.svg, theme))
+            total_w = stack_w + _GAP + side.vb[0]
+            total_h = max(stack_h, side.vb[1])
+        else:
+            total_w = stack_w
+            total_h = stack_h
 
     inner = "".join(parts)
     page_bg = f'<rect width="{total_w}" height="{total_h}" fill="{theme.page_bg}"/>'

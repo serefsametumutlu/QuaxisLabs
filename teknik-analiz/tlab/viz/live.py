@@ -172,6 +172,37 @@ def compute_structure_report(
     return ps_result, sf_result, df
 
 
+def compute_structure_report_merged(
+    symbol: str, timeframe: str, market: str
+) -> tuple[IndicatorResult, pd.DataFrame]:
+    """`compute_structure_report`'un iki ayrı sonucunu TEK bir
+    `IndicatorResult`ta birleştirir (`indicator="structure.report"`) --
+    `web/backend/routes/chart.py::get_chart`'ın ZATEN yaptığı birleştirmeyle
+    AYNI (eskiden orada tekrarlanıyordu, buraya taşındı: `/api/chart` JSON
+    uç noktası ile SVG `report` sahnesi [`Scene.build()`'in tek-`result`
+    sözleşmesi gereği] artık TEK doğru kaynağı paylaşıyor). `series`/
+    `series_layout` yalnızca `ps_result`ten gelir (RSI/MACD/hacim/vp_* zaten
+    `price_structure`e ait, `swing_fib_abcd`'in kendi series'i yok)."""
+    ps_result, sf_result, df = compute_structure_report(symbol, timeframe, market)
+    merged = IndicatorResult(
+        indicator=STRUCTURE_REPORT_NAME,
+        version=ps_result.version,
+        params_hash=ps_result.params_hash,
+        symbol=ps_result.symbol,
+        timeframe=ps_result.timeframe,
+        signals=ps_result.signals + sf_result.signals,
+        levels=ps_result.levels + sf_result.levels,
+        lines=ps_result.lines + sf_result.lines,
+        boxes=ps_result.boxes,
+        polygons=[],
+        markers=ps_result.markers + sf_result.markers,
+        series=ps_result.series,
+        series_layout=ps_result.series_layout,
+        last_state={**ps_result.last_state, **sf_result.last_state},
+    )
+    return merged, df
+
+
 def render_structure_report_live(
     symbol: str, timeframe: str, market: str,
     *, theme: Theme | str | None = "auto", last_n: int | None = None, declutter: bool = True,
@@ -229,6 +260,10 @@ def render_live(
     rasterleştirmesi) çalışır -- Faz 4'te kalan 18 sahne portlanıp üç eski
     çağıran da güncellenince varsayılan `svg`'ye çevrilebilir."""
     if indicator_name == STRUCTURE_REPORT_NAME:
+        if engine == "svg" and svg_supports(STRUCTURE_REPORT_NAME):
+            merged, df = compute_structure_report_merged(symbol, timeframe, market)
+            svg_theme = _theme_to_svg_key(theme) or "classic"
+            return render_svg(merged, df, theme=svg_theme, last_n=last_n)
         return render_structure_report_live(
             symbol, timeframe, market, theme=theme, last_n=last_n, declutter=declutter,
         )

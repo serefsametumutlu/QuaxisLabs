@@ -20,7 +20,7 @@ import pandas as pd
 from fastapi import APIRouter, HTTPException
 
 from tlab.core.types import IndicatorResult
-from tlab.viz.live import STRUCTURE_REPORT_NAME, compute_live, compute_structure_report
+from tlab.viz.live import STRUCTURE_REPORT_NAME, compute_live, compute_structure_report_merged
 from tlab.viz.renderer import _declutter_levels, _filter_confirmed_patterns, _filter_harmonic_result
 
 router = APIRouter(tags=["chart"])
@@ -61,23 +61,7 @@ def _ohlcv_records(df: pd.DataFrame) -> list[dict[str, float | int]]:
 def get_chart(symbol: str, tf: str, indicator: str, market: str = "bist") -> dict[str, object]:
     try:
         if indicator == STRUCTURE_REPORT_NAME:
-            ps_result, sf_result, df = compute_structure_report(symbol, tf, market)
-            merged = IndicatorResult(
-                indicator=STRUCTURE_REPORT_NAME,
-                version=ps_result.version,
-                params_hash=ps_result.params_hash,
-                symbol=symbol,
-                timeframe=ps_result.timeframe,
-                signals=ps_result.signals + sf_result.signals,
-                levels=ps_result.levels + sf_result.levels,
-                lines=ps_result.lines + sf_result.lines,
-                boxes=ps_result.boxes,
-                polygons=[],
-                markers=ps_result.markers + sf_result.markers,
-                series=ps_result.series,
-                series_layout=ps_result.series_layout,
-                last_state={**ps_result.last_state, **sf_result.last_state},
-            )
+            merged, df = compute_structure_report_merged(symbol, tf, market)
             result = _apply_declutter(merged)
         else:
             result, df = compute_live(indicator, symbol, tf, market)

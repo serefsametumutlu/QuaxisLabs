@@ -2674,6 +2674,67 @@ basınca `Not Found` hatası aldı** (aşağıdaki bölüme bak) — bu düzelti
 sonra hem `/api/share-text` hem `/api/report` gerçek bir Gemini yanıtıyla
 (`used_ai=True`) BAŞARIYLA doğrulandı (THYAO 4H harmonic.carney).
 
+## 2026-09-04 (aynı gün) — Faz 4a devam: `report` sahnesi portlandı (2/6)
+
+`tlab/viz/svg/scenes/report.py` — `structure.report`in (price_structure +
+swing_fib_abcd birleşimi) SVG portu, artifact'in `sceneReport`ine (satır
+~492-568) referansla: ana panel (mumlar + tek DİRENÇ trend çizgisi [solid +
+sağa dashed projeksiyon] + tek DESTEK BÖLGESİ kutusu + VAH/POC/VAL seviyeleri
++ son birkaç HH/HL/LH/LL swing etiketi), sağda DİKEY hacim profili paneli
+(HVN barları farklı renkte + Gauss eğrisi), altta RSI(14) paneli. `SceneOut.
+side` alanı Faz 3'te tanımlanmış ama HİÇ kullanılmıyordu — `svg/__init__.py::
+_wrap_svg`'e side-panel yerleşimi (sol yığının SAĞINA, üstten hizalı) bu
+sahnede EKLENDİ.
+
+**Mimari:** `structure.report` gerçek bir CATALOG göstergesi değil, iki ayrı
+sonucun birleşimi (bkz. Faz 7 notları) — bu birleştirme daha önce YALNIZCA
+`web/backend/routes/chart.py`de vardı, buraya (`tlab/viz/live.py::
+compute_structure_report_merged`) TAŞINDI ve `chart.py` da bunu ÇAĞIRIR hâle
+getirildi (TEK doğru kaynak — DRY, davranış DEĞİŞMEDİ). `render_live`nin
+`STRUCTURE_REPORT_NAME` dalı artık `engine="svg"` + `svg_supports(...)` iken
+bu birleşik sonucu `render_svg`e verir, aksi hâlde eskisi gibi Plotly'e düşer.
+
+**THYAO 1D/4H gerçek verisiyle 5 iterasyon, 3 temada GÖRÜLEREK — 3 GERÇEK
+hata bulunup düzeltildi:**
+1. İlk denemede hiçbir direnç çizgisi HİÇ görünmüyordu — `_latest_line`
+   yalnızca pencere İÇİNDE son temas edilmiş çizgileri kabul ediyordu, ama
+   `extend_right=True` olan kırılmamış trend çizgileri genelde ESKİ (pencere
+   dışı) bir son temasa sahip (bugüne kadar PROJEKTE edilerek uzanıyorlar).
+2. Bu düzeltilince (en çok temas edilen kırılmamış çizgiyi seç) çizgi YİNE
+   görünmüyordu — seçilen çizgi 4 barlık kısa/dik bir bacaktan geliyordu,
+   kendi eğimiyle ~450 bar sonrasına (bugüne) projekte edilince fiyat 563
+   TL gibi ekran dışı bir değere savruluyordu (renderer.py'nin Faz 7'de
+   bulduğu AYNI "sınırsız eğim" sorunu, farklı bir kaynaktan GERİ GELMİŞ).
+   Düzeltme: `renderer.py::Line`nin AYNI 3x-bacak-süresi kuralı burada da
+   uygulandı (`_PROJECTION_CAP=3`) — hem ADAY SEÇİMİNDE (yalnızca projeksi-
+   yonu pencereye ULAŞABİLEN çizgiler aday sayılır) hem ÇİZİMDE (dashed
+   segment 3x'te KESİLİR, panelin sağ kenarına değil).
+3. "Destek Bölgesi" kutusu neredeyse GÖRÜNMEZ (sıfır yükseklikli) çiziliyordu
+   — kök neden `_zones()`'ün KENDİ sözleşmesiydi: `t1`, kırılmamış bir
+   bölge için df'in SON barına eşit, ama `_track_zones()` kırılma taramasını
+   `formed_idx`in KENDİSİNDEN (aynı bardan) başlatıyor — THYAO'da denenen
+   TÜM 8 bölge aynı barda "kırılmış" çıktı (t0==t1). Bu `_zones()`'ün
+   kendisinde bir hata OLABİLİR (ayrı bir takip konusu, kapsam dışı
+   bırakıldı) ama MY sahne kodu bunu hiç KONTROL ETMİYORDU — `_active_box`
+   artık yalnızca `t1 >= pencerenin son barı` (hâlâ aktif) olan bölgeleri
+   kabul ediyor. **NOT: 10 büyük BIST sembolünde (AKBNK/GARAN/ASELS/SISE/
+   KCHOL/TUPRS/BIMAS/EREGL/FROTO/ENKAI) taranıp HİÇBİRİNDE aktif bir bölge
+   bulunamadı** — `zone_breakout_confirm=1` varsayılanıyla bölgelerin
+   PRATİKTE neredeyse hiç "aktif" kalmıyor olması muhtemel, `_zones()`'ün
+   kendisi ayrıca incelenmeli (kod DEĞİŞTİRİLMEDİ, yalnızca gözlemlendi).
+4. (Küçük, 4. iterasyonda) 4H'te x-ekseni 5 eşit-aralıklı tik aynı ayı
+   ("Tem '26") iki kez üretiyordu — `_pick_x_ticks` artık ardışık AYNI
+   metni atlıyor.
+
+10 yeni test (`tests/test_viz/test_svg/test_report_scene.py` — yukarıdaki
+2. ve 3. bulguları sentetik `Line`/`Box` fixture'larıyla kilitleyen 4 hedefli
+regresyon testi dahil) + 1 yeni golden test. 770 test yeşil (759→770), ruff/
+mypy/lint_lookahead baseline'ları DEĞİŞMEDİ. Detay: `docs/design/iterasyon/
+iter{1..5}_report_THYAO_*`.
+
+**Sırada:** Faz 4a'nın kalan 4 sahnesi (swingfib/goldensupply/weekly/
+reversal_map).
+
 ## 2026-09-04 (aynı gün) — GERÇEK HATA: `IndicatorResult.timeframe` HER indikatörde sabit "D1"
 
 Kullanıcı "Paylaşım Metni Oluştur"a basınca **404 Not Found** aldı — kök

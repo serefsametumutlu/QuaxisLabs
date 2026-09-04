@@ -29,6 +29,7 @@ import pandas as pd
 import pytest
 
 from tests.test_harmonics.fixtures import build_gartley_ohlcv
+from tlab.core.types import IndicatorResult
 from tlab.indicators.harmonics.scanner_indicator import HarmonicIndicator, HarmonicParams
 from tlab.indicators.patterns.double_top_bottom import (
     DoubleTopBottomIndicator,
@@ -195,3 +196,19 @@ def test_golden_svg_harmonic_carney_classic(request: pytest.FixtureRequest) -> N
     result.symbol = "GOLDEN"
     svg_text = render_svg(result, df, theme="classic")
     _assert_matches_golden(svg_text, "svg_harmonic_carney_classic", request, ext="svg")
+
+
+def test_golden_svg_report_classic(request: pytest.FixtureRequest) -> None:
+    df = make_trend(n=220, slope=0.12, noise=1.4, seed=7)
+    ps = PriceStructure(PriceStructureParams())(df)
+    sf = SwingFibABCD(SwingFibABCDParams())(df)
+    merged = IndicatorResult(
+        indicator="structure.report", version=ps.version, params_hash=ps.params_hash,
+        symbol="GOLDEN", timeframe=ps.timeframe,
+        signals=ps.signals + sf.signals, levels=ps.levels + sf.levels,
+        lines=ps.lines + sf.lines, boxes=ps.boxes, polygons=[],
+        markers=ps.markers + sf.markers, series=ps.series, series_layout=ps.series_layout,
+        last_state={**ps.last_state, **sf.last_state},
+    )
+    svg_text = render_svg(merged, df, theme="classic")
+    _assert_matches_golden(svg_text, "svg_report_classic", request, ext="svg")

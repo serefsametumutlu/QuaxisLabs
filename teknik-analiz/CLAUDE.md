@@ -37,7 +37,7 @@ kararları) artık `docs/PROGRESS_LOG.md`'de** — bu dosya CLAUDE.md'nin 150k k
 sınırını aştığı için oraya taşındı (2026-09-02). Aşağıdaki liste yalnızca ÖZET; bir
 fazın TAM detayına ihtiyaç varsa `docs/PROGRESS_LOG.md`'ye bak.
 
-**Durum (2026-09-04): 756 test yeşil (`pytest -q -m "not network"`), ruff/mypy
+**Durum (2026-09-04): 770 test yeşil (`pytest -q -m "not network"`), ruff/mypy
 temiz (baseline: 19 ruff / 1 mypy — hepsi önceden var olan/bilinen false-positive,
 ilgisiz satırlar); lint_lookahead 5 uyarı (`coint_monitor.py`nin eklenmesiyle
 CLAUDE.md'nin eski "3" rakamından güncellenmedi, hepsi bu satırın YAZILDIĞI Faz
@@ -229,13 +229,33 @@ hâli). `tlab/viz/live.py::compute_live`/`compute_structure_report`'a
 (`result.symbol = symbol`'la AYNI desende) `result.timeframe = tf` eklendi
 — TEK nokta hem AI rapor hem paylaşım metni hem grafik render'ını (chart.png/
 svg) kapsıyor; tarayıcı/DB (`scanner/engine.py`) zaten ETKİLENMEMİŞTİ (kendi
-ayrı tf değişkenini kullanıyordu). 756 test yeşil, ruff/mypy DEĞİŞMEDİ,
-canlı sunucuda THYAO 4H doğrulandı ("Zaman Dilimi: 1D"→"4H", grafik hatasız
-render etti) + hem `/api/report` hem `/api/share-text` gerçek bir BAŞARILI
-Gemini yanıtıyla (`used_ai=True`, "4 saatlik periyotta" doğru diliyle) test
-edildi. Detay: `docs/PROGRESS_LOG.md`nin aynı tarihli girdisi. **Sırada:
-Faz 4a'nın kalan 5 sahnesi (report/swingfib/goldensupply/weekly/
-reversal_map).**
+ayrı tf değişkenini kullanıyordu). 759 test yeşil (756→759), ruff/mypy
+DEĞİŞMEDİ, canlı sunucuda THYAO 4H doğrulandı ("Zaman Dilimi: 1D"→"4H",
+grafik hatasız render etti) + hem `/api/report` hem `/api/share-text`
+gerçek bir BAŞARILI Gemini yanıtıyla (`used_ai=True`, "4 saatlik periyotta"
+doğru diliyle) test edildi. Detay: `docs/PROGRESS_LOG.md`nin aynı tarihli
+girdisi.
+
+**EK (aynı gün) — Faz 4a devam: `report` sahnesi portlandı (2/6).**
+`tlab/viz/svg/scenes/report.py` — ana panel (mumlar + direnç trend çizgisi +
+destek bölgesi + VAH/POC/VAL + HH/HL/LH/LL swing etiketleri) + sağda DİKEY
+hacim profili paneli (HVN + Gauss eğrisi) + altta RSI paneli. `SceneOut.side`
+(Faz 3'te tanımlı ama hiç kullanılmıyordu) `svg/__init__.py::_wrap_svg`'e
+eklendi. `structure.report`in iki-sonuçlu birleştirmesi (eskiden yalnızca
+`chart.py`de vardı) `tlab/viz/live.py::compute_structure_report_merged`e
+taşındı (TEK doğru kaynak). THYAO 1D/4H'te 5 iterasyon, 3 temada GÖRÜLEREK
+3 GERÇEK hata bulunup düzeltildi: (1) kırılmamış trend çizgileri pencere-dışı
+son temasları yüzünden hiç seçilmiyordu, (2) seçilen çizgi kısa/dik bir
+bacaktan gelip bugüne projekte edilince fiyatı ekran dışına savuruyordu
+(renderer.py'nin Faz 7 "3x-bacak-süresi" kuralı burada da uygulandı),
+(3) "Destek Bölgesi" kutusu `_zones()`'ün kendi bir garipliği yüzünden
+(10 büyük BIST sembolünün TAMAMINDA bölgeler "aynı barda kırılmış" çıkıyor
+— `_zones()` ayrıca incelenmeli, kod DEĞİŞTİRİLMEDİ, yalnızca gözlemlendi)
+neredeyse hiç görünür değildi, artık yalnızca hâlâ-aktif bölgeler çizilir.
+10 yeni test + 1 golden, 770 test yeşil (759→770), ruff/mypy/lint_lookahead
+baseline'ları DEĞİŞMEDİ. Detay: `docs/PROGRESS_LOG.md`nin aynı tarihli
+girdisi. **Sırada: Faz 4a'nın kalan 4 sahnesi (swingfib/goldensupply/
+weekly/reversal_map).**
 
 ### Tamamlanan fazlar (özet)
 

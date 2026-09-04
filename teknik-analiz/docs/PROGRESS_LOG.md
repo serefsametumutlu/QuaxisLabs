@@ -2784,3 +2784,66 @@ sunucuda THYAO 4H `/api/share-text` çıktısı "Zaman Dilimi: 1D" → "4H"
 olarak düzeldi, `/api/chart.png` THYAO 4H'te hatasız render etti (rangebreaks
 regresyonu yok).
 
+## 2026-09-04 (aynı gün) — Faz 4a devam: `swing_fib_abcd` sahnesi portlandı (3/6)
+
+Kullanıcı iki oturum önce Faz 4a'nın kalan 5 sahnesini onayladı ("harmonic"
+ve "report" önceki oturumlarda bitmişti); bu oturum önce `docs/SONNET_
+PROMPTLARI.md`, gerçek vitrin kaynağı (`grafik_stil_vitrini_files/saved_
+resource.html` — ANA `grafik_stil_vitrini.html` yalnızca Claude.ai Artifacts
+görüntüleyicisinin dış çerçevesi, gerçek sahne kodu BU alt dosyada, bkz.
+Faz 3 girdisi), `report.py`/`harmonic.py` (port deseni referansı) ve 5
+hedef indikatörün (`swing_fib_abcd`/`golden_zone`/`supply_demand`/
+`weekly_channel`/`confluence::build_reversal_map`) TAM kaynağı okunarak
+hazırlık yapıldı — kod YAZILMADI, yalnızca okuma (kullanıcının "hazırda
+bekle" isteği üzerine, session limiti yenilenene kadar).
+
+**`tlab/viz/svg/scenes/swing_fib_abcd.py`** — `structure.swing_fib_abcd`
+sahnesi: mum + swing zigzag zinciri + HH/HL/LH/LL etiketleri (report.py'nin
+AYNI `resolve_collisions` deseni, ayrı ayrı yazıldı — sahneler birbirini
+import etmez) + EN GÜNCEL üçlünün AB=CD D-hedef seviyeleri (yatay çizgi,
+bullish=yeşil/bearish=kırmızı) + EN YENİ bacağın Fibonacci retracement/
+uzatım merdiveni (0.618/0.786 altın vurgu).
+
+**Referans: `sceneSwingFib`** (saved_resource.html satır 643-677).
+BİLİNÇLİ sapma: artifact'in D-hedefi UYDURMA bir eğik ("A-B eğimiyle
+projekte edilmiş") çizgiydi — gerçek `Level` YATAY bir fiyat seviyesidir
+(`price`, `start`=C barı, `end`=None [açık] veya tamamlanma/geçersizleşme
+barı), `report.py`nin VAH/POC/VAL desenine daha yakın çizildi.
+
+**1. iterasyonda (THYAO 1D classic) GERÇEK bir hata bulundu:** D-hedef
+fiyatları (3 farklı oran — 1.0/1.272/1.618) y-ekseni `pad_range`
+hesabına dahil edilince en agresif oran (1.618, ~244 TL, güncel fiyatın
+~%20 altı) ekranın "doğal" mum aralığının çok dışına düşüp TÜM mumları
+ekranın küçük bir üst şeridine sıkıştırıyordu (350-250 TL'lik doğal
+aralık 360-230'a genişleyip grafiğin alt üçte biri boş kalıyordu).
+**Düzeltme:** D-hedef fiyatları y-ekseni hesabından ÇIKARILDI; yalnızca
+ekranın doğal aralığına (mum+swing+fib merdiveni) düşen hedefler çizilir,
+range dışına düşenler SESSİZCE atlanır (`test_out_of_range_target_is_
+silently_skipped` bunu kilitler). 2. iterasyonda (THYAO 1D classic)
+düzeltme doğrulandı — en agresif hedef ekrandan kayboldu, mumlar doğal
+aralığına döndü, kalan 2 hedef (LL swing'in hemen altında, semantik
+olarak doğru bir "potansiyel destek" konumunda) okunaklı kaldı. 3.
+iterasyonda (THYAO 1D dark + BAKAB 1D editorial) YENİ bir hata
+bulunmadı — dark temada iyi kontrast, editorial'da D-hedefleri doğal
+şekilde range dışına düşüp sessizce gizlendi (fib merdiveni tek başına
+okunaklı kaldı).
+
+9 yeni test (`tests/test_viz/test_svg/test_swing_fib_abcd_scene.py` —
+`_latest_targets`/`_fib_ladder`'ın gruplama mantığı + yukarıdaki GERÇEK
+hatayı kilitleyen sentetik `Level` regresyonu + 3 temada well-formed SVG
+dahil), 779 test yeşil (770→779), ruff/mypy/lint_lookahead baseline'ları
+DEĞİŞMEDİ. Detay: `docs/design/iterasyon/iter{1..3}_swing_fib_abcd_*`.
+
+**Sırada:** Faz 4a'nın kalan 3 sahnesi (goldensupply/weekly/
+reversal_map). Not: `live.py::render_live`'ın kendi docstring'i
+(2026-08-30 "deneme + geri alma" notu) `structure.golden_zone`/
+`structure.supply_demand`'ın BİLİNÇLİ olarak AYRI, birleştirilmemiş
+grafikler olarak kalmaya devam ettiğini söylüyor — bu yüzden "goldensupply"
+tek bir birleşik sahne DEĞİL, `report.py` gibi bir "merge" YAPILMADAN iki
+AYRI sahne dosyası (`structure.golden_zone`/`structure.supply_demand`)
+olarak portlanacak (vitrinin `sceneGoldenSupply`'ı iki farklı sembolü yan
+yana gösteren bir DEMO, gerçek port için mimari referans değil). `reversal_
+map` için de: `confluence.py::build_reversal_map` CATALOG göstergesi değil,
+çoklu-kaynak post-processing fonksiyonu — sahne öncesi `live.py`ye
+`compute_reversal_map` benzeri bir köprü eklenmesi gerekecek.
+

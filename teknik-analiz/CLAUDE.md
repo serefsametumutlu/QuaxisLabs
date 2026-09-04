@@ -37,7 +37,7 @@ kararları) artık `docs/PROGRESS_LOG.md`'de** — bu dosya CLAUDE.md'nin 150k k
 sınırını aştığı için oraya taşındı (2026-09-02). Aşağıdaki liste yalnızca ÖZET; bir
 fazın TAM detayına ihtiyaç varsa `docs/PROGRESS_LOG.md`'ye bak.
 
-**Durum (2026-09-04): 770 test yeşil (`pytest -q -m "not network"`), ruff/mypy
+**Durum (2026-09-04): 779 test yeşil (`pytest -q -m "not network"`), ruff/mypy
 temiz (baseline: 19 ruff / 1 mypy — hepsi önceden var olan/bilinen false-positive,
 ilgisiz satırlar); lint_lookahead 5 uyarı (`coint_monitor.py`nin eklenmesiyle
 CLAUDE.md'nin eski "3" rakamından güncellenmedi, hepsi bu satırın YAZILDIĞI Faz
@@ -256,6 +256,26 @@ neredeyse hiç görünür değildi, artık yalnızca hâlâ-aktif bölgeler çiz
 baseline'ları DEĞİŞMEDİ. Detay: `docs/PROGRESS_LOG.md`nin aynı tarihli
 girdisi. **Sırada: Faz 4a'nın kalan 4 sahnesi (swingfib/goldensupply/
 weekly/reversal_map).**
+
+**EK (aynı gün) — Faz 4a devam: `swing_fib_abcd` sahnesi portlandı (3/6).**
+`tlab/viz/svg/scenes/swing_fib_abcd.py` — mum + swing zigzag zinciri +
+HH/HL/LH/LL etiketleri (report.py'nin AYNI `resolve_collisions` deseni) +
+en güncel üçlünün AB=CD D-hedef seviyeleri (yatay çizgi, `report.py`nin
+VAH/POC/VAL desenine daha yakın — artifact'in UYDURMA eğik projeksiyonu
+DEĞİL) + en yeni bacağın Fibonacci merdiveni (0.618/0.786 altın vurgu).
+1. iterasyonda (THYAO 1D) GERÇEK bir hata bulundu: D-hedef fiyatları
+y-ekseni hesabına dahil edilince en agresif oran (1.618) ekranın doğal
+mum aralığının çok dışına düşüp TÜM mumları ekranın üst şeridine
+sıkıştırıyordu — düzeltme: D-hedefleri eksen hesabından çıkarıldı,
+yalnızca ekranın doğal aralığına düşenler çizilir, dışına düşenler
+sessizce atlanır. 2/3. iterasyonlar (dark/editorial, THYAO/BAKAB) YENİ
+hata bulmadı. 9 yeni test, 779 test yeşil (770→779), ruff/mypy/
+lint_lookahead baseline'ları DEĞİŞMEDİ. Detay: `docs/PROGRESS_LOG.md`nin
+aynı tarihli girdisi. **Sırada: Faz 4a'nın kalan 3 sahnesi (goldensupply/
+weekly/reversal_map) — `golden_zone`/`supply_demand` BİLİNÇLİ olarak
+AYRI iki sahne olacak (`live.py`'nin 2026-08-30 "geri alma" kararı
+gereği), `reversal_map` için `live.py`ye yeni bir köprü fonksiyonu
+gerekecek.**
 
 ### Tamamlanan fazlar (özet)
 

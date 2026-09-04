@@ -2548,3 +2548,39 @@ DEĞİL (Faz 2'de 116-çift deneyiyle zaten test edilip reddedildi), yeni
 cointegre olan bir çiftin listeye düzenli aralıklarla eklenmesini sağlayan
 bir OPERASYONEL çözüm.
 
+## 2026-09-04 (aynı gün) — Web: "Çift Listesini Yenile" butonu + kapsamlı INTEM taraması
+
+Kullanıcı zamanlanmış cron yerine web arayüzünde, her arbitraj taramasından
+ÖNCE elle basabileceği bir buton istedi. `scripts/pair_denetim.py`nin
+`discover_pairs` + `config/pairs.yaml` yazma mantığı (`_write_pairs_yaml`,
+`_load_all_close_prices`) YENİ `tlab/indicators/pairs/refresh.py`ye
+taşındı (`write_pairs_yaml`/`load_all_close_prices`/`refresh_pairs_yaml`) —
+CLI betiği artık bu paylaşılan modülü import ediyor, mantık iki yerde ayrı
+yazılmıyor. YENİ `web/backend/routes/pairs_refresh.py` (`POST /api/pairs/
+refresh`, `GET /api/pairs/refresh/status`) `scan_trigger.py`nin AYNI
+thread+iş-durum deseniyle arka planda `refresh_pairs_yaml()`i çalıştırır.
+Frontend'de (`web/frontend/app/scan/page.tsx`) kategori "pair" seçiliyken
+görünen "Çift Listesini Yenile" butonu eklendi (5sn polling, `scan/page.tsx`
+zaten kullandığı `startScan`/`fetchScanStatus` desenini paylaşıyor).
+3 yeni test (`tests/test_pairs/test_refresh.py`, `write_pairs_yaml`in saf
+yazma/round-trip davranışı), TypeScript `tsc --noEmit` temiz, endpoint
+`TestClient` ile uçtan uca duman testiyle doğrulandı (arka plan iş kuyruğa
+alınıp `running`e geçti — tam bir keşif koşusu dakikalarca sürdüğü için
+GERÇEK bir tamamlanma beklenmedi, `config/pairs.yaml`nin dokunulmadığı
+`git status` ile doğrulandı). 741 test yeşil, ruff/mypy baseline'ları
+DEĞİŞMEDİ.
+
+**Ayrıca aynı oturumda** kullanıcının canlı bir INTEM (BIST) pozisyonu için
+altı göstergeyle (harmonik, yapı raporu, swing/fibonacci, golden zone,
+arz-talep, çift dip) tam bir tarama istendi ve bir artifact galerisi olarak
+sunuldu (kalıcı kod değişikliği YOK, tek seferlik analiz). Kullanıcının
+kendi TradingView'da işaretlediği Bat XABCD noktaları (X=31 Tem düşük,
+A=13 Ağu yüksek, B=20 Ağu düşük, C=24 Ağu yüksek) Carney'nin Bat kuralıyla
+elle hesaplandı — oranlar geçerli (XAB=0,482, ABC=0,868) ve D bölgesi
+(237,96-240,08) fiyatın aynı sabah dokunduğu (239,70) seviyeyle TAM
+örtüştü; sistemin otomatik taraması bunu C pivotunun (24 Ağustos zirvesi)
+kendi zigzag mantığında henüz "kesinleşmemiş" olması yüzünden henüz aday
+olarak üretmemişti (birkaç bar gecikme, geçersizlik DEĞİL). Bu, kod
+tabanında kalıcı bir değişiklik gerektirmedi — bulgu kullanıcıya doğrudan
+sunuldu.
+

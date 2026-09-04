@@ -173,6 +173,20 @@ bir görünüme bakmış; "17 çift yetersiz" endişesi — periyodik `pair_
 denetim.py` çalıştırma ÖNERİLDİ, henüz UYGULANMADI) kod DEĞİŞTİRMEDİ,
 yalnızca açıklandı/notlandı.
 
+**EK (aynı gün) — Web: "Çift Listesini Yenile" butonu:** yukarıdaki "17
+çift" endişesine kullanıcının somut cevabı — periyodik cron yerine web
+arayüzünde elle basılan bir buton istedi. `scripts/pair_denetim.py`nin
+keşif+yazma mantığı YENİ `tlab/indicators/pairs/refresh.py`ye taşındı
+(CLI + web AYNI `refresh_pairs_yaml()`i paylaşır), YENİ `web/backend/
+routes/pairs_refresh.py` (`scan_trigger.py`nin AYNI arka-plan-iş deseni)
++ `/scan` sayfasında kategori "pair" iken görünen buton. 741 test yeşil.
+Aynı oturumda kullanıcının canlı bir INTEM pozisyonu için 6 göstergeli tam
+tarama da yapıldı (artifact olarak sunuldu, kod değişikliği YOK) — kendi
+çizdiği Bat XABCD noktaları Carney kuralıyla elle doğrulandı, oranlar
+geçerli çıktı ve D bölgesi (237,96-240,08) fiyatın aynı sabah dokunduğu
+seviyeyle (239,70) örtüştü; sistem bunu C pivotunun henüz "kesinleşmemiş"
+olması yüzünden aday olarak üretmemişti (gecikme, geçersizlik değil).
+
 ### Tamamlanan fazlar (özet)
 
 - **Faz 0 — İskelet**: `core/types.py`, `core/indicator.py`, `core/params.py`,

@@ -118,6 +118,31 @@ export function fetchScanStatus(jobId: string): Promise<ScanJob> {
   return getJson<ScanJob>(`/scan/status?job_id=${encodeURIComponent(jobId)}`);
 }
 
+export interface PairsRefreshJob {
+  job_id: string;
+  status: "queued" | "running" | "completed" | "failed" | "already_running";
+  started_at?: string;
+  finished_at?: string;
+  error?: string;
+  result?: { n_symbols_priced: number; n_pairs: number; pairs: string[] };
+}
+
+/** `config/pairs.yaml`'ı arka planda yeniden üretir (bkz. `web/backend/
+ * routes/pairs_refresh.py`) -- dakikalarca sürebilir, bu yüzden `startScan`
+ * ile AYNI kuyruk+polling deseni. */
+export async function startPairsRefresh(): Promise<PairsRefreshJob> {
+  const res = await fetch(`${API_BASE}/pairs/refresh`, { method: "POST" });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { detail?: string }).detail ?? `İstek başarısız (${res.status})`);
+  }
+  return res.json() as Promise<PairsRefreshJob>;
+}
+
+export function fetchPairsRefreshStatus(jobId: string): Promise<PairsRefreshJob> {
+  return getJson<PairsRefreshJob>(`/pairs/refresh/status?job_id=${encodeURIComponent(jobId)}`);
+}
+
 export function fetchSignals(params: {
   run_id: string;
   market?: string;

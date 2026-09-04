@@ -19,6 +19,7 @@ from web.backend.routes import (
     chart_png,
     chart_svg,
     guide,
+    pairs_refresh,
     report,
     scan,
     scan_trigger,
@@ -43,6 +44,7 @@ app.include_router(report.router, prefix="/api")
 app.include_router(guide.router, prefix="/api")
 app.include_router(scan.router, prefix="/api")
 app.include_router(scan_trigger.router, prefix="/api")
+app.include_router(pairs_refresh.router, prefix="/api")
 
 
 @app.get("/api/health")

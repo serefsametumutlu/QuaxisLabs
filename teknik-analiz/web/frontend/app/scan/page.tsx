@@ -5,12 +5,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   fetchCatalog,
   fetchCategories,
+  fetchPairsRefreshStatus,
   fetchRuns,
   fetchScanStatus,
   fetchSignals,
+  startPairsRefresh,
   startScan,
 } from "@/lib/api";
-import type { ScanJob, ScanRun, ScanSignal } from "@/lib/api";
+import type { PairsRefreshJob, ScanJob, ScanRun, ScanSignal } from "@/lib/api";
 import type { CatalogEntry, CategoryEntry } from "@/lib/types";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { useTheme } from "@/lib/useTheme";
@@ -110,6 +112,8 @@ function ScanPageInner() {
   const [error, setError] = useState<string | null>(null);
   const [scanJob, setScanJob] = useState<ScanJob | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
+  const [pairsRefreshJob, setPairsRefreshJob] = useState<PairsRefreshJob | null>(null);
+  const [pairsRefreshError, setPairsRefreshError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCatalog().then(setCatalog).catch(() => setCatalog([]));
@@ -154,6 +158,32 @@ function ScanPageInner() {
       .then(setScanJob)
       .catch((e: Error) => setScanError(e.message));
   };
+
+  // `config/pairs.yaml`nin kendi notu "KALICI BİR ONAY DEĞİL, periyodik
+  // olarak yeniden koşulmalı" diyor -- bu buton, kullanıcının "İstatistiksel
+  // Arbitraj" taramasından ÖNCE basıp çift listesini güncel tutmasını
+  // sağlıyor (bkz. web/backend/routes/pairs_refresh.py).
+  const triggerPairsRefresh = () => {
+    setPairsRefreshError(null);
+    startPairsRefresh()
+      .then(setPairsRefreshJob)
+      .catch((e: Error) => setPairsRefreshError(e.message));
+  };
+
+  useEffect(() => {
+    if (
+      !pairsRefreshJob ||
+      pairsRefreshJob.status === "completed" ||
+      pairsRefreshJob.status === "failed"
+    )
+      return;
+    const interval = setInterval(() => {
+      fetchPairsRefreshStatus(pairsRefreshJob.job_id)
+        .then(setPairsRefreshJob)
+        .catch(() => {});
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [pairsRefreshJob]);
 
   const load = useCallback(() => {
     if (!runId) return;
@@ -374,6 +404,39 @@ function ScanPageInner() {
             {scanJob?.status === "already_running" && (
               <span className="font-mono text-xs text-warning">Bu piyasa için zaten bir tarama çalışıyor</span>
             )}
+            {category === "pair" && (
+              <>
+                {pairsRefreshJob &&
+                  (pairsRefreshJob.status === "queued" || pairsRefreshJob.status === "running") && (
+                    <span className="font-mono text-xs text-warning">
+                      Çift listesi yenileniyor… (birkaç dakika sürebilir)
+                    </span>
+                  )}
+                {pairsRefreshJob?.status === "completed" && (
+                  <span className="font-mono text-xs text-accent">
+                    {pairsRefreshJob.result?.n_pairs} çift bulundu
+                  </span>
+                )}
+                {pairsRefreshJob?.status === "failed" && (
+                  <span className="font-mono text-xs text-danger">
+                    Yenileme başarısız: {pairsRefreshJob.error}
+                  </span>
+                )}
+                {pairsRefreshJob?.status === "already_running" && (
+                  <span className="font-mono text-xs text-warning">Zaten yenileniyor</span>
+                )}
+                <button
+                  onClick={triggerPairsRefresh}
+                  disabled={
+                    pairsRefreshJob?.status === "queued" || pairsRefreshJob?.status === "running"
+                  }
+                  title="config/pairs.yaml periyodik bir tarama değil, elle/butonla yenilenen sabit bir liste — yeni cointegre olan bir çifti yakalamak için taramadan önce bas"
+                  className="rounded-md border border-accent px-3.5 py-1.5 text-sm font-medium text-accent hover:bg-accent/10 disabled:opacity-50"
+                >
+                  Çift Listesini Yenile
+                </button>
+              </>
+            )}
             <button
               onClick={triggerScan}
               disabled={scanJob?.status === "queued" || scanJob?.status === "running"}
@@ -388,6 +451,11 @@ function ScanPageInner() {
           {scanError && (
             <div className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
               {scanError}
+            </div>
+          )}
+          {pairsRefreshError && (
+            <div className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
+              {pairsRefreshError}
             </div>
           )}
           {selectedRun && (

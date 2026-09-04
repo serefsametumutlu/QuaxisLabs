@@ -17,11 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import yaml  # noqa: E402
-
-from tlab.core.types import Market, Timeframe  # noqa: E402
-from tlab.data.providers.yfinance_provider import YFinanceProvider  # noqa: E402
-from tlab.data.store import Store  # noqa: E402
+from tlab.core.types import Market  # noqa: E402
 from tlab.data.universe import load_universe  # noqa: E402
 from tlab.features.stats import benjamini_hochberg, engle_granger_pvalue  # noqa: E402
 from tlab.indicators.pairs.discovery import (  # noqa: E402
@@ -31,26 +27,15 @@ from tlab.indicators.pairs.discovery import (  # noqa: E402
     load_pairs_yaml,
     load_sector_map,
 )
+from tlab.indicators.pairs.refresh import MIN_BARS, SECTOR_MAP_PATH  # noqa: E402
+from tlab.indicators.pairs.refresh import (
+    load_all_close_prices as _load_all_close_prices,  # noqa: E402
+)
+from tlab.indicators.pairs.refresh import write_pairs_yaml as _write_pairs_yaml  # noqa: E402
 
-LOOKBACK_BARS = 600
-MIN_BARS = 200
 OLD_PAIRS_PATH = "config/pairs.yaml"
 DEPRECATED_PATH = "config/pairs_v1_deprecated.yaml"
-SECTOR_MAP_PATH = "config/sectors_bist.yaml"
 ECONOMIC_LINKS_PATH = "config/economic_links.yaml"
-
-
-def _load_all_close_prices(symbols: list[str]) -> dict:
-    store = Store(YFinanceProvider())
-    prices = {}
-    for sym in symbols:
-        try:
-            df = store.get(sym, Timeframe.D1, Market.BIST, last_n=LOOKBACK_BARS)
-        except FileNotFoundError:
-            continue
-        if len(df) >= MIN_BARS:
-            prices[sym] = df["close"].astype(float)
-    return prices
 
 
 def _reverify_existing_pairs(prices: dict) -> dict:
@@ -90,45 +75,6 @@ def _sector_distribution(candidates: list[PairCandidate], sector_map: dict) -> d
     for c in candidates:
         counts[sector_map.get(c.symbol_y, "bilinmeyen")] += 1
     return dict(counts.most_common())
-
-
-def _write_pairs_yaml(
-    path: str, candidates: list[PairCandidate],
-    fdr_q: float | None, oos_split: float | None,
-) -> None:
-    payload = {
-        "pairs": [
-            {
-                "y": c.symbol_y, "x": c.symbol_x, "corr": round(c.corr, 4),
-                "adf_p": round(c.adf_pvalue, 6), "p_raw": round(c.p_raw, 6),
-                "halflife": round(c.halflife, 2), "beta": round(c.beta, 4),
-                "n_tests": c.n_tests, "n_bars": c.n_bars,
-                "adf_p_is": round(c.adf_p_is, 6) if c.adf_p_is is not None else None,
-                "adf_p_oos": round(c.adf_p_oos, 6) if c.adf_p_oos is not None else None,
-            }
-            for c in candidates
-        ]
-    }
-    oos_desc = f"oos_split={oos_split}" if oos_split is not None else "oos_split=None (KAPALI)"
-    fdr_desc = f"fdr_q={fdr_q}" if fdr_q is not None else "fdr_q=None (KAPALI)"
-    header = (
-        "# Faz 2, 2D (docs/TANI_VE_YOL_HARITASI_v2.md ## FAZ 2) ile YENIDEN uretildi --\n"
-        f"# Engle-Granger (coint) + Sidak duzeltmesi + Benjamini-Hochberg FDR ({fdr_desc}) +\n"
-        f"# out-of-sample dogrulama ({oos_desc}). Onceki (2026-09-03) surum, ham adfuller\n"
-        "# + duzeltmesiz coklu-test kullaniyordu (606 cift) -- config/pairs_v1_deprecated.yaml'a\n"
-        "# tasindi. Detay + elenme sebebi dagilimi (test/FDR/OOS):\n"
-        "# docs/spec/ARBITRAJ_DENETIM_v2.md.\n"
-        "#\n"
-        "# y/x: RelativeMomentumPair/VolHarvestPair'in 'Y hissesi'/'X hissesi' sozlesmesiyle\n"
-        "# AYNI (spread = log(Y) - beta*log(X)). adf_p: Sidak-duzeltilmis p (adf_pvalue ile\n"
-        "# ayni). p_raw: Sidak ONCESI. n_tests: bu taramada denenen TOPLAM kombinasyon sayisi\n"
-        "# (FDR'nin M'si). adf_p_is/adf_p_oos: oos_split kullanilmadiysa HER ZAMAN null.\n"
-        "# DISIPLIN-06/08 (discovery.py docstring'i): bu liste KALICI BIR ONAY DEGIL, anlik\n"
-        "# bir tarama -- periyodik olarak yeniden kosulmali.\n"
-    )
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(header)
-        yaml.safe_dump(payload, f, allow_unicode=True, sort_keys=False)
 
 
 def main() -> int:

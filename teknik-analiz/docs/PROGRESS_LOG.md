@@ -3000,3 +3000,56 @@ golden_zone+supply_demand TEK "goldensupply" adımı sayılıyordu, roadmap'in
 orijinal 6 grubu buna göre). Sırada: `docs/00_BASLANGIC_SIRASI.md`'deki
 16 adımlık yol haritasının bir sonraki adımı — kullanıcı onayı bekleniyor.**
 
+## 2026-09-04 (aynı gün) — Adım 7 / Faz 4b başladı: `wedge_triangle` + `broadening` sahneleri portlandı (1/6, 2/6)
+
+Kullanıcı "belirtilen sırayla devam edelim" dedi — `docs/00_BASLANGIC_
+SIRASI.md`'nin Adım 7'si (Faz 4b: classic/double_top_bottom-review/
+wedge_triangle/broadening/flag_pennant/breakout_fvg-YENİ).
+
+**`tlab/viz/svg/scenes/wedge_triangle.py`** — `patterns.wedge`
+(falling/rising) VE `patterns.triangle` (sym/asc/desc) AYNI modülü
+paylaşır (`harmonic.*`nin 8 ekolüyle AYNI ilke). `double_top_bottom.py`nin
+AYNI deseni (grup → en güncel long/short → twoUp, tek etiket havuzu
+`resolve_collisions`e) — farkla: tek "boyun" yerine iki BAĞIMSIZ sınır
+çizgisi (`_upper`/`_lower`), kırılan çizgi yönle belirleniyor. **1.
+iterasyonda (TUCLK) İKİ gerçek hata bulundu:** (1) `_PatternGroup.
+last_time` formasyonun DOĞUM barına (`target.start`) düşüyordu ("OLUŞUYOR"
+durumunda `target.end` de None) — hedef etiketi/AL rozeti yanlış
+konumlanıyordu; düzeltme: `double_top_bottom.py`deki gibi pattern_id'nin
+GERÇEK en son sinyalinin bar_time'ı. (2) X-ekseni ay etiketleri yılsız
+(`"%b"`) idi — TUCLK'ın takozu (CLAUDE.md'nin bilinen "18 ay" notu) birden
+fazla yıla yayılınca belirsiz etiketler üretiyordu, `"%b '%y"`ye çevrildi.
+3 iterasyon (TUCLK classic, GARAN/triangle dark, YKSLN editorial), 9 yeni
+test.
+
+**`tlab/viz/svg/scenes/broadening.py`** — `wedge_triangle.py` ile AYNI
+görsel dil (`BroadeningIndicator`nin `IndicatorResult` sözleşmesi
+`WedgeIndicator` ile BİREBİR aynı) — ayrı yazıldı ("sahneler birbirini
+import etmez" ilkesi). **2. iterasyonda (EMNIS) GERÇEK bir hata bulundu:**
+`BroadeningIndicator`nin "ölçülü hareket" hedefi (break_line ± height)
+NEGATİF çıkabiliyor (fiziksel olarak anlamsız bir fiyat) — **kök neden
+indikatörün KENDİSİNDE, bu fazın kapsamı DIŞINDA, DÜZELTİLMEDİ** (bkz.
+aşağıdaki "BULUNAN HATA"); sahne tarafı negatif bir hedefi ne gösteriyor
+ne eksen hesabına katıyor artık (swing_fib_abcd'nin AYNI "ekrana
+sığmayanı sessizce atla" ilkesi, tutarlılık için `wedge_triangle.py`ye de
+uygulandı). 4 iterasyon (BAKAB classic, EMNIS dark ×2, KRPLS editorial),
+8 yeni test (negatif-hedef regresyonu sentetik bir `IndicatorResult`la
+kilitlendi — gerçek fixture'lar her zaman negatif bir aday üretmiyor).
+
+**BULUNAN HATA (kapsam dışı, düzeltilmedi):** `tlab/indicators/patterns/
+broadening.py` (muhtemelen `wedge.py`'nin AYNI matematiği de) — "ölçülü
+hareket" hedefi (`break_tl.value_at(created_idx) ± height`) fiyatın 0'ın
+altına inemeyeceğini kontrol etmiyor, gerçek veride (EMNIS) negatif bir
+hedef ("-77.1 TL") üretti. Düzeltme önerisi: hedefi `max(0.01, ...)` gibi
+bir tabana kelepçelemek YA DA (daha doğrusu) `height`in break_line
+değerinden büyük olduğu durumlarda adayı baştan ELEMEK (`_passes_shape_
+filters`e benzer bir kontrol) — hangisinin doğru olduğu ayrı bir karar
+gerektiriyor, ayrı bir takip işi.
+
+17 yeni test (9+8), toplam 827 test yeşil (810→827), ruff/mypy/
+lint_lookahead baseline'ları DEĞİŞMEDİ. Detay: `docs/design/iterasyon/
+iter{1..3}_wedge_*`/`iter3_triangle_GARAN_*`, `iter{1..4}_broadening_*`.
+
+**Sırada:** Faz 4b'nin kalan 4 maddesi (classic[head_shoulders]/
+double_top_bottom-review/flag_pennant/breakout_fvg-YENİ strateji).
+

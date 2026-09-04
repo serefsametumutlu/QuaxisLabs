@@ -37,7 +37,7 @@ kararları) artık `docs/PROGRESS_LOG.md`'de** — bu dosya CLAUDE.md'nin 150k k
 sınırını aştığı için oraya taşındı (2026-09-02). Aşağıdaki liste yalnızca ÖZET; bir
 fazın TAM detayına ihtiyaç varsa `docs/PROGRESS_LOG.md`'ye bak.
 
-**Durum (2026-09-04): 810 test yeşil (`pytest -q -m "not network"`), ruff/mypy
+**Durum (2026-09-04): 827 test yeşil (`pytest -q -m "not network"`), ruff/mypy
 temiz (baseline: 19 ruff / 1 mypy — hepsi önceden var olan/bilinen false-positive,
 ilgisiz satırlar); lint_lookahead 5 uyarı (`coint_monitor.py`nin eklenmesiyle
 CLAUDE.md'nin eski "3" rakamından güncellenmedi, hepsi bu satırın YAZILDIĞI Faz
@@ -327,6 +327,23 @@ PROGRESS_LOG.md`nin aynı tarihli girdisi.
 **FAZ 4a TAMAMEN BİTTİ — 6/6 sahne portlandı.** Sırada: `docs/00_
 BASLANGIC_SIRASI.md`'deki 16 adımlık yol haritasının bir sonraki adımı —
 kullanıcı onayı bekleniyor.
+
+**EK (aynı gün) — Adım 7 / Faz 4b başladı: `wedge_triangle` + `broadening`
+sahneleri portlandı (1/6, 2/6).** `patterns.wedge`/`patterns.triangle`
+(TEK modül, `harmonic.*`nin 8 ekolüyle AYNI ilke) ve `patterns.broadening`
+— `double_top_bottom.py`nin AYNI deseni (grup→en güncel long/short→twoUp),
+tek "boyun" yerine iki bağımsız sınır çizgisi. 1. iterasyonda (TUCLK)
+`last_time`in doğum barına düştüğü (hedef etiketi yanlış konumlanıyordu)
+ve X-ekseni ay etiketlerinin yılsız olduğu (birden fazla yıla yayılan
+takozlarda belirsiz) bulunup düzeltildi. 2. iterasyonda (EMNIS,
+broadening) GERÇEK bir indikatör hatası bulundu: `BroadeningIndicator`nin
+ölçülü-hareket hedefi NEGATİF çıkabiliyor — kök neden indikatörün
+kendisinde, kapsam dışı DÜZELTİLMEDİ (bkz. PROGRESS_LOG "BULUNAN HATA"),
+sahne tarafı negatif hedefi artık göstermiyor/eksene katmıyor. 17 yeni
+test, 827 test yeşil (810→827), ruff/mypy/lint_lookahead baseline'ları
+DEĞİŞMEDİ. Detay: `docs/PROGRESS_LOG.md`nin aynı tarihli girdisi.
+**Sırada: Faz 4b'nin kalan 4 maddesi (classic[head_shoulders]/double_top_
+bottom-review/flag_pennant/breakout_fvg-YENİ strateji).**
 
 ### Tamamlanan fazlar (özet)
 

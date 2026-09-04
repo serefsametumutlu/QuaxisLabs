@@ -2306,3 +2306,143 @@ sınırlı, "büyük bir kâr formülü bulundu" denemez.
 **Faz 2 TAMAMEN BİTTİ.** Sırada: **Adım 5 — Faz 3 (SVG çizim motoru)**,
 `docs/TANI_VE_YOL_HARITASI_v2.md`'nin `## FAZ 3` bölümü.
 
+## 2026-09-04 — Adım 5 / Faz 3 (SVG çizim motoru — çekirdek)
+
+**Amaç:** Grafiklerin `docs/design/grafik_stil_vitrini.html` artifact'ine
+benzememesinin kök nedenini (Plotly'nin etiket-çakışma çözücüsü/önder-
+çizgili kutu/hap rozet/sahneye özel yerleşim eksikliği) ortadan kaldırmak
+— saf SVG üreten YENİ bir motor (`tlab/viz/svg/`). Bu faz hiçbir sahne
+çizmedi (Faz 4'ün işi), yalnızca motoru + TEK kanıt sahnesini kurdu.
+
+**Referans dosyasının bulunması — kendi başına bir problem.** `docs/
+design/grafik_stil_vitrini.html`in yerel kopyası (`docs/design/`e daha
+önceki bir oturumda kaydedilmiş) 5 dev satırlık, 158k+ token'lık bir
+dosyaydı; Read/Grep başarısız oldu. Python ile incelenince bu dosyanın
+gerçek artifact İÇERİĞİ DEĞİL, Claude.ai Artifacts görüntüleyicisinin DIŞ
+çerçeve-kabuğu (frame-runtime bootstrap JS) olduğu anlaşıldı — gerçek
+sahne kodu bir iframe'e dinamik yükleniyor, tarayıcının "Kaynağı
+Görüntüle"si bunu hiç yakalamamış. Dosyanın içindeki bir HTML yorumundan
+(`saved from url=...`) artifact'in kendi `claude.ai/code/artifact/...`
+URL'i çıkarılıp `Artifact(action="read")` ile YENİDEN okundu — bu, kaydı
+kullanıcı-sahipli bir artifact olarak doğruladı ve gerçek 1975 satırlık
+HTML'i yerel bir dosyaya kaydetti. O dosya BAŞTAN SONA okunarak (aracın
+"görüntülenmiş sayılması" için zorunlu koşul) gerçek altyapı kodu
+(`seeded`/`svgLine`/`svgRect`/`svgPoly`/`svgText`/`svgCircle`/`pill`/
+`makeChart`/`drawCandles`/`niceTicks`/`priceLabels`/`xLabels`/
+`glowFilterDefs`/`THEMES` — 5 tema: classic/dark/editorial/saas/neon) ve
+`sceneDoubleTopBottom` (satır 764-844) bulundu.
+
+**3A — Modül yapısı.** `tlab/viz/svg/{prim,scale,candles,axes,layout,
+theme}.py` + `scenes/{base,double_top_bottom}.py` + `__init__.py::
+render_svg`. `prim.py`nin string üreteçleri (svg_line/rect/poly/text/
+circle/pill) artifact'in JS fonksiyonlarının birebir Python karşılığı —
+XML kaçışı (`escape_xml`, 5 karakter) burada JS'ten DAHA titiz (JS yalnızca
+`&`/`<` kaçırıyordu). `scale.py::Chart`in X ekseni BAR-İNDEKSLİDİR (zaman
+değil) — bu, hafta sonu/seans dışı boşlukları otomatik olarak GÖSTERMEZ
+hâle getiriyor (mevcut Plotly `renderer.py`'nin `rangebreaks` ile elle
+çözdüğü sorunun bar-indeksli eksende DOĞAL çözümü). `theme.py::SVGTheme` —
+`tlab/viz/themes.py::Theme`nin (Plotly dönemi) YAKLAŞIK eşlemesi yerine
+artifact'in kendi hex değerleri temel alındı; TESPİT EDİLEN FARK: `Theme.
+muted` artifact'in `neckline` alanıyla YALNIZCA editorial'da tam eşleşiyor,
+classic/dark'ta birkaç hex birimi farklı — spec'in talimatına uyularak
+artifact DOĞRU KABUL EDİLDİ (yeni, bağımsız bir `SVGTheme` yazıldı).
+
+**3B — `layout.py::resolve_collisions` (motorun asıl YENİ katkısı).**
+Artifact'te YOK olan, Plotly'de de YOK olan bir yetenek: genel amaçlı
+etiket-çakışma çözücü. Mevcut `renderer.py::_stagger_yshifts`/
+`_declutter_levels`in ilkel hâliydi — onlar BİLGİ SİLEREK (yalnızca en
+güncel grubu göster) çözüyordu; bu motor "yerini bul, sığmıyorsa
+öncelikle ele (drop)" ilkesiyle çalışır: `LabelBox` listesi önceliğe göre
+sıralanır, her biri tercih sırasına göre (above/below/right/left) denenir,
+çakışırsa dikey/yatay adımlarla itilir (`max_push` sınırına kadar), hâlâ
+sığmazsa DROP edilir (`CollisionResult.dropped` — sessizce kaybolmaz).
+`leader_line` çapa noktasından kutunun en yakın kenarına ince bir çizgi
+çizer (yalnızca `needs_leader=True` iken). 4 saf-fonksiyon testi spec'in
+BİREBİR istediği 4 senaryoyu doğruluyor (iki üst üste kutu ayrışması,
+sınıra taşan kutunun içeri çekilmesi, 50-kutu-tek-noktada düşük-öncelik
+drop, determinizm).
+
+**3C — Tek sahnelik kanıt: `patterns.double_top_bottom`.** Artifact'in
+`sceneDoubleTopBottom`i UYDURMA pivotlarla, sahneye özel el-ayarlı
+ofsetlerle çiziyordu. Port edilen versiyon gerçek `IndicatorResult`tan
+okur (`_group_patterns`: `Level.label`deki `{pattern_id}_neckline`/
+`_target` son ekleri, `Polygon.label`deki `_hologram`, `Marker.kind`deki
+`pattern_vertex:`/`pattern_entry_` önekleri, `Signal.payload["pattern_id"]`
+üzerinden gruplanır — yön `target.price < neckline.price` karşılaştırmasıyla
+SAF SAYISAL türetilir, string eşleştirme YOK). **TÜM değişken-konumlu
+etiketler** (boyun yazısı, kırılım, onay, hedef metni, hedef rozeti,
+AL/SAT) `resolve_collisions`e verilir — artifact'in aksine hiçbiri elle
+konumlanmaz.
+
+Pencere seçimi CLAUDE.md'nin "Faz 0.5'te bulunan, henüz kapatılmamış"
+listesindeki **BULUNAN HATA 2**yi (`tail(last_n)` sabit penceresi eski
+sinyalleri kadraj dışına atıyordu) bu sahne için KAPATIYOR: sabit "son N
+bar" yerine formasyonun p1 pivotundan son sinyaline kadar SIĞACAK bir
+pencere seçilir (`_pattern_window`).
+
+**Zorunlu doğrulama döngüsü — 4 iterasyon (istenen ≥3), GERÇEK BIST
+verisiyle, PNG'ler her seferinde GÖRÜLEREK:**
+1. BAKAB/classic: baseline çalışıyor ama hedef rozeti (elle konumlanmış,
+   collision havuzuna girmemiş) panel kenarını taşıyor; retest ("Onay:
+   Test Tuttu") hiç çizilmiyor.
+2. BAKAB/classic: rozet `resolve_collisions`e taşındı (kenar taşması
+   düzeldi); retest marker eklendi; "1"/"2" rozet dikey ofseti yön-tutarlı
+   hâle getirildi.
+3. BAKAB/dark+editorial, CELHA/classic (tek sinyal — single-panel yolu):
+   3 tema da doğrulandı (glow/renk/font birebir); TUCLK/classic (3 aday,
+   çoklu durum) ile **GERÇEK bir hata bulundu** — GEÇERSİZLEŞMİŞ bir
+   aday hâlâ "ONAY" rozeti taşıyordu (durum, yalnızca `completed` sinyaline
+   bakılıp geri kalan her durumda koşulsuz "ONAY" yazan saf hâliyle
+   yanıltıcıydı).
+4. TUCLK/classic: durum rozeti artık `result.signals`daki GERÇEK
+   breakout/retest/completed/invalidated/expired olaylarından türetiliyor
+   (`tlab/core/pattern_state.py::SUFFIX_LABEL_TR` ile aynı sözlük);
+   GEÇERSİZ/SÜRESİ DOLDU'da hedef çizgisi/metni artık ÇİZİLMİYOR.
+
+**Bilinen sınırlama:** proje önbelleğindeki (`data/ohlcv/bist/`) TÜM
+semboller ~506 barlık (yfinance varsayılan derinliği) bir pencereye sahip
+— spec'in istediği "çok uzun geçmişli sembol" senaryosu GERÇEK anlamda
+test edilemedi; TUCLK'nin 3 eş-zamanlı aday/durum çeşitliliği en yakın
+makul vekil olarak kullanıldı, dürüstçe not edildi.
+
+**Performans (BAKAB, 20 tekrar ortalaması):** SVG metin üretimi 21.0ms
+(Plotly figure kurulumu 37.6ms'e göre ~%45 daha hızlı), SVG+`resvg_py`
+PNG rasterleştirme 142.5ms — Plotly+kaleido'nun (ısındıktan sonra bile)
+1880.6ms'ine göre **~13x daha hızlı**, headless Chromium alt-süreç
+bağımlılığı da YOK.
+
+**3D — Entegrasyon.** `tlab/viz/live.py::render_live`e `engine:
+Literal["svg","plotly"]` parametresi eklendi. **Varsayılan BİLİNÇLİ OLARAK
+`"plotly"` kaldı** (spec'in önerdiği "svg" DEĞİL) — 3 mevcut çağıran
+(`tlab/cli.py::plot`, `tlab/dashboard.py`, `tlab/viz/report.py::
+ensure_chart`) hâlâ koşulsuz `go.Figure` API'sine (`.write_image`/
+`.write_html`/Streamlit) bağımlı; varsayılanı `svg` yapmak TEK bir
+portlanmış gösterge (`patterns.double_top_bottom`) için bu üçünü SESSİZCE
+kırardı. `@overload` ile tiplendi (engine="svg" verilmeden çağıranlar
+mypy'de hâlâ saf `go.Figure` görür — bu ikilik gerçek bir mypy hatası
+üretiyordu, `@overload` ile düzeltildi). YENİ `web/backend/routes/
+chart_svg.py` (`GET /api/chart.svg -> image/svg+xml`, portlanmamış bir
+gösterge 422 döner, sessizce Plotly'e düşmez). `chart_png.py` artık
+`render_live(engine="svg")` çağırıyor — SVG sahnesi olan göstergeler için
+PNG `resvg_py` ile rasterleştirilir (kaleido'ya hiç uğramaz), portlanmamış
+göstergeler eski Plotly+kaleido yoluna otomatik düşer. Her iki route
+`TestClient` ile uçtan uca doğrulandı (200/image-content-type + 422
+unsupported-indicator senaryoları).
+
+**Test:** 34 yeni birim testi (`tests/test_viz/test_svg/`) + 1 yeni
+golden test (`svg_double_top_bottom_classic.svg`, mevcut `test_golden.py`
+makinesini `ext="svg"` ile paylaşıyor) = 35 yeni, **738 test yeşil**
+(703→738). ruff (baseline 19, DEĞİŞMEDİ — 33 yeni E501/tip hatası bulunup
+satır-sarma ile temizlendi), mypy (baseline 1, DEĞİŞMEDİ — `render_live`nin
+union dönüş tipi 4 yeni hata üretmişti, `@overload` + iki değişken-adı
+çakışması düzeltmesiyle giderildi). lint_lookahead 5 uyarı VAR ama HİÇBİRİ
+bu fazın dosyalarında değil (CLAUDE.md'nin "3" rakamı `coint_monitor.py`nin
+önceki bir oturumda eklenmesinden beri güncellenmemiş bir belge hatası,
+ayrıca not edildi).
+
+**Faz 3 TAMAMLANDI** — detay + tam bitti-kriteri karşılaştırması `docs/
+spec/FAZ3_SVG_MOTORU.md`de. Bu, roadmap'in dört onay kapısından biri
+("Faz 3'ün ilk sahnesi... sana gösterilmeden bir sonraki adıma
+geçilmemeli") — kullanıcı onayı BEKLENİYOR, Faz 4'e (kalan 18 sahnenin
+portu, 3 oturuma bölünecek) henüz geçilmedi.
+

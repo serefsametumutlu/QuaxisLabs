@@ -13,7 +13,17 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from web.backend.routes import catalog, chart, chart_png, guide, report, scan, scan_trigger, universe
+from web.backend.routes import (
+    catalog,
+    chart,
+    chart_png,
+    chart_svg,
+    guide,
+    report,
+    scan,
+    scan_trigger,
+    universe,
+)
 
 app = FastAPI(title="tlab web API")
 
@@ -28,6 +38,7 @@ app.include_router(catalog.router, prefix="/api")
 app.include_router(universe.router, prefix="/api")
 app.include_router(chart.router, prefix="/api")
 app.include_router(chart_png.router, prefix="/api")
+app.include_router(chart_svg.router, prefix="/api")
 app.include_router(report.router, prefix="/api")
 app.include_router(guide.router, prefix="/api")
 app.include_router(scan.router, prefix="/api")

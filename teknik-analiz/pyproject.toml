@@ -24,6 +24,7 @@ dependencies = [
     "arch",
     "fastapi",
     "uvicorn[standard]",
+    "resvg-py",
 ]
 
 [project.optional-dependencies]

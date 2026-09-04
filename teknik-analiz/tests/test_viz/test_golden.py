@@ -30,10 +30,15 @@ import pytest
 
 from tests.test_harmonics.fixtures import build_gartley_ohlcv
 from tlab.indicators.harmonics.scanner_indicator import HarmonicIndicator, HarmonicParams
+from tlab.indicators.patterns.double_top_bottom import (
+    DoubleTopBottomIndicator,
+    DoubleTopBottomParams,
+)
 from tlab.indicators.structure.price_structure import PriceStructure, PriceStructureParams
 from tlab.indicators.structure.swing_fib_abcd import SwingFibABCD, SwingFibABCDParams
 from tlab.testing.fixtures import make_trend
 from tlab.viz.renderer import render
+from tlab.viz.svg import render_svg
 
 GOLDEN_DIR = Path(__file__).parent / "golden"
 
@@ -90,8 +95,10 @@ def normalize_figure(fig: Any) -> str:
     return json.dumps(normalized, sort_keys=True, indent=2, ensure_ascii=False)
 
 
-def _assert_matches_golden(actual: str, name: str, request: pytest.FixtureRequest) -> None:
-    path = GOLDEN_DIR / f"{name}.json"
+def _assert_matches_golden(
+    actual: str, name: str, request: pytest.FixtureRequest, ext: str = "json",
+) -> None:
+    path = GOLDEN_DIR / f"{name}.{ext}"
     if request.config.getoption("--update-golden"):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(actual, encoding="utf-8")
@@ -136,3 +143,43 @@ def test_golden_harmonic_carney_light(request: pytest.FixtureRequest) -> None:
     result.symbol = "GOLDEN"
     fig = render(result, df, theme="light")
     _assert_matches_golden(normalize_figure(fig), "harmonic_carney_light", request)
+
+
+_DTB_ROWS: list[tuple[float, float, float, float]] = [
+    (105, 104, 106, 103), (104, 101, 105, 100), (101, 98, 102, 97),
+    (98, 100, 101, 98.5), (100, 103, 104, 99.5), (103, 108, 109, 102),
+    (108, 113, 114, 107), (113, 116, 117, 112), (116, 113, 117, 112),
+    (113, 110, 114, 109), (110, 105, 111, 104), (105, 101, 106, 100),
+    (101, 97, 102, 96), (97, 100, 101, 96.5), (100, 104, 105, 99.5),
+    (104, 100, 104.5, 99), (100, 98, 101, 97.5), (98, 103, 104, 97),
+    (103, 110, 111, 102), (110, 118, 119, 109), (118, 123, 124, 117),
+    (123, 128, 129, 122), (128, 132, 133, 127), (132, 138, 139, 131),
+]
+
+
+def _double_bottom_ohlcv() -> pd.DataFrame:
+    """`tests/test_patterns/test_double_top_bottom.py`deki AYNI (pivotları
+    `find_pivots`/`alternate_pivots` ile doğrulanmış) küçük çift-dip
+    senaryosu -- burada Faz 3'ün SVG motoru için golden referans olarak
+    kullanılır (network'ten bağımsız, deterministik)."""
+    idx = pd.date_range(
+        "2024-01-02", periods=len(_DTB_ROWS), freq="1D", tz="Europe/Istanbul",
+    )
+    rows = [
+        {"open": c, "close": c, "high": h, "low": lo, "volume": 1000.0}
+        for _o, c, h, lo in _DTB_ROWS
+    ]
+    return pd.DataFrame(rows, index=idx)
+
+
+def test_golden_svg_double_top_bottom_classic(request: pytest.FixtureRequest) -> None:
+    df = _double_bottom_ohlcv()
+    params = DoubleTopBottomParams(
+        left=2, right=2, zigzag_method="fixed",
+        min_bars_between=10, prior_trend_lookback=3, prior_trend_min_tstat=0.5,
+        min_rise_between_pct=0.0, min_depth_pct=0.0, min_depth_atr=0.0,
+    )
+    result = DoubleTopBottomIndicator(params)(df)
+    result.symbol = "GOLDEN"
+    svg_text = render_svg(result, df, theme="classic")
+    _assert_matches_golden(svg_text, "svg_double_top_bottom_classic", request, ext="svg")

@@ -7,6 +7,8 @@ yolu barındırır (CATALOG + Store + render tek yerde)."""
 
 from __future__ import annotations
 
+from typing import Literal, overload
+
 import pandas as pd
 import plotly.graph_objects as go
 
@@ -19,7 +21,18 @@ from tlab.indicators.bootstrap import CATALOG, scaled_factory
 from tlab.indicators.pairs.relative_momentum import RelativeMomentumPair, RelativeMomentumParams
 from tlab.indicators.pairs.vol_harvest import VolHarvestPair, VolHarvestParams
 from tlab.viz.renderer import render, render_structure_report
+from tlab.viz.svg import render_svg
+from tlab.viz.svg import supports as svg_supports
 from tlab.viz.themes import Theme
+
+Engine = Literal["svg", "plotly"]
+
+
+def _theme_to_svg_key(theme: Theme | str | None) -> str | None:
+    if theme is None or isinstance(theme, str):
+        return theme
+    _MAP = {"light_analysis": "classic", "dark_terminal": "dark", "kagit_raporu": "editorial"}
+    return _MAP.get(theme.name, "classic")
 
 _TF_MAP = {"1H": Timeframe.H1, "4H": Timeframe.H4, "1D": Timeframe.D1, "W1": Timeframe.W1}
 
@@ -163,13 +176,44 @@ def render_structure_report_live(
     )
 
 
+@overload
+def render_live(
+    indicator_name: str, symbol: str, timeframe: str, market: str,
+    *, theme: Theme | str | None = ..., last_n: int | None = ..., declutter: bool = ...,
+    engine: Literal["plotly"] = ...,
+) -> go.Figure: ...
+@overload
+def render_live(
+    indicator_name: str, symbol: str, timeframe: str, market: str,
+    *, theme: Theme | str | None = ..., last_n: int | None = ..., declutter: bool = ...,
+    engine: Literal["svg"],
+) -> go.Figure | str: ...
 def render_live(
     indicator_name: str, symbol: str, timeframe: str, market: str,
     *, theme: Theme | str | None = "auto", last_n: int | None = None, declutter: bool = True,
-) -> go.Figure:
+    engine: Engine = "plotly",
+) -> go.Figure | str:
+    """`engine="svg"` istenirse VE `indicator_name` için bir SVG sahnesi
+    portlanmışsa SVG METNİ (str) döner; aksi hâlde (Plotly istenmiş VEYA
+    henüz portlanmamış bir gösterge) her zamanki gibi `go.Figure` döner --
+    Faz 3 spec'inin "bir sahne henüz portlanmadıysa plotly'ye düş" kuralı.
+
+    **Varsayılan `engine="plotly"`** -- TANI_VE_YOL_HARITASI_v2.md Faz 3,
+    3D'nin önerdiği "varsayılan svg" yerine BİLİNÇLİ bir sapma: bu
+    fonksiyonun 3 mevcut çağıranı (`tlab/cli.py::plot`, `tlab/dashboard.py`,
+    `tlab/viz/report.py::ensure_chart`) hâlâ KOŞULSUZ `go.Figure` API'sini
+    (`.write_image`/`.write_html`/Streamlit'in `plotly_chart`) kullanıyor --
+    varsayılanı `svg` yapmak, tek bir portlanmış gösterge (`patterns.
+    double_top_bottom`) için bu üç yeri SESSİZCE kırardı. SVG yolu şimdilik
+    yalnızca AÇIKÇA `engine="svg"` isteyen iki YENİ entegrasyon noktasından
+    (`web/backend/routes/chart_svg.py`, `chart_png.py`nin SVG-öncelikli
+    rasterleştirmesi) çalışır -- Faz 4'te kalan 18 sahne portlanıp üç eski
+    çağıran da güncellenince varsayılan `svg`'ye çevrilebilir."""
     if indicator_name == STRUCTURE_REPORT_NAME:
         return render_structure_report_live(
             symbol, timeframe, market, theme=theme, last_n=last_n, declutter=declutter,
         )
     result, df = compute_live(indicator_name, symbol, timeframe, market)
+    if engine == "svg" and df is not None and svg_supports(indicator_name):
+        return render_svg(result, df, theme=_theme_to_svg_key(theme) or "classic", last_n=last_n)
     return render(result, df, theme=theme, last_n=last_n, declutter=declutter)

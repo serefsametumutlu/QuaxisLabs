@@ -37,9 +37,11 @@ kararları) artık `docs/PROGRESS_LOG.md`'de** — bu dosya CLAUDE.md'nin 150k k
 sınırını aştığı için oraya taşındı (2026-09-02). Aşağıdaki liste yalnızca ÖZET; bir
 fazın TAM detayına ihtiyaç varsa `docs/PROGRESS_LOG.md`'ye bak.
 
-**Durum (2026-09-04): 651 test yeşil (`pytest -q -m "not network"`), ruff/mypy/
-lint_lookahead temiz (baseline: 19 ruff / 1 mypy / 3 lint_lookahead — hepsi önceden
-var olan/bilinen false-positive, ilgisiz satırlar). Faz 0-10 + K0-K3 (aşağıdaki liste)
+**Durum (2026-09-04): 738 test yeşil (`pytest -q -m "not network"`), ruff/mypy
+temiz (baseline: 19 ruff / 1 mypy — hepsi önceden var olan/bilinen false-positive,
+ilgisiz satırlar); lint_lookahead 5 uyarı (`coint_monitor.py`nin eklenmesiyle
+CLAUDE.md'nin eski "3" rakamından güncellenmedi, hepsi bu satırın YAZILDIĞI Faz
+3'ten ÖNCEKİ dosyalarda, ilgisiz). Faz 0-10 + K0-K3 (aşağıdaki liste)
 TAMAMLANDI; proje artık YENİ, daha büyük bir denetim/yol haritası altında ilerliyor —
 bkz. `docs/TANI_VE_YOL_HARITASI_v2.md` (tanı + Faz 0-8 promptları), `docs/
 STRATEJI_DENETIM_TAM.md` (24 göstergenin tam denetimi), `docs/SITE_TASARIM_YOL_
@@ -110,7 +112,32 @@ bir taramayla optimize edildi — `stop_k` 3.0→4.0, `max_hold_bars` 30→40
 (window/k rotasyonel modu bozmamak için SABİT tutuldu) OOS kazanma oranını
 %53.2→%53.5'e çıkardı (küçük ama tutarlı bir iyileşme, "büyük edge" DEĞİL).
 `RelativeMomentumParams`'ın bu 2 varsayılanı güncellendi, kilitleyen test
-eklendi. **Sırada: Adım 5 (Faz 3 — SVG çizim motoru).**
+eklendi.
+
+**Adım 5 / Faz 3 (SVG çizim motoru — çekirdek) TAMAMLANDI** — onay bekliyor
+(bu fazın "ilk sahnesi" onay kapılarından biri, kullanıcıya GÖSTERİLMEDEN
+Faz 4'e geçilmemeli). `docs/design/grafik_stil_vitrini.html`in altyapı
+katmanı (`seeded`/`svgLine`/.../`THEMES`) `tlab/viz/svg/`e portlandı;
+motorun asıl YENİ katkısı `layout.py::resolve_collisions` — genel amaçlı
+açgözlü+itme etiket-çakışma çözücü (4 saf-fonksiyon testiyle doğrulandı: iki
+üst üste kutu ayrışması, sınır-içi çekme, 50-kutu düşük-öncelik drop, deter-
+minizm). Tek kanıt sahnesi `patterns.double_top_bottom` GERÇEK
+`IndicatorResult`tan (uydurma veri DEĞİL) portlandı, 4 iterasyon gerçek BIST
+verisiyle (BAKAB/CELHA/TUCLK) GÖRÜLEREK düzeltildi — 3. iterasyonda GERÇEK
+bir hata bulundu: GEÇERSİZ bir aday hâlâ "ONAY" rozeti taşıyordu (durum
+rozeti artık `result.signals`daki gerçek breakout/retest/completed/
+invalidated/expired olaylarından türetiliyor). 3 temada (classic/dark/
+editorial) doğrulandı. Performans: SVG+`resvg_py` PNG üretimi Plotly+kaleido'ya
+göre **~13x daha hızlı** (142.5ms vs 1880.6ms, BAKAB örneği). Web: YENİ
+`GET /api/chart.svg`, `chart_png.py` artık SVG-öncelikli rasterleştiriyor
+(kaleido'ya yalnızca portlanmamış göstergelerde düşer); `render_live`'ın
+YENİ `engine` parametresi BİLİNÇLİ OLARAK `"plotly"` varsayılan kaldı (3
+mevcut çağıran — cli/dashboard/report — `go.Figure` API'sine bağımlı, `svg`
+varsayılanı bunları sessizce kırardı; @overload ile tiplenmiş). 35 yeni test
+(34 birim + 1 golden), 738 test yeşil (703→738), ruff/mypy baseline'ları
+DEĞİŞMEDİ. Detay + tam bitti-kriteri karşılaştırması: `docs/spec/
+FAZ3_SVG_MOTORU.md`. **Sırada: Adım 6 (Faz 4 — kalan 18 sahnenin portu,
+kullanıcı onayı bekliyor).**
 
 ### Tamamlanan fazlar (özet)
 

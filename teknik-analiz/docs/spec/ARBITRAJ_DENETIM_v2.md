@@ -17,8 +17,9 @@ altında. Kök neden ayrıştırıldı (aşağıdaki "Elenme Sebebi Dağılımı
 doğrulama TEK BAŞINA en agresif filtre** (17→1, %94 azalma) — FDR'den (222→17, %92 azalma)
 bile daha sert. Bu, `discover_pairs()`'ın varsayılan `fdr_q=0.05` + `oos_split=0.5`
 kombinasyonunun (ikisi AYNI ANDA, çarpımsal olarak) tanının kaynak tablosunun (yalnızca
-FDR, OOS'suz) temsil ettiğinden ÇOK daha katı olduğu anlamına geliyor — **karar gerektiren
-bir bulgu**, aşağıda detaylandırıldı.
+FDR, OOS'suz) temsil ettiğinden ÇOK daha katı olduğu anlamına geliyor — bu, kullanıcıya
+sunulup **KARARA BAĞLANDI** (aşağıdaki "KAPATILDI" bölümü): `oos_split=None`, **17 çift**,
+`config/pairs.yaml` bu sonuçla YENİDEN üretildi.
 
 ## Yöntem
 
@@ -73,6 +74,36 @@ ettiğinden ÇOK daha katı bir birleşik filtre — **bu, 2B'de bilinçli bir t
 (DISIPLIN-06'nın "seçim ile doğrulama aynı pencerede olmasın" ilkesini koda gömmek) ama
 sonucu (1 çift) 2B yazılırken sayısal olarak ÖLÇÜLMEMİŞTİ.**
 
+## KAPATILDI (2026-09-04, aynı gün) — Karar verildi: Seçenek 2 (`oos_split=None`)
+
+Kullanıcıya 3 seçenek + 17 çiftin tam listesi (sembol/sektör/corr/p/halflife/beta) +
+gerçek backtest örnekleri (AKBNK/VAKBN, ADGYO/PEKGY, FONET/EDATA, IZMDC/ISDMR —
+`mode="mean_reversion"`, gerçek BIST verisiyle) sunuldu. **Karar: Seçenek 2** —
+`oos_split=None` (yalnızca FDR), **17 çift**. Gerekçe (kullanıcı diyaloğundan):
+sayı olarak tanının "20-40" hedefine daha yakın; OOS'un getirdiği ek güvenlik,
+1 çiftlik bir sisteme indirgenmesini haklı çıkaracak kadar değerli görülmedi.
+
+`config/pairs.yaml` bu kararla YENİDEN üretildi (17 çift, `scripts/pair_denetim.py`
+`main()`'in varsayılanı da `FDR_Q=0.05, OOS_SPLIT=None` olarak güncellendi — ileride
+betik tekrar çalıştırılırsa AYNI kararı üretir; `oos_split=0.5` ile tam rigor ölçmek
+isteyen biri bu iki sabiti elle değiştirebilir). Backtest örnekleri karışık bir tablo
+gösterdi (FONET/EDATA %12 kâr/%78 kazanma oranı, ADGYO/PEKGY −%25 zarar/%44 kazanma
+oranı) — bu, OOS'suz seçilen çiftlerin bazılarının GERÇEKTEN zayıf çıkabileceğinin
+somut kanıtı; kullanıcı bunu bilerek 17 çiftlik listeyi seçti.
+
+**Mimari netlik notu (kullanıcı sorusu üzerine belgelenen):** `config/pairs.yaml`
+SABİT bir liste — `tlab/scanner/engine.py::run()` yalnızca bu dosyadaki çiftler için
+iş açar (`for y_sym, x_sym in pairs or []`), evrenin geri kalanına pair göstergeleri
+için HİÇ bakılmaz. Listedeki olmayan bir çift (ör. TOASO/FROTO, ASELS/SDTTR,
+TCELL/TTKOM — üçü de kontrol edildi, hiçbiri corr/kointegrasyon eşiklerini
+geçmiyor) asla otomatik sinyal üretmez; listenin genişlemesi yalnızca `pair_
+denetim.py`'nin elle/periyodik olarak yeniden çalıştırılmasıyla olur.
+
+---
+
+## (ARŞİV) Orijinal "Karar Gerektiren Bulgu" — artık KAPATILDI, aşağıdaki bölüm
+## tarihsel referans için bırakıldı
+
 ## Karar Gerektiren Bulgu — OOS + FDR birleşimi 606 çifti 1'e indirdi
 
 `discover_pairs()`'ın şu anki varsayılanlarıyla (`fdr_q=0.05, oos_split=0.5`) üretilen
@@ -120,8 +151,9 @@ STRAT-09/ch3, "PARK").
 
 ## Sonraki Adım
 
-2A/2B/2C/2E kod değişiklikleri TAMAMLANDI ve test edildi (702 test yeşil). 2D'nin ölçümü
-TAMAMLANDI ama **yukarıdaki "Karar Gerektiren Bulgu" kullanıcı kararı bekliyor** —
-`config/pairs.yaml` şu an 1 çiftlik (en katı) ayarla üretilmiş durumda, karar sonrası
-`scripts/pair_denetim.py` ilgili `oos_split`/`fdr_q` değeriyle YENİDEN çalıştırılıp liste
-güncellenmeli.
+**Faz 2 TAMAMEN BİTTİ.** 2A/2B/2C/2E kod değişiklikleri + 2D doğrulaması + karar
+(`oos_split=None`, 17 çift) TAMAMLANDI, `config/pairs.yaml` güncel. Kâr/zarar
+karşılaştırması (mean_reversion vs rotasyonel, tüm 17 çiftle) ve OOS'un daha uzun bir
+`LOOKBACK_BARS` ile yeniden denenmesi (Seçenek 1/3'ün gelecekte tekrar değerlendirilmesi
+için) AYRI, isteğe bağlı bir takip işi olarak backlog'da bırakıldı — Faz 2'nin BİTTİ
+kriterini bloke ETMİYOR. Sırada: **Adım 5 — Faz 3 (SVG çizim motoru)**.

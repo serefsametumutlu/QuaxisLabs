@@ -92,7 +92,10 @@ def _sector_distribution(candidates: list[PairCandidate], sector_map: dict) -> d
     return dict(counts.most_common())
 
 
-def _write_pairs_yaml(path: str, candidates: list[PairCandidate]) -> None:
+def _write_pairs_yaml(
+    path: str, candidates: list[PairCandidate],
+    fdr_q: float | None, oos_split: float | None,
+) -> None:
     payload = {
         "pairs": [
             {
@@ -106,17 +109,20 @@ def _write_pairs_yaml(path: str, candidates: list[PairCandidate]) -> None:
             for c in candidates
         ]
     }
+    oos_desc = f"oos_split={oos_split}" if oos_split is not None else "oos_split=None (KAPALI)"
+    fdr_desc = f"fdr_q={fdr_q}" if fdr_q is not None else "fdr_q=None (KAPALI)"
     header = (
         "# Faz 2, 2D (docs/TANI_VE_YOL_HARITASI_v2.md ## FAZ 2) ile YENIDEN uretildi --\n"
-        "# Engle-Granger (coint) + Sidak duzeltmesi + Benjamini-Hochberg FDR (q=0.05) +\n"
-        "# out-of-sample dogrulama (oos_split=0.5). Onceki (2026-09-03) surum, ham adfuller\n"
+        f"# Engle-Granger (coint) + Sidak duzeltmesi + Benjamini-Hochberg FDR ({fdr_desc}) +\n"
+        f"# out-of-sample dogrulama ({oos_desc}). Onceki (2026-09-03) surum, ham adfuller\n"
         "# + duzeltmesiz coklu-test kullaniyordu (606 cift) -- config/pairs_v1_deprecated.yaml'a\n"
-        "# tasindi. Detay: docs/spec/ARBITRAJ_DENETIM_v2.md.\n"
+        "# tasindi. Detay + elenme sebebi dagilimi (test/FDR/OOS):\n"
+        "# docs/spec/ARBITRAJ_DENETIM_v2.md.\n"
         "#\n"
         "# y/x: RelativeMomentumPair/VolHarvestPair'in 'Y hissesi'/'X hissesi' sozlesmesiyle\n"
         "# AYNI (spread = log(Y) - beta*log(X)). adf_p: Sidak-duzeltilmis p (adf_pvalue ile\n"
         "# ayni). p_raw: Sidak ONCESI. n_tests: bu taramada denenen TOPLAM kombinasyon sayisi\n"
-        "# (FDR'nin M'si). adf_p_is/adf_p_oos: oos_split'in in-sample/out-of-sample p'leri.\n"
+        "# (FDR'nin M'si). adf_p_is/adf_p_oos: oos_split kullanilmadiysa HER ZAMAN null.\n"
         "# DISIPLIN-06/08 (discovery.py docstring'i): bu liste KALICI BIR ONAY DEGIL, anlik\n"
         "# bir tarama -- periyodik olarak yeniden kosulmali.\n"
     )
@@ -135,12 +141,22 @@ def main() -> int:
     print("=== 1: mevcut config/pairs.yaml'ı Engle-Granger ile yeniden doğrulama ===")
     reverify = _reverify_existing_pairs(prices)
 
-    print("\n=== 2: discover_pairs v2 sıfırdan (coint + Šidák + FDR + OOS) ===")
+    # 2026-09-04 KULLANICI KARARI (bkz. docs/spec/ARBITRAJ_DENETIM_v2.md): ilk
+    # ölçümde fdr_q=0.05+oos_split=0.5 (fonksiyonun kod varsayılanı) 606 çifti
+    # yalnızca 1'e indirmişti (PEKGY/EYGYO) -- kullanıcı bunun yerine FDR-only
+    # sonucu (17 çift, tanının "20-40" hedefine daha yakın) seçti. Bu betiğin
+    # varsayılanı o kararı yansıtır -- `oos_split=0.5` ile TAM rigor ölçmek
+    # isteyen biri bu iki değişkeni elle değiştirebilir.
+    FDR_Q = 0.05
+    OOS_SPLIT = None
+
+    print("\n=== 2: discover_pairs v2 sıfırdan (coint + Šidák + FDR" +
+          (" + OOS" if OOS_SPLIT is not None else "") + ") ===")
     sector_map = load_sector_map(SECTOR_MAP_PATH)
     economic_link_map = load_economic_link_map(ECONOMIC_LINKS_PATH)
     new_candidates = discover_pairs(
         prices, sector_map=sector_map, same_sector_only=True,
-        economic_link_map=economic_link_map, fdr_q=0.05, oos_split=0.5,
+        economic_link_map=economic_link_map, fdr_q=FDR_Q, oos_split=OOS_SPLIT,
     )
     n_tests = new_candidates[0].n_tests if new_candidates else None
     print(f"  YENİ çift sayısı: {len(new_candidates)} (n_tests={n_tests})")
@@ -153,7 +169,7 @@ def main() -> int:
     if old_path.exists() and not deprecated_path.exists():
         deprecated_path.write_text(old_path.read_text(encoding="utf-8"), encoding="utf-8")
         print(f"  Eski dosya korundu: {deprecated_path}")
-    _write_pairs_yaml(OLD_PAIRS_PATH, new_candidates)
+    _write_pairs_yaml(OLD_PAIRS_PATH, new_candidates, FDR_Q, OOS_SPLIT)
     print(f"  Yeni {len(new_candidates)} çift yazıldı: {OLD_PAIRS_PATH}")
 
     out = {

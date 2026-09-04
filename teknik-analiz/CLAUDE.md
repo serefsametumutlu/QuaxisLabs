@@ -79,27 +79,30 @@ broadening` hologramının kama gibi görünmesi, ISBTR veri kalitesi şüphesi,
 BULUNAN HATA 1'in 3 yeni örneği) aşağıdaki "Kaldığı yer" bölümünde KALDI
 (kapsam dışı, Faz 3/4'e bırakıldı).
 
-**Adım 4 / Faz 2 (istatistiksel arbitraj v2) DEVAM EDİYOR** — onaylandı,
+**Adım 4 / Faz 2 (istatistiksel arbitraj v2) TAMAMEN BİTTİ** — onaylandı,
 2A (`stats.py`: `engle_granger_pvalue`/`ols_spread`/`benjamini_hochberg`)
 + 2B (`discovery.py` v2: Šidák + FDR + OOS + `economic_link_map`) + 2C
 (`pairs_engine.py::run_pair_backtest_market_neutral` — GERÇEK bir muhasebe
 hatası bulunup düzeltildi, anaparanın pozisyon kapanışında unutulması +
 `RelativeMomentumParams.mode="mean_reversion"` + YENİ `coint_monitor.py`)
-+ 2E (arayüz etiketi) TAMAMLANDI, 702 test yeşil, detay `docs/PROGRESS_LOG.
-md`'nin "Faz 2" bölümünde. **2D (doğrulama) TAMAMLANDI** — `docs/spec/
-ARBITRAJ_DENETIM_v2.md` yazıldı. **KARAR GEREKTİREN BULGU:** mevcut 606
-çiftin yeniden doğrulaması 288'e (ham p<0.05) / 141'e (+FDR) indi — tanının
-beklentisini doğruladı. Ama `discover_pairs` v2'nin varsayılanlarıyla
-(`fdr_q=0.05` + `oos_split=0.5` AYNI ANDA) BIST evreninden SIFIRDAN
-yeniden keşif **606 → yalnızca 1 çifte** (PEKGY/EYGYO) indi — tanının
-"20-40" hedefinin ÇOK altında. Kök neden ayrıştırıldı: OOS TEK BAŞINA en
-agresif filtre (222→17→**1**; FDR 222'den 17'ye, OOS AYRICA 17'den 1'e —
-OOS, FDR'den bile daha sert). `config/pairs.yaml` şu an bu 1 çiftlik
-sonuçla YENİDEN ÜRETİLMİŞ durumda (eski 606'lık liste `config/pairs_v1_
-deprecated.yaml`'a taşındı). 3 seçenek raporda (`oos_split=None`→17 çift,
-tanının hedefine daha yakın; `oos_split` gevşetilebilir; ya da mevcut
-en-katı ayar korunabilir) — Adım 5'e geçmeden ÖNCE kullanıcı kararı
-gerekiyor.
++ 2D (doğrulama) + 2E (arayüz etiketi) TAMAMLANDI, 702 test yeşil, detay
+`docs/PROGRESS_LOG.md`'nin "Faz 2" bölümü ve `docs/spec/ARBITRAJ_DENETIM_
+v2.md`'de. **2D'nin kararı verildi:** `discover_pairs` v2'nin `fdr_q=0.05`
++ `oos_split=0.5` (kod varsayılanı) BİRLEŞİMİ BIST evreninden sıfırdan
+keşifte 606 çifti yalnızca 1'e indiriyordu (OOS, FDR'den bile daha agresif
+bir filtre — 222→17→1); kullanıcı `oos_split=None` (yalnızca FDR, **17
+çift**, tanının "20-40" hedefine daha yakın) SEÇTİ. `config/pairs.yaml`
+bu 17 çiftle YENİDEN ÜRETİLDİ (eski 606'lık liste `config/pairs_v1_
+deprecated.yaml`'da), `scripts/pair_denetim.py`'nin varsayılanı da bu
+kararı yansıtacak şekilde güncellendi. Gerçek backtest örnekleri
+(`mode="mean_reversion"`, gerçek BIST verisi) kullanıcıya sunuldu — karışık
+sonuçlar (FONET/EDATA +%12/%78 kazanma, ADGYO/PEKGY −%25/%44 kazanma),
+kullanıcı bunu bilerek karar verdi. Mimari netlik notu: `config/pairs.yaml`
+SABİT bir liste, `tlab/scanner/engine.py::run()` yalnızca bu dosyadaki
+çiftler için iş açar — listede olmayan bir çift (test edilen TOASO/FROTO,
+ASELS/SDTTR, TCELL/TTKOM dahil, hiçbiri eşikleri geçmiyor) asla otomatik
+sinyal üretmez, liste yalnızca `pair_denetim.py`'nin elle yeniden
+çalıştırılmasıyla değişir. **Sırada: Adım 5 (Faz 3 — SVG çizim motoru).**
 
 ### Tamamlanan fazlar (özet)
 

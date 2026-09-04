@@ -2237,9 +2237,29 @@ tanının hedefine ÇOK daha yakın, OOS mekanizması SİLİNMİYOR, elle hâlâ
 vs rotasyonel) N=1 çiftle istatistiksel olarak ANLAMSIZ olduğu için AYRI bir tura
 bırakıldı (kullanıcı kararından sonra, ≥17 çiftle yapılmalı).
 
-**Adım 4 sonrası onay kapısı:** Faz 2'nin 2A/2B/2C/2E kod değişiklikleri + 2D doğrulaması
-TAMAMLANDI (702 test yeşil, ruff/mypy baseline ile birebir, lint_lookahead 3→5 — 2 yenisi
-`coint_monitor.py`'nin mevcut 3 baseline false-positive'iyle AYNI kalıp). `docs/spec/
-ARBITRAJ_DENETIM_v2.md`'nin özeti kullanıcıya sunulup, ÖZELLİKLE OOS+FDR'nin çifti 1'e
-indirmesi konusunda karar alınmadan Adım 5'e geçilmeyecek.
+**Adım 4 sonrası onay kapısı — KAPANDI (2026-09-04, aynı gün):** `docs/spec/
+ARBITRAJ_DENETIM_v2.md`'nin özeti + 17 çiftin tam listesi (sembol/sektör/corr/p/
+halflife/beta) + 4 çiftin (AKBNK/VAKBN, ADGYO/PEKGY, FONET/EDATA, IZMDC/ISDMR)
+gerçek `mode="mean_reversion"` backtest sonuçları (gerçek BIST verisiyle, işlem
+bazında tarih/getiri) kullanıcıya sunuldu. Kullanıcı ayrıca "config/pairs.yaml sabit
+bir liste mi, listede olmayan çiftler (TOASO/FROTO, ASELS/SDTTR örnek verdi) hiç
+sinyal veremez mi" sorusunu sordu — kod incelenip (`tlab/scanner/engine.py::run()`,
+`for y_sym, x_sym in pairs or []`) NET cevap verildi: EVET, sabit liste, listede
+olmayan çift ASLA otomatik sinyal üretmez (3 örnek de test edildi, hiçbiri corr/
+kointegrasyon eşiğini geçmiyor: ASELS/SDTTR corr=0.15, TOASO/FROTO corr=0.48/p~0.9,
+TCELL/TTKOM corr=0.75 ama p~0.3-0.5 — "korelasyon kointegrasyon değildir" örneği).
+
+**KARAR: Seçenek 2 — `oos_split=None`, 17 çift.** Gerekçe: sayı tanının "20-40"
+hedefine daha yakın; backtest örnekleri karışık olsa da (FONET/EDATA +%12/%78
+kazanma, ADGYO/PEKGY −%25/%44 kazanma) kullanıcı bunu bilerek seçti. Uygulandı:
+`config/pairs.yaml` 17 çiftle YENİDEN üretildi (başlık metni `oos_split=None`'ı
+doğru yansıtacak şekilde elle düzeltildi — `_write_pairs_yaml` eskiden HER ZAMAN
+"oos_split=0.5" yazıyordu, artık gerçek `fdr_q`/`oos_split` değerlerini parametre
+olarak alıp dinamik yazıyor). `scripts/pair_denetim.py::main()`'in varsayılanı da
+(`FDR_Q=0.05, OOS_SPLIT=None`) bu kararı yansıtacak şekilde güncellendi — ileride
+betik tekrar çalıştırılırsa AYNI kararı üretir. `docs/spec/ARBITRAJ_DENETIM_v2.md`
+"KAPATILDI" bölümüyle güncellendi (orijinal analiz ARŞİV olarak kalıyor).
+
+**Faz 2 TAMAMEN BİTTİ.** Sırada: **Adım 5 — Faz 3 (SVG çizim motoru)**,
+`docs/TANI_VE_YOL_HARITASI_v2.md`'nin `## FAZ 3` bölümü.
 

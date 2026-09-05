@@ -3599,3 +3599,65 @@ C: ewmac sabit forecast tablosu, D: price_structure O(n²) optimizasyonu,
 E: alpha_rank/momentum_rank likidite+normalizasyon, F: wedge/triangle/
 flag_pennant'a pattern_context uygulanması) — HENÜZ BAŞLANMADI.
 
+## 2026-09-05 (aynı gün) — `structure.supply_demand`'ın işaret/etiket tasarımı GERÇEKTEN yeniden düzenlendi + Faz 5 madde C (ewmac sabit forecast tablosu)
+
+Bir önceki girdideki "REAKSİYON/KIRILDI metnini daireye ekle" düzeltmesi
+kullanıcının CWENE'de yeniden test etmesiyle YETERSİZ çıktı: "sarı ve
+gri daireler çok rahatsız ediyordu, metin ekleyince iyice çorba gibi
+karıştı; ayrıca 3 farklı yerde DEMAND yazıyor ama 1 yerde var". İkisi de
+GERÇEK, ayrı kök nedenli hatalar:
+
+1. **"3 DEMAND, 1 görünür bölge"** — `_recent_broken_zones` KIND'DEN
+   BAĞIMSIZ "en yeni 2" seçiyordu; CWENE'de tesadüfen İKİ kırılmış
+   DEMAND bölgesi + BİR açık DEMAND bölgesi aynı anda seçilip 3 "DEMAND"
+   etiketi üretmişti (ama SUPPLY tarafı hiç görünmüyordu). Düzeltme:
+   artık HER TÜRDEN (`demand_broken`/`supply_broken`) EN FAZLA 1 -- en
+   yeni -- gösteriliyor (toplam en fazla 2 kırılmış + 2 açık = 4, ama
+   HER ZAMAN kind-dengeli).
+2. **"Metin ekleyince çorba gibi karıştı"** — kök neden aslında metin
+   DEĞİL, YANLIŞ SAYIDA daireydi: `Marker`'lar yalnızca ZAMAN aralığına
+   göre bir çizilen bölgeye "ait" sayılıyordu, ama farklı bölgelerin
+   zaman aralıkları ÇAKIŞABİLİYOR (CWENE'de 6 KIRILDI + 5 REAKSİYON
+   çıkmıştı — 4 bölgenin üretebileceği matematiksel ÜST SINIRIN [en
+   fazla 4+4] bile üzerinde SANILDI ilk bakışta, gerçekte bazı bölgeler
+   birden fazla test/reaksiyon üretebiliyor ama yine de FAZLASIYLA
+   kalabalıktı) -- bir bölgenin zaman aralığı içine düşen ama GERÇEKTE
+   BAŞKA (çizilmeyen) bir bölgeye ait bir işaret de "sahipleniliyordu".
+   Düzeltme: eşleştirme artık ZAMAN *VE* FİYAT aralığını birlikte
+   kontrol ediyor (`low<=m.price<=high`) -- yalnızca GERÇEKTEN o bölgeye
+   ait işaretler kalıyor. AYRICA metin tasarımı değişti: her daireye
+   ayrı metin YERİNE, sahnede en az bir REAKSİYON/KIRILDI varsa TEK,
+   SABİT bir lejant (sol üst köşe, "○ REAKSİYON (fiyat bölgeye değip
+   geri döndü)" / "○ KIRILDI (bölge geçersizleşti)") ekleniyor --
+   kullanıcının asıl sorusuna kalabalık yaratmadan cevap veriyor.
+
+Zone etiketlerinin `resolve_collisions` düzeltmesi (bir önceki girdi)
+DOĞRU ÇIKTI, korundu. `tests/test_viz/test_svg/test_supply_demand_
+scene.py` (9/9) hâlâ yeşil (davranış değişikliği testleri kırmadı).
+Tarayıcıda THYAO + CWENE'de GÖRÜLEREK doğrulandı — artık en fazla 1
+supply + 1 demand her kategori için, doğru renk/etikat eşleşmesiyle.
+
+**Faz 5, madde C — ewmac sabit forecast scalar tablosu (K3, Tablo 49,
+App.B s.285) ENTEGRE EDİLDİ.** `EwmacParams.forecast_scalar_mode:
+Literal["fixed","empirical"] = "fixed"` (VARSAYILAN DEĞİŞTİ — eskiden
+tek yol EMPİRİK/rolling'di). `_FIXED_FORECAST_SCALAR` sabit sözlüğü
+((2,8)→10.6 ... (64,256)→1.87, kitaptan DOĞRULANMIŞ). Standart 6 çiftin
+DIŞINDA bir çift `mode="fixed"` iken bile SESSİZCE empirik hesaba düşer
+(uydurma bir sabit skaler ÜRETİLMEZ). **Ölçülen fark:** sabit mod
+`scalar_window` (252 bar ~1 yıl D1) ısınması OLMADAN hemen forecast
+üretiyor (empirik mod ilk yılda NaN); sabit mod sembol/dönemden
+BAĞIMSIZ (kitabın "karşılaştırılabilir olsun" amacı), empirik mod aynı
+çift için sembolden sembole farklı skaler üretiyordu. 4 yeni test
+(varsayılan mod, tablo değeriyle üretim, tabloda-olmayan-çiftin empirik'e
+düşmesi, iki modun GERÇEKTEN farklı çıktı ürettiği). 889 test yeşil
+(885→889), ruff TAM 19 (baseline DEĞİŞMEDİ).
+
+**Not (kayıt için):** bu ewmac değişikliği ARADA bir dosya-bütünlüğü
+hatasına yol açtı — docstring'i güncellerken eski/yeni içerik YANLIŞLIKLA
+iç içe geçip `SyntaxError` oluşturdu, bu da `tlab.indicators.bootstrap`
+import zincirini (CATALOG) kırıp o sırada çalışan uvicorn'u ÇÖKERTTİ.
+Hemen fark edilip (backend health check ile) düzeltildi — kayda değer
+tek sebep: ileride benzer büyük docstring düzenlemelerinde dosyanın
+TAMAMINI (yalnızca değişen kısmı değil) gözden geçirmek gerektiğinin
+hatırlatıcısı.
+

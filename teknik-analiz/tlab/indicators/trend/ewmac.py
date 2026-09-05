@@ -10,14 +10,25 @@ bölünür), sonra bir "forecast scalar" ile hedef ortalama mutlak değere
 Standart Carver çift kümesi (2,8)/(4,16)/(8,32)/(16,64)/(32,128)/(64,256)
 — her biri bir öncekinin 2 katı pencere, klasik "geometrik seri" trend
 takip bataryası — KULLANILIYOR (bu kısım kamuya açık/genel bilgi, kitaba
-özgü değil). **TODO (K3 bekleniyor)**: `forecast_scalar` burada EMPİRİK
-olarak (trailing `abs(vol_adj_ewmac)` ortalamasının tersi × 10) hesaplanır
-— bu, Carver'ın KENDİ metodolojisinin genel ilkesiyle (skaler = hedef/
-ortalama mutlak ham forecast) tutarlıdır ama kitabın (bilgi-bankasi/
-teknik/11 — K3, HENÜZ ÇIKARILMADI) yayınladığı SABİT, geriye-dönük test
-edilmiş skaler DEĞERLERİ değildir. K3 tamamlanınca `forecast_scalar_table`
-parametresiyle sabit değerlere geçilebilir (bkz. görev notu: "K3 bitmediyse
-Carver standart çiftlerini kullan ve TODO bırak").
+özgü değil).
+
+**Faz 5, madde C (2026-09-05) — K3'ün sabit forecast scalar tablosu
+ENTEGRE EDİLDİ:** `forecast_scalar_mode="fixed"` (VARSAYILAN, K3'ün
+bilgi-bankasi/teknik/11_carver_systematic.md'de belgelediği Tablo 49,
+App.B s.285 — "yazarın çok sayıda vadeli işlem piyasasından, performansa
+BAKMADAN elde ettiği" sabit değerler, DISIPLIN-02'nin "ideas-first"
+ilkesiyle tutarlı): standart 6 çift için `_FORECAST_SCALAR_TABLE`'daki
+sabit değer kullanılır. `forecast_scalar_mode="empirical"` ESKİ
+davranışı (trailing `abs(vol_adj_ewmac)` ortalamasının tersi × 10)
+korur — `pairs` standart 6'nın DIŞINDaysa (tabloda yoksa) `mode="fixed"`
+iken bile bu pariteye OTOMATİK empirik'e düşülür (sessizce yanlış/None
+skaler üretmek yerine). İki modun GERÇEK farkı ölçüldü (bkz. `scripts/
+ewmac_scalar_compare.py` çıktısı, PROGRESS_LOG'un aynı tarihli girdisi):
+sabit tablo, empirik skalerin ilk `scalar_window` (252 bar ~1 yıl D1)
+barında NaN kalmadan hemen forecast üretebiliyor (empirik ısınma
+gerektirir) ve sembol/dönem başına DEĞİŞMİYOR (empirik skaler aynı çift
+için sembolden sembole farklı çıkabiliyordu — kitabın "karşılaştırılabilir
+olsun" amacına ters).
 
 Çıktı: her (fast,slow) çifti için `series["ewmac_{fast}_{slow}"]` (forecast,
 -cap..+cap) + `series["ewmac_combined"]` (tüm çiftlerin ortalaması — Faz 10
@@ -27,6 +38,7 @@ sıfırı kestiği barlar (`ewmac_bullish`/`ewmac_bearish`)."""
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -40,6 +52,15 @@ _DEFAULT_PAIRS: tuple[tuple[int, int], ...] = (
     (2, 8), (4, 16), (8, 32), (16, 64), (32, 128), (64, 256),
 )
 
+ForecastScalarMode = Literal["fixed", "empirical"]
+
+# K3 (bilgi-bankasi/teknik/11_carver_systematic.md, ORAN-01, Tablo 49,
+# App.B s.285) — DOĞRULANMIŞ SABİT değerler, yazarın "çok sayıda vadeli
+# işlem piyasasından, performansa BAKMADAN" elde ettiği skalerler.
+_FIXED_FORECAST_SCALAR: dict[tuple[int, int], float] = {
+    (2, 8): 10.6, (4, 16): 7.5, (8, 32): 5.3, (16, 64): 3.75, (32, 128): 2.65, (64, 256): 1.87,
+}
+
 
 @dataclass(frozen=True)
 class EwmacParams(BaseParams):
@@ -48,6 +69,10 @@ class EwmacParams(BaseParams):
     scalar_window: int = 252
     target_abs_forecast: float = 10.0
     cap: float = 20.0
+    # Faz 5, madde C (2026-09-05) — K3'ün doğruladığı sabit tablo artık
+    # VARSAYILAN (bkz. modül docstring'i). "empirical" eski (rolling
+    # trailing-ortalama) davranışı korur.
+    forecast_scalar_mode: ForecastScalarMode = "fixed"
 
 
 class EWMACIndicator(BaseIndicator):
@@ -75,11 +100,20 @@ class EWMACIndicator(BaseIndicator):
         for fast, slow in p.pairs:
             raw = ema(close, fast) - ema(close, slow)
             vol_adj = raw / price_vol.replace(0.0, np.nan)
-            # Bkz. modül docstring'i — EMPİRİK skaler (TODO: K3 sabit tablosu).
-            mean_abs = (
-                vol_adj.abs().rolling(p.scalar_window, min_periods=p.vol_window * 2).mean()
-            )
-            scalar = p.target_abs_forecast / mean_abs.replace(0.0, np.nan)
+
+            fixed_scalar = _FIXED_FORECAST_SCALAR.get((fast, slow))
+            if p.forecast_scalar_mode == "fixed" and fixed_scalar is not None:
+                # K3 Tablo 49 -- sembol/dönemden BAĞIMSIZ sabit skaler,
+                # ısınma penceresi gerektirmez (bkz. modül docstring'i).
+                scalar = pd.Series(fixed_scalar, index=df.index)
+            else:
+                # "empirical" (eski davranış) YA DA standart 6'nın DIŞINDA
+                # bir çift ("fixed" istense bile tabloda yoksa sessizce
+                # buraya düşülür -- bkz. modül docstring'i).
+                mean_abs = (
+                    vol_adj.abs().rolling(p.scalar_window, min_periods=p.vol_window * 2).mean()
+                )
+                scalar = p.target_abs_forecast / mean_abs.replace(0.0, np.nan)
             forecast = (vol_adj * scalar).clip(-p.cap, p.cap)
             name = f"ewmac_{fast}_{slow}"
             series[name] = forecast

@@ -478,9 +478,26 @@ kullanıcı ne olduğunu anlayamadı (metin eklendi). 885 test yeşil
 LOG.md` 2026-09-05 girdisi. **Ayrıca kullanıcı isteğiyle `tlab eod
 --market bist` arka planda başlatıldı** (Cuma 2026-09-04 kapanışını
 içeren güncel veriyle tam evren taraması) — SÜRÜYOR, tamamlanınca not
-düşülecek. **Sırada:** Faz 5'in kalan maddeleri (B-F: breakouts/ewmac/
-price_structure perf/alpha-momentum rank/pattern_context) — HENÜZ
-BAŞLANMADI.
+düşülecek.
+
+**EK (aynı gün) — `structure.supply_demand`'ın işaret/etiket tasarımı
+GERÇEKTEN düzeltildi + Faz 5 madde C.** Kullanıcının CWENE testinde bir
+önceki "daireye metin ekle" düzeltmesi YETERSİZ çıktı ("çorba gibi
+karıştı" + "3 yerde DEMAND yazıyor 1 yerde var"). Gerçek kök nedenler:
+(1) `_recent_broken_zones` kind-bağımsız "en yeni 2" seçiyordu (2
+demand_broken + 0 supply_broken çıkabiliyordu) — artık HER TÜRDEN en
+fazla 1; (2) `Marker`ler yalnızca ZAMAN aralığına göre bir bölgeye
+"ait" sayılıyordu, ama zaman aralıkları ÇAKIŞABİLİYOR — eşleştirme
+artık FİYAT aralığını da kontrol ediyor; (3) her daireye ayrı metin
+yerine TEK SABİT bir lejant (sol üst) eklendi. Faz 5 madde C: `trend.
+ewmac`'e K3'ün sabit forecast scalar tablosu (Tablo 49) `forecast_
+scalar_mode="fixed"` VARSAYILAN olarak entegre edildi (`"empirical"`
+eski davranışı korur, tabloda olmayan çiftler otomatik empirik'e
+düşer). 889 test yeşil (884→889), ruff TAM 19 DEĞİŞMEDİ. Detay:
+`docs/PROGRESS_LOG.md` 2026-09-05 girdileri. **Sırada:** Faz 5'in
+kalan maddeleri (B: breakouts skor dağılımı, D: price_structure
+performansı, E: alpha/momentum rank kalibrasyonu, F: pattern_context
+uygulaması) — HENÜZ BAŞLANMADI.
 
 ### Tamamlanan fazlar (özet)
 

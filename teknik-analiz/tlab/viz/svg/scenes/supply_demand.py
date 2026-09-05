@@ -15,12 +15,27 @@ Declutter: `SupplyDemandIndicator.compute()` `max_zones` (varsayılan 12)
 kadar bölge üretebilir -- kırılan bir bölge `style`i `{kind}_broken`e döner
 ve BİR DAHA "aktif" sayılmaz (bkz. modül docstring'i, "aday havuzu" istisnası).
 Yalnızca HÂLÂ KIRILMAMIŞ (`style in ("demand","supply")`) bölgeler dolu
-kutu olarak, penceredeki EN FAZLA 2 kırılmış bölge (en yeni `t1`) referans
-için soluk/kesikli çerçeve olarak çizilir -- ne tüm 12 bölge (okunamaz
-kalabalık) ne SIFIR geçmiş bağlamı (harmonik/report sahnelerinin "yalnızca
-en güncel grup" ilkesinden bilinçli bir sapma, çünkü burada birden fazla
-EŞ ZAMANLI açık bölge -- ör. bir demand + bir supply -- olması NORMAL ve
-BİLGİLENDİRİCİ, tek bir "en güncel" grup kavramı burada uygun değil)."""
+kutu olarak, HER TÜRDEN (demand_broken/supply_broken) EN FAZLA 1 -- en
+yeni -- kırılmış bölge referans için soluk/kesikli çerçeve olarak çizilir
+-- ne tüm 12 bölge (okunamaz kalabalık) ne SIFIR geçmiş bağlamı (harmonik/
+report sahnelerinin "yalnızca en güncel grup" ilkesinden bilinçli bir
+sapma, çünkü burada birden fazla EŞ ZAMANLI açık bölge -- ör. bir demand +
+bir supply -- olması NORMAL ve BİLGİLENDİRİCİ, tek bir "en güncel" grup
+kavramı burada uygun değil).
+
+2026-09-05, kullanıcı geri bildirimi (CWENE 1D) — İKİ ayrı gerçek sorun
+bulunup düzeltildi: (1) `Marker`'lar hangi ZAMAN aralığına düştüğüne göre
+bir çizilen bölgeye "ait" sayılıyordu, ama zaman aralıkları farklı
+bölgeler arasında ÇAKIŞABİLİYOR (ör. Şubat'tan beri açık bir bölgenin
+aralığı, o sırada oluşup KIRILMIŞ ve artık gösterilmeyen başka bir
+bölgenin işaretini de "içine alıyordu") -- eşleştirme artık FİYAT
+aralığını da (`low<=m.price<=high`) kontrol ediyor. (2) her REAKSİYON/
+KIRILDI işaretine ayrı bir metin eklemek (`markers'a metin eklendi`
+düzeltmesi) GERÇEKTE daha da kalabalık bir görünüm yarattı (birden fazla
+bölge = birden fazla dağınık metin) -- düzeltme: daireler METİNSİZ
+kaldı, TEK BİR sabit lejant (sağ üstte, sarı/gri dairenin ne anlama
+geldiğini AÇIKLAYAN) eklendi -- kullanıcının asıl sorusuna ("bu daireler
+ne anlama geliyor") kalabalık yaratmadan cevap verir."""
 
 from __future__ import annotations
 
@@ -37,7 +52,6 @@ from tlab.viz.svg.theme import SVGTheme
 
 _W, _H = 700.0, 440.0
 _LAST_N = 150
-_MAX_BROKEN_SHOWN = 2
 _MARGIN_R = 110.0  # Faz 4d (2026-09-05): eskiden 14 -- etiketler ÇİZİM
 # ALANININ İÇİNDE, bölgenin kendi kenarına yapışık duruyordu. `ornek1.png`
 # standardı etiketleri sağ kenar BOŞLUĞUNDA ister (`market_structure.py`nin
@@ -45,10 +59,6 @@ _MARGIN_R = 110.0  # Faz 4d (2026-09-05): eskiden 14 -- etiketler ÇİZİM
 # taşındı.
 
 _MARKER_COLOR = {"sd_reaction": "accent", "sd_broken": "text_muted"}
-# 2026-09-05, kullanıcı geri bildirimi: "grafikte sarı ve gri daireler ne
-# anlama geliyor anlamadım" -- daireler METİNSİZDİ (yalnızca çember),
-# artık her birinin yanında kısa bir etiket var.
-_MARKER_TEXT = {"sd_reaction": "REAKSİYON", "sd_broken": "KIRILDI"}
 _LABEL_W, _LABEL_H = 132.0, 24.0
 
 
@@ -86,12 +96,23 @@ def _nearest_open_zones(result: IndicatorResult) -> list[Box]:
 
 
 def _recent_broken_zones(result: IndicatorResult, window: pd.DataFrame) -> list[Box]:
+    """2026-09-05, kullanıcı geri bildirimi (CWENE 1D): eskiden "en yeni 2"
+    kırılmış bölge KİND'DEN BAĞIMSIZ seçiliyordu -- aynı sembolde 2 kırılmış
+    DEMAND bölgesi çıkabiliyordu (bir SUPPLY örneği hiç görünmeden), bu da
+    "3 yerde DEMAND yazıyor ama görsel olarak tek bir şey var gibi"
+    izlenimini güçlendiriyordu. Artık HER TÜRDEN (`demand_broken`/
+    `supply_broken`) EN FAZLA 1 -- en yeni -- gösterilir."""
     candidates = [
         bx for bx in result.boxes
         if bx.style in ("demand_broken", "supply_broken")
         and bx.t0 <= window.index[-1] and bx.t1 >= window.index[0]
     ]
-    return sorted(candidates, key=lambda bx: bx.t1, reverse=True)[:_MAX_BROKEN_SHOWN]
+    out: list[Box] = []
+    for style in ("demand_broken", "supply_broken"):
+        same = [bx for bx in candidates if bx.style == style]
+        if same:
+            out.append(max(same, key=lambda bx: bx.t1))
+    return out
 
 
 def _pick_x_ticks(window: pd.DataFrame, n: int = 5) -> list[tuple[float, str]]:
@@ -139,7 +160,7 @@ def build(result: IndicatorResult, df: pd.DataFrame, theme: SVGTheme) -> SceneOu
     s += x_labels(chart, _pick_x_ticks(window), theme)
     s += draw_candles(window, chart, theme)
 
-    zone_spans: list[tuple[pd.Timestamp, pd.Timestamp]] = []
+    zone_spans: list[tuple[pd.Timestamp, pd.Timestamp, float, float]] = []
     # 2026-09-05, kullanıcı geri bildirimi (CWENE 1D): birden fazla bölgenin
     # sağ-kenar etiketi fiyatça yakınsa AYNI konuma denk gelip üst üste
     # BİNİYORDU ("DEMAND / TALEP" okunamaz hâle geliyordu) -- artık swing/
@@ -166,7 +187,7 @@ def build(result: IndicatorResult, df: pd.DataFrame, theme: SVGTheme) -> SceneOu
             )
         )
         label_meta.append((kind_tr, f"{bx.low:.2f}-{bx.high:.2f} · kırıldı", color))
-        zone_spans.append((bx.t0, bx.t1))
+        zone_spans.append((bx.t0, bx.t1, bx.low, bx.high))
 
     for bx in open_zones:
         color = theme.demand if bx.style == "demand" else theme.supply
@@ -194,7 +215,7 @@ def build(result: IndicatorResult, df: pd.DataFrame, theme: SVGTheme) -> SceneOu
             f"{'DEMAND' if bx.style == 'demand' else 'SUPPLY'} / {kind_tr}",
             f"{bx.low:.2f} - {bx.high:.2f} · {fresh_tr}", color,
         ))
-        zone_spans.append((bx.t0, bx.t1))
+        zone_spans.append((bx.t0, bx.t1, bx.low, bx.high))
 
     label_bounds = (
         chart.inner_x1 + 4, chart.inner_y0, _LABEL_W + 10, chart.inner_y1 - chart.inner_y0,
@@ -209,22 +230,48 @@ def build(result: IndicatorResult, df: pd.DataFrame, theme: SVGTheme) -> SceneOu
             placed.x, placed.y + 22, line2, fill=theme.text_muted, size=7.5, anchor="start",
         )
 
-    # Yalnızca ÇİZİLEN bölgelerin zaman aralığına düşen işaretler gösterilir
-    # -- 1. iterasyonda "yetim" işaretler (hangi bölgeye ait olduğu belirsiz,
-    # o bölge y-ekseni dışına düşüp hiç çizilmemiş olsa bile işaretin kendisi
-    # yine de görünüyordu) GERÇEKTEN gözlemlendi.
+    # Yalnızca ÇİZİLEN bölgelerin ZAMAN *VE* FİYAT aralığına düşen işaretler
+    # gösterilir -- yalnızca zamana bakmak YETERSİZDİ: farklı bölgelerin
+    # zaman aralıkları ÇAKIŞABİLİYOR (ör. Şubat'tan beri açık bir bölgenin
+    # aralığı, aynı dönemde oluşup KIRILMIŞ ve artık çizilmeyen BAŞKA bir
+    # bölgenin işaretini de "sahipleniyordu" -- 2026-09-05, CWENE'de
+    # GERÇEKTEN gözlemlendi, fiyat kontrolü eklenerek düzeltildi).
+    shown_marker_kinds: set[str] = set()
     for m in result.markers:
         if m.kind not in _MARKER_COLOR or m.t not in window.index:
             continue
-        if not any(t0 <= m.t <= t1 for t0, t1 in zone_spans):
+        if not any(
+            t0 <= m.t <= t1 and low <= m.price <= high for t0, t1, low, high in zone_spans
+        ):
             continue
         x, y = chart.x(bar_index(window, m.t)), chart.y(m.price)
         color = getattr(theme, _MARKER_COLOR[m.kind])
         s += svg_circle(x, y, 4, fill="none", stroke=color, stroke_width=2)
-        s += svg_text(
-            x + 7, y + 3, _MARKER_TEXT[m.kind], fill=color, size=8, weight=600,
-            family=theme.font_body,
-        )
+        shown_marker_kinds.add(m.kind)
+
+    # Kullanıcı geri bildirimi (2026-09-05): her daireye ayrı bir metin
+    # eklemek ("REAKSİYON"/"KIRILDI" her yerde tekrar etmesi) grafiği daha
+    # kalabalık hâle getirdi. Tek, SABİT bir lejant -- daireler METİNSİZ
+    # kalır, ne anlama geldikleri BİR KEZ açıklanır.
+    if shown_marker_kinds:
+        legend_y = chart.inner_y0 + 4
+        legend_x = chart.inner_x0 + 4
+        for kind in ("sd_reaction", "sd_broken"):
+            if kind not in shown_marker_kinds:
+                continue
+            color = getattr(theme, _MARKER_COLOR[kind])
+            s += svg_circle(
+                legend_x + 4, legend_y + 4, 4, fill="none", stroke=color, stroke_width=2,
+            )
+            legend_text = (
+                "REAKSİYON (fiyat bölgeye değip geri döndü)" if kind == "sd_reaction"
+                else "KIRILDI (bölge geçersizleşti)"
+            )
+            s += svg_text(
+                legend_x + 12, legend_y + 7, legend_text, fill=color, size=8,
+                family=theme.font_body,
+            )
+            legend_y += 14
 
     return SceneOut(
         title=f"{result.symbol} — Arz-Talep Bölgeleri",

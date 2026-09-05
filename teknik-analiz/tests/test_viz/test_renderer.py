@@ -727,3 +727,121 @@ def test_filter_confirmed_patterns_target_level_stays_direction_specific() -> No
     )
     filtered = _filter_confirmed_patterns(result)
     assert [lv.label for lv in filtered.levels] == ["triangle_5_10_15_20_long_target"]
+
+
+# ---------------------------------------------------------- Faz 3.5 (K1/K2) --
+#
+# `docs/TANI_VE_YOL_HARITASI_v2.md`'nin "FAZ 3.5 — Renderer kritik hataları"
+# bölümü + `docs/GORSEL_HATA_TESHISI.md` bölüm 1 (K1/K2/K3). K3'ün
+# regresyonları `tests/test_patterns/test_*.py` içinde (marker/Level üreten
+# katman burası DEĞİL, `tlab/indicators/patterns/*.py`).
+
+
+def test_multi_point_line_is_drawn_as_full_polyline_not_two_points() -> None:
+    """K1 düzeltmesi (2026-09-05): `trend.ma_systems`'ın her EMA'sı TÜM
+    (çok noktalı, büyüyen) serisini tek bir `Line` primitifinde taşır --
+    eskiden `_draw_lines` yalnızca İLK ve SON noktayı alıp aralarına düz
+    bir doğru çekiyordu, bu yüzden EMA yatay bir çizgiye çöküyordu. 50
+    noktalı sentetik bir sinüs eğrisi taşıyan bir `Line` verilip çizilen
+    trace'in TAM 50 nokta taşıdığını (2 DEĞİL) ve y değerlerinin düz
+    olmadığını doğrular -- bu test olmasaydı hata hiç yakalanmazdı."""
+    import math
+
+    df = make_trend(n=60, slope=0.0, noise=0.2, seed=7)
+    points = tuple((df.index[i], 100.0 + 5.0 * math.sin(i / 3.0)) for i in range(50))
+    line = Line(points=points, label="EMA8", style="ma_8")
+    result = IndicatorResult(
+        indicator="trend.ma_systems", version="1", params_hash="x", symbol="TEST",
+        timeframe=Timeframe.D1, lines=[line],
+    )
+    fig = render(result, df, theme="light")
+    ma_trace = next(t for t in fig.data if t.name == "EMA8")
+    assert len(ma_trace.x) == 50
+    assert len(ma_trace.y) == 50
+    assert len({round(float(v), 6) for v in ma_trace.y}) > 2  # düz bir çizgi DEĞİL
+
+
+def test_two_point_line_behavior_unchanged_by_polyline_fix() -> None:
+    """K1 düzeltmesi 2 noktalı Line'ların (trendline/kanal/hedef
+    projeksiyonu) davranışını DEĞİŞTİRMEMELİ -- matematiksel olarak
+    birebir aynı [t0,t1]/[p0,p1] çifti çizilir."""
+    df = make_trend(n=30, slope=0.05, noise=0.3, seed=3)
+    t0, t1 = df.index[2], df.index[20]
+    line = Line(points=((t0, 100.0), (t1, 110.0)), label="Direnç", style="resistance")
+    result = IndicatorResult(
+        indicator="structure.price_structure", version="1", params_hash="x", symbol="TEST",
+        timeframe=Timeframe.D1, lines=[line],
+    )
+    fig = render(result, df, theme="light")
+    ln_trace = next(t for t in fig.data if t.name == "Direnç")
+    assert list(ln_trace.x) == [_x(t0), _x(t1)]
+    assert list(ln_trace.y) == [100.0, 110.0]
+
+
+def _visible_range(fig, row_yaxis: str) -> tuple[float, float]:
+    axis = fig.layout[row_yaxis]
+    assert axis.range is not None, f"{row_yaxis} için range ayarlanmamış"
+    return float(axis.range[0]), float(axis.range[1])
+
+
+def test_subpanel_yaxis_ignores_offscreen_outlier() -> None:
+    """K2 düzeltmesi (2026-09-05): alt panel (hacim) y-ekseni artık YALNIZCA
+    görünür pencereden hesaplanıyor -- eskiden Plotly'nin trace-geneli oto-
+    ölçeklemesi geçmişteki (görünür pencerenin ÇOK dışında) tek bir aykırı
+    hacim değerinden etkilenip barları panelin dibine sıkıştırıyordu."""
+    n = 300
+    df = make_trend(n=n, slope=0.05, noise=0.5, seed=11)
+    volume = pd.Series([1_000.0] * n, index=df.index)
+    volume.iloc[5] = 50_000.0  # görünür pencerenin (son ~90 bar) ÇOK dışında
+    result = IndicatorResult(
+        indicator="structure.price_structure", version="1", params_hash="x", symbol="TEST",
+        timeframe=Timeframe.D1, series={"volume": volume},
+        series_layout={"hacim": ["volume"]},
+    )
+    fig = render(result, df, theme="light", last_n=90)
+    lo, hi = _visible_range(fig, "yaxis2")
+    # Aykırı değer (50_000) ekseni etkilemedi -- görünür pencerenin gerçek
+    # değeri olan 1_000'e yakın kalmalı.
+    assert hi < 5_000, f"eksen hâlâ aykırı değerden etkileniyor: hi={hi}"
+    assert lo == 0.0  # hacim gibi taban doğal olarak sıfır
+
+
+def test_subpanel_yaxis_rsi_stays_bounded_when_window_is_flat() -> None:
+    """RSI paneli 0-100 doğası gereği sınırlı olduğu için K2'nin etkilediği
+    bir 'referans/kontrol' grubudur -- bu test davranışının BOZULMADIĞINI
+    (hâlâ makul, 0-100 civarı bir aralık ürettiğini) doğrular."""
+    n = 200
+    df = make_trend(n=n, slope=0.02, noise=0.5, seed=4)
+    rsi = pd.Series([55.0] * n, index=df.index)
+    result = IndicatorResult(
+        indicator="structure.price_structure", version="1", params_hash="x", symbol="TEST",
+        timeframe=Timeframe.D1, series={"rsi_14": rsi}, series_layout={"rsi": ["rsi_14"]},
+    )
+    fig = render(result, df, theme="light", last_n=90)
+    lo, hi = _visible_range(fig, "yaxis2")
+    assert lo <= 0.0
+    assert hi >= 100.0
+    assert hi < 120.0  # aşırı büyük bir pay YOK
+
+
+def test_main_panel_height_ratio_meets_k2_standard() -> None:
+    """K2 düzeltmesi bölüm 3: ana panel toplam yüksekliğin en az %55'i,
+    her alt panel en fazla %15'i olmalı (3 alt panelli -- hacim/macd/rsi --
+    `structure.price_structure` ile doğrulanır). Plotly'nin `make_subplots`
+    döndürdüğü `domain` değerleri satırlar-arası boşluk (`vertical_spacing`)
+    normalize edilerek hesaplanır -- ham oran yerine domain yükseklikleri
+    ORANI karşılaştırılır (satırlar arası boşluk oranı sabit olduğu için
+    bu oran, `render()`e verilen `row_heights` oranıyla BİREBİR aynıdır)."""
+    df = make_trend(n=250, slope=0.1, noise=1.2)
+    result = PriceStructure(PriceStructureParams())(df)
+    result.symbol = "TEST"
+    fig = render(result, df, theme="light")
+    main_h = fig.layout.yaxis.domain[1] - fig.layout.yaxis.domain[0]
+    sub_hs = [
+        fig.layout[axis_name].domain[1] - fig.layout[axis_name].domain[0]
+        for axis_name in ("yaxis3", "yaxis4", "yaxis5")
+    ]
+    total = main_h + sum(sub_hs)
+    assert main_h / total >= 0.55 - 1e-9
+    for sub_h in sub_hs:
+        assert sub_h / total <= 0.15 + 1e-9

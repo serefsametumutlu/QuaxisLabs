@@ -204,6 +204,45 @@ def test_hologram_polygon_matches_boundary_line_corners(monkeypatch: pytest.Monk
     )
 
 
+def test_no_target_or_entry_marker_while_still_pending() -> None:
+    """K3 düzeltmesi (2026-09-05, bkz. docs/GORSEL_HATA_TESHISI.md):
+    `confirm_signal()` None dönerse (aday hiç kırılmadan, hâlâ PENDING)
+    ne hedef Level'i ne AL/SAT/KIRILIM/ONAY/HEDEF marker'ı üretilmemeli --
+    yalnızca genel "OLUŞUYOR" durum rozeti kalır. `test_hologram_polygon_
+    matches_boundary_line_corners`'ın AYNI deterministik takoz geometrisi,
+    df kırılım gerçekleşmeden ÖNCE kesilir."""
+    up1, up2 = _pivot(0, 130.0, "high"), _pivot(20, 110.0, "high")
+    lo1, lo2 = _pivot(5, 100.0, "low"), _pivot(25, 95.0, "low")
+    upper = _line(-1.0, 130.0, "resistance", up1, up2)
+    lower = _line(-0.25, 101.25, "support", lo1, lo2)
+
+    def _fake_build_trendlines(df, pivots, kind, **kwargs):
+        return [upper] if kind == "resistance" else [lower]
+
+    import tlab.indicators.patterns.wedge as wedge_mod
+
+    wedge_mod.build_trendlines = _fake_build_trendlines  # type: ignore[attr-defined]
+    try:
+        df_full = make_trend(n=200, slope=0.0, noise=1.0, seed=1)
+        df = df_full.iloc[:29]  # created_idx=28, yalnızca 1 fazla bar -- kırılıma yetmez
+        params = WedgeParams(
+            min_pivots=4, min_bars=5, max_apex_bars=200, slope_ratio_range=(0.1, 1.0),
+        )
+        result = WedgeIndicator("wedge", params).compute(df)
+    finally:
+        from tlab.features.trendlines import build_trendlines as real_build_trendlines
+
+        wedge_mod.build_trendlines = real_build_trendlines  # type: ignore[attr-defined]
+
+    assert result.last_state
+    assert all(info["state"] == "pending" for info in result.last_state.values())
+    assert not any(lv.style == "pattern_target" for lv in result.levels)
+    for prefix in (
+        "pattern_entry_", "pattern_breakout:", "pattern_retest_ok:", "pattern_target_hit:",
+    ):
+        assert not any(m.kind.startswith(prefix) for m in result.markers)
+
+
 def test_registers_via_verified_elsewhere() -> None:
     df = build_registry_smoke_ohlcv()
     try:

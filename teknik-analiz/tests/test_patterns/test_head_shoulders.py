@@ -113,6 +113,14 @@ def test_require_volume_confirm_suppresses_confirmed_when_volume_fails() -> None
                                   prior_trend_lookback=3, require_volume_confirm=True)
     result = HeadShouldersIndicator(params).compute(df)
     assert not any(s.payload["event"] == "tobo_confirmed" for s in result.signals)
+    # K3 düzeltmesi (2026-09-05, bkz. docs/GORSEL_HATA_TESHISI.md): confirm_
+    # signal() None dönerse (hiç onaylanmamış aday) ne hedef Level'i ne
+    # AL/SAT/KIRILIM/ONAY/HEDEF marker'ı üretilmemeli.
+    assert not any(lv.style == "pattern_target" for lv in result.levels)
+    for prefix in (
+        "pattern_entry_", "pattern_breakout:", "pattern_retest_ok:", "pattern_target_hit:",
+    ):
+        assert not any(m.kind.startswith(prefix) for m in result.markers)
 
 
 def test_require_volume_confirm_false_keeps_default_behavior() -> None:
@@ -131,16 +139,25 @@ def test_shoulder_markers_present() -> None:
 
 def test_entry_marker_emitted_at_confirmation() -> None:
     """2026-09-04: kullanıcı "nerede AL sinyali geldiğini de yazman
-    gerekiyor" dedi — TOBO (long yön) için son sinyal confirmed/completed
-    olduğunda ayrı bir `pattern_entry_long:{pid}` marker'ı, aynı bar/
-    fiyatta, metni "AL" olarak eklenmelidir."""
+    gerekiyor" dedi — TOBO (long yön) için kırılım onaylandığında ayrı bir
+    `pattern_entry_long:{pid}` marker'ı, metni "AL" olarak eklenmelidir.
+
+    K3 düzeltmesi (2026-09-05, bkz. docs/GORSEL_HATA_TESHISI.md): bu test
+    ESKİDEN `entry.t == last_sig.bar_time` bekliyordu -- bu fixture'da
+    `last_sig` formasyon HEDEFE ULAŞTIĞINDA (`completed`) zincirin SON
+    olayı oluyor, yani test AL işaretinin GİRİŞ yerine HEDEFE konmasını
+    (kullanıcının birebir şikayet ettiği hata) doğru sanıp kilitliyordu.
+    Artık AL, kırılım onayı (`_confirmed`) barına konur."""
     df = _tobo_ohlcv()
     result = HeadShouldersIndicator(_params()).compute(df)
     entry = next(m for m in result.markers if m.kind.startswith("pattern_entry_long:"))
     assert entry.text == "AL"
+    confirmed = next(s for s in result.signals if s.payload["event"].endswith("_confirmed"))
+    assert entry.t == confirmed.bar_time
     last_sig = result.signals[-1]
-    assert entry.t == last_sig.bar_time
     assert last_sig.state in ("confirmed", "completed")
+    if last_sig.state == "completed":
+        assert entry.t != last_sig.bar_time
 
 
 def test_asymmetric_shoulder_time_ratio_filters_pattern_out() -> None:

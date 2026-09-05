@@ -111,13 +111,21 @@ def test_target_is_neckline_plus_depth_and_reached() -> None:
 def test_entry_marker_emitted_at_confirmation() -> None:
     """2026-09-04: kullanıcı "nerede AL sinyali geldiğini de yazman
     gerekiyor" dedi -- head_shoulders.py'deki AYNI marker altyapısı,
-    tüm patterns/*.py dosyalarına portlandı."""
+    tüm patterns/*.py dosyalarına portlandı.
+
+    K3 düzeltmesi (2026-09-05, bkz. docs/GORSEL_HATA_TESHISI.md): bu test
+    ESKİDEN `entry.t == completed.bar_time` bekliyordu -- yani AYNEN
+    kullanıcının şikayet ettiği hatayı (AL işareti hedefe konuyor) doğru
+    davranış sanıp KİLİTLİYORDU. Artık AL, kırılım onayı (`_confirmed`)
+    barına konur -- hedefe ulaşma barından (`completed`) FARKLI bir bar."""
     df = _double_bottom_ohlcv()
     result = DoubleTopBottomIndicator(_params()).compute(df)
     entry = next(m for m in result.markers if m.kind.startswith("pattern_entry_long:"))
     assert entry.text == "AL"
+    confirmed = next(s for s in result.signals if s.payload["event"].endswith("_confirmed"))
+    assert entry.t == confirmed.bar_time
     completed = next(s for s in result.signals if s.state == "completed")
-    assert entry.t == completed.bar_time
+    assert entry.t != completed.bar_time
 
 
 def test_require_volume_confirm_suppresses_confirmed_when_volume_fails() -> None:
@@ -134,6 +142,14 @@ def test_require_volume_confirm_suppresses_confirmed_when_volume_fails() -> None
     result = DoubleTopBottomIndicator(params).compute(df)
     assert not any(s.state == "confirmed" for s in result.signals)
     assert any(s.payload.get("event", "").endswith("_pending") for s in result.signals)
+    # K3 düzeltmesi (2026-09-05, bkz. docs/GORSEL_HATA_TESHISI.md): confirm_
+    # signal() None dönerse (hiç onaylanmamış aday) ne hedef Level'i ne
+    # AL/SAT/KIRILIM/ONAY/HEDEF marker'ı üretilmemeli.
+    assert not any(lv.style == "pattern_target" for lv in result.levels)
+    for prefix in (
+        "pattern_entry_", "pattern_breakout:", "pattern_retest_ok:", "pattern_target_hit:",
+    ):
+        assert not any(m.kind.startswith(prefix) for m in result.markers)
 
 
 def test_require_volume_confirm_false_keeps_default_behavior() -> None:

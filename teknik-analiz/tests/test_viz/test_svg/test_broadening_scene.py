@@ -37,15 +37,50 @@ def test_supports_reports_broadening() -> None:
 
 
 def test_group_last_time_is_the_actual_last_signal_not_birth_bar() -> None:
-    result, _ = _result()
+    """K3 düzeltmesi (2026-09-05, bkz. docs/GORSEL_HATA_TESHISI.md) sonrası:
+    `target` Level'i artık yalnızca GERÇEKTEN onaylanmış (kırılım onayı
+    bulunan) adaylarda üretiliyor -- bu tohumla `_result()`ün rastgele
+    fixture'ı 128 adayın TAMAMINI "expired" (hiçbiri hiç onaylanmadı)
+    üretiyor, yani hiç `target` Level'i yok ve `_group_patterns` (target
+    şartı gereği) boş döner. Bu test artık doğrudan kurulmuş, GERÇEKTEN
+    onaylanmış bir senaryoya dayanıyor (`test_negative_target_is_not_
+    shown_or_expanding_axis`in AYNI "senaryoyu doğrudan kur" deseni)."""
+    df = make_trend(n=60, slope=0.0, noise=0.5, seed=11)
+    t0, t1, t_confirm, t_last = df.index[5], df.index[20], df.index[25], df.index[30]
+    upper = Line(points=((t0, 110.0), (t1, 130.0)), label="pat_upper", style="pattern_boundary")
+    lower = Line(points=((t0, 90.0), (t1, 70.0)), label="pat_lower", style="pattern_boundary")
+    hologram = Polygon(
+        points=(upper.points[0], upper.points[1], lower.points[1], lower.points[0]),
+        label="pat_hologram", style="pattern_hologram",
+    )
+    target = Level(price=140.0, label="pat_long_target", style="pattern_target", start=t_confirm)
+    born_sig = Signal(
+        bar_time=t0, detected_at=t0, direction="long", state="pending", score=0.5,
+        payload={"pattern_id": "pat_long", "event": "broadening_top_pending"},
+    )
+    confirm_sig = Signal(
+        bar_time=t_confirm, detected_at=t_confirm, direction="long", state="confirmed",
+        score=0.6, payload={"pattern_id": "pat_long", "event": "broadening_top_confirmed"},
+    )
+    retest_sig = Signal(
+        bar_time=t_last, detected_at=t_last, direction="long", state="confirmed",
+        score=0.6, payload={"pattern_id": "pat_long", "event": "broadening_top_retest_hold"},
+    )
+    result = IndicatorResult(
+        indicator="patterns.broadening", version="1", params_hash="x", symbol="TEST",
+        timeframe=Timeframe.D1, signals=[born_sig, confirm_sig, retest_sig],
+        levels=[target], lines=[upper, lower], polygons=[hologram],
+        last_state={
+            "pat_long": {
+                "direction": "long", "state": "confirmed",
+                "event": "broadening_top_retest_hold",
+            },
+        },
+    )
     groups = _group_patterns(result)
-    assert groups, "fixture en az bir grup üretmeli (bkz. modül docstring'i)"
-    for pid, group in groups.items():
-        pid_signals = sorted(
-            (s for s in result.signals if s.payload.get("pattern_id") == pid),
-            key=lambda s: s.bar_time,
-        )
-        assert group.last_time == pid_signals[-1].bar_time
+    assert groups, "sentetik senaryo en az bir grup üretmeli"
+    group = groups["pat_long"]
+    assert group.last_time == t_last  # doğum barı (t0) DEĞİL, en son sinyal
 
 
 def test_negative_target_is_not_shown_or_expanding_axis() -> None:

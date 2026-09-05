@@ -29,6 +29,7 @@ from tlab.core.indicator import BaseIndicator
 from tlab.core.params import BaseParams, params_hash
 from tlab.core.pattern_state import (
     PatternTrackingConfig,
+    confirm_signal,
     level_end_from_signals,
     marker_text,
     track_breakout_pattern,
@@ -277,6 +278,20 @@ class DoubleTopBottomIndicator(BaseIndicator):
 
                 signals.extend(pattern_signals)
 
+                # K3 düzeltmesi (2026-09-05, bkz. docs/GORSEL_HATA_TESHISI.md):
+                # `entry_sig`, `confirm_sig` DEĞİL (yukarıdaki `confirm_sig`
+                # hacim-onaysızsa `pattern_signals`'tan ÇIKARILMIŞ olabilir --
+                # `confirm_signal()` GÜNCEL listeden yeniden arar). AL/SAT ve
+                # hedef Level'i yalnızca GERÇEKTEN onaylanmış bir kırılım
+                # varsa üretilir; formasyon geçersizleşmiş/süresi dolmuşsa da
+                # HİÇBİRİ üretilmez (eski bir kırılımın giriş işareti kalıcı
+                # bir "AL" olarak asılı kalmasın diye).
+                entry_sig = confirm_signal(pattern_signals)
+                final_state = pattern_signals[-1].state
+                show_entry = entry_sig is not None and final_state not in (
+                    "invalidated", "expired",
+                )
+
                 levels.append(
                     Level(
                         price=neckline_price, label=f"{pattern_id}_neckline",
@@ -284,12 +299,13 @@ class DoubleTopBottomIndicator(BaseIndicator):
                         start=p2.bar_time, end=level_end_from_signals(pattern_signals),
                     )
                 )
-                levels.append(
-                    Level(
-                        price=target, label=f"{pattern_id}_target", style="pattern_target",
-                        start=p2.bar_time, end=level_end_from_signals(pattern_signals),
+                if entry_sig is not None:
+                    levels.append(
+                        Level(
+                            price=target, label=f"{pattern_id}_target", style="pattern_target",
+                            start=p2.bar_time, end=level_end_from_signals(pattern_signals),
+                        )
                     )
-                )
                 # Faz 1, 1B — hologram DÜZELTMESİ: eski hâli (p1-p2 arası
                 # GERÇEK kapanış yolu) geometrik olarak doğruydu ama
                 # görsel olarak AMORF bir leke üretiyordu (bkz. STRATEJI_
@@ -338,24 +354,61 @@ class DoubleTopBottomIndicator(BaseIndicator):
                 marker_label = marker_text(
                     _LABEL_TR[pattern_name], last_sig.payload["event"], pattern_name,
                 )
+                # Genel durum rozeti -- formasyonun GÜNCEL durumu, last_sig
+                # barında (bu doğru davranış, DEĞİŞTİRİLMEDİ).
                 markers.append(
                     Marker(
                         t=last_sig.bar_time, price=marker_price, text=marker_label,
                         kind=f"pattern_{last_sig.state}:{pattern_id}",
                     )
                 )
-                # 2026-09-04: kullanıcı "nerede AL sinyali geldiğini de
-                # yazman gerekiyor" dedi -- head_shoulders.py'deki AYNI
-                # marker altfyapısı (renderer._draw_markers'da dolgulu
-                # üçgen + kalın AL/SAT metni).
-                if last_sig.state in ("confirmed", "completed"):
+                # K3 düzeltmesi (2026-09-05): DÖRT AYRI işaret --
+                # KIRILIM/ONAY/AL-SAT/HEDEF. AL/SAT artık last_sig'e DEĞİL,
+                # entry_sig (kırılım onayı) barına konur; formasyon geçersiz/
+                # süresi dolmuşsa hiçbiri üretilmez.
+                if show_entry:
+                    assert entry_sig is not None
+                    entry_price = close[df.index.get_loc(entry_sig.bar_time)]
                     markers.append(
                         Marker(
-                            t=last_sig.bar_time, price=marker_price,
+                            t=entry_sig.bar_time, price=entry_price, text="KIRILIM",
+                            kind=f"pattern_breakout:{pattern_id}",
+                        )
+                    )
+                    markers.append(
+                        Marker(
+                            t=entry_sig.bar_time, price=entry_price,
                             text="AL" if direction == "long" else "SAT",
                             kind=f"pattern_entry_{direction}:{pattern_id}",
                         )
                     )
+                    retest_sig = next(
+                        (s for s in pattern_signals if s.payload["event"].endswith("_retest_hold")),
+                        None,
+                    )
+                    if retest_sig is not None:
+                        retest_price = close[df.index.get_loc(retest_sig.bar_time)]
+                        markers.append(
+                            Marker(
+                                t=retest_sig.bar_time, price=retest_price, text="ONAY",
+                                kind=f"pattern_retest_ok:{pattern_id}",
+                            )
+                        )
+                    target_sig = next(
+                        (
+                            s for s in pattern_signals
+                            if s.payload["event"].endswith("_target_reached")
+                        ),
+                        None,
+                    )
+                    if target_sig is not None:
+                        target_price = close[df.index.get_loc(target_sig.bar_time)]
+                        markers.append(
+                            Marker(
+                                t=target_sig.bar_time, price=target_price, text="HEDEF ✓",
+                                kind=f"pattern_target_hit:{pattern_id}",
+                            )
+                        )
                 last_state[pattern_id] = {
                     "pattern": pattern_name, "direction": direction, "state": last_sig.state,
                     "event": last_sig.payload["event"], "target": target,

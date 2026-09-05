@@ -3205,3 +3205,151 @@ dönecek; golden_zone/harmonik/supply_demand/trend.breakouts/trend.
 ma_systems/price_structure gibi maddelere kullanıcı "tamam" demeden
 DOKUNULMAYACAK.
 
+## 2026-09-05 — `docs/GORSEL_HATA_TESHISI.md` teslim edildi + Faz 3.5/4d planlandı
+
+`error/` klasöründeki 10 PNG tek tek açılıp incelendi, ornek1/ornek2
+referanslarıyla karşılaştırıldı, her bulgu koda kadar sürüldü. Üç kod
+hatası dosya:satır düzeyinde doğrulandı (K1: `renderer.py:1488` her
+`Line`'ı ilk+son noktaya indirgiyor — `trend.ma_systems`'ın EMA'ları düz
+çizgiye çöküyor; K2: alt panel y-ekseni tüm geçmişten ölçekleniyor —
+görünür pencerede küçük değerler, geçmişteki bir aykırı değer yüzünden
+panelin dibine sıkışıyor; K3: AL/SAT işareti `pattern_signals[-1]`'e
+(tamamlanmış formasyonda bu hedefe-ulaşma barı) konuyor, girişe değil).
+Ayrıca 5 tasarım çöküşü (T1-T5: etiket kontrastı, panel boyutu
+tutarsızlığı, bayat formasyona otomatik yakınlaşma, süresi dolmuş/
+oluşuyor formasyonların canlı sinyal gibi çizilmesi, etiket yığılması)
+ve 3 algoritma hatası (A1: arz/talep rally-base-drop yöntemi INTEM'de
+0 talep bölgesi üretti + gri çiziliyor; A2: golden_zone "en güncel"
+swing'i seçiyor, "en anlamlı"yı değil; A3: harmonik hologram gerçek
+fiyat yolunu izlemeyen geometrik şablon) kataloglandı. Rapor:
+`docs/GORSEL_HATA_TESHISI.md`.
+
+Plana iki yeni faz eklendi (`docs/00_BASLANGIC_SIRASI.md`, `docs/
+TANI_VE_YOL_HARITASI_v2.md`): **Faz 3.5** (Adım 5.5, K1+K2+K3, Faz
+4'ten önce kapatılması gerekirdi ama Faz 4a/b zaten bitmiş olduğu için
+geriye dönük kapatıldı) ve **Faz 4d** (Adım 8.5, SMC yapı katmanı —
+BOS/CHoCH tespiti, pivot üçgenleri, temas-sayılı trend çizgisi,
+pivot-çıpalı arz/talep — `ornek1.png` standardının indikatör tarafı,
+tlab'da hiç yok, yeni indikatör mantığı gerektiriyor). A1/A2 Faz 5'e,
+T3 (tazelik filtresi) grafiğe de uygulanacak şekilde not edildi.
+
+## 2026-09-05 — Faz 3.5 TAMAMLANDI: K1/K2/K3 renderer hataları düzeltildi
+
+`tlab/viz/renderer.py`'de üç düzeltme: **K1** — `_draw_lines` artık
+`ln.points`'in TAMAMINI (`xs`/`ys` listesi) çiziyor, yalnızca ilk+son
+noktayı değil; 2 noktalı Line'ların (trendline/kanal/hedef) davranışı
+DEĞİŞMEDİ, `trend.ma_systems`'ın çok-noktalı EMA Line'ları artık fiyatı
+takip ediyor. **K2** — YENİ `_sync_subpanel_yaxes()`: her alt panelin
+(hacim/MACD/vb.) y-ekseni yalnızca `[window_start_idx, window_end_idx]`
+(görünür pencere) aralığındaki veriden hesaplanıp sabitleniyor; ayrıca
+panel yükseklik oranı standardize edildi (ana panel ≥%55, her alt panel
+sabit %15 — eskiden `main_h=0.5` sabitken 3 alt panelli göstergelerde
+ana panel yarıya düşüyordu). **K3** — `pattern_state.py`'ye
+`confirm_signal()` eklendi (double_top_bottom/wedge/broadening/
+head_shoulders/flag_pennant/breakout_fvg'nin hepsi kullanır): AL/SAT
+işareti artık `last_sig` (hedef barı) yerine `confirm_sig` (kırılım
+onay barı) barına konuyor; hedef `Level`'i yalnızca ONAYLANMIŞ
+adaylarda çiziliyor (pending/oluşuyor durumundaki bir adayın hedefi
+artık eksen patlatmıyor); YENİ `KIRILIM`/`ONAY`/`HEDEF ✓` işaretleri
+(`pattern_breakout:`/`pattern_retest_ok:`/`pattern_target_hit:`)
+eklendi. Önceden uncommitted kalmış `breakout_fvg.py` (Faz 4b) bu K3
+düzeltmesine bağlı olduğu için ilk kez bu commit'te (3da6008) işlendi.
+870 test yeşil (860→870), ruff/mypy baseline'ları DEĞİŞMEDİ. Önce/sonra
+görselleri `docs/design/iterasyon/faz35_k{1,2,3}_*.png`.
+
+## 2026-09-05 (aynı gün) — DÜZELTME: "`_SCENES` hiç kayıtlı değildi" bulgusu YANLIŞTI — kök neden yerel git geçmişinin origin/main'in gerisinde kalmasıydı
+
+Faz 3.5'in kapanış doğrulaması sırasında `tlab/viz/svg/__init__.py::
+_SCENES` sözlüğü incelenip Faz 4a/4b'nin 11 sahnesinin hiçbirinin
+kayıtlı olmadığı gözlemlendi ve bu ilk anda "production'da hiç
+görünmüyorlarmış" diye GERÇEK bir hata olarak bu dosyaya yazılmıştı.
+**Bu bulgu, `git push` prosedürü izlenip `origin/main` ile karşılaştırma
+yapılınca YANLIŞ çıktı — kayıt burada düzeltiliyor** (CLAUDE.md'nin
+"GERÇEK hata" iddialarının doğrulanmadan yazılmaması ilkesi burada
+ihlal edilmişti, ders: kod tabanının GERÇEK durumu yalnızca `origin/
+main`e karşı kontrol edilerek anlaşılabilir, ev dizinindeki yerel
+git geçmişi GitHub'dan bağımsız/geride kalabilir).
+
+**Gerçek durum:** `origin/main` (`git log --oneline -- tlab/viz/svg/
+__init__.py`) her Faz 4a/4b sahnesinin KENDİ commit'inde `_SCENES`'e
+düzgünce eklendiğini gösteriyor (`c7d72c1`/`cd85064`/`189fcbd`/
+`a1151f0`/`e05a122`/`a8b6b25` — hepsi ilgili sahneyi HEM yazıp HEM
+`_SCENES`e kaydediyor). Yani gerçek, pushlanmış kod tabanında `_SCENES`
+eksiği YOKTU ve dolayısıyla üretimde bir görünmezlik hatası da yoktu.
+Yanılgının kaynağı: bu makinedeki EV DİZİNİ git deposu (`C:\Users\
+Samet`, GitHub'la "ilişkisiz commit geçmişi" — bkz. CLAUDE.md'nin Git/
+Push bölümü) yalnızca birkaç commit içeriyordu (`ccc8fa9`'dan sonra
+doğrudan `3da6008`'e atlıyordu) ve arada origin'e giden yukarıdaki 6
+commit hiç yoktu — ama ÇALIŞMA DİZİNİNDEKİ dosyaların KENDİSİ (aynı
+fiziksel klasör, önceki oturumların push worktree akışıyla güncellemiş
+olduğu) zaten doğruydu. `git status`'un bu dosyaları "M"/eksik
+göstermesi, YEREL git'in onları hiç commitlememiş olmasındandı — kodun
+kendisi hiçbir zaman bozuk değildi.
+
+**Gerçekten doğru olan ve kalan bulgular:** yalnızca K1/K2/K3 renderer
+düzeltmesi (`tlab/viz/renderer.py` + `tlab/core/pattern_state.py`'ye
+eklenen `confirm_signal()` + 6 pattern indikatörünün [`double_top_
+bottom`/`wedge`/`broadening`/`head_shoulders`/`flag_pennant`/
+`breakout_fvg`] `confirm_sig`/KIRILIM-ONAY-HEDEF payload desteği +
+bunların testleri, aşağıdaki girdi) GERÇEKTEN `origin/main`de YOKTU
+(push edilmemiş yeni iş) — `origin/main`e karşı `git diff --stat`
+(worktree'de doğrudan çalıştırılarak) TAM OLARAK bu dosyaları
+gösterdi, başka hiçbir şey değil. `docs/GORSEL_HATA_TESHISI.md` de
+`origin/main`de YOKTU (yalnızca `error/` klasöründeki ham görseller +
+`ornek1.png`/`ornek2.png` `3f4e494` commit'iyle push edilmişti, teşhis
+metni değil) — bu da geçerli, push edilecek. **`tlab/viz/svg/scenes/
+double_top_bottom.py`'deki eksen hack'inin kaldırılması İSE origin'de
+ZATEN YOKTU/aynıydı** (bir önceki paragrafta bunu da "yeni düzeltme"
+diye yazmıştım, bu da YANLIŞTI — `git diff --stat` bu dosya için SIFIR
+satır fark gösterdi, origin/main bunu zaten böyle içeriyordu; muhtemelen
+bu dosyanın çalışma dizinindeki hâli de `_SCENES` gibi başka bir
+oturumdan zaten gelmişti). Bir önceki girdideki `svg_supports()`/render
+doğrulama adımları (7 sahnenin THYAO'da çökmeden render edilmesi) BOŞA
+GİTMEDİ — bunlar zaten çalışan/pushlanmış koda karşı çalıştırıldığı
+için hâlâ geçerli bir regresyon kanıtı, yalnızca "önceden kırıktı"
+yorumu yanlıştı.
+
+**Ders (gelecek oturumlar için):** bu projede kod tabanının GERÇEK
+durumunu sormanın tek güvenilir yolu `origin/main`e karşı fark almaktır
+(`git fetch origin main` + worktree/archive prosedürü) — ev dizinindeki
+yerel commit geçmişine veya `git status`'un yerel "M"/"??" işaretlerine
+bakarak "bu hiç yapılmamış" sonucuna varmak yanıltıcı olabilir.
+
+## 2026-09-05 (aynı gün) — Faz 3.5 TAMAMLANDI, origin/main'e push edildi
+
+Yukarıdaki düzeltmeden sonra gerçek delta netleşti: `origin/main`
+(`3f4e494`) zaten Faz 4a/4b'nin TAMAMINI (11 sahne + `_SCENES` kaydı +
+`compute_reversal_map` köprüsü + `bootstrap.py::CATALOG`'daki
+`patterns.breakout_fvg` + `double_top_bottom.py` sahnesinin güncel
+eksen mantığı) doğru şekilde içeriyordu — bunlara YENİDEN DOKUNULMADI.
+Bu oturumun gerçek katkısı ikiye indi: (1) K1/K2/K3 renderer düzeltmesi
+(`tlab/viz/renderer.py` + `pattern_state.py::confirm_signal()` + 6
+pattern indikatörünün `confirm_sig` desteği + testleri, bir önceki
+girdi — origin'de yoktu, push edildi); (2) `docs/GORSEL_HATA_TESHISI.md`
++ Faz 3.5/4d'nin plana eklenmesi (`00_BASLANGIC_SIRASI.md`, `TANI_VE_
+YOL_HARITASI_v2.md`).
+
+**Doğrulama (gerçekten çalıştırılarak yapıldı):** `trend.ma_systems`
+(K1, eski Plotly yolunda — SVG'ye henüz portlanmadı) THYAO 1D'de
+yeniden render edildi — EMA-8/21/55/200 artık fiyatı takip ediyor, düz
+değil (`docs/design/iterasyon/faz35_verify_ma_systems_THYAO_1D_dark.png`,
+Adım 5.5 onay kapısının kabul kriteri). `svg_supports()` origin'in
+mevcut 11 sahnesinin hepsi için zaten `True`; THYAO/1D gerçek
+verisiyle 7 sahne (`golden_zone`/`supply_demand`/`swing_fib_abcd`/
+`weekly_channel`/`wedge`/`broadening`/`breakout_fvg`/`confluence`)
+uçtan uca render edilip PNG'ye çevrildi, hiçbiri çökmedi (`docs/
+design/iterasyon/faz35_verify_*`) — K1/K2/K3'ün diğer sahnelerde
+regresyon YARATMADIĞININ kanıtı. `pytest -q -m "not network"`: 851
+yeşil / 19 kırmızı (`tests/test_pairs/*`, `tests/test_stats.py` —
+`statsmodels.coint()`'in artık tuple döndürmesi, bu oturumun
+değişiklikleriyle İLGİSİZ, ortam/versiyon kaynaklı önceden var olan bir
+sorun, ayrı bir takip işi) / 3 deselected; `tests/test_viz/` alt
+kümesi tam yeşil (201/201).
+
+**Sırada:** Adım 5.5 onay kapısı — kullanıcının kendi gözüyle önce/
+sonra görsellerini (özellikle `ma_systems`) karşılaştırması bekleniyor.
+Geçilirse sıradaki adım Faz 4d (SMC yapı katmanı — BOS/CHoCH, pivot
+üçgenleri, temas-sayılı trend, pivot-çıpalı arz/talep), henüz
+BAŞLANMADI. A1 (arz/talep yöntemi) ve A2 (golden zone swing seçimi +
+fib merdiveni) Faz 5'e bırakıldı, henüz DOKUNULMADI.
+

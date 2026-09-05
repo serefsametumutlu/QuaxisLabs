@@ -382,6 +382,40 @@ TAMAMEN BİTTİ (6/6).** 860 test yeşil (836→860), ruff/mypy/lint_lookahead
 baseline'ları DEĞİŞMEDİ. **Sırada: kullanıcının istediği kapsamlı `error/`
 raporu — henüz hiçbir düzeltme YAPILMADI.**
 
+**EK (2026-09-05) — `docs/GORSEL_HATA_TESHISI.md` teslim edildi, plana
+Faz 3.5 (Adım 5.5, K1/K2/K3 renderer hataları) ve Faz 4d (Adım 8.5, SMC
+yapı katmanı — BOS/CHoCH, pivot üçgenleri, temas-sayılı trend, pivot-
+çıpalı arz/talep) eklendi. **Faz 3.5 TAMAMLANDI:** `renderer.py`'de K1
+(çok-noktalı `Line`'lar artık tam çiziliyor — `trend.ma_systems`'ın
+EMA'ları fiyatı takip ediyor, düz değil), K2 (alt panel y-ekseni
+görünür pencereden ölçekleniyor), K3 (AL/SAT işareti onay barına
+konuyor, hedef yalnızca onaylanmış adayda çiziliyor + YENİ KIRILIM/
+ONAY/HEDEF işaretleri) — 870 test yeşil, commit `3da6008` (yalnızca EV
+DİZİNİNDEKİ yerel git'te — `origin/main`e henüz PUSH EDİLMEMİŞTİ).
+**DÜZELTME (aynı gün, kayıt için):** kapanış doğrulamasında ilk anda
+"`_SCENES`'e Faz 4a/4b'nin 11 sahnesi hiç kayıtlı değil, üretimde hiç
+görünmüyorlarmış" diye GERÇEK bir hata yazılmıştı — bu YANLIŞTI.
+`origin/main`e karşı fark alınınca (`git fetch` + push worktree
+prosedürü) görüldü ki GERÇEK/pushlanmış kod tabanında `_SCENES` kaydı
+HER ZAMAN doğruydu (her Faz 4a/4b commit'i kendi sahnesini AYNI
+commit'te kaydediyordu) — sorun yalnızca EV DİZİNİNDEKİ yerel git
+geçmişinin (`origin`den bağımsız, birkaç commit atlamış) `origin/main`in
+GERİSİNDE kalmasıydı, çalışan koddaki fiziksel dosyalar hep doğruydu.
+**Ders: kod tabanının GERÇEK durumu yalnızca `origin/main`e karşı
+kontrol edilerek anlaşılabilir, yerel `git status`'a bakıp "hiç
+yapılmamış" sonucuna varmak yanıltıcı.** Gerçekten yeni/push edilecek
+olan yalnızca: K1/K2/K3 renderer düzeltmesi (`renderer.py` +
+`pattern_state.py::confirm_signal()` + 6 pattern indikatörünün
+`confirm_sig` desteği) ve `docs/GORSEL_HATA_TESHISI.md` (`double_top_
+bottom.py` sahnesindeki eksen mantığı da dahil geri kalan her şey
+`origin/main`de zaten doğruydu — `git diff --stat` sıfır fark
+gösterdi). THYAO gerçek verisiyle uçtan uca doğrulandı
+(`docs/design/iterasyon/faz35_verify_*`, `ma_systems`'ın artık düz
+değil fiyatı takip ettiği dahil — Adım 5.5 onay kapısının kriteri).
+Detay: `docs/PROGRESS_LOG.md` 2026-09-05 girdileri. **Sırada: Adım 5.5
+onay kapısı (kullanıcı kendi gözüyle karşılaştıracak), sonra Faz 4d —
+henüz BAŞLANMADI.**
+
 ### Tamamlanan fazlar (özet)
 
 - **Faz 0 — İskelet**: `core/types.py`, `core/indicator.py`, `core/params.py`,

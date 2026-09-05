@@ -942,6 +942,127 @@ BİTTİ KRİTERİ:
 
 ---
 
+## FAZ 3.5 — Renderer kritik hataları (2026-09-05 EKLENDİ, Faz 4'ten ÖNCE)
+
+> **Neden eklendi:** `error/` klasöründeki 10 çıktının tamamı görüntü olarak incelendi (bkz. **`docs/GORSEL_HATA_TESHISI.md`**). Üç kod hatası dosya:satır düzeyinde doğrulandı; üçü de birden fazla göstergeyi bozuyor ve Faz 4'te SVG'ye portlanan her sahne bunları miras alacak. Önce kapatılmalı.
+
+**Bitti kriteri:** `ma_systems`'ın MA çizgileri fiyatı takip ediyor; hacim/MACD panelleri görünür pencereye göre ölçekleniyor; AL/SAT işareti onay barında, hedefte değil. Üçü de önce/sonra görüntüsüyle kanıtlanmış.
+
+```
+[ORTAK BAĞLAM bloğunu buraya yapıştır]
+
+GÖREV — FAZ 3.5: Renderer kritik hataları
+
+ÖNCE OKU: docs/GORSEL_HATA_TESHISI.md bölüm 1 (K1/K2/K3). Üç hata da orada
+kanıtıyla ve hangi görselde nasıl göründüğüyle yazılı.
+
+--- K1: HER Line IKI NOKTAYA INDIRGENIYOR ---
+
+tlab/viz/renderer.py:1488 civarı:
+    (t0, p0), (t1, p1) = ln.points[0], ln.points[-1]
+    ...
+    go.Scatter(x=[_x(t0), _x(t1)], y=[p0, p1], mode="lines", ...)
+
+Renderer HER Line'in yalnizca ILK ve SON noktasini alip aralarina duz bir
+dogru ciziyor. Trendline (2 nokta) icin dogru; ama trend.ma_systems her
+hareketli ortalamanin TUM serisini tek bir Line icinde tasiyor -> EMA
+8/21/55/200 birer DUZ YATAY CIZGIYE cokuyor. trend.weekly_channel'in
+channel_current'i da ayni desende.
+
+KANIT: error/INTEM_trend.ma_systems_1d.png -- turuncu/mor/mavi cizgiler
+235-325 arasinda dalgalanan fiyatin ustunde kusursuz duz. Gercek bir EMA
+seridi asla boyle gorunmez.
+
+Yapilacak:
+1. Cok noktali Line'lari tam polyline olarak ciz:
+     xs = [_x(t) for t, _ in ln.points]; ys = [p for _, p in ln.points]
+   2 noktali Line'larin davranisi DEGISMEMELI (trendline uzatma mantigi,
+   _line_extensions, etiket yerlesimi hepsi ayni kalsin).
+2. tlab/viz/svg/ motorunda AYNI kontrolu yap -- port sirasinda bu hata
+   tasinmis olabilir. svg/scenes/weekly_channel.py'yi ozellikle kontrol et.
+3. REGRESYON TESTI: 50 noktali sentetik bir sinus serisi tasiyan bir Line
+   ver, cizilen trace'in 50 noktasinin da bulundugunu dogrula (fig.data
+   uzerinden x/y uzunlugu). Bu test olmasaydi hata hic yakalanmazdi.
+
+--- K2: ALT PANEL EKSENI TUM GECMISTEN OLCEKLENIYOR ---
+
+render() son_n uygulandiginda yalnizca x-eksenini kisitliyor (docstring bunu
+acikca soyluyor: "hicbir seri/primitif budanmaz"). Plotly'nin y-ekseni
+otomatik olceklemesi ise trace'in TAMAMINA bakiyor. Sonuc: gecmiste 600-700k'lik
+bir hacim citasi varsa, gorunur 250 barlik pencerede hacim 0-50k olsa bile
+eksen 0-700k'ya aciliyor ve barlar panelin %7'sine sikisiyor.
+
+KANIT: breakouts (hacim ekseni 0-700k, barlar tabanda duz), report ve
+price_structure (hacim 0-600k, MACD -40..+20 iken veri -5..+5).
+RSI PANELLERI SORUNSUZ -- cunku RSI dogasi geregi 0-100 sinirli. Teshisi
+kesinlestiren gozlem bu.
+
+Yapilacak:
+1. render() son_n ile bir x-penceresi belirlediginde, HER alt panelin
+   y-eksenini O PENCEREDEKI dilimden hesapla ve sabitle:
+     visible = seri.loc[pencere_baslangic:pencere_sonu]
+     fig.update_yaxes(range=[lo, hi], row=i, col=1)
+   Ust/alt %5 pay birak. Hacim gibi tabani sifir olan panellerde alt sinir 0.
+2. Ayni kurali ANA panele de uygula (su an calisiyor gorunuyor ama
+   dogrula) ve SVG motoruna da tasi.
+3. AYRICA -- bu hatanin ikinci yuzu: alt paneller figur yuksekliginin
+   yarisini kaplayip hicbir bilgi tasimiyor. Panel yukseklik oranlarini
+   gozden gecir: ana panel >= %55, her alt panel <= %15.
+4. REGRESYON TESTI: seriye gorunur pencerenin 10 KATI buyuklukte bir
+   aykiri deger koy, eksen araliginin ondan ETKILENMEDIGINI dogrula.
+
+--- K3: AL ISARETI HEDEFE KONUYOR ---
+
+tlab/indicators/patterns/*.py icindeki ortak desen:
+    last_sig = pattern_signals[-1]
+    if last_sig.state in ("confirmed", "completed"):
+        markers.append(Marker(t=last_sig.bar_time, ..., text="AL"))
+
+pattern_signals[-1] zincirin EN SON olayi. Tamamlanmis bir formasyonda bu
+"hedefe ulasildi" olayidir -> AL isareti GIRISE degil CIKISA konuyor.
+
+KANIT: error/INTEM_patterns.flag_pennant_1d.png -- kirilim 4 Agustos'ta
+(buyuk yesil mum 202->207), ama AL etiketi 18 Agustos'ta 218'de, "BAYRAK
+[HEDEFE ULASTI]" rozetinin altinda. Kullanicinin birebir sikayeti bu.
+
+Yapilacak -- bes formasyon modulunun HEPSINDE (double_top_bottom,
+head_shoulders, wedge, broadening, flag_pennant):
+1. AL/SAT isareti, payload["event"] alani "_confirmed" ile BITEN sinyalin
+   barina konsun (last_sig'e DEGIL).
+2. Kullanicinin istedigi DORT AYRI isareti uret:
+     KIRILIM  -> kirilim bari, ici bos daire + onder cizgi + "KIRILIM"
+     ONAY     -> onay bari (retest tuttu), ici dolu daire + "ONAY"
+     AL/SAT   -> ONAY bari, dolgulu ucgen + kalin metin
+     HEDEF    -> hedefe ulasma bari, rozet "HEDEF ✓"
+   Bu dort ayrim docs/design/grafik_stil_vitrini.html'in
+   sceneClassicPatterns ve sceneBreakoutFvg sahnelerinde ZATEN var --
+   o kodu oku, isaret dilini oradan al.
+3. Formasyon SURESI DOLMUS (expired) ya da HENUZ ONAYLANMAMIS (pending)
+   ise AL/SAT isareti HIC uretilmesin.
+4. HEDEF Level'i de yalnizca formasyon ONAYLANDIKTAN sonra uretilsin --
+   su an onaylanmamis bir formasyonun hedefi cizildigi icin eksen
+   patliyor (bkz. error/AKBNK_patterns.double_top_bottom_1d.png: hedef
+   37.9, mumlar 60-85, eksen 40-85'e acilip mumlari panelin ust %40'ina
+   sikistiriyor).
+5. Her madde icin test.
+
+--- DOGRULAMA (ZORUNLU) ---
+
+Her uc hata icin ONCE/SONRA gorseli uret ve Read ile AC VE GOR:
+  K1 -> INTEM trend.ma_systems 1D
+  K2 -> INTEM structure.price_structure 4H (hacim + MACD panelleri)
+  K3 -> INTEM patterns.flag_pennant 1D
+docs/design/iterasyon/faz35_<hata>_<once|sonra>.png olarak kaydet.
+"Duzelttim" demeden ONCE gorseli ac ve gercekten duzeldigini GOR.
+
+BITTI KRITERI:
+- Uc hata da duzeltilmis, ucu icin de regresyon testi yazilmis.
+- Once/sonra gorselleri uretilmis ve GORULMUS.
+- pytest -q -m "not network" yesil.
+```
+
+---
+
 ## FAZ 4 — 19 sahnenin portu
 
 **Amaç:** Artifact'teki 19 grafik türünün tamamını, Faz 3'ün motoruyla, gerçek veriyle üretmek.
@@ -1058,9 +1179,143 @@ BİTTİ KRİTERİ (her oturum için):
 
 ---
 
+## FAZ 4d — SMC yapı katmanı (`ornek1.png` standardı, 2026-09-05 EKLENDİ)
+
+> **Neden eklendi:** Kullanıcı `ornek1.png`/`ornek2.png`'yi birebir hedef olarak gösterdi. Oradaki öğelerin çoğu — BOS/CHoCH, temas-sayılı trend çizgisi, pivot üçgenleri, pivot-çıpalı arz/talep — **tlab'da hiç yok**. Bu bir sahne portu değil, **indikatör katmanına yeni üretim** eklemek.
+
+**Bitti kriteri:** `ornek1.png` ile bizim çıktımız yan yana konduğunda öğe öğe eşleşiyor: pivot üçgenleri, temas-sayılı trend çizgisi, kırmızı/yeşil arz-talep bölgeleri sağ kenarda fiyat etiketli, BOS/CHoCH kesikli çizgileri.
+
+```
+[ORTAK BAĞLAM bloğunu buraya yapıştır]
+
+GÖREV — FAZ 4d: SMC yapı katmanı
+
+ONCE OKU:
+- docs/GORSEL_HATA_TESHISI.md bolum 4 ("ornek1.png standardi") -- gorsel
+  sozlesme madde madde orada.
+- ornek1.png ve ornek2.png (repo kokunde) -- Read ile AC VE GOR. Bu iki
+  gorsel hedefin kendisi.
+- error/INTEM_structure.supply_demand_4h.png -- su anki halimiz. Farki
+  kendi gozunle gor.
+
+--- 4d-1: YAPI ISARETLERI (pivot ucgenleri + BOS/CHoCH) ---
+
+tlab/features/swings.py::label_structure HH/HL/LH/LL'i ZATEN uretiyor.
+Eksik olan iki sey:
+
+1. GORSEL DIL: su an bu etiketler ince gri bir zigzag cizgisiyle birlestirilip
+   kucuk metinlerle gosteriliyor. Kullanici bunu ACIKCA reddetti: "bizim gibi
+   oradan oraya cizgi goturmuyor, tepelerine ve diplerine kucuk ucgenle ve
+   yaziyla resmetmis." Yapilacak:
+     - Birlestirici zigzag cizgisi KALDIRILSIN (ya da opsiyonel/varsayilan
+       kapali olsun).
+     - Her pivota kucuk bir UCGEN + metin: HH/LH icin altin, asagi bakan,
+       pivotun USTUNDE; HL/LL icin camgobegi, yukari bakan, pivotun ALTINDA.
+     - Marker.kind = "structure_label" ZATEN var; renderer/SVG sahnesi bunu
+       ucgen olarak cizsin (su an duz metin).
+
+2. BOS / CHoCH tespiti -- YENI, tlab'da hic yok.
+   tlab/features/market_structure.py (YENI dosya) yaz:
+     - BOS (Break of Structure): mevcut trend yonunde bir onceki yapisal
+       zirvenin/dibin KAPANISLA asilmasi. Yukselen trendde son HH asilirsa
+       BOS-yukari; dusen trendde son LL asilirsa BOS-asagi.
+     - CHoCH (Change of Character): trend yonunun TERSINE ilk yapisal
+       kirilim. Yukselen trendde (HH/HL dizisi) son HL'nin kapanisla
+       asagi kirilmasi -> CHoCH-asagi.
+     - Ikisi de SAF FONKSIYON, yalnizca [0, t] araligina bakar, kirilim
+       bari kapandiginda uretilir (NON-REPAINT -- kirilim bari sonradan
+       degismez, ama hangi pivotun "son yapisal zirve" oldugu yeni bir
+       pivot dogunca degisir; bu yuzden BOS/CHoCH kaydi DOGDUGU barda
+       dondurulmali, sonradan yeniden degerlendirilmemeli).
+   Cikti: Level (kirilan seviyeden kesikli yatay cizgi, kirilim barinda
+   biten) + Marker ("BOS↑" yesil / "CHoCH↓" kirmizi, aktif olan "/ AKTIF"
+   eki alir).
+   TESTLER: sentetik bir HH/HL dizisi kurup BOS'un dogru barda dogdugunu,
+   CHoCH'un yon degisiminde uretildigini, ve repaint_test'ten gectigini
+   dogrula.
+
+--- 4d-2: TEMAS SAYILI TREND CIZGISI ---
+
+tlab/features/trendlines.py::build_trendlines temas sayisini ZATEN
+hesapliyor ama Line.label icine gomuyor ("(Temas:N)"). ornek1'de etiket
+UC bilgi tasiyor: yon + durum + temas sayisi.
+
+Yapilacak:
+1. Trendline ciktisinda temas sayisi, kirik mi, ve yon AYRI alanlar olarak
+   tasinsin (Line.label string'ine gomulmesin -- sahne bunlari kendi
+   bicimlendirsin).
+2. Sahne etiketi: "DUSEN TREND | TARIHSEL/KIRILMIS | TEMAS: 5" formatinda,
+   cizginin ustunde, cizgiyle AYNI renkte, okunur boyutta (11-12px).
+3. Cizgi stili: NOKTALI (dotted), 2px, DOYGUN renk -- dusen icin mor/magenta,
+   yukselen icin yesil. Su anki ince gri kesikli cizgi ornek1'in yaninda
+   gorunmuyor bile (bkz. error/INTEM_trend.breakouts_4h.png).
+4. AYNI ANDA cizilecek trend cizgisi sayisini SINIRLA (en fazla 2 dusen +
+   2 yukselen, temas sayisina gore secilir). Su an trendline_max_lines=4
+   ama hepsi ust uste biniyor.
+
+--- 4d-3: PIVOT-CIPALI ARZ/TALEP (algoritma degisikligi) ---
+
+Su anki yontem (features/zones_sd.py) rally-base-drop: dar konsolidasyon +
+patlama. GECERLI bir yontem ama INTEM'de TEK arz bolgesi, SIFIR talep
+bolgesi uretti. Kullanicinin tarif ettigi ve ornek1/2'nin kullandigi yontem
+PIVOT-CIPALI:
+
+  1. Cipa: swing yuksek -> arz bolgesi; swing dusuk -> talep bolgesi.
+  2. Sinirlar: dis kenar swing'in ekstremi; ic kenar cevredeki mumlarin
+     ortalama fitil/govde boyundan turetilir (bolge gercek tepki alanini
+     kapsasin, ince bir cizgi degil).
+  3. Kumeleme: birbirine yakin (< 0.5 ATR) pivotlar tek bolgede birlesir.
+  4. Guc = TEMAS SAYISI. Fiyatin tekrar ziyaret ettigi bolge guclenir.
+  5. ATR dogrulamasi: pivottan uzaklasan hareket ATR katini asmali.
+  6. Yukseklik tavani ~2.5-3.0 ATR.
+  7. Tazelik: TAZE (hic test edilmemis) / TEST EDILDI / KIRILDI.
+
+Yapilacak:
+1. tlab/features/zones_sd.py'ye pivot-cipali ureteci EKLE (mevcut
+   rally-base-drop'u SILME). SupplyDemandParams'a method: Literal
+   ["pivot","rbd","both"] = "pivot" ekle.
+2. method="both" iken iki yontem de calissin ve AYNI bolgeyi isaret
+   ediyorlarsa guc skoru artsin.
+3. GORSEL (kullanici bunu acikca istedi):
+   - Arz KIRMIZI dolgu (opaklik ~0.12) + kirmizi kenarlik + ic kesikli
+     orta cizgi. Talep YESIL, aynisi.
+   - DIKKAT: tlab/viz/themes.py::_FILL_STYLE_COLOR sozlugunde "demand",
+     "supply", "demand_broken", "supply_broken" ANAHTARLARI YOK -- gri
+     varsayilana dusuyor. Bu, error/INTEM_structure.supply_demand_4h.png'de
+     bolgelerin gri gorunmesinin sebebi. Ekle.
+   - Etiket cizim alaninin DISINDA, sag kenar bosluğunda: ust satir
+     "SUPPLY / ARZ" ya da "DEMAND / TEST EDILDI", alt satir fiyat araligi
+     "41.80 - 42.70". ornek1'deki yerlesim birebir bu.
+4. Kabul testi: INTEM 4H'te en az 2 arz + 2 talep bolgesi uretilsin ve
+   uretilenler ornek1'deki gibi FIYATIN GERCEK donus yaptigi seviyelerde
+   olsun. Grafigi uret, Read ile AC, ornek1 ile yan yana koy, farklari
+   madde madde yaz, duzelt. EN AZ 3 ITERASYON.
+
+--- 4d-4: TEK HAREKETLI ORTALAMA ---
+
+ornek1/2'de TEK bir mor/lavanta MA var, fiyati takip eden, 2px. Bizim
+ma_systems dort MA'lik bir serit ciziyor ve (K1 duzeltilene kadar) hepsi
+duz. Faz 3.5'ten sonra serit dogru cizilecek, ama YAPI sahnesinde
+(supply_demand / breakouts / report) tek bir MA yeterli -- serit ayri bir
+gostergenin isi. Yapi sahnelerine tek MA (EMA-50 varsayilan) ekle.
+
+BITTI KRITERI:
+- market_structure.py + BOS/CHoCH + testleri + repaint dogrulamasi.
+- Pivot ucgenleri (zigzag cizgisi olmadan) uc sahnede de calisiyor.
+- Temas sayili trend cizgisi, uc bilgili etiketle.
+- Pivot-cipali arz/talep, kirmizi/yesil, sag kenarda fiyat etiketli.
+- ornek1.png ile kendi ciktimiz yan yana konmus, farklar yazilmis,
+  en az 3 iterasyon yapilmis, son hali docs/design/iterasyon/ altinda.
+- pytest -q -m "not network" yesil.
+```
+
+---
+
 ## FAZ 5 — Kalan stratejilerin denetimi
 
 **Amaç:** Denetimde bulunan gösterge-özel hataları **düzeltmek**.
+
+> **2026-09-05 eki.** `docs/GORSEL_HATA_TESHISI.md` bölüm 3'teki **A2** (golden zone yanlış swing'i seçiyor + Fibonacci merdiveni çizilmiyor) bu faza dahildir. **A1** (arz/talep yöntemi) Faz 4d'ye taşındı.
 
 > **2026-09-03 güncellemesi.** Denetimin kendisi yapıldı — `docs/STRATEJI_DENETIM_TAM.md` bölüm B. Bu faz artık "denetle" değil "denetimde bulunanları düzelt": `five_zero` kök nedeni, `ewmac` sabit forecast tablosu, `momentum_rank` skor normalizasyonu (üç bileşen farklı ölçekte ham toplanıyor), `alpha_rank` likidite eşiği ölçümü, `breakouts` skor dağılımı + tür gruplama, `price_structure` optimizasyonu, evren göstergelerinin `/chart` yolunda tüm evreni hesaplamaması.
 

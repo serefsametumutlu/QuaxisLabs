@@ -56,6 +56,26 @@ def test_finds_bull_flag_after_pole_and_confirms_breakout() -> None:
     assert confirmed[0].payload["pattern_name"] in ("bayrak", "flama")
 
 
+def test_no_target_or_entry_marker_while_still_pending() -> None:
+    """K3 düzeltmesi (2026-09-05, bkz. docs/GORSEL_HATA_TESHISI.md):
+    `confirm_signal()` None dönerse (aday hiç kırılmadan, hâlâ PENDING) ne
+    hedef Level'i ne AL/SAT/KIRILIM/ONAY/HEDEF marker'ı üretilmemeli --
+    `_pole_then_flat_flag_ohlcv`in df'i, kırılım (idx20+) barlarından ÖNCE
+    kesilir."""
+    df = _pole_then_flat_flag_ohlcv().iloc[:20]
+    params = FlagPennantParams(
+        pole_bars=4, pole_atr=1.5, flag_min_bars=5, flag_max_bars=15, flag_atr=2.0,
+    )
+    result = FlagPennantIndicator(params)(df)
+    assert result.last_state
+    assert all(info["state"] == "pending" for info in result.last_state.values())
+    assert not any(lv.style == "pattern_target" for lv in result.levels)
+    for prefix in (
+        "pattern_entry_", "pattern_breakout:", "pattern_retest_ok:", "pattern_target_hit:",
+    ):
+        assert not any(m.kind.startswith(prefix) for m in result.markers)
+
+
 def test_runs_and_produces_valid_signal_contract() -> None:
     df = make_trend(n=200, slope=0.06, noise=1.3, seed=31)
     result = FlagPennantIndicator(FlagPennantParams())(df)

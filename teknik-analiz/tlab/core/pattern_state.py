@@ -90,6 +90,20 @@ class PatternTrackingConfig:
     formasyon geometrisine göre bir değer vermelidir (bkz. `patterns/*.py`)."""
 
 
+def confirm_signal(signals: list[Signal]) -> Signal | None:
+    """"_confirmed" ile BİTEN (ilk kırılım onayı) sinyali döner — None ise
+    aday hiç onaylanmadan (pending/invalidated/expired) sona ermiş demektir.
+
+    K3 düzeltmesi (2026-09-05, bkz. docs/GORSEL_HATA_TESHISI.md): eskiden
+    AL/SAT işareti ve hedef `Level`'i `signals[-1]`e (zincirin EN SON
+    olayına) konuyordu — tamamlanmış bir formasyonda bu "hedefe ulaşıldı"
+    barıdır, giriş barı DEĞİL. `retest_hold`'un event'i `"_retest_hold"`
+    ile bittiği için bu fonksiyon o aşamayı DEĞİL, yalnızca İLK kırılım
+    anını bulur — AL/SAT giriş işareti ve hedef seviyesinin başlangıcı için
+    doğru referans budur."""
+    return next((s for s in signals if s.payload["event"].endswith("_confirmed")), None)
+
+
 def level_end_from_signals(signals: list[Signal]) -> pd.Timestamp | None:
     """Bir Level'ın (ör. hedef fiyatı) `end`'ini son sinyalin durumuna göre
     belirler: "pending"/"confirmed" hâlâ AÇIK sayılır (uzamaya devam eder,

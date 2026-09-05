@@ -21,6 +21,30 @@ def test_runs_and_produces_valid_signal_contract() -> None:
         assert sig.direction in ("long", "short")
 
 
+def test_no_target_or_entry_marker_for_never_confirmed_candidates() -> None:
+    """K3 düzeltmesi (2026-09-05, bkz. docs/GORSEL_HATA_TESHISI.md): bu
+    tohumla (`seed=21`) üretilen adayların TAMAMI "pending" kalıyor (hiç
+    kırılmıyor) -- `confirm_signal()` None dönen HİÇBİR pattern_id için
+    hedef Level'i ya da AL/SAT/KIRILIM/ONAY/HEDEF marker'ı üretilmemeli."""
+    df = make_trend(n=200, slope=0.03, noise=1.5, seed=21)
+    result = BroadeningIndicator(BroadeningParams())(df)
+    assert result.last_state
+    never_confirmed = {
+        pid for pid, info in result.last_state.items()
+        if info["state"] not in ("confirmed", "completed")
+    }
+    assert never_confirmed, "fixture en az bir onaysız aday üretmeli"
+    for pid in never_confirmed:
+        assert not any(lv.label == f"{pid}_target" for lv in result.levels)
+        assert not any(
+            m.kind.split(":", 1)[-1] == pid
+            and m.kind.split(":", 1)[0]
+            in ("pattern_entry_long", "pattern_entry_short", "pattern_breakout",
+                "pattern_retest_ok", "pattern_target_hit")
+            for m in result.markers
+        )
+
+
 def test_both_directions_tracked_when_pattern_found() -> None:
     df = make_trend(n=250, slope=0.0, noise=2.0, seed=5)
     # Faz 0.5: sistem varsayılanı zigzag_method="atr" bu belirli seed'de

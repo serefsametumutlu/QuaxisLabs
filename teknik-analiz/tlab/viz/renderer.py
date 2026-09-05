@@ -318,6 +318,10 @@ _VP_COLUMN_WIDTH = 0.24
 # açıyordu. 90 bar, aynı panel genişliğinde her muma önceki ayardan ~%65
 # daha fazla piksel bırakır.
 _DEFAULT_LAST_N = 90
+# K2 düzeltmesi bölüm 3 (2026-09-05, bkz. docs/GORSEL_HATA_TESHISI.md):
+# panel yükseklik oranı standardı -- ana panel >= %55, her alt panel <= %15.
+_SUB_PANEL_H_TARGET = 0.15
+_MAIN_PANEL_H_MIN = 0.55
 _HARMONIC_ZOOM_PAD_BARS = 20
 # Bir adayın X'inden BAŞLAYIP HER ZAMAN veri setinin GERÇEK son barına kadar
 # uzanan pencere — aday çok eskiyse (o zamandan beri yeni bir aday doğmadıysa,
@@ -614,6 +618,69 @@ def _sync_price_yaxis(
         fig.update_yaxes(range=y_range, row=1, col=2)
 
 
+def _panel_series_for_bounds(
+    name: str, series_names: list[str], result: IndicatorResult,
+) -> list[pd.Series]:
+    """`_draw_series_panel`'ın panel adına göre HANGİ serileri çizdiğiyle
+    BİREBİR aynı eşleme -- `_sync_subpanel_yaxes`'in y-ekseni sınırlarını
+    doğru serilerden hesaplaması için PAYLAŞILAN TEK kaynak (iki fonksiyon
+    farklı serileri dikkate alırsa tutarsız/yanlış bir eksen üretilir)."""
+    if name == "hacim":
+        keys = ["volume", "volume_ma"]
+    elif name == "macd":
+        keys = ["macd", "macd_signal", "macd_hist"]
+    elif name == "rsi":
+        keys = ["rsi_14"]
+    else:
+        keys = series_names
+    return [result.series[k] for k in keys if result.series.get(k) is not None]
+
+
+def _sync_subpanel_yaxes(
+    fig: go.Figure, result: IndicatorResult, sub_names: list[str],
+    layout: dict[str, list[str]], df: pd.DataFrame,
+    window_start_idx: int, window_end_idx: int, row_start: int = 2,
+) -> None:
+    """K2 düzeltmesi (2026-09-05, bkz. docs/GORSEL_HATA_TESHISI.md): `render()`
+    `last_n`/pencere ile yalnızca GÖRÜNÜR X aralığını kısıtlıyor (hiçbir seri
+    budanmıyor) -- ama Plotly'nin alt-panel y-ekseni OTOMATİK ölçeklemesi
+    trace'in TAMAMINA bakıyordu. Sonuç: geçmişte (görünür pencerenin çok
+    dışında) tek bir aykırı hacim/MACD değeri, ekseni açıp barları panelin
+    dibine sıkıştırıyordu (hacim/MACD panellerinde doğrulandı; RSI doğası
+    gereği 0-100 sınırlı olduğu için bu sorunu hiç yaşamıyordu -- bu
+    fonksiyon RSI'ı özel olarak dışlamaz, aynı genel mantıktan geçer ama
+    davranışı fiilen değişmez).
+
+    Her panelin y-ekseni SADECE `[window_start_idx, window_end_idx]`
+    aralığındaki (görünür) veriden hesaplanıp sabitlenir; taban doğal
+    olarak sıfır olan seriler (hacim gibi, hiçbir değeri negatif değilse)
+    için alt sınır 0'da tutulur."""
+    if window_end_idx < window_start_idx or not sub_names:
+        return
+    start_t, end_t = df.index[window_start_idx], df.index[window_end_idx]
+    for i, name in enumerate(sub_names, start=row_start):
+        series_list = _panel_series_for_bounds(name, layout.get(name, []), result)
+        vals: list[float] = []
+        for s in series_list:
+            seg = s[(s.index >= start_t) & (s.index <= end_t)].dropna()
+            if len(seg):
+                vals.append(float(seg.min()))
+                vals.append(float(seg.max()))
+        if name == "rsi":
+            vals.extend([0.0, 100.0])
+        if not vals:
+            continue
+        lo, hi = min(vals), max(vals)
+        span = hi - lo
+        pad = span * 0.05 if span > 0 else (abs(hi) * 0.05 or 1.0)
+        lo_r, hi_r = lo - pad, hi + pad
+        if name == "hacim":
+            lo_r = 0.0
+        elif lo >= 0 and lo_r < 0:
+            lo_r = 0.0
+        fig.update_yaxes(range=[lo_r, hi_r], row=i, col=1)
+
+
 # ------------------------------------------------------------ jenerik mod --
 
 
@@ -632,9 +699,17 @@ def _render_price_based(
     n_rows = 1 + n_sub
     n_cols = 2 if has_vp else 1
 
+    # K2 düzeltmesi bölüm 3 (2026-09-05): eskiden `main_h=0.5` sabitti --
+    # 3 alt panelli göstergelerde (ör. `structure.price_structure`:
+    # hacim+macd+rsi) her biri toplam yüksekliğin ~%17'sini kaplıyor, ana
+    # panel yalnızca yarısını alıyordu. Artık her alt panel SABİT `%15`,
+    # ana panel kalanı (ama en az `%55`) alır.
     if n_sub:
-        main_h = 0.5
-        sub_h = (1.0 - main_h) / n_sub
+        sub_h = _SUB_PANEL_H_TARGET
+        main_h = 1.0 - sub_h * n_sub
+        if main_h < _MAIN_PANEL_H_MIN:
+            main_h = _MAIN_PANEL_H_MIN
+            sub_h = (1.0 - main_h) / n_sub
         row_heights = [main_h] + [sub_h] * n_sub
     else:
         main_h = 1.0
@@ -795,6 +870,7 @@ def _render_price_based(
         if result.indicator.startswith(("harmonic.", "patterns.")) else None
     )
     _sync_price_yaxis(fig, df, window_start_idx, has_vp, bounds=custom_price_bounds)
+    _sync_subpanel_yaxes(fig, result, sub_names, layout, df, window_start_idx, window_end_idx)
 
     header = _price_header(result)
     _apply_layout(fig, theme, header, height=600 + 180 * n_sub)
@@ -1028,6 +1104,15 @@ def _filter_confirmed_patterns(result: IndicatorResult) -> IndicatorResult:
             return m.kind.split(":", 1)[1] in valid_ids
         if m.kind.startswith("pattern_entry_long:") or m.kind.startswith("pattern_entry_short:"):
             # AL/SAT işareti hedef Level'i gibi YÖNE ÖZGÜ -- tam pid eşleşmeli.
+            return m.kind.split(":", 1)[1] in valid_ids
+        # K3 düzeltmesi (2026-09-05): KIRILIM/ONAY/HEDEF -- yeni üç işaret de
+        # (bkz. `pattern_state.py::confirm_signal` çağıranları) AL/SAT gibi
+        # YÖNE ÖZGÜ tam `pattern_id` ile eşleşir.
+        if (
+            m.kind.startswith("pattern_breakout:")
+            or m.kind.startswith("pattern_retest_ok:")
+            or m.kind.startswith("pattern_target_hit:")
+        ):
             return m.kind.split(":", 1)[1] in valid_ids
         if m.kind.startswith("pattern_vertex:"):
             return _matches(m.kind.removeprefix("pattern_vertex:"))
@@ -1485,7 +1570,18 @@ def _draw_lines(
     for ln in lines:
         color = line_color(theme, ln.style)
         style_dash = _DASH_FOR_STYLE.get(ln.style, "solid")
-        (t0, p0), (t1, p1) = ln.points[0], ln.points[-1]
+        # K1 düzeltmesi (2026-09-05, bkz. docs/GORSEL_HATA_TESHISI.md):
+        # eskiden yalnızca İLK ve SON nokta alınıp aralarına düz bir doğru
+        # çiziliyordu -- 2 noktalı bir trendline/kanal/hedef-projeksiyonu
+        # için matematiksel olarak zararsızdı, ama `trend.ma_systems`'ın her
+        # EMA'sının TAM (çok-noktalı) serisini tek bir Line'da taşıdığı
+        # durumda EMA'yı yatay bir doğruya çöktürüyordu. Artık TAM polyline
+        # çizilir; 2 noktalı Line'ların davranışı DEĞİŞMEZ (xs/ys sırasıyla
+        # [t0,t1]/[p0,p1] ile birebir aynı).
+        t0, p0 = ln.points[0]
+        t1, p1 = ln.points[-1]
+        xs = [_x(t) for t, _ in ln.points]
+        ys = [p for _, p in ln.points]
         # 2026-09-04 GERÇEK bulgu (flag_pennant "Direk" hiç görünmüyordu --
         # kullanıcı: "sistemde bu görselle alakası olmayan şekiller
         # oluşuyor"): direk çizgisi `extend_right=False` olduğu için
@@ -1499,7 +1595,7 @@ def _draw_lines(
         is_pole = ln.style == "pattern_pole"
         fig.add_trace(
             go.Scatter(
-                x=[_x(t0), _x(t1)], y=[p0, p1], mode="lines",
+                x=xs, y=ys, mode="lines",
                 line=dict(color=color, width=2.4 if is_pole else 1.6, dash=style_dash),
                 name=ln.label, showlegend=False, hoverinfo="skip",
             ),
@@ -1900,6 +1996,66 @@ def _draw_markers(
                 showarrow=False, font=dict(size=11, color=color, family=theme.font),
                 bgcolor=with_alpha(theme.bg, 0.85), yshift=text_shift, row=row, col=col,
             )
+        elif m.kind.startswith("pattern_breakout:"):
+            # K3 düzeltmesi (2026-09-05, bkz. docs/GORSEL_HATA_TESHISI.md):
+            # "KIRILIM" -- kırılım çizgisinin/boynun/trendline'ın kapanışla
+            # aşıldığı bar (`confirm_signal()`ın bulduğu `*_confirmed`
+            # olayı). İçi boş daire + önder çizgi (ok gövdesi, `arrowhead=0`)
+            # + metin -- AL/SAT'ın (dolgulu üçgen) BİR ADIM ÖNCESİ, aynı
+            # barda çakışabilir (bilerek -- ikisi FARKLI bilgi taşır: biri
+            # "fiyat kırdı", diğeri "giriş noktası").
+            color = theme.blue
+            fig.add_trace(
+                go.Scatter(
+                    x=[_x(m.t)], y=[m.price], mode="markers",
+                    marker=dict(
+                        symbol="circle-open", size=10,
+                        line=dict(width=2, color=color),
+                    ),
+                    showlegend=False, hoverinfo="skip",
+                ),
+                row=row, col=col,
+            )
+            fig.add_annotation(
+                x=_x(m.t), y=m.price, text="KIRILIM", showarrow=True, arrowhead=0,
+                arrowcolor=color, arrowwidth=1.3, ax=0, ay=-26,
+                font=dict(size=10, color=color, family=theme.font),
+                bgcolor=with_alpha(theme.bg, 0.8), row=row, col=col,
+            )
+        elif m.kind.startswith("pattern_retest_ok:"):
+            # "ONAY" -- kırılım seviyesine geri dönüp TUTMA (retest_hold)
+            # barı. İçi dolu daire (kırılımın "içi boş" dairesinden ayırt
+            # edilsin diye) + metin.
+            color = theme.accent
+            fig.add_trace(
+                go.Scatter(
+                    x=[_x(m.t)], y=[m.price], mode="markers",
+                    marker=dict(symbol="circle", size=9, color=color),
+                    showlegend=False, hoverinfo="skip",
+                ),
+                row=row, col=col,
+            )
+            fig.add_annotation(
+                x=_x(m.t), y=m.price, text="ONAY", showarrow=True, arrowhead=0,
+                arrowcolor=color, arrowwidth=1.3, ax=0, ay=22,
+                font=dict(size=10, color=color, family=theme.font),
+                bgcolor=with_alpha(theme.bg, 0.8), row=row, col=col,
+            )
+        elif m.kind.startswith("pattern_target_hit:"):
+            # "HEDEF ✓" -- hedefe ulaşma barı, küçük başarı rozeti (genel
+            # durum rozetinin -- `pattern_completed:` -- AYNI barda olması
+            # BEKLENİR, bu YİNE DE ayrı/ek bir işarettir, bkz. görev metni).
+            # Genel durum rozeti HER ZAMAN yukarı-sağa yerleşiyor (`ax=30,
+            # ay=-30`) -- aynı bara denk geldiklerinde üst üste binmesinler
+            # diye HEDEF rozeti bilinçli olarak AŞAĞI-SOLA yerleşir.
+            color = theme.green
+            confirmed_text = "#0a0c10" if theme.name == "dark_terminal" else "#ffffff"
+            fig.add_annotation(
+                x=_x(m.t), y=m.price, text="<b>HEDEF ✓</b>", showarrow=True,
+                arrowhead=2, arrowcolor=color, arrowwidth=1.6,
+                font=dict(size=10, color=confirmed_text), bgcolor=color,
+                bordercolor=color, borderwidth=1.5, ax=-34, ay=30, row=row, col=col,
+            )
         elif m.kind.startswith("pattern_vertex:"):
             fig.add_annotation(
                 x=_x(m.t), y=m.price, text=m.text, showarrow=False,
@@ -2249,8 +2405,16 @@ def render_structure_report(
     sub_names = list(ps_result.series_layout.keys())
     n_sub = len(sub_names)
     n_rows = 1 + n_sub
-    main_h = 0.42 if n_sub else 1.0
-    sub_h = (1.0 - main_h) / n_sub if n_sub else 0.0
+    # K2 düzeltmesi bölüm 3 (2026-09-05) -- `_render_price_based`'in AYNI
+    # panel-yüksekliği standardı: ana panel >= %55, alt panel <= %15.
+    if n_sub:
+        sub_h = _SUB_PANEL_H_TARGET
+        main_h = 1.0 - sub_h * n_sub
+        if main_h < _MAIN_PANEL_H_MIN:
+            main_h = _MAIN_PANEL_H_MIN
+            sub_h = (1.0 - main_h) / n_sub
+    else:
+        main_h, sub_h = 1.0, 0.0
     row_heights = [main_h] + [sub_h] * n_sub
 
     has_vp = any(name.startswith("vp_") for name in ps_result.series)
@@ -2435,6 +2599,13 @@ def render_structure_report(
         fig.update_xaxes(showticklabels=(r == n_rows), row=r, col=1)
 
     _sync_price_yaxis(fig, df, window_start_idx, has_vp)
+    # K2 düzeltmesi (2026-09-05): sub panelleri artık ana panelle AYNI
+    # (`zoomed_range`) x-aralığını gösteriyor (2026-09-02 geri alma) --
+    # y-eksenleri de AYNI görünür pencereden hesaplanmalı, `len(df) - 1`
+    # `zoomed_range`'in bitiş ucuyla birebir aynı.
+    _sync_subpanel_yaxes(
+        fig, ps_result, sub_names, ps_result.series_layout, df, window_start_idx, len(df) - 1,
+    )
 
     # Alt başlık, `ps_result.indicator` ("structure.price_structure") yerine
     # BU birleşik görünümü yansıtmalı (`_price_header` tek-indikatör varsayımı

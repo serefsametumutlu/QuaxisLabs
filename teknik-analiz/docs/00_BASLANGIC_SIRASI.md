@@ -12,6 +12,7 @@
 | `docs/SONNET_PROMPTLARI.md` | Sonnet'e gönderilecek **açılış ve devam promptları** |
 | `docs/TANI_VE_YOL_HARITASI_v2.md` | Tanı + **Faz 0 … Faz 8 promptları** (kod/strateji tarafı) |
 | `docs/STRATEJI_DENETIM_TAM.md` | 24 göstergenin tam denetimi — prompt YOK, **referans** belgesi |
+| `docs/GORSEL_HATA_TESHISI.md` | ⚠️ **YENİ** — `error/` klasöründeki 10 hatalı çıktının tek tek incelenmesi; Faz 3.5 ve 4d'nin gerekçesi |
 | `docs/SITE_TASARIM_YOL_HARITASI.md` | Site planı + **S1…S8 promptları** (arayüz tarafı) |
 | `docs/design/grafik_stil_vitrini.html` | Tasarım şartnamesi — 19 grafiğin çalışan SVG üreteci |
 
@@ -71,11 +72,17 @@ Her satırda: **ne yapılacağı**, kaç oturum sürer, ve promptun **hangi dosy
 | # | Adım | Oturum | Prompt nerede |
 |---|---|---|---|
 | **5** | **Faz 3** — SVG çizim motoru (çekirdek + tek kanıt sahnesi) | 2 | `TANI_VE_YOL_HARITASI_v2.md` → **`## FAZ 3`** |
+| **5.5** | **Faz 3.5** — Renderer kritik hataları (K1/K2/K3) ⚠️ **YENİ** | 1 | `TANI_VE_YOL_HARITASI_v2.md` → **`## FAZ 3.5`** |
 | **6** | **Faz 4a** — harmonik, yapı raporu, swing/fib, golden zone, haftalık kanal, dönüş haritası | 1 | `TANI_VE_YOL_HARITASI_v2.md` → **`## FAZ 4`** (prompt tek, `[4a için]` bölümünü kullan) |
 | **7** | **Faz 4b** — klasik formasyonlar + yeni Breakout→FVG stratejisi | 1 | aynı prompt, **`[4b için]`** bölümü |
 | **8** | **Faz 4c** — pair, vol harvest, alpha/momentum, EWMAC, MA sistemleri | 1 | aynı prompt, **`[4c için]`** bölümü |
+| **8.5** | **Faz 4d** — SMC yapı katmanı: BOS/CHoCH, pivot üçgenleri, temas-sayılı trend, pivot-çıpalı arz/talep ⚠️ **YENİ** | 2 | `TANI_VE_YOL_HARITASI_v2.md` → **`## FAZ 4d`** |
 
 > **Faz 4 promptu tektir**, içinde üç grup için ayrı notlar var. Her oturumda promptu yapıştır, sonuna *"Bu oturumda 4b grubunu yap"* diye ekle. Üç grubu tek oturumda yapma — 10. sahnede model ilk sahnenin kurallarını unutur.
+
+**🚩 ONAY KAPISI — Adım 5.5 sonrası.** Üç renderer hatasının önce/sonra görüntülerini kendi gözünle karşılaştır. Özellikle `ma_systems`: MA çizgileri artık fiyatı takip ediyor mu, yoksa hâlâ düz mü?
+
+**🚩 ONAY KAPISI — Adım 8.5 sonrası.** Kendi çıktımızı `ornek1.png` ile yan yana koy. Pivot üçgenleri, temas-sayılı trend çizgisi, kırmızı/yeşil arz-talep bölgeleri — öğe öğe eşleşiyor mu?
 
 **🚩 ONAY KAPISI — Adım 5 sonrası, en önemlisi.** Sonnet tek bir sahneyi (çift tepe/dip) üç temada üretip `docs/design/iterasyon/` altına koyacak. **Bunları kendi gözünle şartnameyle (`grafik_stil_vitrini.html`) yan yana koy.** Ayırt edilemiyorsa Adım 6'ya geç; edilebiliyorsa aynı oturumda düzelttir. Bir tasarım hatasının 19 sahneye yayılması bu projedeki en pahalı hatadır.
 
@@ -120,7 +127,7 @@ Her satırda: **ne yapılacağı**, kaç oturum sürer, ve promptun **hangi dosy
 
 ## Toplam
 
-**16 adım, kabaca 22–28 oturum.** Bölüm 1 (adım 1–4) en kritik kısım: sinyaller doğru olmadan geri kalanı vitrin işi.
+**18 adım, kabaca 25–31 oturum.** Bölüm 1 (adım 1–4) en kritik kısım: sinyaller doğru olmadan geri kalanı vitrin işi.
 
 Acele bir yol istersen: **adım 1 → 2 → 3 → 4** yap, dur, sistemin ürettiği sinyallere bir hafta bak. Doğru sinyal geliyorsa gerisi rahat gelir; hâlâ gelmiyorsa görsel işe girmeden önce sebebini bulmak gerekir.
 

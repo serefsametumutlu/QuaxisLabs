@@ -37,6 +37,7 @@ import pandas as pd
 
 from tlab.core.indicator import BaseIndicator
 from tlab.core.params import BaseParams, params_hash
+from tlab.core.pattern_state import confirm_signal
 from tlab.core.types import (
     Box,
     Direction,
@@ -147,13 +148,25 @@ class BreakoutFvgIndicator(BaseIndicator):
                 breakout_sig = next(
                     (s for s in signals_chain if s.payload["event"].endswith("_breakout")), None
                 )
-                if breakout_sig is not None:
+                # K3 düzeltmesi (2026-09-05, bkz. docs/GORSEL_HATA_TESHISI.md):
+                # AYNI kök neden ("last_sig"e göre AL/SAT/hedef), FARKLI bir
+                # belirti ile -- eskiden `if last_sig.state == "confirmed"`
+                # yalnızca state TAM OLARAK "confirmed" iken doğruydu; hedefe
+                # ulaşılıp state "completed" olunca (last_sig artık target_
+                # reached barı) bu koşul YANLIŞ olup AL/SAT işareti TAMAMEN
+                # KAYBOLUYORDU. `confirm_signal()` burada da AYNI iş görür --
+                # bu dosyanın kendi "confirmed" event'i (`breakout_fvg_
+                # confirmed`, satır ~303) retest+devam ONAYINI temsil eder
+                # (bkz. `_SUFFIX_LABEL_TR["confirmed"] == "ONAY"`) -- "_confirmed"
+                # ile bittiği için AYNI paylaşılan fonksiyon çalışır.
+                entry_sig = confirm_signal(signals_chain)
+                if entry_sig is not None and breakout_sig is not None:
                     target_price = float(close[df.index.get_loc(breakout_sig.bar_time)]) + target
                     end_time = _level_end(signals_chain)
                     levels.append(
                         Level(
                             price=target_price, label=f"{pid}_target", style="pattern_target",
-                            start=breakout_sig.bar_time, end=end_time,
+                            start=entry_sig.bar_time, end=end_time,
                         )
                     )
                 last_sig = signals_chain[-1]
@@ -165,15 +178,48 @@ class BreakoutFvgIndicator(BaseIndicator):
                         kind=f"pattern_{last_sig.state}:{pid}",
                     )
                 )
-                if last_sig.state == "confirmed":
+                # K3: DÖRT AYRI işaret -- KIRILIM (breakout barı) / ONAY
+                # (retest+devam onayı barı) / AL-SAT (ONAY ile AYNI bar,
+                # bu dosyada AL/SAT ile ONAY AYNI olay) / HEDEF (hedefe
+                # ulaşma barı). Hiçbiri `entry_sig is None` iken (henüz
+                # onaylanmamış/hiç onaylanmamış aday) üretilmez.
+                if entry_sig is not None and breakout_sig is not None:
+                    breakout_price = float(close[df.index.get_loc(breakout_sig.bar_time)])
                     markers.append(
                         Marker(
-                            t=last_sig.bar_time,
-                            price=float(close[df.index.get_loc(last_sig.bar_time)]),
+                            t=breakout_sig.bar_time, price=breakout_price, text="KIRILIM",
+                            kind=f"pattern_breakout:{pid}",
+                        )
+                    )
+                    entry_price = float(close[df.index.get_loc(entry_sig.bar_time)])
+                    markers.append(
+                        Marker(
+                            t=entry_sig.bar_time, price=entry_price, text="ONAY",
+                            kind=f"pattern_retest_ok:{pid}",
+                        )
+                    )
+                    markers.append(
+                        Marker(
+                            t=entry_sig.bar_time, price=entry_price,
                             text="AL" if direction == "long" else "SAT",
                             kind=f"pattern_entry_{direction}:{pid}",
                         )
                     )
+                    target_sig = next(
+                        (
+                            s for s in signals_chain
+                            if s.payload["event"].endswith("_target_reached")
+                        ),
+                        None,
+                    )
+                    if target_sig is not None:
+                        target_hit_price = float(close[df.index.get_loc(target_sig.bar_time)])
+                        markers.append(
+                            Marker(
+                                t=target_sig.bar_time, price=target_hit_price, text="HEDEF ✓",
+                                kind=f"pattern_target_hit:{pid}",
+                            )
+                        )
                 last_state[pid] = {
                     "direction": direction, "state": last_sig.state,
                     "event": last_sig.payload["event"],

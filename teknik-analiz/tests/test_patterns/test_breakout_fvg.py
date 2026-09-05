@@ -115,6 +115,56 @@ def test_full_chain_reaches_confirmed_in_correct_order() -> None:
     assert fvg_sig.bar_time == df.index[11]
 
 
+def test_entry_marker_survives_target_reached_completion() -> None:
+    """K3 düzeltmesi (2026-09-05, bkz. docs/GORSEL_HATA_TESHISI.md): eskiden
+    `if last_sig.state == "confirmed":` yalnızca state TAM "confirmed" iken
+    doğruydu -- hedefe ulaşılıp state "completed" olunca (last_sig artık
+    target_reached barı) AL/SAT işareti TAMAMEN KAYBOLUYORDU. Fixture'a
+    hedefi (105.0 = box_yükseklik(1.0) + close[breakout]=104) aşan ek
+    barlar eklenip regresyon doğrulanır: AL hâlâ ONAY (confirm) barında."""
+    df = _consolidation_breakout_fvg_retest_confirm_ohlcv()
+    extra_idx = pd.date_range(df.index[-1] + pd.Timedelta(days=1), periods=3, freq="1D", tz=_TZ)
+    extra = pd.DataFrame(
+        [
+            _row(104, 105.5, 106, 103.5),
+            _row(105.5, 106, 106.5, 105),
+            _row(106, 106.5, 107, 105.5),
+        ],
+        index=extra_idx,
+    )
+    df = pd.concat([df, extra])
+    result = BreakoutFvgIndicator(_params()).compute(df)
+    pid, info = next(iter(result.last_state.items()))
+    assert info["state"] == "completed"
+
+    confirm_sig = next(s for s in result.signals if s.payload["event"].endswith("_confirmed"))
+    entry = next(m for m in result.markers if m.kind.startswith("pattern_entry_long:"))
+    assert entry.t == confirm_sig.bar_time  # AL, last_sig (hedef barı) DEĞİL
+
+    target_level = next(lv for lv in result.levels if lv.label == f"{pid}_target")
+    assert target_level.start == confirm_sig.bar_time
+
+    kinds = {m.kind.split(":", 1)[0] for m in result.markers}
+    assert "pattern_breakout" in kinds
+    assert "pattern_retest_ok" in kinds
+    assert "pattern_target_hit" in kinds
+
+
+def test_no_target_or_entry_marker_when_never_confirmed() -> None:
+    """K3 düzeltmesi: retest süresi dolup aday hiç onaylanmadan (confirmed'a
+    hiç ulaşmadan) "expired" olursa ne hedef Level'i ne de AL/SAT/KIRILIM/
+    ONAY/HEDEF marker'ı üretilmemeli -- yalnızca genel durum rozeti kalır."""
+    df = _consolidation_breakout_fvg_retest_confirm_ohlcv()
+    result = BreakoutFvgIndicator(_params(max_bars_to_retest=1)).compute(df)
+    assert result.last_state
+    assert all(info["state"] == "expired" for info in result.last_state.values())
+    assert not any(lv.label.endswith("_target") for lv in result.levels)
+    for prefix in (
+        "pattern_entry_", "pattern_breakout:", "pattern_retest_ok:", "pattern_target_hit:",
+    ):
+        assert not any(m.kind.startswith(prefix) for m in result.markers)
+
+
 def test_consolidation_box_low_high_frozen_at_birth() -> None:
     """`_find_consolidation_box` yalnızca [start, end_idx] penceresini
     kullanır -- df daha da uzasa (yeni barlar eklense) AYNI born_idx için

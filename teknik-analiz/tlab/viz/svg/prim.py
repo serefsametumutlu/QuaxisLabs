@@ -104,6 +104,24 @@ def svg_circle(
     return f'<circle cx="{_fnum(cx)}" cy="{_fnum(cy)}" r="{_fnum(r)}" {attrs}/>'
 
 
+def svg_triangle(
+    cx: float, cy: float, size: float, direction: Literal["up", "down"], *,
+    fill: str, opacity: float | None = None,
+) -> str:
+    """Küçük, dolu bir üçgen — pivot yapı etiketleri için (Faz 4d, `ornek1.
+    png` standardı): "down" tepesi AŞAĞI bakan bir üçgen (HH/LH, pivotun
+    ÜSTÜNE konur), "up" tepesi YUKARI bakan bir üçgen (HL/LL, pivotun
+    ALTINA konur). `(cx, cy)` üçgenin tabanının ORTA noktasıdır — çağıran
+    taraf pivotun kendi fiyat/bar konumundan `size` kadar bir boşluk
+    bırakarak `cy`yi hesaplamalıdır (bkz. çağıran sahnelerin kendi
+    yerleşim mantığı)."""
+    if direction == "down":
+        pts = [(cx - size, cy - size), (cx + size, cy - size), (cx, cy + size)]
+    else:
+        pts = [(cx - size, cy + size), (cx + size, cy + size), (cx, cy - size)]
+    return svg_poly("polygon", pts, fill=fill, opacity=opacity)
+
+
 def pill(
     x: float, y: float, w: float, h: float, text: str, *,
     fill: str | None = None, stroke: str | None = None, stroke_width: float | None = None,

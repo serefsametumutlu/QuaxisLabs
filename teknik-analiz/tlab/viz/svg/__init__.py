@@ -22,6 +22,7 @@ from tlab.viz.svg.scenes import flag_pennant as _flag_pennant
 from tlab.viz.svg.scenes import golden_zone as _golden_zone
 from tlab.viz.svg.scenes import harmonic as _harmonic
 from tlab.viz.svg.scenes import head_shoulders as _head_shoulders
+from tlab.viz.svg.scenes import market_structure as _market_structure
 from tlab.viz.svg.scenes import report as _report
 from tlab.viz.svg.scenes import reversal_map as _reversal_map
 from tlab.viz.svg.scenes import supply_demand as _supply_demand
@@ -48,6 +49,7 @@ _SCENES = {
     "structure.swing_fib_abcd": _swing_fib_abcd,
     "structure.golden_zone": _golden_zone,
     "structure.supply_demand": _supply_demand,
+    "structure.market_structure": _market_structure,
     "trend.weekly_channel": _weekly_channel,
     "confluence": _reversal_map,
     "patterns.wedge": _wedge_triangle,

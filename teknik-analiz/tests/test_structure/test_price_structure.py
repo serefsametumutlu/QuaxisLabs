@@ -47,6 +47,31 @@ def test_trendlines_and_breakout_signals() -> None:
     assert "zone_break" in events
 
 
+def test_trendline_touches_direction_broken_are_structured_fields() -> None:
+    """Faz 4d (2026-09-05): `Line.touches`/`direction`/`broken` artık AYRI
+    alanlar (eskiden yalnızca `label` string'ine gömülüydü, ör. "Direnç
+    (Temas:6)" -- `report.py::_TOUCHES_RE` bunu regex'le geri çıkarıyordu).
+    `label` GERİYE DÖNÜK UYUMLULUK için AYNI metni üretmeye devam eder
+    (yukarıdaki test bunu zaten doğruluyor)."""
+    _, result = _run()
+    trendlines = [ln for ln in result.lines if ln.style in ("resistance", "support")]
+    assert trendlines
+    for ln in trendlines:
+        assert ln.touches is not None and ln.touches >= 1
+        assert ln.direction in ("rising", "falling")
+        assert isinstance(ln.broken, bool)
+        # touches/broken, label'daki "(Temas:N)"/"Kırılım" ile TUTARLI olmalı.
+        assert f"Temas:{ln.touches}" in ln.label
+        assert ln.broken == ln.label.startswith("Kırılım")
+
+
+def test_active_trendlines_uses_broken_field_not_label_substring() -> None:
+    _, result = _run()
+    trendlines = [ln for ln in result.lines if ln.style in ("resistance", "support")]
+    expected_active = sum(1 for ln in trendlines if not ln.broken)
+    assert result.last_state["active_trendlines"] == expected_active
+
+
 def test_trendline_breakout_direction_matches_kind() -> None:
     """Regresyon: `direction`, resistance/support ile TERS eşlenmişti
     (Faz 8A'da breakouts.py yazılırken bulunan gerçek bir hata — hiçbir

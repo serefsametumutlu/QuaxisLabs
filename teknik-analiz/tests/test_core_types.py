@@ -42,7 +42,10 @@ def _sample_result() -> IndicatorResult:
         ],
         levels=[Level(price=100.5, label="POC", style="poc", start=t1, end=None)],
         lines=[
-            Line(points=((t1, 1.0), (t2, 2.0)), label="l1", style="resistance", extend_right=True)
+            Line(
+                points=((t1, 1.0), (t2, 2.0)), label="l1", style="resistance", extend_right=True,
+                touches=3, direction="rising", broken=False,
+            )
         ],
         boxes=[Box(t0=t1, t1=t2, low=1.0, high=2.0, label="b1", style="range_box")],
         polygons=[
@@ -87,6 +90,9 @@ def test_roundtrip_preserves_lines_boxes_polygons_markers() -> None:
     restored = IndicatorResult.from_json(result.to_json())
 
     assert restored.lines[0].points == result.lines[0].points
+    assert restored.lines[0].touches == 3
+    assert restored.lines[0].direction == "rising"
+    assert restored.lines[0].broken is False
     assert restored.lines[0].extend_right is True
     assert restored.boxes[0].low == pytest.approx(result.boxes[0].low)
     assert restored.polygons[0].points == result.polygons[0].points

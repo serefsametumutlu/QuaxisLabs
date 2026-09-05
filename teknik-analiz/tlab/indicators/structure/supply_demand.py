@@ -23,6 +23,7 @@ alması) doğrulanır.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from typing import Literal
 
 import pandas as pd
 
@@ -37,23 +38,46 @@ from tlab.core.types import (
     Signal,
     Timeframe,
 )
+from tlab.features.swings import ZigzagMethod, significant_pivots
 from tlab.features.volatility import atr
 from tlab.features.zones_sd import (
     SDKind,
     SDZone,
     find_bases,
     find_impulses,
+    find_pivot_zones,
     make_sd_zones,
     update_zones,
 )
 
+SDMethod = Literal["pivot", "rbd", "both"]
+
 
 @dataclass(frozen=True)
 class SupplyDemandParams(BaseParams):
+    # Faz 4d (2026-09-05, `docs/GORSEL_HATA_TESHISI.md` bölüm A1) —
+    # varsayılan "rbd" (rally-base-drop, orijinal yöntem) idi; gerçek veride
+    # (INTEM) TEK arz bölgesi + SIFIR talep bölgesi üretmesi ("temel yöntem
+    # ama gerçek dünyada çok seyrek doğuruyor") bulunup kullanıcının/
+    # `ornek1.png`nin kullandığı pivot-çıpalı yönteme ("pivot") geçildi.
+    # "both" iki yöntemi de çalıştırır, çakışan bölgelerin skorunu birleştirir.
+    method: SDMethod = "pivot"
     base_max: int = 5
     base_atr: float = 0.6
     impulse_bars: int = 3
     impulse_atr: float = 2.0
+    # Faz 0.5, A1 — ortak pivot girişi (yalnızca method="pivot"/"both" iken
+    # kullanılır). Varsayılan "atr" — golden_zone/swing_fib_abcd'nin AYNI
+    # kararı: bir S/D bölgesi de "yapının kendisi" (major swing), wedge'in
+    # trendline aday havuzu sorunuyla AYNI kategori DEĞİL.
+    zigzag_method: ZigzagMethod = "atr"
+    pivot_left: int = 3
+    pivot_right: int = 3
+    atr_mult: float = 3.0
+    min_swing_atr: float | None = None
+    pivot_cluster_atr: float = 0.5
+    pivot_height_cap_atr: float = 2.75
+    pivot_min_height_atr: float = 0.15
     max_zones: int = 12
     flip: bool = True
     atr_period: int = 14
@@ -84,9 +108,7 @@ class SupplyDemandIndicator(BaseIndicator):
         atr_series = atr(df, p.atr_period)
         last_atr = atr_series.iloc[-1]
 
-        bases = find_bases(df, p.base_max, p.base_atr, p.atr_period)
-        impulses = find_impulses(df, p.impulse_bars, p.impulse_atr, p.atr_period)
-        zones = make_sd_zones(bases, impulses, max_zones=p.max_zones)
+        zones = _build_zones(df, p)
 
         boxes: list[Box] = []
         signals: list[Signal] = []
@@ -217,6 +239,66 @@ class SupplyDemandIndicator(BaseIndicator):
         )
 
 
+def _rbd_zones(df: pd.DataFrame, p: SupplyDemandParams) -> list[SDZone]:
+    bases = find_bases(df, p.base_max, p.base_atr, p.atr_period)
+    impulses = find_impulses(df, p.impulse_bars, p.impulse_atr, p.atr_period)
+    return make_sd_zones(bases, impulses, max_zones=None)
+
+
+def _pivot_zones(df: pd.DataFrame, p: SupplyDemandParams) -> list[SDZone]:
+    pivots = significant_pivots(
+        df, method=p.zigzag_method, left=p.pivot_left, right=p.pivot_right,
+        atr_mult=p.atr_mult, atr_period=p.atr_period, min_swing_atr=p.min_swing_atr,
+    )
+    return find_pivot_zones(
+        df, pivots, cluster_atr=p.pivot_cluster_atr, height_cap_atr=p.pivot_height_cap_atr,
+        min_height_atr=p.pivot_min_height_atr, atr_period=p.atr_period,
+    )
+
+
+def _merge_both(pivot_zones: list[SDZone], rbd_zones: list[SDZone]) -> list[SDZone]:
+    """`method="both"`: pivot-çıpalı bölgeler BİRİNCİL (spec'in tercihi) —
+    bir rally-base-drop bölgesi AYNI türden bir pivot bölgesiyle fiyatça
+    ÇAKIŞIYORSA, pivot bölgesinin skorunu güçlendirir ("aynı bölgeyi işaret
+    ediyorlarsa güç skoru artsın"); çakışmayan rbd bölgeleri de AYRICA
+    (pivot yönteminin kaçırdığı bir bölge olabilir) eklenir."""
+    boosted: list[SDZone] = []
+    used_rbd: set[int] = set()
+    for pz in pivot_zones:
+        best: tuple[float, int, SDZone] | None = None
+        for i, rz in enumerate(rbd_zones):
+            if rz.kind != pz.kind or i in used_rbd:
+                continue
+            overlap = min(pz.high, rz.high) - max(pz.low, rz.low)
+            if overlap > 0 and (best is None or overlap > best[0]):
+                best = (overlap, i, rz)
+        if best is not None:
+            _, best_i, best_rbd = best
+            used_rbd.add(best_i)
+            boosted.append(
+                replace(
+                    pz,
+                    impulse_strength=max(pz.impulse_strength, best_rbd.impulse_strength) * 1.25,
+                )
+            )
+        else:
+            boosted.append(pz)
+    boosted.extend(rz for i, rz in enumerate(rbd_zones) if i not in used_rbd)
+    return boosted
+
+
+def _build_zones(df: pd.DataFrame, p: SupplyDemandParams) -> list[SDZone]:
+    if p.method == "rbd":
+        zones = _rbd_zones(df, p)
+    elif p.method == "pivot":
+        zones = _pivot_zones(df, p)
+    else:
+        zones = _merge_both(_pivot_zones(df, p), _rbd_zones(df, p))
+    if p.max_zones is not None:
+        zones = sorted(zones, key=lambda z: (-z.impulse_strength, -z.created_idx))[: p.max_zones]
+    return zones
+
+
 def _quality_score(
     zone: SDZone, fresh: bool, atr_series: pd.Series, p: SupplyDemandParams
 ) -> float:
@@ -225,19 +307,25 @@ def _quality_score(
     BreakoutParams'ın quality_score'undaki AYNI yaklaşım, bkz. Faz 8A):
     - strength_score: impulse_strength (zaten ATR-normalize) / 5.0'a kapatılır
       (impulse_atr eşiği tipik olarak 2.0 civarında; 5x eşik "çok güçlü" kabul).
-    - tightness_score: bölge yüksekliğinin (base_atr * o barın ATR'si)'ne
-      oranı — find_bases zaten bunu <= base_atr*ATR olacak şekilde
-      garanti eder, bu yüzden oran her zaman <=1; DAHA DAR (oran küçük)
-      -> DAHA YÜKSEK skor.
+    - tightness_score: bölge yüksekliğinin (yöntem-uyumlu bir tavan *
+      o barın ATR'si)'ne oranı — `method="rbd"` için `base_atr` (find_bases
+      zaten <= base_atr*ATR garanti eder), `method="pivot"/"both"` için
+      `pivot_height_cap_atr` (find_pivot_zones'un KENDİ tavanı, bkz. o
+      fonksiyonun docstring'i) — Faz 4d ÖNCESİ burada HER ZAMAN `base_atr`
+      kullanılıyordu, bu pivot bölgeleri (tipik yükseklik ~0.15-2.75*ATR)
+      için sistemli olarak neredeyse-sıfır tightness_score üretirdi
+      (height_ratio hep >=1 çıkardı). DAHA DAR (oran küçük) -> DAHA YÜKSEK
+      skor.
     - freshness_score: hiç test edilmemişse 1.0, edilmişse 0.5.
     Üçü de 0..1 olduğu için çarpım da 0..1'dir (Signal.score kısıtı)."""
     strength_score = min(1.0, zone.impulse_strength / 5.0)
 
+    height_ref_atr = p.base_atr if p.method == "rbd" else p.pivot_height_cap_atr
     zone_atr = atr_series.iloc[zone.created_idx]
     if pd.isna(zone_atr) or zone_atr <= 0:
         tightness_score = 0.5
     else:
-        height_ratio = (zone.high - zone.low) / (p.base_atr * zone_atr)
+        height_ratio = (zone.high - zone.low) / (height_ref_atr * zone_atr)
         tightness_score = max(0.0, 1.0 - min(1.0, height_ratio))
 
     freshness_score = 1.0 if fresh else 0.5

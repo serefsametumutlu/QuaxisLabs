@@ -16,6 +16,7 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import pytest
 
+from tlab.features.zones_sd import SDZone
 from tlab.indicators.structure.supply_demand import SupplyDemandIndicator, SupplyDemandParams
 
 TZ = ZoneInfo("Europe/Istanbul")
@@ -49,8 +50,13 @@ def _build_scenario() -> pd.DataFrame:
 
 
 def _params(**overrides) -> SupplyDemandParams:
+    # Faz 4d (2026-09-05): varsayılan method "pivot"a döndü (bkz.
+    # supply_demand.py'nin kendi docstring'i) -- bu dosyanın TAMAMI özellikle
+    # rally-base-drop mekaniğini (find_bases/find_impulses/update_zones)
+    # doğruladığı için burada AÇIKÇA "rbd" sabitlenir.
     base = dict(
-        atr_period=5, impulse_bars=3, impulse_atr=2.0, base_atr=0.6, base_max=5, max_zones=12,
+        method="rbd", atr_period=5, impulse_bars=3, impulse_atr=2.0,
+        base_atr=0.6, base_max=5, max_zones=12,
     )
     base.update(overrides)
     return SupplyDemandParams(**base)
@@ -187,3 +193,75 @@ def test_indicator_interface_compliance() -> None:
     result = SupplyDemandIndicator()(df)
     assert isinstance(result, IndicatorResult)
     assert result.indicator == "structure.supply_demand"
+
+
+# --- Faz 4d: method="pivot"/"both" (pivot-çıpalı arz/talep) ----------------
+
+
+def test_default_method_is_pivot() -> None:
+    """Faz 4d (2026-09-05, `docs/GORSEL_HATA_TESHISI.md` A1): varsayılan
+    artık rally-base-drop DEĞİL, kullanıcının/`ornek1.png`nin kullandığı
+    pivot-çıpalı yöntem."""
+    assert SupplyDemandParams().method == "pivot"
+
+
+def test_method_pivot_produces_zones_from_zigzag_swings() -> None:
+    from tlab.testing.fixtures import make_zigzag
+
+    df = make_zigzag([(0, 100), (10, 130), (20, 90), (30, 140), (40, 80), (50, 120)], noise=0.2)
+    params = SupplyDemandParams(
+        method="pivot", zigzag_method="fixed", pivot_left=2, pivot_right=2, atr_period=5,
+    )
+    result = SupplyDemandIndicator(params).compute(df)
+    assert result.boxes
+    assert {b.style.removesuffix("_broken") for b in result.boxes} <= {"supply", "demand"}
+
+
+def test_method_pivot_quality_score_not_systematically_zero() -> None:
+    """GERÇEK bir hata (2026-09-05): `_quality_score`'un tightness_score'u
+    HER ZAMAN `base_atr` (rbd'nin dar taban tavanı, varsayılan 0.6) ile
+    bölüyordu -- pivot bölgeleri (tipik yükseklik ~0.15-2.75*ATR) için
+    height_ratio hep >=1 çıkıp skor sistemli olarak ~0'a çöküyordu.
+    Düzeltme: method="pivot"/"both" iken referans `pivot_height_cap_atr`."""
+    from tlab.testing.fixtures import make_zigzag
+
+    df = make_zigzag([(0, 100), (10, 130), (20, 90), (30, 140), (40, 80), (50, 120)], noise=0.2)
+    params = SupplyDemandParams(
+        method="pivot", zigzag_method="fixed", pivot_left=2, pivot_right=2, atr_period=5,
+    )
+    result = SupplyDemandIndicator(params).compute(df)
+    new_signals = [s for s in result.signals if s.payload.get("event") == "sd_new"]
+    assert new_signals
+    assert any(s.score > 0.05 for s in new_signals)
+
+
+def test_merge_both_boosts_overlapping_pivot_zone_strength() -> None:
+    from tlab.indicators.structure.supply_demand import _merge_both
+
+    pivot_zone = SDZone(
+        kind="supply", low=100.0, high=105.0, created_idx=10, base_bars=1, impulse_strength=1.0,
+    )
+    rbd_zone = SDZone(
+        kind="supply", low=102.0, high=107.0, created_idx=12, base_bars=3, impulse_strength=3.0,
+    )
+    merged = _merge_both([pivot_zone], [rbd_zone])
+    assert len(merged) == 1
+    # Pivot bölgesinin SINIRLARI korunur (spec: pivot-çıpalı BİRİNCİL);
+    # yalnızca skoru güçlenir.
+    assert merged[0].low == pytest.approx(100.0)
+    assert merged[0].high == pytest.approx(105.0)
+    assert merged[0].impulse_strength == pytest.approx(3.0 * 1.25)
+
+
+def test_merge_both_keeps_non_overlapping_rbd_zone_separately() -> None:
+    from tlab.indicators.structure.supply_demand import _merge_both
+
+    pivot_zone = SDZone(
+        kind="supply", low=100.0, high=105.0, created_idx=10, base_bars=1, impulse_strength=1.0,
+    )
+    rbd_zone = SDZone(
+        kind="demand", low=50.0, high=55.0, created_idx=5, base_bars=2, impulse_strength=2.0,
+    )
+    merged = _merge_both([pivot_zone], [rbd_zone])
+    assert len(merged) == 2
+    assert {z.kind for z in merged} == {"supply", "demand"}

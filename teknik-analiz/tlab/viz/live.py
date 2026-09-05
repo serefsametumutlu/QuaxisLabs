@@ -13,10 +13,13 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from tlab.core.indicator import BaseIndicator
-from tlab.core.types import IndicatorResult, Market, Timeframe
+from tlab.core.types import IndicatorResult, Level, Line, Marker, Market, Timeframe
 from tlab.data.providers.yfinance_provider import YFinanceProvider
 from tlab.data.store import Store
 from tlab.data.universe import BENCHMARK_SYMBOL, load_universe
+from tlab.features.ma import ema
+from tlab.features.market_structure import detect_market_structure
+from tlab.features.swings import label_structure, significant_pivots
 from tlab.indicators.bootstrap import CATALOG, scaled_factory
 from tlab.indicators.pairs.relative_momentum import RelativeMomentumPair, RelativeMomentumParams
 from tlab.indicators.pairs.vol_harvest import VolHarvestPair, VolHarvestParams
@@ -56,6 +59,19 @@ _REVERSAL_MAP_SOURCE_NAMES = (
     "structure.supply_demand", "structure.golden_zone",
     "structure.price_structure", "structure.swing_fib_abcd",
 )
+
+# "structure.market_structure" da CATALOG'ta yok — Faz 4d (`ornek1.png`
+# standardı, `docs/GORSEL_HATA_TESHISI.md` bölüm 4/5): pivot üçgenleri +
+# temas-sayılı trend çizgisi + BOS/CHoCH + pivot-çıpalı arz/talep + tek MA
+# TEK bir "SMC yapı görünümü"nde birleşir. `structure.price_structure`
+# (trendline'lar) + `structure.supply_demand` (varsayılan method="pivot"
+# zaten Faz 4d'nin istediği çıpalama) İKİ MEVCUT indikatörün olduğu gibi
+# çağrılması + BOS/CHoCH'un burada TAZE hesaplanması (CATALOG'ta ayrı bir
+# indikatör DEĞİL, `confluence`nin zone'ları gibi salt bir "post-processing"
+# katmanı — `tlab/features/market_structure.py` saf fonksiyon, kendi
+# IndicatorResult'ı yok).
+MARKET_STRUCTURE_NAME = "structure.market_structure"
+_MARKET_STRUCTURE_EMA_SPAN = 50
 
 
 def _require_supported_timeframe(indicator_name: str, tf: Timeframe) -> None:
@@ -271,6 +287,90 @@ def compute_reversal_map(
     return result, df
 
 
+_MS_EVENT_TEXT = {
+    "bos_up": "BOS↑", "bos_down": "BOS↓", "choch_up": "CHoCH↑", "choch_down": "CHoCH↓",
+}
+_MS_LABEL_TEXT = {"HH": "HH", "HL": "HL", "LH": "LH", "LL": "LL"}
+
+
+def compute_market_structure_merged(
+    symbol: str, timeframe: str, market: str
+) -> tuple[IndicatorResult, pd.DataFrame]:
+    """`structure.price_structure` (trend çizgileri) + `structure.supply_
+    demand` (varsayılan `method="pivot"` — Faz 4d'nin çıpalama isteğinin
+    KENDİSİ) + burada TAZE hesaplanan BOS/CHoCH (`tlab/features/market_
+    structure.py`) + pivot yapı etiketleri (HH/HL/LH/LL, `structure.
+    swing_fib_abcd`nin ZATEN ürettiği `structure_label` Marker'larıyla AYNI
+    sözleşme) + tek bir EMA-50 çizgisini TEK bir `IndicatorResult`ta
+    birleştirir — `compute_structure_report_merged`/`compute_reversal_map`
+    ile AYNI "post-processing köprüsü" deseni (bkz. o fonksiyonların
+    docstring'i)."""
+    mkt = Market(market.lower())
+    tf = _TF_MAP.get(timeframe.upper())
+    if tf is None:
+        raise ValueError(f"Geçersiz tf: {timeframe} (1h|4h|1d bekleniyor)")
+    _require_supported_timeframe("structure.price_structure", tf)
+    _require_supported_timeframe("structure.supply_demand", tf)
+    store = Store(YFinanceProvider())
+    df = store.get(symbol, tf, mkt)
+
+    ps_result = scaled_factory("structure.price_structure", tf)(df)
+    ps_result.symbol, ps_result.timeframe = symbol, tf
+    sd_instance = scaled_factory("structure.supply_demand", tf)
+    sd_result = sd_instance(df)
+    sd_result.symbol, sd_result.timeframe = symbol, tf
+
+    sd_params = sd_instance.params
+    pivots = label_structure(significant_pivots(
+        df, method=sd_params.zigzag_method, left=sd_params.pivot_left,
+        right=sd_params.pivot_right, atr_mult=sd_params.atr_mult,
+        atr_period=sd_params.atr_period, min_swing_atr=sd_params.min_swing_atr,
+    ))
+
+    struct_markers: list[Marker] = [
+        Marker(t=p.bar_time, price=p.price, text=p.label, kind="structure_label")
+        for p in pivots if p.label is not None
+    ]
+
+    events = detect_market_structure(df, pivots)
+    ms_levels: list[Level] = []
+    ms_markers: list[Marker] = []
+    for i, ev in enumerate(events):
+        style = ev.kind  # "bos_up"|"bos_down"|"choch_up"|"choch_down"
+        end_time = events[i + 1].bar_time if i + 1 < len(events) else None
+        ms_levels.append(
+            Level(price=ev.level, label=style, style=style, start=ev.bar_time, end=end_time)
+        )
+        text = _MS_EVENT_TEXT[ev.kind]
+        if i == len(events) - 1:
+            text += " / AKTİF"
+        ms_markers.append(Marker(t=ev.bar_time, price=ev.level, text=text, kind=f"ms_{style}"))
+
+    ema_series = ema(df["close"], _MARKET_STRUCTURE_EMA_SPAN)
+    ema_line = Line(
+        points=tuple(
+            (t, float(v)) for t, v in ema_series.items() if not pd.isna(v)
+        ),
+        label=f"EMA{_MARKET_STRUCTURE_EMA_SPAN}", style="single_ma",
+    )
+
+    merged = IndicatorResult(
+        indicator=MARKET_STRUCTURE_NAME,
+        version=ps_result.version,
+        params_hash=ps_result.params_hash,
+        symbol=symbol,
+        timeframe=tf,
+        signals=ps_result.signals + sd_result.signals,
+        levels=ps_result.levels + ms_levels,
+        lines=[*ps_result.lines, ema_line],
+        boxes=sd_result.boxes,
+        polygons=[],
+        markers=struct_markers + sd_result.markers + ms_markers,
+        last_state={**ps_result.last_state, **sd_result.last_state},
+    )
+    return merged, df
+
+
 def render_structure_report_live(
     symbol: str, timeframe: str, market: str,
     *, theme: Theme | str | None = "auto", last_n: int | None = None, declutter: bool = True,
@@ -341,6 +441,13 @@ def render_live(
             svg_theme = _theme_to_svg_key(theme) or "classic"
             return render_svg(result, df, theme=svg_theme, last_n=last_n)
         return render_reversal_map(result, df, theme=theme, last_n=last_n)
+    if indicator_name == MARKET_STRUCTURE_NAME:
+        # Faz 4d'nin YENİ sahnesi — hiçbir Plotly karşılığı YOK (eski
+        # renderer.py'ye "düşülecek" bir şey yok), bu yüzden `engine`
+        # ne olursa olsun SVG döner (bkz. modülün üst tanımındaki not).
+        result, df = compute_market_structure_merged(symbol, timeframe, market)
+        svg_theme = _theme_to_svg_key(theme) or "classic"
+        return render_svg(result, df, theme=svg_theme, last_n=last_n)
     result, df = compute_live(indicator_name, symbol, timeframe, market)
     if engine == "svg" and df is not None and svg_supports(indicator_name):
         return render_svg(result, df, theme=_theme_to_svg_key(theme) or "classic", last_n=last_n)

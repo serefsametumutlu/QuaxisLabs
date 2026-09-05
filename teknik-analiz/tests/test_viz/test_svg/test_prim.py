@@ -10,6 +10,7 @@ from tlab.viz.svg.prim import (
     svg_poly,
     svg_rect,
     svg_text,
+    svg_triangle,
 )
 
 
@@ -72,3 +73,16 @@ def test_pill_produces_rect_and_centered_text() -> None:
 def test_fnum_drops_trailing_zero_for_integers() -> None:
     out = svg_line(1.0, 2.0, 3.0, 4.0)
     assert 'x1="1"' in out and 'y1="2"' in out
+
+
+def test_svg_triangle_down_apex_points_below_base() -> None:
+    """Faz 4d, pivot üçgenleri (HH/LH -- altın, tepe AŞAĞI bakar)."""
+    out = svg_triangle(10, 20, 4, "down", fill="gold")
+    assert out.startswith("<polygon")
+    assert "10,24" in out  # tepe noktası (cy + size)
+
+
+def test_svg_triangle_up_apex_points_above_base() -> None:
+    """HL/LL -- ikincil renk, tepe YUKARI bakar."""
+    out = svg_triangle(10, 20, 4, "up", fill="cyan")
+    assert "10,16" in out  # tepe noktası (cy - size)

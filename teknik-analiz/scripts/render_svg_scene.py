@@ -21,8 +21,10 @@ from tlab.data.providers.yfinance_provider import YFinanceProvider
 from tlab.data.store import Store
 from tlab.indicators.bootstrap import scaled_factory
 from tlab.viz.live import (
+    MARKET_STRUCTURE_NAME,
     REVERSAL_MAP_NAME,
     STRUCTURE_REPORT_NAME,
+    compute_market_structure_merged,
     compute_reversal_map,
     compute_structure_report_merged,
 )
@@ -43,6 +45,8 @@ def render_one(indicator: str, symbol: str, tf_label: str, theme: str, tag: str)
         result, df = compute_structure_report_merged(symbol, tf_label, "bist")
     elif indicator == REVERSAL_MAP_NAME:
         result, df = compute_reversal_map(symbol, tf_label, "bist")
+    elif indicator == MARKET_STRUCTURE_NAME:
+        result, df = compute_market_structure_merged(symbol, tf_label, "bist")
     else:
         tf = _TF_MAP[tf_label]
         df = store.get(symbol, tf, Market.BIST)

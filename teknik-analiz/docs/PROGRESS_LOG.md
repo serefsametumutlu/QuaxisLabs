@@ -3353,3 +3353,122 @@ Geçilirse sıradaki adım Faz 4d (SMC yapı katmanı — BOS/CHoCH, pivot
 BAŞLANMADI. A1 (arz/talep yöntemi) ve A2 (golden zone swing seçimi +
 fib merdiveni) Faz 5'e bırakıldı, henüz DOKUNULMADI.
 
+## 2026-09-05 (aynı gün) — Kullanıcı Adım 5.5'i onayladı, Faz 4d başladı ve TAMAMLANDI (kapsam notuyla)
+
+Kullanıcı `ma_systems` görselini kendi gözüyle inceleyip onayladı
+("fiyatı takip ediyor"). Faz 4d — `ornek1.png` standardının indikatör
+tarafı — 4 alt maddenin (4d-1..4d-4) TAMAMI bu oturumda yapıldı.
+
+**4d-1, YENİ `tlab/features/market_structure.py`** — BOS (Break of
+Structure) / CHoCH (Change of Character) tespiti, saf fonksiyon
+(`detect_market_structure(df, pivots)`). `bull_pivot`/`bear_pivot`
+durum makinesi: her ikisi de kendi türünden YENİ bir pivot geldiğinde
+güncellenir, kapanış bu seviyeyi aşınca (mevcut trend yönündeyse BOS,
+tersineyse CHoCH — ilk kırılım her zaman BOS, "neutral"dan "değişecek
+bir karakter" yok) olay üretilir. 8 test (senaryo TEK bir zaman
+çizelgesinde 4 farklı kırılım türünü kesin barlarda tetikler) + elle
+uygulanan prefix-tutarlılık (repaint) testi — saf feature fonksiyonu
+olduğu için `repaint_test`/`BaseIndicator` değil, `trendlines.py`/
+`zones_sd.py`nin AYNI hedefli-test deseni kullanıldı.
+
+**4d-1, görsel:** YENİ `tlab/viz/svg/prim.py::svg_triangle` (paylaşılan
+düşük seviye primitif, `svg_circle` gibi — "sahneler birbirini import
+etmez" kuralı bunu kapsamaz). **KAPSAM KARARI:** üçgenler yalnızca
+AŞAĞIDA açıklanan YENİ `structure.market_structure` sahnesine eklendi —
+`swing_fib_abcd.py`/`report.py`nin MEVCUT nokta+metin+zigzag deseni
+BİLİNÇLİ OLARAK değiştirilmedi (ikisinin de farklı, zaten onaylanmış
+bir amacı var — fib merdiveni / VAH-POC-RSI; kullanıcı bu ikisine
+"dokunma" demedi ama spec'in "üç sahnede de çalışıyor" bitti kriteri
+TAM karşılanmadı, kayıt için burada işaretleniyor — istenirse ayrı bir
+takip işi).
+
+**4d-2, trend çizgisi meta verisi** — `tlab/core/types.py::Line`'a
+`touches`/`direction`/`broken` alanları eklendi (eskiden yalnızca
+`label` string'ine "(Temas:N)" olarak gömülüyordu, `report.py::
+_TOUCHES_RE` bunu regex'le geri çıkarıyordu). `price_structure.py::
+_trendlines` artık bu alanları dolduruyor (`label` GERİYE DÖNÜK
+UYUMLULUK için AYNI metni üretmeye devam ediyor); `_last_state`'in
+`active_lines` sayımı `"Kırılım" not in label` yerine `not ln.broken`
+kullanacak şekilde düzeltildi (davranış AYNI, daha sağlam). `to_json`/
+`from_json` round-trip'i yeni alanları da taşıyor (`test_core_types.py`
+genişletildi — Faz 6'nın "JSON round-trip testi olmayan alan sessizce
+bozulur" dersinin AYNISI, önden test eklendi).
+
+**4d-3, pivot-çıpalı arz/talep** — YENİ `tlab/features/zones_sd.py::
+find_pivot_zones` (rally-base-drop'a ALTERNATİF, `SDZone`/`update_
+zones`/kalite akışını PAYLAŞIR): swing HIGH→supply/LOW→demand, iç kenar
+çevredeki `ctx_bars` mumun ortalama aralığından, `height_cap_atr`
+(vars. 2.75) ile üstten kelepçeli; güç = pivotu onaylayan bacağın ATR-
+normalize büyüklüğü (`significant_pivots(method="atr")`in KENDİ dönüş
+eşiği zaten "ATR doğrulaması" şartını sağlıyor, ayrıca tekrarlanmadı).
+`_cluster_pivot_zones`: yakın (<cluster_atr*ATR) aynı-türden bölgeler
+birleşir. **GERÇEK bir hata THYAO'da GÖRÜLEREK bulundu:** art arda
+yakın pivotların ZİNCİRLEME kümelenmesi (A~B, B~C, C~D — A~D DEĞİL)
+`height_cap_atr`i tamamen atlayıp 9 pivotu 33 puanlık dev bir "bölge"de
+birleştiriyordu — düzeltme: birleşme SONUÇTAKİ yükseklik tavanı
+AŞACAKSA reddedilir. `SupplyDemandParams`'a `method: Literal["pivot",
+"rbd","both"] = "pivot"` eklendi (**varsayılan DEĞİŞTİ** — eskiden
+rally-base-drop'un ta kendisiydi, artık pivot-çıpalı; `method="both"`
+iki yöntemi de çalıştırıp çakışan bölgelerin skorunu güçlendiriyor,
+pivot sınırları BİRİNCİL kalıyor). Mevcut `tests/test_structure/
+test_supply_demand.py` (rally-base-drop mekaniğini doğrulayan TÜM
+testler) `method="rbd"` ile SABİTLENDİ (davranışları DEĞİŞMEDİ). AYRI
+GERÇEK bir hata: `_quality_score`'un tightness_score'u HER ZAMAN
+`base_atr`ye (0.6) bölüyordu — pivot bölgeleri (~0.15-2.75*ATR) için bu
+skoru sistemli olarak ~0'a çöktürüyordu; `method="pivot"/"both"` iken
+referans artık `pivot_height_cap_atr`.
+
+**4d-3, görsel:** `tlab/viz/themes.py::_FILL_STYLE_COLOR`de `demand`/
+`supply`/`demand_broken`/`supply_broken` anahtarlarının EKSİK olduğu
+iddiası (GORSEL_HATA_TESHISI.md A1) KONTROL EDİLDİ VE YANLIŞ ÇIKTI —
+bu anahtarlar zaten Faz 8C'den beri doğru tanımlıydı (yeşil/kırmızı),
+muhtemelen teşhis sırasında incelenen dosya/an farklıydı; DOKUNULMADI.
+Gerçek olan: `tlab/viz/svg/scenes/supply_demand.py`nin etiketleri ÇİZİM
+ALANININ İÇİNDE, bölgenin kendi kenarına yapışık duruyordu — sağ kenar
+boşluğuna (`margin_r` 14→110), iki satırlı format ("SUPPLY / ARZ" +
+fiyat aralığı) taşındı.
+
+**4d-4, tek MA + birleşik sahne** — YENİ `tlab/viz/live.py::
+compute_market_structure_merged` (`compute_structure_report_merged`/
+`compute_reversal_map`nin AYNI "post-processing köprüsü" deseni):
+`structure.price_structure` (trend çizgileri) + `structure.supply_
+demand` (artık varsayılan `method="pivot"`) + TAZE hesaplanan BOS/
+CHoCH + pivot etiketleri (HH/HL/LH/LL) + EMA-50 (`tlab/features/
+ma.py::ema`) TEK bir `IndicatorResult`ta (`structure.market_structure`
+— CATALOG'ta yok, `structure.report`/`confluence` gibi sentetik bir
+isim) birleşiyor. YENİ `tlab/viz/svg/scenes/market_structure.py` —
+`ornek1.png`nin hedef sahnesi. THYAO/AKBNK/BAKAB gerçek verisiyle 4
+iterasyon (`docs/design/iterasyon/faz4d_iter{1..4}_market_structure_*`):
+1. iterasyonda temiz çıktı; 2.de yukarıdaki kümeleme hatası bulundu;
+3.te AYRI bir tasarım sorunu (aynı anda 3 açık demand kutusu sağ kenarı
+dolduruyordu — `supply_demand.py`nin `_nearest_open_zones` ilkesi
+buraya da taşındı); 4.te (BAKAB) GERÇEK bir hata: yakın BOS/CHoCH
+etiketleri sabit ofsetle üst üste biniyordu ("CHoCH↓CHoCH↓" okunamaz
+hâle geliyordu) — swing etiketleriyle AYNI `resolve_collisions` havuzuna
+alındı. Trend çizgisi rengi ornek1'in özel "düşen=mor" tonu YERİNE
+BİLİNÇLİ OLARAK tema sözleşmesindeki yön-anlamlı `up`/`down` (mumlarla
+AYNI, LOAD-BEARING) kullanıyor — yeni bir tema tokenı icat edilmedi.
+
+**Doğrulama:** 33 yeni test (market_structure feature 8, zones_sd pivot
+5, market_structure sahnesi 11, svg_triangle prim 2, supply_demand
+pivot/both 5, price_structure yeni alanlar 2), 884 test yeşil
+(851→884). `ruff check tlab/ tests/`: TAM OLARAK 19 hata (baseline
+DEĞİŞMEDİ — hepsi önceden var olan, bu oturumun yeni satırlarındaki
+tüm E501/F401/I001 uyarıları düzeltildi). `mypy tlab/`: 3 hata,
+HİÇBİRİ bu oturumun dokunduğu dosyalarda değil (renderer.py/
+dashboard.py, önceden var). `lint_lookahead`: 6 uyarı, hiçbiri yeni
+dosyalarda değil.
+
+**Kapsam notu (dürüstçe kayıt için):** spec'in "pivot üçgenleri üç
+sahnede de çalışıyor" bitti kriteri TAM karşılanmadı — yalnızca YENİ
+`structure.market_structure` sahnesine eklendi, `swing_fib_abcd.py`/
+`report.py` BİLİNÇLİ OLARAK dokunulmadan bırakıldı (yukarıdaki 4d-1
+notuna bkz.). A1/A2 (golden_zone'un swing seçimi + fib merdiveni,
+zaten Faz 5'e planlıydı) bu oturumda DA yapılmadı — Faz 5 kapsamında
+kalıyor.
+
+**Sırada:** kullanıcının `structure.market_structure` çıktısını
+`ornek1.png` ile kendi gözüyle karşılaştırması (bu fazın kendi onay
+kapısı — Adım 8.5). Ardından Faz 5 (kalan stratejilerin denetimi, A1/
+A2 dahil), henüz BAŞLANMADI.
+

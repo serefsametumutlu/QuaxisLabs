@@ -27,9 +27,9 @@ from __future__ import annotations
 import pandas as pd
 
 from tlab.core.types import Box, IndicatorResult
-from tlab.viz.svg.axes import price_labels, x_labels
+from tlab.viz.svg.axes import price_labels, right_label, x_labels
 from tlab.viz.svg.candles import draw_candles
-from tlab.viz.svg.prim import svg_circle, svg_line, svg_rect, svg_text
+from tlab.viz.svg.prim import svg_circle, svg_line, svg_rect
 from tlab.viz.svg.scale import Chart, bar_index, pad_range
 from tlab.viz.svg.scenes.base import PanelOut, SceneOut
 from tlab.viz.svg.theme import SVGTheme
@@ -37,6 +37,11 @@ from tlab.viz.svg.theme import SVGTheme
 _W, _H = 700.0, 440.0
 _LAST_N = 150
 _MAX_BROKEN_SHOWN = 2
+_MARGIN_R = 110.0  # Faz 4d (2026-09-05): eskiden 14 -- etiketler ÇİZİM
+# ALANININ İÇİNDE, bölgenin kendi kenarına yapışık duruyordu. `ornek1.png`
+# standardı etiketleri sağ kenar BOŞLUĞUNDA ister (`market_structure.py`nin
+# AYNI kararı) -- bölge şekli hâlâ tam genişlikte çizilir, yalnızca METİN
+# taşındı.
 
 _MARKER_COLOR = {"sd_reaction": "accent", "sd_broken": "text_muted"}
 
@@ -120,22 +125,13 @@ def build(result: IndicatorResult, df: pd.DataFrame, theme: SVGTheme) -> SceneOu
     ]
 
     chart = Chart(
-        w=_W, h=_H, margin_l=48, margin_r=14, margin_t=20, margin_b=28,
+        w=_W, h=_H, margin_l=48, margin_r=_MARGIN_R, margin_t=20, margin_b=28,
         i_domain=(0, i_max), p_domain=(lo, hi),
     )
 
     s = price_labels(chart, theme, 4)
     s += x_labels(chart, _pick_x_ticks(window), theme)
     s += draw_candles(window, chart, theme)
-
-    def _label_anchor(x0: float) -> tuple[float, str]:
-        # 1. iterasyonda GERÇEK bir hata bulundu: yeni doğmuş (dar) bir
-        # bölgenin sol-hizalı etiketi sağ kenara çok yakın başlayınca panel
-        # dışına taşıp kırpılıyordu ("ARZ BÖLGESİ..." yalnızca "A" olarak
-        # görünüyordu). Yeterli yer yoksa etiket sağ kenara hizalanır.
-        if x0 > chart.inner_x1 - 130:
-            return chart.inner_x1 - 4, "end"
-        return x0 + 6, "start"
 
     zone_spans: list[tuple[pd.Timestamp, pd.Timestamp]] = []
 
@@ -148,10 +144,12 @@ def build(result: IndicatorResult, df: pd.DataFrame, theme: SVGTheme) -> SceneOu
             x0, y1, max(x1 - x0, 2), y0 - y1,
             fill="none", stroke=color, stroke_width=1, dash="3,2", opacity=0.55,
         )
-        label_x, anchor = _label_anchor(x0)
-        s += svg_text(
-            label_x, y1 - 5, f"Kırılmış {'Talep' if bx.style == 'demand_broken' else 'Arz'}",
-            fill=color, size=8.5, family=theme.font_body, opacity=0.7, anchor=anchor,
+        mid_y = (y0 + y1) / 2
+        kind_tr = "DEMAND / TALEP" if bx.style == "demand_broken" else "SUPPLY / ARZ"
+        s += right_label(chart, mid_y - 6, kind_tr, theme, fill=color, size=8.5, weight=700)
+        s += right_label(
+            chart, mid_y + 6, f"{bx.low:.2f}-{bx.high:.2f} · kırıldı", theme,
+            fill=theme.text_muted, size=7.5,
         )
         zone_spans.append((bx.t0, bx.t1))
 
@@ -165,12 +163,19 @@ def build(result: IndicatorResult, df: pd.DataFrame, theme: SVGTheme) -> SceneOu
         )
         s += svg_line(x0, y0, chart.inner_x1, y0, stroke=color, width=1, opacity=0.6)
         s += svg_line(x0, y1, chart.inner_x1, y1, stroke=color, width=1, opacity=0.6)
+        # Etiket ÇİZİM ALANININ DIŞINDA, sağ kenar boşluğunda -- `ornek1.
+        # png`nin "SUPPLY / ARZ" + fiyat aralığı iki satırlı yerleşimi
+        # (`market_structure.py`nin AYNI kararı, bkz. o dosyanın docstring'i).
         kind_tr = "TALEP" if bx.style == "demand" else "ARZ"
-        fresh_tr = "taze" if "taze" in bx.label else "test edildi"
-        label_x, anchor = _label_anchor(x0)
-        s += svg_text(
-            label_x, y1 + 13, f"{kind_tr} BÖLGESİ · {fresh_tr}",
-            fill=color, size=9.5, family=theme.font_body, weight=700, anchor=anchor,
+        fresh_tr = "TAZE" if "taze" in bx.label else "TEST EDİLDİ"
+        mid_y = (y0 + y1) / 2
+        s += right_label(
+            chart, mid_y - 6, f"{'DEMAND' if bx.style == 'demand' else 'SUPPLY'} / {kind_tr}",
+            theme, fill=color, size=9, weight=700,
+        )
+        s += right_label(
+            chart, mid_y + 6, f"{bx.low:.2f} - {bx.high:.2f} · {fresh_tr}", theme,
+            fill=theme.text_muted, size=8,
         )
         zone_spans.append((bx.t0, bx.t1))
 

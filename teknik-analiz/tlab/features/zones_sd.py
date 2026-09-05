@@ -17,6 +17,7 @@ from typing import Literal
 import pandas as pd
 
 from tlab.features.fibonacci import retracement
+from tlab.features.swings import Pivot
 from tlab.features.volatility import atr
 
 SDKind = Literal["demand", "supply"]
@@ -228,6 +229,128 @@ def update_zones(zones: list[SDZone], df: pd.DataFrame, t: int) -> list[SDZoneSt
             )
         )
     return states
+
+
+def find_pivot_zones(
+    df: pd.DataFrame,
+    pivots: list[Pivot],
+    *,
+    ctx_bars: int = 3,
+    cluster_atr: float = 0.5,
+    height_cap_atr: float = 2.75,
+    min_height_atr: float = 0.15,
+    atr_period: int = 14,
+) -> list[SDZone]:
+    """Swing pivotlarına ÇİPALI arz/talep bölgeleri — `find_bases`/
+    `find_impulses`/`make_sd_zones` (rally-base-drop) YÖNTEMİNE ALTERNATİF
+    bir üreteç, ama AYNI `SDZone`/`update_zones`/kalite akışına besler
+    (Faz 4d, `docs/GORSEL_HATA_TESHISI.md` bölüm A1 — kullanıcının/`ornek1.
+    png`nin kullandığı yöntem, kaynak: swing-çıpalı bölge + temas skorlaması
+    [tradingview.com/script/ZUAYemgd], order block anatomisi [liquidityfinder.
+    com/news/anatomy-of-a-valid-order-block-in-smart-money-concepts]).
+
+    Çipa: swing HIGH -> supply (dış kenar = pivot fiyatı, iç kenar AŞAĞIDA);
+    swing LOW -> demand (dış kenar = pivot fiyatı, iç kenar YUKARIDA). İç
+    kenar, pivotu ÖNCELEYEN `ctx_bars` mumun ortalama toplam aralığından
+    (high-low) türetilir (`min_height_atr*ATR` ile `height_cap_atr*ATR`
+    arasına kelepçelenir) — böylece bölge GERÇEK tepki alanını kapsar, ince
+    bir çizgi değil.
+
+    "ATR doğrulaması" (pivottan uzaklaşan hareket ATR katını aşmalı) AYRICA
+    burada UYGULANMAZ — `pivots` zaten `significant_pivots(method="atr",
+    atr_mult=...)`in KENDİ dönüş eşiğinden geçmiş olmalı (bir pivot ancak
+    `atr_mult*ATR` kadar bir ters hareketle ONAYLANIR, bkz. `swings.py::
+    atr_zigzag`); bu yüzden filtre burada TEKRARLANMAZ, `impulse_strength`
+    yalnızca SKORLAMA için (pivotu ONAYLAYAN -- zigzag'daki bir ÖNCEKİ karşıt
+    pivottan gelen -- bacağın ATR-normalize büyüklüğü) hesaplanır.
+
+    Kümeleme: AYNI türden (ikisi de supply/demand) bölgelerin fiyat aralığı
+    çakışıyor ya da `cluster_atr*ATR` içinde YAKINSA TEK bölgede birleşir
+    (dış sınırların BİRLEŞİMİ alınır, güç = kümedeki en yüksek impulse_
+    strength, created_idx = kümedeki EN ERKEN pivotun confirmed_idx'i). BU,
+    `wedge`/`broadening`'in trendline aday havuzuyla AYNI kategori bir "aday
+    havuzu" deseni -- df büyüdükçe yeni bir pivot bir önceki bölgeyi
+    genişletebilir; `SupplyDemandIndicator` bu yüzden ZATEN generic
+    `repaint_test` dışında (`register_verified_elsewhere`, bkz. modülün
+    kendi docstring'i), non-repaint hedefli testlerle doğrulanır."""
+    n = len(df)
+    atr_series = atr(df, atr_period)
+    high = df["high"].to_numpy()
+    low = df["low"].to_numpy()
+
+    raw: list[SDZone] = []
+    for i, p in enumerate(pivots):
+        if p.confirmed_idx >= n:
+            continue
+        a = atr_series.iloc[p.confirmed_idx]
+        if pd.isna(a) or a <= 0:
+            continue
+
+        lo_ctx = max(0, p.bar_idx - ctx_bars + 1)
+        ranges = [high[j] - low[j] for j in range(lo_ctx, p.bar_idx + 1)]
+        avg_range = sum(ranges) / len(ranges) if ranges else a
+        height = min(max(avg_range, min_height_atr * a), height_cap_atr * a)
+
+        prev_price = pivots[i - 1].price if i > 0 else None
+        leg = abs(p.price - prev_price) if prev_price is not None else height
+        strength = leg / a if a > 0 else 0.0
+
+        if p.kind == "high":
+            kind: SDKind = "supply"
+            zone_high, zone_low = p.price, p.price - height
+        else:
+            kind = "demand"
+            zone_low, zone_high = p.price, p.price + height
+
+        raw.append(
+            SDZone(
+                kind=kind, low=zone_low, high=zone_high, created_idx=p.confirmed_idx,
+                base_bars=1, impulse_strength=strength, fresh=True,
+            )
+        )
+
+    return _cluster_pivot_zones(raw, atr_series, cluster_atr, height_cap_atr)
+
+
+def _cluster_pivot_zones(
+    zones: list[SDZone], atr_series: pd.Series, cluster_atr: float, height_cap_atr: float,
+) -> list[SDZone]:
+    """GERÇEK bir hata (2026-09-05, THYAO'da GÖRÜLEREK bulundu): art arda
+    YAKIN pivotların ZİNCİRLEME birleşmesi (A~B, B~C, C~D — ama A ile D
+    doğrudan yakın DEĞİL) `height_cap_atr`i tamamen atlayıp onlarca ATR'lik
+    dev bir "bölge" üretebiliyordu (9 pivot, 33 puanlık bir demand kutusu
+    -- artık bir "seviye" değil, koca bir trend bacağı). Düzeltme: bir
+    birleşme, SONUÇTAKİ yükseklik `height_cap_atr*ATR`i AŞACAKSA
+    REDDEDİLİR (kümeye eklenmez, kendi ayrı kümesi olarak kalır) — `find_
+    pivot_zones`'un tek-pivot yükseklik tavanıyla AYNI tavan, kümeleme
+    SONRASINDA da korunur."""
+    result: list[SDZone] = []
+    for kind in ("supply", "demand"):
+        same = sorted((z for z in zones if z.kind == kind), key=lambda z: z.created_idx)
+        clusters: list[SDZone] = []
+        for z in same:
+            a = atr_series.iloc[z.created_idx]
+            a_val = float(a) if not pd.isna(a) else 0.0
+            tol = cluster_atr * a_val
+            cap = height_cap_atr * a_val if a_val > 0 else float("inf")
+            merged = False
+            for i, c in enumerate(clusters):
+                gap = max(z.low, c.low) - min(z.high, c.high)
+                new_low, new_high = min(z.low, c.low), max(z.high, c.high)
+                if gap <= tol and (new_high - new_low) <= cap:
+                    clusters[i] = SDZone(
+                        kind=kind, low=new_low, high=new_high,
+                        created_idx=min(z.created_idx, c.created_idx),
+                        base_bars=c.base_bars + 1,
+                        impulse_strength=max(z.impulse_strength, c.impulse_strength),
+                        fresh=True,
+                    )
+                    merged = True
+                    break
+            if not merged:
+                clusters.append(z)
+        result.extend(clusters)
+    return result
 
 
 def golden_zone(

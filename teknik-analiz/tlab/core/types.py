@@ -58,12 +58,24 @@ class Level:
 
 @dataclass(frozen=True)
 class Line:
-    """İki veya daha fazla noktadan geçen çizgi (ör. trend çizgisi)."""
+    """İki veya daha fazla noktadan geçen çizgi (ör. trend çizgisi).
+
+    touches/direction/broken: Faz 4d (2026-09-05) — trend çizgisi meta
+    verisi eskiden yalnızca `label` string'ine (ör. "Direnç (Temas:6)")
+    gömülüyordu, sahnelerin bunu regex'le geri çıkarması gerekiyordu
+    (`report.py::_TOUCHES_RE`). Artık AYRI alanlar olarak da taşınır —
+    `label` geriye dönük uyumluluk için AYNI metni üretmeye devam eder
+    (eski okuyucular etkilenmez), yeni sahneler bu alanları kendi
+    biçimlendirir. Trendline DIŞI çizgiler (ör. harmonik XB, hedef
+    projeksiyonu) için üçü de `None` kalır."""
 
     points: tuple[tuple[datetime, float], ...]
     label: str
     style: str
     extend_right: bool = False
+    touches: int | None = None
+    direction: Literal["rising", "falling"] | None = None
+    broken: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -258,7 +270,8 @@ class IndicatorResult:
         ]
         lines = [
             Line(points=_points(x["points"]), label=x["label"], style=x["style"],
-                 extend_right=x["extend_right"])
+                 extend_right=x["extend_right"], touches=x.get("touches"),
+                 direction=x.get("direction"), broken=x.get("broken"))
             for x in raw["lines"]
         ]
         boxes = [

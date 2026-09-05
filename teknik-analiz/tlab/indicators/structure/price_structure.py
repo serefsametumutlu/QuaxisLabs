@@ -234,6 +234,9 @@ def _trendlines(
                 Line(
                     points=((tl.p1.bar_time, tl.p1.price), (tl.p2.bar_time, tl.p2.price)),
                     label=_trendline_label(tl, df), style=kind, extend_right=True,
+                    touches=len(tl.touches),
+                    direction="rising" if tl.slope > 0 else "falling",
+                    broken=tl.broken_at is not None,
                 )
             )
             if tl.broken_at is not None:
@@ -395,7 +398,7 @@ def _last_state(
     lines: list[Line], range_boxes: list[Box], zone_boxes: list[Box],
     profile_levels: list[Level], poc_reclaimed_last_bar: bool, df: pd.DataFrame,
 ) -> dict:
-    active_lines = sum(1 for ln in lines if "Kırılım" not in ln.label)
+    active_lines = sum(1 for ln in lines if not ln.broken)
     last_close = float(df["close"].iloc[-1])
     open_box = any(b.style == "range_box" and b.t1 == df.index[-1] for b in range_boxes)
 

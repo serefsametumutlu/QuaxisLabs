@@ -412,9 +412,34 @@ bottom.py` sahnesindeki eksen mantığı da dahil geri kalan her şey
 gösterdi). THYAO gerçek verisiyle uçtan uca doğrulandı
 (`docs/design/iterasyon/faz35_verify_*`, `ma_systems`'ın artık düz
 değil fiyatı takip ettiği dahil — Adım 5.5 onay kapısının kriteri).
-Detay: `docs/PROGRESS_LOG.md` 2026-09-05 girdileri. **Sırada: Adım 5.5
-onay kapısı (kullanıcı kendi gözüyle karşılaştıracak), sonra Faz 4d —
-henüz BAŞLANMADI.**
+Detay: `docs/PROGRESS_LOG.md` 2026-09-05 girdileri.
+
+**EK (aynı gün) — kullanıcı Adım 5.5'i onayladı, Faz 4d (SMC yapı
+katmanı) BAŞLADI ve TAMAMLANDI (kapsam notuyla).** YENİ `tlab/features/
+market_structure.py` (BOS/CHoCH tespiti, saf fonksiyon + 8 test + elle
+prefix-tutarlılık doğrulaması). YENİ `tlab/features/zones_sd.py::
+find_pivot_zones` (pivot-çıpalı arz/talep, rally-base-drop'a alternatif)
+— GERÇEK bir hata THYAO'da bulundu (zincirleme kümelenme `height_cap_
+atr`i atlayıp dev bölgeler üretiyordu, düzeltildi). `SupplyDemandParams.
+method` artık `"pivot"` (VARSAYILAN DEĞİŞTİ, eskiden rally-base-drop),
+`"rbd"`/`"both"` de mevcut. `tlab/core/types.py::Line`'a `touches`/
+`direction`/`broken` alanları eklendi (`price_structure.py` doldurur,
+`label` geriye dönük uyumlu kalıyor). YENİ birleşik sahne `structure.
+market_structure` (`tlab/viz/live.py::compute_market_structure_merged`
++ `tlab/viz/svg/scenes/market_structure.py`) — pivot üçgenleri (YENİ
+`svg_triangle` primi) + temas-sayılı trend çizgisi + BOS/CHoCH + pivot-
+çıpalı arz/talep (sağ kenarda fiyat etiketli) + tek EMA-50, THYAO/AKBNK/
+BAKAB'da 4 iterasyon (2 gerçek hata bulunup düzeltildi: kümeleme +
+BOS/CHoCH etiket çakışması). 33 yeni test, 884 test yeşil (851→884),
+ruff (19)/mypy (3)/lint_lookahead (6) baseline'ları DEĞİŞMEDİ (hepsi
+önceden var, bu oturumun dosyalarında değil). **Kapsam notu:** pivot
+üçgenleri yalnızca bu YENİ sahneye eklendi, `swing_fib_abcd.py`/
+`report.py`nin mevcut deseni BİLİNÇLİ dokunulmadı (spec'in "üç sahnede"
+kriteri tam karşılanmadı). A1/A2 (golden_zone swing seçimi + fib
+merdiveni) Faz 5'e bırakıldı, HENÜZ YAPILMADI. Detay: `docs/PROGRESS_
+LOG.md` 2026-09-05 girdisi. **Sırada: kullanıcının `structure.market_
+structure`'ı `ornek1.png` ile karşılaştırması (Adım 8.5 onay kapısı),
+sonra Faz 5 — henüz BAŞLANMADI.**
 
 ### Tamamlanan fazlar (özet)
 

@@ -3710,8 +3710,35 @@ varsayılanı (empirical→fixed) ve `FiveZeroSchool.c_beyond_a_required`
 DEĞİŞTİ -- bu üç göstergenin ÜRETTİĞİ sinyal kümesi baştan aşağı
 değişti, bu yüzden ESKİ koda ait TÜM eski sinyaller "kayboldu" sayılıyor
 (gerçek bir lookahead/repaint hatası DEĞİL, kasıtlı varsayılan
-değişikliklerinin doğal sonucu). **HENÜZ TAM DOĞRULANMADI** -- ayrıntılı
-gösterge-bazlı kırılım (`ResultsStore.diff()`'in `missing_signals`
-listesi gerçekten yalnızca bu 3 göstergeye mi ait) sorgulanıyor, sonuç
-gelince bu girdiye EK yapılacak.
+değişikliklerinin doğal sonucu). **GÜNCELLEME — hipotez YANLIŞ ÇIKTI, kök neden HÂLÂ BULUNAMADI (kayıt
+için, kapsamlı takip gerektirir):** `missing_signals`'ın gösterge bazında
+kırılımı alındı (`ResultsStore.diff('bist_2026-09-02','bist_2026-09-04')`)
+— kayıp sinyaller yalnızca bu 3 göstergede DEĞİL, LİTERALMAN HER
+göstergede (`trend.breakouts` 305630 [EN BÜYÜK, bu oturumda HİÇ
+DOKUNULMADI], `structure.swing_fib_abcd` 146966, `patterns.broadening`
+88273, `structure.supply_demand` 87551, `trend.weekly_channel` 68829,
+`patterns.double_top_bottom` 68675, `structure.price_structure` 48696,
+`structure.golden_zone` 43065, `patterns.head_shoulders` 30603,
+`harmonic.carney` 20272, `pair.vol_harvest` 18478, `pair.relative_
+momentum` 16627, `trend.ewmac` 12128, `patterns.flag_pennant` 10588,
+`trend.ma_systems` 10381, `harmonic.gilmore/three_drives/navarro200/
+pesavento/cypher` toplam ~31374) dağılmış çıktı. Yani bu oturumun
+değişiklikleriyle AÇIKLANAMAZ — SİSTEMİK, muhtemelen ÖNCEDEN VAR OLAN
+bir sorun. `diff()`'in `key()`'i `(symbol, tf, indicator, pattern_id,
+state, bar_time)` (bkz. `tlab/scanner/results.py:449`) — hızlı bir
+örnekleme (`trend.breakouts`, ilk 5 satır) `pattern_id`/`bar_time`
+çiftlerinin İKİ RUN ARASINDA AYNI kaldığını gösterdi (bar_idx kaymasına
+dayalı bir hipotezi ÇÜRÜTÜYOR), ama bu tek bir dar örnekti -- kapsamlı
+değil. **Bu oturumda DAHA FAZLA araştırılmadı** (kullanıcının o an
+odağı görsel grafik kalitesiydi, bu konuya geçmek dikkat dağıtırdı) --
+AYRI, dedike bir oturum gerektiren AÇIK bir bulgu olarak burada
+işaretleniyor. Olası sonraki adımlar: (1) `n_errors`in iki run arasında
+nasıl değiştiğini (648→1200 hata) ve hangi sembollerin ETKİLENDİĞİNİ
+kontrol et -- belki DEĞİL "sinyal kayboldu" ama "o sembol bu run'da HİÇ
+İŞLENEMEDİ" durumu yaygın; (2) `diff()`'in `key()`ine `state` dahil
+olması BEKLENEN bir "churn" kaynağı olabilir (aynı pattern_id farklı
+run'larda farklı bir "son" duruma sahipse ESKİ ara-durum satırları hep
+"missing" sayılır) -- bunun NORMAL/BEKLENEN payının ne kadar olduğu
+ölçülmedi ("chain_key" bazlı, yalnızca YENİ zincirlerin/durumların
+gerçek bir repaint anlamına geldiği bir metrik daha doğru olabilir).
 

@@ -511,16 +511,20 @@ yakın) çiziyor. 4 sembolde tarayıcıda GÖRÜLEREK doğrulandı, hepsi artık
 temiz. Detay: `docs/PROGRESS_LOG.md` 2026-09-05 girdisi.
 
 **Ayrıca:** `tlab eod --market bist` tamamlandı (648 sembol, 31096
-sonuç). `repaint_alarm: true` (1M+ "kaybolan" sinyal, bir önceki runa
-göre) — BEKLENEN: bu oturumda supply_demand/ewmac/five_zero'nun
-VARSAYILAN davranışları değişti, bu sinyal kümesini baştan değiştirdi
-(gerçek bir repaint hatası OLMASI BEKLENMİYOR ama TAM DOĞRULANMADI —
-ayrıntılı kırılım sorgulanıyor).
+sonuç). `repaint_alarm: true` (1M+ "kaybolan" sinyal) — İLK hipotez
+(yalnızca bu oturumda değişen 3 gösterge) YANLIŞ ÇIKTI: kırılım
+LİTERALMAN HER göstergede (en büyüğü `trend.breakouts` 305630, bu
+oturumda HİÇ DOKUNULMADI) dağılmış çıktı — SİSTEMİK, muhtemelen ÖNCEDEN
+VAR OLAN bir sorun, bu oturumun değişiklikleriyle AÇIKLANAMAZ. Kısa bir
+örnekleme bar_idx kaymasına dayalı bir hipotezi çürüttü ama kapsamlı
+değildi. **KÖK NEDEN BULUNAMADI, AYRI/DEDİKE bir oturum gerektiriyor**
+(detay + olası sonraki adımlar: `docs/PROGRESS_LOG.md` 2026-09-05
+girdisinin GÜNCELLEME bölümü).
 
-**Sırada:** repaint_alarm bulgusunun doğrulanması, sonra Faz 5'in kalan
-maddeleri (B: breakouts skor dağılımı, D: price_structure performansı,
-E: alpha/momentum rank kalibrasyonu, F: pattern_context uygulaması) —
-HENÜZ BAŞLANMADI.
+**Sırada:** kullanıcı onayı — bu repaint_alarm bulgusuna mı (ayrı
+oturum) yoksa Faz 5'in kalan maddelerine mi (B: breakouts skor dağılımı,
+D: price_structure performansı, E: alpha/momentum rank kalibrasyonu,
+F: pattern_context uygulaması) devam edilecek — HENÜZ BAŞLANMADI.
 
 ### Tamamlanan fazlar (özet)
 

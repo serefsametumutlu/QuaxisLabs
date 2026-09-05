@@ -521,6 +521,28 @@ değildi. **KÖK NEDEN BULUNAMADI, AYRI/DEDİKE bir oturum gerektiriyor**
 (detay + olası sonraki adımlar: `docs/PROGRESS_LOG.md` 2026-09-05
 girdisinin GÜNCELLEME bölümü).
 
+**EK (aynı gün) — `find_pivot_zones`'un yükseklik tavanı artık GÜNCEL
+ATR'ye göre (INTEM 4H "supply neden bu kadar kalın" bulgusu).** Kullanıcı
+iki şey sordu: (1) önceki "kırılmış bölge kaldırma" düzeltmesi TÜM
+evrende mi geçerli — 6 rastgele ek sembolle (EREGL/SASA/TUPRS/PETKM/
+VESTL/INTEM) doğrulandı, EVET kod-seviyesinde, sadece isim verilen
+sembollerle sınırlı DEĞİL; (2) INTEM 4H'teki supply bölgesi neden
+anormal kalın. Kök neden: `_cluster_pivot_zones`'un yükseklik tavanı
+(`height_cap_atr`) HER pivotun/birleşmenin KENDİ tarihsel ATR'sine göre
+değerlendiriliyordu — aylar önce yüksek volatilite döneminde doğan
+pivotlar o dönemin geniş ATR'siyle kolayca birleşip GÜNÜMÜZÜN çok daha
+düşük ATR'sine göre orantısız kalın bir bölge üretiyordu. Düzeltme:
+`find_pivot_zones` artık `current_atr`'yi (df'in son barı) BİR KEZ
+hesaplayıp hem kümeleme toleransına hem yükseklik tavanına tutarlı
+şekilde uyguluyor (pivotun kendi tarihsel ATR'si yalnızca taban/`avg_
+range` hesabında kalıyor); `_cluster_pivot_zones` imzası `atr_series`
+yerine tek bir `cap_atr_value: float` alıyor. Yeni regresyon testi
+(`test_height_cap_uses_current_atr_not_historical_atr_at_pivot_time`,
+iki-rejimli sentetik veri) + INTEM 4H'te elle doğrulandı (`nearest_
+supply` eski dev kümeden `None`'a, `nearest_demand` çok daha dar bir
+bölgeye düştü). 890 test yeşil (889→890), ruff 19 baseline DEĞİŞMEDİ.
+Detay: `docs/PROGRESS_LOG.md` 2026-09-05 girdisi.
+
 **Sırada:** kullanıcı onayı — bu repaint_alarm bulgusuna mı (ayrı
 oturum) yoksa Faz 5'in kalan maddelerine mi (B: breakouts skor dağılımı,
 D: price_structure performansı, E: alpha/momentum rank kalibrasyonu,

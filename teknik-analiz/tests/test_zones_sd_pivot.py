@@ -15,6 +15,7 @@ import pandas as pd
 import pytest
 
 from tlab.features.swings import Pivot
+from tlab.features.volatility import atr
 from tlab.features.zones_sd import find_pivot_zones
 
 TZ = ZoneInfo("Europe/Istanbul")
@@ -113,6 +114,50 @@ def test_zone_height_is_capped_at_height_cap_atr() -> None:
         df, [high_pivot], height_cap_atr=0.5, atr_period=ATR_PERIOD,
     )
     assert zones[0].high - zones[0].low == pytest.approx(1.0)  # 0.5 * ATR(2.0)
+
+
+def _regime_change_df() -> pd.DataFrame:
+    """İlk 15 bar YÜKSEK volatilite (high-low=20), son 15 bar DÜŞÜK
+    volatilite (high-low=2) -- ATR(period=3) 15 düşük-vol bardan sonra
+    ~2.0'a yakınsar (Wilder EMA, alpha=1/3, (2/3)^15≈0.002)."""
+    n = 30
+    idx = pd.date_range("2024-01-02 10:00", periods=n, freq="1D", tz=TZ)
+    high = [120.0] * 15 + [101.0] * 15
+    low = [100.0] * 15 + [99.0] * 15
+    return pd.DataFrame(
+        {"open": 100.0, "high": high, "low": low, "close": 100.0, "volume": 1000.0}, index=idx,
+    )
+
+
+def test_height_cap_uses_current_atr_not_historical_atr_at_pivot_time() -> None:
+    """GERÇEK hata (2026-09-05, INTEM 4H kullanıcı geri bildirimi): eskiden
+    tavan HER pivotun KENDİ (tarihsel) ATR'sine göre değerlendiriliyordu --
+    yüksek volatiliteli bir dönemde doğan iki pivot, O DÖNEMİN geniş
+    ATR'sine göre kolayca birleşip dev bir bölge üretebiliyordu, ama
+    GÜNÜMÜZÜN (df'in son barındaki) çok daha düşük ATR'sine göre bu
+    aynı bölge orantısız kalın kalıyordu. Artık tavan HER ZAMAN güncel
+    ATR'ye göre -- bu iki pivot ARTIK BİRLEŞMEMELİ (kümeleme toleransı da
+    güncel ATR'ye göre daraldı) ve HER BİRİNİN yüksekliği güncel ATR'ye
+    göre kelepçelenmeli."""
+    df = _regime_change_df()
+    idx = df.index
+    # İkisi de YÜKSEK volatilite döneminde (bar 3, 8) doğan, fiyatça 10
+    # puan ayrı iki HIGH pivot -- eski (tarihsel ATR~20) mantıkla kolayca
+    # birleşirdi (tol=0.5*20=10 >= gap), yeni (güncel ATR~2) mantıkla
+    # birleşmemeli (tol=0.5*2=1.0 < gap).
+    p1 = _pivot("high", 110.0, 3, 4, idx)
+    p2 = _pivot("high", 120.0, 8, 9, idx)
+
+    zones = find_pivot_zones(
+        df, [p1, p2], cluster_atr=0.5, height_cap_atr=2.75, atr_period=3,
+    )
+    supply = [z for z in zones if z.kind == "supply"]
+    assert len(supply) == 2, "yüksek-tarihsel-ATR ile birleşmemeli"
+
+    current_atr = float(atr(df, 3).iloc[-1])
+    assert current_atr < 5.0, "test varsayımı: ATR düşük-vol rejimine yakınsamış olmalı"
+    for z in supply:
+        assert (z.high - z.low) == pytest.approx(2.75 * current_atr, abs=1e-6)
 
 
 def test_pivots_before_atr_warmup_are_skipped() -> None:

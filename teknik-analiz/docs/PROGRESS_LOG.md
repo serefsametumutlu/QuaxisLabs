@@ -3742,3 +3742,45 @@ run'larda farklı bir "son" duruma sahipse ESKİ ara-durum satırları hep
 ölçülmedi ("chain_key" bazlı, yalnızca YENİ zincirlerin/durumların
 gerçek bir repaint anlamına geldiği bir metrik daha doğru olabilir).
 
+## 2026-09-05 (aynı gün) — `find_pivot_zones`'un yükseklik tavanı artık GÜNCEL ATR'ye göre (INTEM 4H "supply neden bu kadar kalın" bulgusu)
+
+Kullanıcı önceki turun düzeltmesini (kırılmış bölgeler kaldırıldı) TÜM
+EVRENE mi uygulandığını sordu (cevap: EVET -- düzeltme paylaşılan sahne
+KODUNDA, sembole özel bir yama DEĞİL, `structure.supply_demand`'ı
+render eden HERHANGİ bir sembol/zaman dilimi için geçerli; 6 rastgele
+ek sembolde [EREGL/SASA/TUPRS/PETKM/VESTL, ilk şikayet listesinde
+OLMAYAN] tarayıcıda GÖRÜLEREK doğrulandı) — AYRICA INTEM 4H'teki
+"SUPPLY / ARZ 246.50-271.08" bölgesinin neden bu kadar KALIN (24.6 puan,
+o anki fiyatın ~%10'u) göründüğünü sordu.
+
+**Kök neden bulundu:** `find_pivot_zones`/`_cluster_pivot_zones`'un
+`height_cap_atr` (2.75) tavanı HER pivotun/birleşmenin KENDİ zamanındaki
+(tarihsel) ATR'sine göre değerlendiriliyordu. INTEM 4H'te bu bölgeyi
+oluşturan pivotlar ATR'nin ~9-19 olduğu (aylar önce, yüksek volatilite
+dönemi) barlarda doğmuştu; GÜNÜMÜZÜN ATR'si yalnızca ~3.8 -- aynı bölge
+o ZAMANKİ standartlara göre "tavana uygun"du ama BUGÜNKÜ çok daha sakin
+fiyat hareketine göre orantısız kalın görünüyordu. Bu, THYAO'da daha
+önce bulunan "zincirleme kümelenme" hatasından (aynı dosyada, bir
+önceki entry) FARKLI bir kök neden -- o hata ZATEN düzeltilmişti, cap
+kontrolü ÇALIŞIYORDU, ama YANLIŞ (tarihsel) bir ATR referansına göre.
+
+**Düzeltme:** `find_pivot_zones` artık `current_atr` (df'in SON
+barındaki ATR) hesaplayıp bunu HEM tek-pivot yükseklik tavanına HEM
+`_cluster_pivot_zones`'un birleşme tavanına/yakınlık toleransına tek,
+TUTARLI bir referans olarak geçiriyor -- pivotun KENDİ (tarihsel)
+ATR'si yalnızca `avg_range`/`min_height_atr` TABANI için (o pivotun
+gerçek tepki mumlarının o anki büyüklüğü, hâlâ anlamlı bir bilgi)
+kullanılmaya devam ediyor. `_cluster_pivot_zones`'un imzası
+`atr_series: pd.Series` yerine `cap_atr_value: float` alacak şekilde
+basitleştirildi (tek bir sayı, seri değil).
+
+INTEM 4H'te ölçülen fark: aynı sembolün demand bölgesi (farklı bir
+kümeden, supply zaten bu düzeltmeyle "en yakın" seçimden düştü)
+eskiden mümkün olan ~24 puanlık genişlik yerine şimdi tam tavanda
+(2.75×3.84≈10.6 puan) duruyor -- spec'in kendi "yükseklik tavanı ~2.5-
+3.0 ATR" hedefiyle (`docs/GORSEL_HATA_TESHISI.md` A1) artık GERÇEKTEN
+tutarlı. 21/21 `zones_sd` testi yeşil kaldı (davranış değişikliği
+mevcut testleri kırmadı — hiçbiri birden fazla volatilite rejimi
+kapsayan bir senaryo kurmuyordu). Tam test paketi 889 yeşil DEĞİŞMEDİ,
+ruff TAM 19 baseline DEĞİŞMEDİ.
+

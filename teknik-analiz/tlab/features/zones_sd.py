@@ -272,11 +272,26 @@ def find_pivot_zones(
     havuzu" deseni -- df büyüdükçe yeni bir pivot bir önceki bölgeyi
     genişletebilir; `SupplyDemandIndicator` bu yüzden ZATEN generic
     `repaint_test` dışında (`register_verified_elsewhere`, bkz. modülün
-    kendi docstring'i), non-repaint hedefli testlerle doğrulanır."""
+    kendi docstring'i), non-repaint hedefli testlerle doğrulanır.
+
+    **GERÇEK bir hata bulunup düzeltildi (2026-09-05, INTEM 4H kullanıcı
+    geri bildirimi — "supply alanı niye bu kadar kalın").** `height_cap_
+    atr` tavanı eskiden HER pivotun/birleşmenin KENDİ zamanındaki (tarihsel)
+    ATR'siyle değerlendiriliyordu -- volatilitenin yüksek olduğu eski bir
+    dönemde oluşmuş bir bölge o zamanki geniş ATR'ye göre "tavana uygun"
+    kabul ediliyordu, ama GÜNÜMÜZÜN çok daha düşük volatilitesiyle
+    karşılaştırıldığında (INTEM'de ATR aylar önce ~9-19 iken şimdi ~3.8)
+    aynı bölge orantısız kalın görünüyordu. Düzeltme: tavan artık HER ZAMAN
+    df'in SON (güncel) barındaki ATR'ye göre değerlendirilir -- pivotun
+    KENDİ (tarihsel) ATR'si yalnızca `avg_range`/`min_height_atr` tabanı
+    için (o pivotun GERÇEK tepki mumlarının o anki büyüklüğü) kullanılmaya
+    devam eder, yalnızca ÜST SINIR güncel volatiliteye bağlandı."""
     n = len(df)
     atr_series = atr(df, atr_period)
     high = df["high"].to_numpy()
     low = df["low"].to_numpy()
+
+    current_atr = atr_series.dropna().iloc[-1] if atr_series.notna().any() else float("nan")
 
     raw: list[SDZone] = []
     for i, p in enumerate(pivots):
@@ -285,11 +300,12 @@ def find_pivot_zones(
         a = atr_series.iloc[p.confirmed_idx]
         if pd.isna(a) or a <= 0:
             continue
+        cap_atr = current_atr if not pd.isna(current_atr) and current_atr > 0 else a
 
         lo_ctx = max(0, p.bar_idx - ctx_bars + 1)
         ranges = [high[j] - low[j] for j in range(lo_ctx, p.bar_idx + 1)]
         avg_range = sum(ranges) / len(ranges) if ranges else a
-        height = min(max(avg_range, min_height_atr * a), height_cap_atr * a)
+        height = min(max(avg_range, min_height_atr * a), height_cap_atr * cap_atr)
 
         prev_price = pivots[i - 1].price if i > 0 else None
         leg = abs(p.price - prev_price) if prev_price is not None else height
@@ -309,11 +325,11 @@ def find_pivot_zones(
             )
         )
 
-    return _cluster_pivot_zones(raw, atr_series, cluster_atr, height_cap_atr)
+    return _cluster_pivot_zones(raw, current_atr, cluster_atr, height_cap_atr)
 
 
 def _cluster_pivot_zones(
-    zones: list[SDZone], atr_series: pd.Series, cluster_atr: float, height_cap_atr: float,
+    zones: list[SDZone], cap_atr_value: float, cluster_atr: float, height_cap_atr: float,
 ) -> list[SDZone]:
     """GERÇEK bir hata (2026-09-05, THYAO'da GÖRÜLEREK bulundu): art arda
     YAKIN pivotların ZİNCİRLEME birleşmesi (A~B, B~C, C~D — ama A ile D
@@ -323,16 +339,23 @@ def _cluster_pivot_zones(
     birleşme, SONUÇTAKİ yükseklik `height_cap_atr*ATR`i AŞACAKSA
     REDDEDİLİR (kümeye eklenmez, kendi ayrı kümesi olarak kalır) — `find_
     pivot_zones`'un tek-pivot yükseklik tavanıyla AYNI tavan, kümeleme
-    SONRASINDA da korunur."""
+    SONRASINDA da korunur.
+
+    `cap_atr_value`: `find_pivot_zones`'un GÜNCEL (df'in son barındaki)
+    ATR'si — GERÇEK bir hata (2026-09-05, INTEM 4H) düzeltmesi: eskiden
+    her birleşme KENDİ (tarihsel) ATR'sine göre kelepçeleniyordu, bu
+    yüzden yüksek volatiliteli eski bir dönemde oluşmuş bir küme, düşük
+    volatiliteli GÜNÜMÜZE göre orantısız kalın kalabiliyordu. Artık tavan
+    HER ZAMAN güncel ATR'ye göre — kümeleme yakınlık toleransı da (`tol`)
+    AYNI referansı kullanır (tutarlılık için)."""
+    cap_val = float(cap_atr_value) if not pd.isna(cap_atr_value) and cap_atr_value > 0 else 0.0
+    cap = height_cap_atr * cap_val if cap_val > 0 else float("inf")
+    tol = cluster_atr * cap_val
     result: list[SDZone] = []
     for kind in ("supply", "demand"):
         same = sorted((z for z in zones if z.kind == kind), key=lambda z: z.created_idx)
         clusters: list[SDZone] = []
         for z in same:
-            a = atr_series.iloc[z.created_idx]
-            a_val = float(a) if not pd.isna(a) else 0.0
-            tol = cluster_atr * a_val
-            cap = height_cap_atr * a_val if a_val > 0 else float("inf")
             merged = False
             for i, c in enumerate(clusters):
                 gap = max(z.low, c.low) - min(z.high, c.high)

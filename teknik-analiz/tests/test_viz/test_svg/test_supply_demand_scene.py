@@ -23,12 +23,7 @@ from tests.test_structure.test_supply_demand import _build_scenario, _compute
 from tlab.core.types import Box, IndicatorResult, Marker, Timeframe
 from tlab.testing.fixtures import make_trend
 from tlab.viz.svg import render_svg, supports
-from tlab.viz.svg.scenes.supply_demand import (
-    _nearest_open_zones,
-    _recent_broken_zones,
-    _window,
-    build,
-)
+from tlab.viz.svg.scenes.supply_demand import _nearest_open_zones, build
 from tlab.viz.svg.theme import CLASSIC, DARK, EDITORIAL
 
 
@@ -52,14 +47,6 @@ def test_nearest_open_zones_matches_last_state_not_all_open_boxes() -> None:
     assert zones[0].style == "supply"
     assert zones[0].low == pytest.approx(99.5)
     assert zones[0].high == pytest.approx(100.5)
-
-
-def test_recent_broken_zones_capped_and_sorted_by_latest_break() -> None:
-    result, df = _result()
-    window = _window(df)
-    broken = _recent_broken_zones(result, window)
-    assert len(broken) <= 2
-    assert all(bx.style == "demand_broken" for bx in broken)
 
 
 def test_out_of_range_zone_excluded_from_axis_and_output() -> None:
@@ -111,6 +98,43 @@ def test_render_svg_produces_well_formed_svg_in_all_three_themes(theme) -> None:
     svg_text = render_svg(result, df, theme=theme)
     assert svg_text.startswith("<svg")
     assert svg_text.strip().endswith("</svg>")
+
+
+def test_broken_zones_are_never_drawn_even_if_present_in_result() -> None:
+    """GERÇEK hata (2026-09-05, ASTOR/CGCAM/INTEM 4H/KCHOL kullanıcı geri
+    bildirimi): kırılmış bölgeler (özellikle `flip=True`nin ÜRETTİĞİ, AYNI
+    [low,high] ile karşıt türde yeni bir bölgeye dönüşen çiftler) grafiği
+    "her yerde alakasız kesikli çizgiler" hâline getiriyordu -- artık
+    `result.boxes`'ta kaç tane `*_broken` olursa olsun HİÇBİRİ çizilmez,
+    yalnızca `nearest_demand`/`nearest_supply` (en fazla 1+1) çizilir."""
+    df = make_trend(n=60, slope=0.0, noise=0.5, seed=11)
+    close = float(df["close"].iloc[-1])
+    open_demand = Box(
+        t0=df.index[5], t1=df.index[-1], low=close - 2.0, high=close - 1.0,
+        label="DEMAND (taze)", style="demand",
+    )
+    # AYNI [low,high] ile bir "kırılmış" supply -- flip mekanizmasının
+    # ürettiği türden bir çift (gerçek veride GÖZLEMLENDİ).
+    broken_supply = Box(
+        t0=df.index[0], t1=df.index[20], low=close - 2.0, high=close - 1.0,
+        label="SUPPLY (kırıldı)", style="supply_broken",
+    )
+    result = IndicatorResult(
+        indicator="structure.supply_demand", version="1", params_hash="x", symbol="TEST",
+        timeframe=Timeframe.D1,
+        boxes=[open_demand, broken_supply],
+        last_state={
+            "nearest_demand": {
+                "low": close - 2.0, "high": close - 1.0, "distance_atr": 0.1, "fresh": True,
+            },
+            "nearest_supply": None,
+        },
+    )
+    out = build(result, df, CLASSIC)
+    svg_text = out.panels[0].svg
+    assert "kırıldı" not in svg_text
+    assert "SUPPLY" not in svg_text
+    assert "DEMAND" in svg_text
 
 
 def test_build_returns_single_panel_without_side_or_two_up() -> None:

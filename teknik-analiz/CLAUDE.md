@@ -494,10 +494,33 @@ ewmac`'e K3'ün sabit forecast scalar tablosu (Tablo 49) `forecast_
 scalar_mode="fixed"` VARSAYILAN olarak entegre edildi (`"empirical"`
 eski davranışı korur, tabloda olmayan çiftler otomatik empirik'e
 düşer). 889 test yeşil (884→889), ruff TAM 19 DEĞİŞMEDİ. Detay:
-`docs/PROGRESS_LOG.md` 2026-09-05 girdileri. **Sırada:** Faz 5'in
-kalan maddeleri (B: breakouts skor dağılımı, D: price_structure
-performansı, E: alpha/momentum rank kalibrasyonu, F: pattern_context
-uygulaması) — HENÜZ BAŞLANMADI.
+`docs/PROGRESS_LOG.md` 2026-09-05 girdileri.
+
+**EK (aynı gün) — `structure.supply_demand`'da "kırılmış bölgeler"
+GÖRSEL OLARAK TAMAMEN KALDIRILDI.** Kullanıcı 4 sembolde (ASTOR/CGCAM/
+INTEM 4H/KCHOL) siteyi tek tek inceleyip önceki düzeltmenin YETERSİZ
+kaldığını bildirdi ("her yerde alakasız kesikli çizgiler", "INTEM 4H'te
+şok oldum"). Kök neden: `flip=True` mekanizması kırılan bir bölgeyi AYNI
+[low,high] ile karşıt türde yeni bir bölgeye dönüştürüyor — eski+yeni
+AYNI ANDA gösterilince neredeyse özdeş kutular üst üste biniyordu;
+AYRICA kırılmış bir bölgenin doğum-kırılma arası AYLAR sürebildiği için
+kesikli çerçeve pencerenin NEREDEYSE TAMAMINI kaplıyordu. Düzeltme:
+`_recent_broken_zones` TAMAMEN KALDIRILDI, sahne artık YALNIZCA
+`_nearest_open_zones` (en fazla 1 demand + 1 supply, güncel fiyata en
+yakın) çiziyor. 4 sembolde tarayıcıda GÖRÜLEREK doğrulandı, hepsi artık
+temiz. Detay: `docs/PROGRESS_LOG.md` 2026-09-05 girdisi.
+
+**Ayrıca:** `tlab eod --market bist` tamamlandı (648 sembol, 31096
+sonuç). `repaint_alarm: true` (1M+ "kaybolan" sinyal, bir önceki runa
+göre) — BEKLENEN: bu oturumda supply_demand/ewmac/five_zero'nun
+VARSAYILAN davranışları değişti, bu sinyal kümesini baştan değiştirdi
+(gerçek bir repaint hatası OLMASI BEKLENMİYOR ama TAM DOĞRULANMADI —
+ayrıntılı kırılım sorgulanıyor).
+
+**Sırada:** repaint_alarm bulgusunun doğrulanması, sonra Faz 5'in kalan
+maddeleri (B: breakouts skor dağılımı, D: price_structure performansı,
+E: alpha/momentum rank kalibrasyonu, F: pattern_context uygulaması) —
+HENÜZ BAŞLANMADI.
 
 ### Tamamlanan fazlar (özet)
 

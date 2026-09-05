@@ -3661,3 +3661,57 @@ tek sebep: ileride benzer büyük docstring düzenlemelerinde dosyanın
 TAMAMINI (yalnızca değişen kısmı değil) gözden geçirmek gerektiğinin
 hatırlatıcısı.
 
+## 2026-09-05 (aynı gün) — `structure.supply_demand`'da "kırılmış bölgeler" GÖRSEL OLARAK TAMAMEN KALDIRILDI
+
+Kullanıcı 4 SEMBOLDE (ASTOR 1D, CGCAM 1D, INTEM 4H, KCHOL 1D) siteyi
+tek tek inceleyip önceki turun düzeltmesinin YETERSİZ kaldığını bildirdi
+("hâlâ saçma çıkıyor", "her yerde alakasız kesikli çizgiler",
+"INTEM 4H'te şok oldum, tam bir rezalet", "hiçbiri hiçbirini
+tutmuyor... belli bir sistem olmalı"). 4 örneği tek tek inceleyip kök
+nedeni netleştirdim:
+
+- **INTEM 4H** — iki SUPPLY kutusu (246.50-271.08 ve 255.00-268.25) %90
+  ORANINDA ÇAKIŞAN aralıklarla ÜST ÜSTE çiziliyordu, biri "TEST EDİLDİ"
+  diğeri "kırıldı" — grafiğin YARISINI kaplayan tek bir kırmızı blok
+  gibi görünüyordu. Kök neden: `SupplyDemandIndicator`'ın `flip=True`
+  mekanizması kırılan bir bölgeyi AYNI [low,high] ile karşıt türde YENİ
+  bir bölgeye dönüştürüyor -- eski (kırılmış) VE yeni (flip) bölge AYNI
+  ANDA gösterilince neredeyse özdeş iki kutu üst üste biniyordu.
+- **ASTOR/CGCAM** — kırılmış bölgelerin `t0` (doğum) ile `t1` (kırılma)
+  arası AYLAR sürebiliyor, bu yüzden kesikli çerçeve pencerenin NEREDEYSE
+  TAMAMINI kaplayan (ör. Şubat'tan Eylül'e) dev bir dikdörtgen olarak
+  çiziliyordu -- "her yerde alakasız kesikli çizgiler" izlenimi TAM
+  OLARAK buradan geliyordu.
+
+Kullanıcının açık talebi netti: "eski demand supply kısımlarını görmek
+istemiyorum, anlık fiyata göre en yakın şekilde resmedilmeli."
+**Düzeltme: `_recent_broken_zones` fonksiyonu TAMAMEN KALDIRILDI** --
+sahne artık YALNIZCA `_nearest_open_zones` (güncel fiyata en yakın, hâlâ
+kırılmamış, en fazla 1 demand + 1 supply) çiziyor. Bu, önceki turların
+"kırılmış bölge de bilgilendirici olabilir" ilkesinden BİLİNÇLİ bir geri
+adım -- gerçek veride sistemik olarak okunaksız/çelişkili çıktığı 4
+BAĞIMSIZ örnekte GÖRÜLEREK doğrulandı. YENİ regresyon testi (`test_
+broken_zones_are_never_drawn_even_if_present_in_result`) `result.boxes`'ta
+kaç tane `*_broken` olursa olsun HİÇBİRİNİN çizilmediğini kilitliyor.
+
+Tüm 4 semboldeki düzeltme tarayıcıda GÖRÜLEREK doğrulandı (`docs/design/
+iterasyon/check2_{astor,cgcam,intem4h,kchol}.png`) -- her biri artık
+temiz: en fazla 1 supply + 1 demand, güncel fiyata yakın, çakışma yok.
+889 test yeşil (bir eski test kaldırıldı, bir yeni eklendi -- net
+sayı DEĞİŞMEDİ), ruff TAM 19 (baseline DEĞİŞMEDİ).
+
+**Aynı oturumda:** `tlab eod --market bist` tamamlandı (648 sembol,
+31096 sonuç, 1200 hata [çoğunlukla delisted semboller/veri kalitesi],
+Cuma 2026-09-04 kapanışını içeriyor). **DİKKAT — `repaint_alarm: true`,
+1.011.441 "kaybolan" sinyal** (bir önceki run olan `bist_2026-09-02`ye
+göre) -- bu SAYI YÜKSEK ama BEKLENEN: aynı oturumda `SupplyDemandParams.
+method` varsayılanı (rbd→pivot), `EwmacParams.forecast_scalar_mode`
+varsayılanı (empirical→fixed) ve `FiveZeroSchool.c_beyond_a_required`
+DEĞİŞTİ -- bu üç göstergenin ÜRETTİĞİ sinyal kümesi baştan aşağı
+değişti, bu yüzden ESKİ koda ait TÜM eski sinyaller "kayboldu" sayılıyor
+(gerçek bir lookahead/repaint hatası DEĞİL, kasıtlı varsayılan
+değişikliklerinin doğal sonucu). **HENÜZ TAM DOĞRULANMADI** -- ayrıntılı
+gösterge-bazlı kırılım (`ResultsStore.diff()`'in `missing_signals`
+listesi gerçekten yalnızca bu 3 göstergeye mi ait) sorgulanıyor, sonuç
+gelince bu girdiye EK yapılacak.
+

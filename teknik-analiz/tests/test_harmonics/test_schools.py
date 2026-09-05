@@ -162,13 +162,31 @@ def test_navarro200_rejects_wrong_d_target() -> None:
 
 
 def test_five_zero_matches() -> None:
-    cand = make_candidate(100.0, 112.0, 91.6, 50.8, zero=90.0)
+    # C=132.4 (A=112'yi AŞIYOR, c_beyond_a=True) -- Faz 5 düzeltmesi (bkz.
+    # five_zero.py modül docstring'i): C, A ile B arasında kalsaydı BC<=AB
+    # olmak zorunda kalır, CD=0.5*BC hiçbir zaman AB'ye (`_post_prz_match`
+    # şartı) ulaşamazdı. Eski test değeri (50.8, c_beyond_a=False) TAM DA
+    # bu imkansız kombinasyonu taşıyordu -- kendisi hiç eşleşmiyordu ama
+    # `c_beyond_a_required` varsayılanı (False) sınandığı için fark edilmemişti.
+    cand = make_candidate(100.0, 112.0, 91.6, 132.4, zero=90.0)
     matches = FiveZeroSchool().match(cand)
     assert {m.spec.name for m in matches} == {"five_zero"}
 
 
 def test_five_zero_requires_zero_point() -> None:
-    cand = make_candidate(100.0, 112.0, 91.6, 50.8)  # zero yok
+    cand = make_candidate(100.0, 112.0, 91.6, 132.4)  # zero yok
+    assert FiveZeroSchool().match(cand) == []
+
+
+def test_five_zero_rejects_c_within_ab_range() -> None:
+    """GERÇEK hata regresyonu (Faz 5, 2026-09-05): C, A'yı AŞMADAN (A ile B
+    arasında) kalırsa -- eski varsayılan davranış -- CD=0.5*BC HİÇBİR ZAMAN
+    AB'ye ulaşamaz (BC<=AB olmak zorunda), bu yüzden gerçek veride BU
+    kombinasyon asla eşleşmiyordu (622 sembollük BIST taramasında sıfır
+    aday). C=50.8 (c_beyond_a=False, AYNI diğer tüm oranlar) artık
+    AÇIKÇA reddedilmeli."""
+    cand = make_candidate(100.0, 112.0, 91.6, 50.8, zero=90.0)
+    assert cand.c_beyond_a is False
     assert FiveZeroSchool().match(cand) == []
 
 

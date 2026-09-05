@@ -4,7 +4,22 @@ ile aynı formül, standart xab alanı üzerinden kontrol edilir). D = BC'nin
 tam %50 geri çekilmesi. Ek: CD ≈ AB (post-prz). Yapısal trend dönüş teyidi
 (label_structure kırılımı) bilinçli olarak KAPSAM DIŞI bırakıldı — bu,
 scanner_indicator.py seviyesinde ayrı bir zigzag etiketleme geçişi
-gerektirir; ilk sürümde yalnızca oran kuralları uygulanır."""
+gerektirir; ilk sürümde yalnızca oran kuralları uygulanır.
+
+**GERÇEK bir hata bulunup düzeltildi (Faz 5, 2026-09-05):** CLAUDE.md'de
+belgelenen "harmonic.five_zero 622 sembollük TAM BIST evreninde HİÇBİR
+aday bulamadı" bulgusunun kök nedeni — `c_beyond_a_required` VARSAYILAN
+(`False`) bırakılmıştı. Bu, D = C + 0.5*(B-C) (bc_ret, B'ye doğru %50
+geri çekilme) formülüyle BİRLİKTE MATEMATİKSEL OLARAK İMKANSIZ bir
+kombinasyon üretiyordu: C, A ile B arasında (A'yı AŞMADAN) kalmaya
+zorlanınca BC <= AB olmak ZORUNDA kalıyor, bu yüzden CD = 0.5*BC HER
+ZAMAN AB'nin en fazla YARISI kadar olabiliyordu — ama `_post_prz_match`
+CD ≈ AB (±%5) istiyordu. Yani `c_beyond_a_required=False` iken CD=AB
+şartı HİÇBİR fiyat serisinde sağlanamazdı (kanıt: elle kurulmuş bir
+sentetik 5-0 adayıyla doğrulandı — `c_beyond_a_required=True` yapılınca
+AYNI aday eşleşti, `False` iken asla eşleşmedi). Düzeltme:
+`c_beyond_a_required=True` — C, A'yı AŞAR (BC yeterince büyüyebilir,
+CD=0.5*BC artık AB'ye ulaşabilir)."""
 
 from __future__ import annotations
 
@@ -26,6 +41,7 @@ class FiveZeroSchool(HarmonicSchool):
                 name="five_zero", xab=(1.618, 2.24), abc=None,
                 d_components=(("bc_ret", 0.5 - _TOL, 0.5 + _TOL),),
                 prz_method="single_pm_tol", requires_zero=True, b_beyond_x_required=True,
+                c_beyond_a_required=True,
                 invalidation=("bc_ret", 1.0),
             ),
         }

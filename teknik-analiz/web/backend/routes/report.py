@@ -18,7 +18,15 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 
-from tlab.viz.live import STRUCTURE_REPORT_NAME, compute_live, compute_structure_report
+from tlab.viz.live import (
+    MARKET_STRUCTURE_NAME,
+    REVERSAL_MAP_NAME,
+    STRUCTURE_REPORT_NAME,
+    compute_live,
+    compute_market_structure_merged,
+    compute_reversal_map,
+    compute_structure_report,
+)
 from tlab.viz.quant_report import (
     generate_indicator_report,
     generate_pair_report,
@@ -53,6 +61,19 @@ def get_report(symbol: str, tf: str, indicator: str, market: str = "bist") -> di
         if indicator == STRUCTURE_REPORT_NAME:
             ps_result, sf_result, df = compute_structure_report(symbol, tf, market)
             report = generate_quant_report(ps_result, sf_result, df, symbol=symbol, model=model)
+        elif indicator == MARKET_STRUCTURE_NAME:
+            # Faz 4d'nin YENİ sentetik sahnesi -- CATALOG'ta yok, `compute_
+            # live` bu yüzden "Bilinmeyen indikatör" fırlatırdı (kullanıcı
+            # geri bildirimiyle bulundu). `structure.report`in DIŞINDAKİ
+            # göstergelerle AYNI genel yol yeterli (özel bir olgu-çıkarıcı
+            # GEREKMİYOR, `build_generic_summary_lines` zaten Level/Line/
+            # Box/Marker'dan dürüst/genel olgular üretiyor).
+            result, df = compute_market_structure_merged(symbol, tf, market)
+            report = generate_indicator_report(result, df, symbol=symbol, model=model)
+        elif indicator == REVERSAL_MAP_NAME:
+            # AYNI boşluk, AYNI düzeltme -- `confluence` de CATALOG'ta yok.
+            result, df = compute_reversal_map(symbol, tf, market)
+            report = generate_indicator_report(result, df, symbol=symbol, model=model)
         else:
             result, df = compute_live(indicator, symbol, tf, market)
             if df is None:

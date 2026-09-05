@@ -3529,3 +3529,73 @@ temiz.
 sıradaki adıma geç" talimatıyla başladı, `harmonic.five_zero`nun kök
 nedeni araştırılıyor (aşağıya bkz., DEVAM EDİYOR).
 
+## 2026-09-05 (aynı gün) — Faz 5 madde A: `harmonic.five_zero` kök nedeni bulundu ve düzeltildi + kullanıcının 3 canlı site bulgusu düzeltildi
+
+**A) `harmonic.five_zero` (Faz 5, denetim maddesi A) — GERÇEK kök neden
+matematiksel olarak KANITLANDI.** `FiveZeroSchool`'un `PatternSpec`'i
+`c_beyond_a_required`i VARSAYILAN (`False`) bırakmıştı — bu, D=C+0.5*(B-C)
+("bc_ret", B'ye %50 geri çekilme) formülüyle BİRLİKTE matematiksel olarak
+İMKANSIZ bir kombinasyon üretiyordu: C, A'yı AŞMADAN (A ile B arasında)
+kalmaya zorlanınca BC her zaman <= AB olmak zorunda kalıyor, bu yüzden
+CD=0.5*BC HİÇBİR ZAMAN AB'ye (± %5, `_post_prz_match`'in "CD≈AB" şartı)
+ulaşamıyordu — CD, AB'nin en fazla YARISI olabiliyordu. Kanıt: elle
+kurulmuş bir sentetik 5-0 adayı (`0=90,X=100,A=88,B=108.4,C=98.2`,
+c_beyond_a=False) `FiveZeroSchool().match()`te HİÇ eşleşmedi;
+`c_beyond_a_required=True` yapılıp C'yi A'yı aşacak şekilde ayarlayınca
+(`C=67.6`) AYNI kod AYNI adayı buldu (score 0.366). **Düzeltme:**
+`c_beyond_a_required=True` eklendi. **Gerçek veriyle doğrulama:** 80
+BIST sembollük bir örneklemde (1D) düzeltmeden ÖNCE sıfır, SONRA
+ALCAR'da 3 gerçek sinyal (pending→active→confirmed doğru non-repaint
+zinciriyle) bulundu — CLAUDE.md'nin "622 sembolde sıfır aday" bulgusunun
+kök nedeni buydu. `tests/test_harmonics/test_schools.py::test_five_zero_
+matches` eski (artık geçersiz) C değeriyle güncellendi + YENİ `test_five_
+zero_rejects_c_within_ab_range` regresyon testi (eski/hatalı geometrinin
+artık AÇIKÇA reddedildiğini kilitler). 52/52 harmonik testi yeşil.
+
+**Kullanıcının site üzerinde canlı bulduğu 3 ayrı gerçek hata (Faz 5'in
+ortasında, mesaj arası):**
+
+1. **AI raporu `structure.market_structure` için "Bilinmeyen indikatör"
+   hatası veriyordu** — `web/backend/routes/report.py`'nin dispatch'i
+   yalnızca `STRUCTURE_REPORT_NAME`i özel işliyordu, diğer HERHANGİ bir
+   isim `compute_live()`e (CATALOG-only) düşüyordu; `structure.market_
+   structure`/`confluence` CATALOG'ta olmadığı için patlıyordu. Düzeltme:
+   `MARKET_STRUCTURE_NAME`/`REVERSAL_MAP_NAME` için de `compute_market_
+   structure_merged`/`compute_reversal_map` + `generate_indicator_report`
+   (genel yol, özel bir olgu-çıkarıcı GEREKMEDİ) eklendi. Gerçek Gemini
+   çağrısıyla (`used_ai=true`) uçtan uca doğrulandı.
+
+2. **CWENE 1D `structure.supply_demand`'da iki bölge etiketi ÜST ÜSTE
+   BİNİYORDU** ("DEMAND / TALEP" okunamaz hâle geliyordu) — Faz 4d'nin
+   "etiketleri sağ kenar boşluğuna taşı" değişikliği (bkz. yukarıdaki
+   girdi) yalnızca KONUMU değiştirmişti, birden fazla bölgenin fiyatça
+   yakın olduğu durumda ÇAKIŞMAYI ÇÖZMÜYORDU. Düzeltme: zone etiketleri
+   artık swing/BOS-CHoCH etiketleriyle AYNI `resolve_collisions` havuzuna
+   alındı (`LabelBox.id` ile orijinal metne geri eşleniyor — `resolve_
+   collisions`'ın döndürdüğü sıra girdi sırasıyla AYNI DEĞİL, bu ilk
+   denemede unutulup `IndexError` yerine YANLIŞ eşleşmeye yol açıyordu,
+   `id` alanıyla düzeltildi).
+
+3. **Kullanıcı grafikteki sarı/gri daireleri anlamadı** — `sd_reaction`
+   (gold, "REAKSİYON") / `sd_broken` (gri, "KIRILDI") işaretleri YALNIZCA
+   boş bir çember çiziyordu, hiç METİN taşımıyordu (Faz 4a'dan beri var
+   olan, hiç fark edilmemiş bir netlik eksikliği). Düzeltme: her iki
+   marker türüne de kısa Türkçe metin eklendi.
+
+Web entegrasyon testleri (`tests/test_viz/test_svg/test_supply_demand_
+scene.py` 9/9) yeşil kaldı, `pytest -q -m "not network"` 885 yeşil
+(884→885), ruff TAM 19 (baseline DEĞİŞMEDİ). Tüm 3 site bulgusu
+tarayıcıda (`claude-in-chrome`, gerçek backend+frontend local çalışırken)
+GÖRÜLEREK doğrulandı.
+
+**Ayrıca kullanıcı isteğiyle:** `tlab eod --market bist` arka planda
+başlatıldı (Cuma 2026-09-04 kapanışını içeren güncel veriyle tam 648
+sembollük evren taraması — veri güncelleme + tüm indikatörler + kayıt).
+Uzun sürebileceği için arka planda bırakıldı, tamamlanınca ayrıca not
+düşülecek.
+
+**Sırada:** Faz 5'in kalan maddeleri (B: trend.breakouts skor dağılımı,
+C: ewmac sabit forecast tablosu, D: price_structure O(n²) optimizasyonu,
+E: alpha_rank/momentum_rank likidite+normalizasyon, F: wedge/triangle/
+flag_pennant'a pattern_context uygulanması) — HENÜZ BAŞLANMADI.
+

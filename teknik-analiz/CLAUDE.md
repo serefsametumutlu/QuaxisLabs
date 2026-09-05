@@ -454,9 +454,33 @@ HİÇ `zoom` vermeden (native ~700-820px) rasterleştirmesiydi, frontend'in
 YOKTU. Düzeltme: `zoom=3.0` (native ~2460px'e çıktı, tarayıcıda piksel
 düzeyinde doğrulandı). `scripts/render_svg_scene.py`ye de aynı zoom
 eklendi. Test etkisi yok (bu iki dosya test edilmiyor), 884 test yeşil
-DEĞİŞMEDİ. Detay: `docs/PROGRESS_LOG.md` 2026-09-05 girdisi. **Sırada:**
-Faz 5 (kalan stratejilerin denetimi) başladı, `harmonic.five_zero`nun
-kök nedeni araştırılıyor — DEVAM EDİYOR.
+DEĞİŞMEDİ. Detay: `docs/PROGRESS_LOG.md` 2026-09-05 girdisi.
+
+**EK (aynı gün) — Faz 5 madde A: `harmonic.five_zero` kök nedeni
+BULUNDU VE DÜZELTİLDİ (CLAUDE.md'nin eski "622 sembolde sıfır aday,
+kök neden araştırılmadı" notu KAPANDI).** `FiveZeroSchool`'un
+`c_beyond_a_required`i varsayılan (`False`) bırakılmıştı — bu,
+D=C+0.5*(B-C) formülüyle birlikte MATEMATİKSEL OLARAK İMKANSIZ bir
+kombinasyondu (C, A'yı aşmadan kalınca CD=0.5*BC hiçbir zaman AB'ye
+ulaşamıyordu, `_post_prz_match`'in CD≈AB şartı asla sağlanamıyordu) —
+elle kurulmuş bir sentetik adayla KANITLANDI. Düzeltme: `c_beyond_a_
+required=True`. Gerçek veride doğrulandı: 80 sembollük örneklemde
+düzeltmeden önce sıfır, sonra ALCAR'da 3 gerçek (pending→active→
+confirmed) sinyal bulundu. **Aynı oturumda kullanıcının site üzerinde
+canlı bulduğu 3 ayrı gerçek hata da düzeltildi:** (1) AI raporu
+`structure.market_structure`/`confluence` için "Bilinmeyen indikatör"
+veriyordu (`report.py`ye bu iki sentetik isim için de dispatch eklendi);
+(2) CWENE 1D `structure.supply_demand`'da iki bölge etiketi üst üste
+biniyordu (zone etiketleri `resolve_collisions` havuzuna alındı); (3)
+grafikteki sarı/gri daireler (REAKSİYON/KIRILDI) hiç metin taşımıyordu,
+kullanıcı ne olduğunu anlayamadı (metin eklendi). 885 test yeşil
+(884→885), ruff/lint baseline'ları DEĞİŞMEDİ. Detay: `docs/PROGRESS_
+LOG.md` 2026-09-05 girdisi. **Ayrıca kullanıcı isteğiyle `tlab eod
+--market bist` arka planda başlatıldı** (Cuma 2026-09-04 kapanışını
+içeren güncel veriyle tam evren taraması) — SÜRÜYOR, tamamlanınca not
+düşülecek. **Sırada:** Faz 5'in kalan maddeleri (B-F: breakouts/ewmac/
+price_structure perf/alpha-momentum rank/pattern_context) — HENÜZ
+BAŞLANMADI.
 
 ### Tamamlanan fazlar (özet)
 

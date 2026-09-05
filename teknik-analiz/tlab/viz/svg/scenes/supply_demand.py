@@ -27,9 +27,10 @@ from __future__ import annotations
 import pandas as pd
 
 from tlab.core.types import Box, IndicatorResult
-from tlab.viz.svg.axes import price_labels, right_label, x_labels
+from tlab.viz.svg.axes import price_labels, x_labels
 from tlab.viz.svg.candles import draw_candles
-from tlab.viz.svg.prim import svg_circle, svg_line, svg_rect
+from tlab.viz.svg.layout import LabelBox, resolve_collisions
+from tlab.viz.svg.prim import svg_circle, svg_line, svg_rect, svg_text
 from tlab.viz.svg.scale import Chart, bar_index, pad_range
 from tlab.viz.svg.scenes.base import PanelOut, SceneOut
 from tlab.viz.svg.theme import SVGTheme
@@ -44,6 +45,11 @@ _MARGIN_R = 110.0  # Faz 4d (2026-09-05): eskiden 14 -- etiketler ÇİZİM
 # taşındı.
 
 _MARKER_COLOR = {"sd_reaction": "accent", "sd_broken": "text_muted"}
+# 2026-09-05, kullanıcı geri bildirimi: "grafikte sarı ve gri daireler ne
+# anlama geliyor anlamadım" -- daireler METİNSİZDİ (yalnızca çember),
+# artık her birinin yanında kısa bir etiket var.
+_MARKER_TEXT = {"sd_reaction": "REAKSİYON", "sd_broken": "KIRILDI"}
+_LABEL_W, _LABEL_H = 132.0, 24.0
 
 
 def _window(df: pd.DataFrame) -> pd.DataFrame:
@@ -134,6 +140,13 @@ def build(result: IndicatorResult, df: pd.DataFrame, theme: SVGTheme) -> SceneOu
     s += draw_candles(window, chart, theme)
 
     zone_spans: list[tuple[pd.Timestamp, pd.Timestamp]] = []
+    # 2026-09-05, kullanıcı geri bildirimi (CWENE 1D): birden fazla bölgenin
+    # sağ-kenar etiketi fiyatça yakınsa AYNI konuma denk gelip üst üste
+    # BİNİYORDU ("DEMAND / TALEP" okunamaz hâle geliyordu) -- artık swing/
+    # BOS-CHoCH etiketleriyle AYNI `resolve_collisions` havuzuna alınıyor.
+    label_boxes: list[LabelBox] = []
+    label_meta: list[tuple[str, str, str]] = []  # (line1, line2, color)
+    label_anchor_x = chart.inner_x1 + 10 + _LABEL_W / 2
 
     for bx in broken_zones:
         color = theme.demand if bx.style == "demand_broken" else theme.supply
@@ -144,13 +157,15 @@ def build(result: IndicatorResult, df: pd.DataFrame, theme: SVGTheme) -> SceneOu
             x0, y1, max(x1 - x0, 2), y0 - y1,
             fill="none", stroke=color, stroke_width=1, dash="3,2", opacity=0.55,
         )
-        mid_y = (y0 + y1) / 2
         kind_tr = "DEMAND / TALEP" if bx.style == "demand_broken" else "SUPPLY / ARZ"
-        s += right_label(chart, mid_y - 6, kind_tr, theme, fill=color, size=8.5, weight=700)
-        s += right_label(
-            chart, mid_y + 6, f"{bx.low:.2f}-{bx.high:.2f} · kırıldı", theme,
-            fill=theme.text_muted, size=7.5,
+        label_boxes.append(
+            LabelBox(
+                anchor_x=label_anchor_x, anchor_y=(y0 + y1) / 2, w=_LABEL_W, h=_LABEL_H,
+                text=kind_tr, priority=1, placement_hints=("below", "above"),
+                id=str(len(label_meta)),
+            )
         )
+        label_meta.append((kind_tr, f"{bx.low:.2f}-{bx.high:.2f} · kırıldı", color))
         zone_spans.append((bx.t0, bx.t1))
 
     for bx in open_zones:
@@ -168,16 +183,31 @@ def build(result: IndicatorResult, df: pd.DataFrame, theme: SVGTheme) -> SceneOu
         # (`market_structure.py`nin AYNI kararı, bkz. o dosyanın docstring'i).
         kind_tr = "TALEP" if bx.style == "demand" else "ARZ"
         fresh_tr = "TAZE" if "taze" in bx.label else "TEST EDİLDİ"
-        mid_y = (y0 + y1) / 2
-        s += right_label(
-            chart, mid_y - 6, f"{'DEMAND' if bx.style == 'demand' else 'SUPPLY'} / {kind_tr}",
-            theme, fill=color, size=9, weight=700,
+        label_boxes.append(
+            LabelBox(
+                anchor_x=label_anchor_x, anchor_y=(y0 + y1) / 2, w=_LABEL_W, h=_LABEL_H,
+                text=kind_tr, priority=2,  # açık bölgeler kırılmışlardan ÖNCE yerleşir
+                placement_hints=("below", "above"), id=str(len(label_meta)),
+            )
         )
-        s += right_label(
-            chart, mid_y + 6, f"{bx.low:.2f} - {bx.high:.2f} · {fresh_tr}", theme,
-            fill=theme.text_muted, size=8,
-        )
+        label_meta.append((
+            f"{'DEMAND' if bx.style == 'demand' else 'SUPPLY'} / {kind_tr}",
+            f"{bx.low:.2f} - {bx.high:.2f} · {fresh_tr}", color,
+        ))
         zone_spans.append((bx.t0, bx.t1))
+
+    label_bounds = (
+        chart.inner_x1 + 4, chart.inner_y0, _LABEL_W + 10, chart.inner_y1 - chart.inner_y0,
+    )
+    collision = resolve_collisions(label_boxes, bounds=label_bounds)
+    for placed in collision.placed:
+        line1, line2, color = label_meta[int(placed.box.id)]
+        s += svg_text(
+            placed.x, placed.y + 10, line1, fill=color, size=8.5, weight=700, anchor="start",
+        )
+        s += svg_text(
+            placed.x, placed.y + 22, line2, fill=theme.text_muted, size=7.5, anchor="start",
+        )
 
     # Yalnızca ÇİZİLEN bölgelerin zaman aralığına düşen işaretler gösterilir
     # -- 1. iterasyonda "yetim" işaretler (hangi bölgeye ait olduğu belirsiz,
@@ -191,6 +221,10 @@ def build(result: IndicatorResult, df: pd.DataFrame, theme: SVGTheme) -> SceneOu
         x, y = chart.x(bar_index(window, m.t)), chart.y(m.price)
         color = getattr(theme, _MARKER_COLOR[m.kind])
         s += svg_circle(x, y, 4, fill="none", stroke=color, stroke_width=2)
+        s += svg_text(
+            x + 7, y + 3, _MARKER_TEXT[m.kind], fill=color, size=8, weight=600,
+            family=theme.font_body,
+        )
 
     return SceneOut(
         title=f"{result.symbol} — Arz-Talep Bölgeleri",

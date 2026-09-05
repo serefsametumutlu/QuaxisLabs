@@ -58,7 +58,9 @@ def render_one(indicator: str, symbol: str, tf_label: str, theme: str, tag: str)
     scene_tag = indicator.split(".")[-1]
     svg_path = OUT_DIR / f"{tag}_{scene_tag}_{symbol}_{tf_label}_{theme}.svg"
     svg_path.write_text(svg_text, encoding="utf-8")
-    png_bytes = resvg_py.svg_to_bytes(svg_string=svg_text)
+    # chart_png.py ile AYNI zoom (2026-09-05 netlik düzeltmesi) -- iterasyon
+    # PNG'leri de sitede GERÇEKTEN görüneceği çözünürlükte üretilsin.
+    png_bytes = resvg_py.svg_to_bytes(svg_string=svg_text, zoom=3.0)
     png_path = OUT_DIR / f"{tag}_{scene_tag}_{symbol}_{tf_label}_{theme}.png"
     png_path.write_bytes(bytes(png_bytes))
     print(f"wrote {png_path}")

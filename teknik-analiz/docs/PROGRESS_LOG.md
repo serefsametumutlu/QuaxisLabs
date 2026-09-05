@@ -3472,3 +3472,60 @@ kalıyor.
 kapısı — Adım 8.5). Ardından Faz 5 (kalan stratejilerin denetimi, A1/
 A2 dahil), henüz BAŞLANMADI.
 
+## 2026-09-05 (aynı gün) — Kullanıcı Adım 8.5'i onayladı + web entegrasyonu + GERÇEK bir netlik hatası bulunup düzeltildi
+
+Kullanıcı `structure.market_structure` görsellerini onayladı ("güzel
+görünüyor") ve web'e entegre edilip edilmediğini sordu.
+
+**Web entegrasyonu:** `web/backend/routes/chart_png.py`/`chart_svg.py`
+zaten `render_live(engine="svg")`'i JENERİK çağırıyordu — Faz 4d'nin
+`render_live` içine eklediği `MARKET_STRUCTURE_NAME` dispatch'i sayesinde
+backend'de HİÇBİR değişiklik GEREKMEDİ. Eksik olan tek şey frontend'in
+gösterge seçici dropdown'ıydı (`web/frontend/app/chart/page.tsx`) —
+`structure.report`nin AYNI "sentetik isim elle eklenir" deseniyle
+`{ name: "structure.market_structure", display_name: "Piyasa Yapısı
+(SMC)" }` + `MARKET_STRUCTURE_SUPPORTED_TF=["1D","4H"]` eklendi. `tlab
+list-indicators`/`/api/catalog` bunu ZATEN göstermiyor olacak (sentetik
+isim, CATALOG'ta yok) — bu, `confluence`nin de PAYLAŞTIĞI, ayrı bir
+takip gerektiren bilinen bir boşluk (kayıt için not edildi, bu oturumda
+DOKUNULMADI).
+
+Backend (`uvicorn --port 8000 --reload`) + frontend (`npm run dev`,
+port 3000) local'de başlatılıp gerçek tarayıcıda (`claude-in-chrome`)
+`structure.market_structure` uçtan uca doğrulandı — dropdown'da görünüyor,
+seçilince THYAO 1D grafiği doğru render ediyor.
+
+**GERÇEK bir hata bu doğrulama sırasında kullanıcı geri bildirimiyle
+bulundu:** kullanıcı TOBO.png/`intem_cnali.png` (TradingView'ın KENDİ
+ekran görüntüleri) referans gösterip sitedeki TÜM grafiklerin (ay/fiyat
+etiketleri özellikle) bulanık, "onlarca kez ekran görüntüsü alınıp
+kalitesi bozulmuş bir fotoğraf gibi" göründüğünü bildirdi. Kök neden:
+`web/backend/routes/chart_png.py` SVG sahnelerini `resvg_py.svg_to_
+bytes(svg_string=fig)` ile HİÇ `zoom` PARAMETRESİ VERMEDEN rasterleştiriyordu
+— sahneler ~700-820px NATIVE genişlikte üretiliyor (`tlab/viz/svg/scenes/
+*.py`'nin kendi `_W`/`_H` sabitleri), ama frontend'in `<img className=
+"w-full">`si bunu panel genişliğine (tipik 900-1400+ CSS piksel, Retina/
+HiDPI ekranda 2x DEVICE piksel) GERİYORDU — sistemli bir upsampling
+bulanıklığı. Eski Plotly yolu (`fig.to_image(format="png", scale=2)`)
+zaten 2x render ediyordu, SVG yolunda BUNUN KARŞILIĞI HİÇ YOKTU (K1/K2/K3
+Faz 3.5'te renderer.py'nin İÇİNİ düzeltmişti ama rasterleştirme
+ÇÖZÜNÜRLÜĞÜNE hiç bakılmamıştı — ayrı bir kategori hata). **Düzeltme:**
+`resvg_py.svg_to_bytes(svg_string=fig, zoom=3.0)` — native genişliği
+~2100-2460px'e çıkarıyor (820px'lik `market_structure` sahnesi için
+2460px, ölçüldü). `scripts/render_svg_scene.py`ye de AYNI zoom eklendi
+(iterasyon PNG'leri sitede GERÇEKTEN görüneceği çözünürlükte üretilsin).
+Tarayıcıda ÖNCE/SONRA karşılaştırıldı (zoom metnini piksel düzeyinde
+inceleyerek) — "SUPPLY / ARZ" etiketi artık net, TradingView'a yakın
+kalite. Uvicorn'un `--reload`'ı bu değişikliği YİNE almadı (bu projenin
+ÜÇÜNCÜ+ kez tekrarlanan bilinen WatchFiles sorunu) — süreç elle yeniden
+başlatılarak doğrulandı.
+
+Test etkisi yok (`resvg_py.svg_to_bytes` hiçbir testte doğrudan
+çağrılmıyor, yalnızca bu iki dosyada kullanılıyor); `pytest -q -m "not
+network"` 884 yeşil (değişmedi), ruff temiz, frontend `tsc --noEmit`
+temiz.
+
+**Sırada:** Faz 5 (kalan stratejilerin denetimi) — kullanıcının "sen
+sıradaki adıma geç" talimatıyla başladı, `harmonic.five_zero`nun kök
+nedeni araştırılıyor (aşağıya bkz., DEVAM EDİYOR).
+

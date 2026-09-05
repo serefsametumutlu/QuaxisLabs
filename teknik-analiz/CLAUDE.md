@@ -437,9 +437,26 @@ ruff (19)/mypy (3)/lint_lookahead (6) baseline'ları DEĞİŞMEDİ (hepsi
 `report.py`nin mevcut deseni BİLİNÇLİ dokunulmadı (spec'in "üç sahnede"
 kriteri tam karşılanmadı). A1/A2 (golden_zone swing seçimi + fib
 merdiveni) Faz 5'e bırakıldı, HENÜZ YAPILMADI. Detay: `docs/PROGRESS_
-LOG.md` 2026-09-05 girdisi. **Sırada: kullanıcının `structure.market_
-structure`'ı `ornek1.png` ile karşılaştırması (Adım 8.5 onay kapısı),
-sonra Faz 5 — henüz BAŞLANMADI.**
+LOG.md` 2026-09-05 girdisi.
+
+**EK (aynı gün) — kullanıcı Adım 8.5'i onayladı, web entegrasyonu +
+GERÇEK bir netlik hatası bulunup düzeltildi.** Backend zaten jenerikti
+(`render_live(engine="svg")`), yalnızca frontend dropdown'ına (`web/
+frontend/app/chart/page.tsx`) `structure.market_structure` sentetik
+girdisi eklendi (`structure.report`nin AYNI deseni). Local'de (uvicorn
+:8000 + next dev :3000) uçtan uca doğrulandı. **GERÇEK hata:** kullanıcı
+TradingView ekran görüntüleriyle (TOBO.png/intem_cnali.png) kıyaslayıp
+sitedeki TÜM grafiklerin bulanık olduğunu bildirdi — kök neden `web/
+backend/routes/chart_png.py`nin SVG sahnelerini `resvg_py.svg_to_bytes`e
+HİÇ `zoom` vermeden (native ~700-820px) rasterleştirmesiydi, frontend'in
+`<img class="w-full">`si bunu panel genişliğine (Retina'da 2x) GERİYORDU
+— eski Plotly yolu zaten `scale=2` kullanıyordu, SVG yolunda karşılığı
+YOKTU. Düzeltme: `zoom=3.0` (native ~2460px'e çıktı, tarayıcıda piksel
+düzeyinde doğrulandı). `scripts/render_svg_scene.py`ye de aynı zoom
+eklendi. Test etkisi yok (bu iki dosya test edilmiyor), 884 test yeşil
+DEĞİŞMEDİ. Detay: `docs/PROGRESS_LOG.md` 2026-09-05 girdisi. **Sırada:**
+Faz 5 (kalan stratejilerin denetimi) başladı, `harmonic.five_zero`nun
+kök nedeni araştırılıyor — DEVAM EDİYOR.
 
 ### Tamamlanan fazlar (özet)
 

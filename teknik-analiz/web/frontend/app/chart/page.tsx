@@ -16,6 +16,10 @@ const MARKETS = ["bist", "nasdaq"];
 // structure + structure.swing_fib_abcd'nin bileşimi, bkz. viz/live.py) --
 // ikisi de (D1, H4) destekliyor, kesişimleri burada elle yazılı.
 const STRUCTURE_REPORT_SUPPORTED_TF = ["1D", "4H"];
+// "Piyasa Yapısı (SMC)" da CATALOG'ta yok (Faz 4d, structure.price_structure
+// + structure.supply_demand + taze BOS/CHoCH birleşimi, bkz. viz/live.py::
+// compute_market_structure_merged) -- AYNI (D1, H4) kesişimi.
+const MARKET_STRUCTURE_SUPPORTED_TF = ["1D", "4H"];
 
 function Select({
   label,
@@ -85,6 +89,7 @@ function ChartPageInner() {
   // ile aynı kaynak). Değer (value) yine ham ad — API çağrıları bunu bekliyor.
   const indicatorOptions = [
     { name: "structure.report", display_name: "Birleşik Yapı Raporu" },
+    { name: "structure.market_structure", display_name: "Piyasa Yapısı (SMC)" },
     ...singleIndicators.map((c) => ({ name: c.name, display_name: c.display_name })),
   ];
 
@@ -94,7 +99,9 @@ function ChartPageInner() {
   const supportedTf =
     indicator === "structure.report"
       ? STRUCTURE_REPORT_SUPPORTED_TF
-      : (catalog.find((c) => c.name === indicator)?.supported_timeframes ?? []);
+      : indicator === "structure.market_structure"
+        ? MARKET_STRUCTURE_SUPPORTED_TF
+        : (catalog.find((c) => c.name === indicator)?.supported_timeframes ?? []);
 
   useEffect(() => {
     if (supportedTf.length === 0) return;

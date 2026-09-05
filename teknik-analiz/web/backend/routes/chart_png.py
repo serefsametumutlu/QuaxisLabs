@@ -42,7 +42,18 @@ def get_chart_png(
         raise HTTPException(404, f"Veri bulunamadı: {exc}") from exc
 
     if isinstance(fig, str):
-        png_bytes = bytes(resvg_py.svg_to_bytes(svg_string=fig))
+        # GERÇEK bir hata (2026-09-05, kullanıcı geri bildirimi — TOBO.png/
+        # intem_cnali.png [TradingView'ın KENDİ ekran görüntüleri] referans
+        # gösterilip "cam gibi net olmalı" denildi): SVG sahneleri ~700-820px
+        # native genişlikte üretiliyor, ama frontend'in `<img className=
+        # "w-full">`si bunu panel genişliğine (tipik 900-1400+ CSS piksel,
+        # Retina/HiDPI ekranda 2x DEVICE piksel) GERDİĞİ için görsel
+        # sistemli olarak bulanıklaşıyordu -- Plotly yolu zaten `scale=2`
+        # kullanıyordu, SVG yolunda BUNUN KARŞILIĞI HİÇ YOKTU (`resvg_py.
+        # svg_to_bytes`'a zoom hiç verilmiyordu, yani DAİMA native 1x).
+        # zoom=3 native genişliği ~2100-2460px'e çıkarır -- büyük panel +
+        # Retina ekranda bile upsampling gerekmez.
+        png_bytes = bytes(resvg_py.svg_to_bytes(svg_string=fig, zoom=3.0))
     else:
         png_bytes = fig.to_image(format="png", scale=2)
     # `structure.report` gibi göstergeler (price_structure'ın O(n²) trendline

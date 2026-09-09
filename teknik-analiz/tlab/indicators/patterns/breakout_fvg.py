@@ -267,7 +267,9 @@ def _track_one_candidate(  # noqa: PLR0913
     close, high, low, volume, atr_series: pd.Series, p: BreakoutFvgParams, context: dict | None,
 ) -> tuple[str, Direction, int, tuple[int, float, float, int] | None, list[Signal]] | None:
     n = len(df)
-    pid = f"breakoutfvg_{window_start}_{born_idx}"
+    # pid zaman damgasindan turetilir, bar_idx'ten DEGIL -- bkz.
+    # trend/breakouts.py::_emit_break'teki ayni duzeltme.
+    pid = f"breakoutfvg_{df.index[window_start]:%Y%m%dT%H%M}_{df.index[born_idx]:%Y%m%dT%H%M}"
     signals: list[Signal] = [
         _sig(df, born_idx, "long", "pending", 0.5, pid, "pending"),
     ]

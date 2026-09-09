@@ -208,7 +208,11 @@ def _abcd_targets(
         span = max(p.bc_retrace[1] - p.bc_retrace[0], 1e-9) / 2.0
         score = max(0.0, min(1.0, 1.0 - abs(bc_ratio - mid) / span))
 
-        triple_id = f"abcd_{a.bar_idx}_{b.bar_idx}_{c.bar_idx}"
+        # triple_id zaman damgasindan turetilir, bar_idx'ten DEGIL -- bkz.
+        # trend/breakouts.py::_emit_break'teki ayni duzeltmenin gerekcesi.
+        triple_id = (
+            f"abcd_{a.bar_time:%Y%m%dT%H%M}_{b.bar_time:%Y%m%dT%H%M}_{c.bar_time:%Y%m%dT%H%M}"
+        )
         targets = projection_abcd(a.price, b.price, c.price, p.abcd_ratios)
 
         for ratio_key in p.abcd_ratios[: p.max_active_targets]:

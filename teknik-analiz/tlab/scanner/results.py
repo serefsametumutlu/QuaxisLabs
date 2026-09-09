@@ -120,10 +120,16 @@ class DiffReport:
     new_signals: list[dict] = field(default_factory=list)
     transitions: list[dict] = field(default_factory=list)
     missing_signals: list[dict] = field(default_factory=list)
+    # chain_key (symbol, tf, indicator, pattern_id) bazinda hesaplanir --
+    # `missing_signals` (state'i de kimligin parcasi sayan kaba `key()`
+    # eslesmesi) DEGIL. Meşru bir durum geçişi (forming->confirmed, AYNI
+    # bar_time'da) `missing_signals`'i doldurur ama repaint DEGILDIR; bkz.
+    # `ResultsStore.diff()`.
+    repaint_alarm: bool = False
 
     @property
     def has_repaint_alarm(self) -> bool:
-        return len(self.missing_signals) > 0
+        return self.repaint_alarm
 
 
 def _pattern_key(signal: Signal) -> str:
@@ -472,6 +478,28 @@ class ResultsStore:
             if ck in states_by_chain_a and r["state"] not in prior_states:
                 transitions.append({**r, "from_states": sorted(prior_states)})
 
+        # Gercek repaint alarmi: AYNI (chain_key, bar_time) icin run_a'da
+        # gorulen bir yon, run_b'de o bar_time icin ya hic yok ya da
+        # farkli. Devlet gecisi (forming->confirmed) AYNI bar_time'da
+        # kalip yon degismezse alarm SAYILMAZ -- yukaridaki `key()` bazli
+        # `missing_signals` state'i kimligin parcasi saydigi icin her
+        # mesru gecisi de "kayip sinyal" sayiyordu.
+        directions_by_bar_a: dict[tuple, set[str]] = {}
+        for r in rows_a:
+            directions_by_bar_a.setdefault(
+                (chain_key(r), r["bar_time"]), set()
+            ).add(r["direction"])
+        directions_by_bar_b: dict[tuple, set[str]] = {}
+        for r in rows_b:
+            directions_by_bar_b.setdefault(
+                (chain_key(r), r["bar_time"]), set()
+            ).add(r["direction"])
+        repaint_alarm = any(
+            not (directions_by_bar_b.get(bar_key, set()) & dirs_a)
+            for bar_key, dirs_a in directions_by_bar_a.items()
+        )
+
         return DiffReport(
             new_signals=new_signals, transitions=transitions, missing_signals=missing_signals,
+            repaint_alarm=repaint_alarm,
         )

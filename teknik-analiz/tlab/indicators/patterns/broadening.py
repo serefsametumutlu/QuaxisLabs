@@ -175,9 +175,11 @@ class BroadeningIndicator(BaseIndicator):
                 prior_ref_idx = max(0, start_idx - p.prior_trend_lookback)
                 was_uptrend = close[start_idx] >= close[prior_ref_idx]
                 pattern_name = "broadening_top" if was_uptrend else "broadening_bottom"
+                # pattern_key zaman damgasindan turetilir, bar_idx'ten DEGIL --
+                # bkz. trend/breakouts.py::_emit_break'teki ayni duzeltme.
                 pattern_key = (
-                    f"broadening_{upper.p1.bar_idx}_{upper.p2.bar_idx}"
-                    f"_{lower.p1.bar_idx}_{lower.p2.bar_idx}"
+                    f"broadening_{upper.p1.bar_time:%Y%m%dT%H%M}_{upper.p2.bar_time:%Y%m%dT%H%M}"
+                    f"_{lower.p1.bar_time:%Y%m%dT%H%M}_{lower.p2.bar_time:%Y%m%dT%H%M}"
                 )
 
                 upper_points = (

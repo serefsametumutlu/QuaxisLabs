@@ -207,9 +207,11 @@ class WedgeIndicator(BaseIndicator):
                 if not _passes_shape_filters(conv, upper, lower, p, context):
                     continue
 
+                # pattern_key zaman damgasindan turetilir, bar_idx'ten DEGIL --
+                # bkz. trend/breakouts.py::_emit_break'teki ayni duzeltme.
                 pattern_key = (
-                    f"{self._mode}_{upper.p1.bar_idx}_{upper.p2.bar_idx}"
-                    f"_{lower.p1.bar_idx}_{lower.p2.bar_idx}"
+                    f"{self._mode}_{upper.p1.bar_time:%Y%m%dT%H%M}_{upper.p2.bar_time:%Y%m%dT%H%M}"
+                    f"_{lower.p1.bar_time:%Y%m%dT%H%M}_{lower.p2.bar_time:%Y%m%dT%H%M}"
                 )
                 height = abs(
                     upper.value_at(conv.created_idx) - lower.value_at(conv.created_idx)

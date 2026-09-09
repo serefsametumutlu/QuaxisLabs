@@ -204,7 +204,10 @@ def _quality_and_payload(
     volume_ok = bool(not np.isnan(vol_ratio) and vol_ratio >= p.vol_k)
     o, c = ctx.open_[confirmed_idx], ctx.close[confirmed_idx]
     hi, lo = ctx.high[confirmed_idx], ctx.low[confirmed_idx]
-    body_ratio = abs(c - o) / (hi - lo) if hi > lo else 0.0
+    # min(...,1.0): gap/wick veri anomalilerinde (hi==lo'ya çok yakın) oran
+    # 1.0'ı asabiliyor, quality_score'un ust siniri kacip validator'u
+    # ValueError'a dusurup o sembolun taramasini komple dusuruyordu.
+    body_ratio = min(abs(c - o) / (hi - lo), 1.0) if hi > lo else 0.0
     a = ctx.atr_arr[confirmed_idx]
     distance_atr = abs(c - level_value) / a if not np.isnan(a) and a > 0 else 0.0
 
@@ -235,7 +238,15 @@ def _emit_break(
     signals: list[Signal], markers: list[Marker], extra: dict | None = None,
 ) -> str:
     df = ctx.df
-    pattern_id = f"{break_type}_{origin_idx}_{confirmed_idx}"
+    # pattern_id zaman damgasindan turetilir, konumsal bar_idx'ten DEGIL --
+    # tarayici her kosuda son N bari cekiyor, pencere kaydikca bar_idx
+    # degisiyor (bar_time degismese bile) ve pattern_id'nin degismesi
+    # o zincirin TUM satirlarinin "kayboldu" sayilmasina (repaint_alarm)
+    # yol aciyordu.
+    pattern_id = (
+        f"{break_type}_{df.index[origin_idx]:%Y%m%dT%H%M}"
+        f"_{df.index[confirmed_idx]:%Y%m%dT%H%M}"
+    )
     payload = {
         "event": "break", "break_type": break_type, "pattern_id": pattern_id,
         "retest_state": "pending",

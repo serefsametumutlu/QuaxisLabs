@@ -183,7 +183,12 @@ class FlagPennantIndicator(BaseIndicator):
                 other_val = _other(t)  # type: ignore[operator]
                 return close[t] < other_val if _dir == "long" else close[t] > other_val
 
-            pattern_id = f"flagpennant_{pole.t0_idx}_{pole.t1_idx}"
+            # pattern_id zaman damgasindan turetilir, bar_idx'ten DEGIL --
+            # bkz. trend/breakouts.py::_emit_break'teki ayni duzeltme.
+            pattern_id = (
+                f"flagpennant_{df.index[pole.t0_idx]:%Y%m%dT%H%M}"
+                f"_{df.index[pole.t1_idx]:%Y%m%dT%H%M}"
+            )
             # 2026-09-03: bkz. `PatternTrackingConfig.max_bars_to_target`
             # docstring'i -- bayrak/flama kısa vadeli devam formasyonları
             # olduğu için ölçek direğin (pole) kendi süresinden alınır.

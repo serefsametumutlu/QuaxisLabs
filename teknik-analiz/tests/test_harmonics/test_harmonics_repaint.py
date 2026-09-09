@@ -17,6 +17,15 @@ _SCHOOLS = [
 ]
 
 
+def _gartley_pattern_id(df: object) -> str:
+    """pattern_id artik zaman damgasindan turetiliyor (bkz. geometry.py::
+    generate_candidates) -- bar5/10/15/20'nin gercek bar_time'lariyla."""
+    return (
+        f"N_{df.index[5]:%Y%m%dT%H%M}_{df.index[10]:%Y%m%dT%H%M}"
+        f"_{df.index[15]:%Y%m%dT%H%M}_{df.index[20]:%Y%m%dT%H%M}"
+    )
+
+
 def test_gartley_state_transitions_on_known_fixture() -> None:
     df = build_gartley_ohlcv()
     params = HarmonicParams(
@@ -28,7 +37,7 @@ def test_gartley_state_transitions_on_known_fixture() -> None:
 
     gartley_signals = [
         s for s in result.signals
-        if s.payload.get("pattern_id") == "N_5_10_15_20"
+        if s.payload.get("pattern_id") == _gartley_pattern_id(df)
         and s.payload.get("pattern_name") == "gartley"
     ]
     states = [s.state for s in gartley_signals]
@@ -54,7 +63,7 @@ def test_xa_fib_ladder_present_for_known_candidate() -> None:
 
     fib_levels = [
         lv for lv in result.levels
-        if lv.style == "fib_retracement" and "N_5_10_15_20" in lv.label
+        if lv.style == "fib_retracement" and _gartley_pattern_id(df) in lv.label
     ]
     ratios = {float(lv.label.rsplit("_", 1)[-1]) for lv in fib_levels}
     assert ratios == {0.382, 0.5, 0.618, 0.786}

@@ -85,7 +85,7 @@
         "width": 1.5
       },
       "mode": "lines",
-      "name": "carney_gartley_N_5_10_15_20_xab",
+      "name": "carney_gartley_N_20240102T2000_20240103T1600_20240104T1200_20240105T0800_xab",
       "showlegend": false,
       "type": "scatter",
       "x": [
@@ -113,7 +113,7 @@
         "width": 1.5
       },
       "mode": "lines",
-      "name": "carney_gartley_N_5_10_15_20_bcd",
+      "name": "carney_gartley_N_20240102T2000_20240103T1600_20240104T1200_20240105T0800_bcd",
       "showlegend": false,
       "type": "scatter",
       "x": [
@@ -167,7 +167,7 @@
         "width": 1.6
       },
       "mode": "lines",
-      "name": "carney_gartley_N_5_10_15_20_xb",
+      "name": "carney_gartley_N_20240102T2000_20240103T1600_20240104T1200_20240105T0800_xb",
       "showlegend": false,
       "type": "scatter",
       "x": [
@@ -189,7 +189,7 @@
         "width": 1.0
       },
       "mode": "lines",
-      "name": "carney_gartley_N_5_10_15_20_xb_uzatma",
+      "name": "carney_gartley_N_20240102T2000_20240103T1600_20240104T1200_20240105T0800_xb_uzatma",
       "showlegend": false,
       "type": "scatter",
       "x": [
@@ -211,7 +211,7 @@
         "width": 1.6
       },
       "mode": "lines",
-      "name": "carney_gartley_N_5_10_15_20_xd_envelope",
+      "name": "carney_gartley_N_20240102T2000_20240103T1600_20240104T1200_20240105T0800_xd_envelope",
       "showlegend": false,
       "type": "scatter",
       "x": [

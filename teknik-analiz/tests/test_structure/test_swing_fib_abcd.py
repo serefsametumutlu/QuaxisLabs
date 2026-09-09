@@ -12,17 +12,27 @@ from tlab.indicators.structure.swing_fib_abcd import SwingFibABCD, SwingFibABCDP
 from tlab.testing.repaint import repaint_test
 
 
-def _run() -> tuple[list, list]:
+def _run() -> tuple[list, list, object]:
     df = build_abcd_ohlcv()
     result = SwingFibABCD(SwingFibABCDParams(left=2, right=2, zigzag_method="fixed"))(df)
-    return result.signals, result.levels
+    return result.signals, result.levels, df
+
+
+def _triple_id(df: object, a_idx: int, b_idx: int, c_idx: int) -> str:
+    """triple_id artik zaman damgasindan turetiliyor (bkz. swing_fib_abcd.py) --
+    ilgili barlarin gercek bar_time'lariyla."""
+    return (
+        f"abcd_{df.index[a_idx]:%Y%m%dT%H%M}_{df.index[b_idx]:%Y%m%dT%H%M}"
+        f"_{df.index[c_idx]:%Y%m%dT%H%M}"
+    )
 
 
 def test_first_triple_ratio_1_0_reaches_completed() -> None:
-    signals, _ = _run()
+    signals, _, df = _run()
+    tid = _triple_id(df, 2, 11, 15)
     ratio_1_0 = [
         s for s in signals
-        if s.payload.get("triple_id") == "abcd_2_11_15" and s.payload.get("ratio") == 1.0
+        if s.payload.get("triple_id") == tid and s.payload.get("ratio") == 1.0
     ]
     states = [s.state for s in ratio_1_0]
     assert states == ["pending", "active", "completed"]
@@ -31,25 +41,27 @@ def test_first_triple_ratio_1_0_reaches_completed() -> None:
 
 
 def test_first_triple_higher_ratios_invalidated_by_new_triple() -> None:
-    signals, _ = _run()
+    signals, _, df = _run()
+    tid = _triple_id(df, 2, 11, 15)
     for ratio_key in (1.272, 1.618):
         chain = [
             s for s in signals
-            if s.payload.get("triple_id") == "abcd_2_11_15" and s.payload.get("ratio") == ratio_key
+            if s.payload.get("triple_id") == tid and s.payload.get("ratio") == ratio_key
         ]
         assert chain[-1].state == "invalidated"
         assert chain[-1].payload["reason"] == "superseded_by_new_triple"
 
 
 def test_second_triple_starts_pending_after_first_invalidated() -> None:
-    signals, _ = _run()
-    second = [s for s in signals if s.payload.get("triple_id") == "abcd_15_25_30"]
+    signals, _, df = _run()
+    tid = _triple_id(df, 15, 25, 30)
+    second = [s for s in signals if s.payload.get("triple_id") == tid]
     assert len(second) == 3  # yalnızca 3 ratio'nun pending açılışı, fixture bu kadarını kapsıyor
     assert all(s.state == "pending" for s in second)
 
 
 def test_target_levels_have_d_label_and_bullish_style() -> None:
-    _, levels = _run()
+    _, levels, _ = _run()
     d_levels = [lv for lv in levels if lv.label.startswith("D (hedef)")]
     assert len(d_levels) == 6  # 2 üçlü x 3 oran
     assert all(lv.style == "bullish" for lv in d_levels)  # A=low -> yükseliş yapısı
@@ -74,34 +86,36 @@ def test_d_target_level_end_closes_on_completion_or_invalidation() -> None:
     TAMAMLANMIŞ/GEÇERSİZLEŞMİŞ eski hedefler bile grafiğin sonuna kadar
     uzuyordu. `end`, extend-only ilkesiyle (bkz. ranges.py/zones.py'deki
     Box.t1) çözüm barına SABİTLENMELİ; hâlâ açık bir hedef None kalmalı."""
-    signals, levels = _run()
+    signals, levels, df = _run()
+    tid = _triple_id(df, 2, 11, 15)
 
     completed = next(
         s for s in signals
-        if s.payload.get("triple_id") == "abcd_2_11_15" and s.payload.get("ratio") == 1.0
+        if s.payload.get("triple_id") == tid and s.payload.get("ratio") == 1.0
         and s.state == "completed"
     )
-    lv_completed = _d_level_for(levels, signals, "abcd_2_11_15", 1.0)
+    lv_completed = _d_level_for(levels, signals, tid, 1.0)
     assert lv_completed.end == completed.bar_time
 
     for ratio_key in (1.272, 1.618):
         invalidated = next(
             s for s in signals
-            if s.payload.get("triple_id") == "abcd_2_11_15" and s.payload.get("ratio") == ratio_key
+            if s.payload.get("triple_id") == tid and s.payload.get("ratio") == ratio_key
             and s.state == "invalidated"
         )
-        lv_invalidated = _d_level_for(levels, signals, "abcd_2_11_15", ratio_key)
+        lv_invalidated = _d_level_for(levels, signals, tid, ratio_key)
         assert lv_invalidated.end == invalidated.bar_time
 
     # ikinci (son) üçlü fixture bitene kadar hiç çözülmüyor (bkz.
     # test_second_triple_starts_pending_after_first_invalidated) -> açık kalmalı.
+    tid2 = _triple_id(df, 15, 25, 30)
     for ratio_key in (1.0, 1.272, 1.618):
-        lv_open = _d_level_for(levels, signals, "abcd_15_25_30", ratio_key)
+        lv_open = _d_level_for(levels, signals, tid2, ratio_key)
         assert lv_open.end is None
 
 
 def test_fib_touch_signals_present_and_completed_state() -> None:
-    signals, _ = _run()
+    signals, _, _ = _run()
     touches = [s for s in signals if s.payload.get("event") == "fib_touch"]
     assert len(touches) > 0
     assert all(s.state == "completed" for s in touches)

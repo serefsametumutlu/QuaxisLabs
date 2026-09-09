@@ -247,7 +247,12 @@ class DoubleTopBottomIndicator(BaseIndicator):
                 def _break_line(_t: int, _lvl: float = neckline_price) -> float:
                     return _lvl
 
-                pattern_id = f"{pattern_name}_{p1.bar_idx}_{neckline_pivot.bar_idx}_{p2.bar_idx}"
+                # pattern_id zaman damgasindan turetilir, bar_idx'ten DEGIL --
+                # bkz. trend/breakouts.py::_emit_break'teki ayni duzeltme.
+                pattern_id = (
+                    f"{pattern_name}_{p1.bar_time:%Y%m%dT%H%M}"
+                    f"_{neckline_pivot.bar_time:%Y%m%dT%H%M}_{p2.bar_time:%Y%m%dT%H%M}"
+                )
                 max_bars_to_confirm = int(p.max_bars_to_confirm_mult * (p2.bar_idx - p1.bar_idx))
                 # 2026-09-03: bkz. `PatternTrackingConfig.max_bars_to_target`
                 # docstring'i (`wedge.py`'deki aynı düzeltmeyle aynı gerekçe).

@@ -115,8 +115,13 @@ class SupplyDemandIndicator(BaseIndicator):
         markers: list[Marker] = []
         nearest: dict[str, dict | None] = {"demand": None, "supply": None}
 
+        # pattern_id zaman damgasindan turetilir, bar_idx'ten DEGIL -- bkz.
+        # trend/breakouts.py::_emit_break'teki ayni duzeltme. `_{i}` sadece
+        # ayni bardan (flip) doğan iki bölgeyi ayirt etmek icin kalan bir
+        # ek-disambiguator, kimligin asil kaynagi degil.
         entries: list[tuple[str, SDZone, bool]] = [
-            (f"sd_{zone.kind}_{zone.created_idx}_{i}", zone, False) for i, zone in enumerate(zones)
+            (f"sd_{zone.kind}_{df.index[zone.created_idx]:%Y%m%dT%H%M}_{i}", zone, False)
+            for i, zone in enumerate(zones)
         ]
 
         i = 0

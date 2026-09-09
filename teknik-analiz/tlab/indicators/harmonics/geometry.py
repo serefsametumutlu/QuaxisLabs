@@ -99,11 +99,17 @@ def generate_candidates(df: pd.DataFrame, zigzag: list[Pivot]) -> list[Candidate
             wide_bar_at_c = avg_range > 0 and (high[c.bar_idx] - low[c.bar_idx]) >= 2.0 * avg_range
 
         fast_cd_formation = (c.finalized_idx - c.bar_idx) <= 2
-        zero_tag = zero.bar_idx if zero else "N"
+        # pattern_id zaman damgasindan turetilir, bar_idx'ten DEGIL --
+        # tarayicinin kaydirilan penceresinde bar_idx degisir, bar_time
+        # degismez (bkz. trend/breakouts.py::_emit_break ayni duzeltme).
+        zero_tag = f"{zero.bar_time:%Y%m%dT%H%M}" if zero else "N"
 
         candidates.append(
             Candidate(
-                pattern_id=f"{zero_tag}_{x.bar_idx}_{a.bar_idx}_{b.bar_idx}_{c.bar_idx}",
+                pattern_id=(
+                    f"{zero_tag}_{x.bar_time:%Y%m%dT%H%M}_{a.bar_time:%Y%m%dT%H%M}"
+                    f"_{b.bar_time:%Y%m%dT%H%M}_{c.bar_time:%Y%m%dT%H%M}"
+                ),
                 zero=zero,
                 x=x,
                 a=a,

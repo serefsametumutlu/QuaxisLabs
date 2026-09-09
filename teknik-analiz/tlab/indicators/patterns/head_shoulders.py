@@ -192,7 +192,12 @@ class HeadShouldersIndicator(BaseIndicator):
                     _bump(context, "min_depth")
                     continue
 
-                pattern_id = f"{kind}_{hs.l1.bar_idx}_{hs.head.bar_idx}_{hs.l3.bar_idx}"
+                # pattern_id zaman damgasindan turetilir, bar_idx'ten DEGIL --
+                # bkz. trend/breakouts.py::_emit_break'teki ayni duzeltme.
+                pattern_id = (
+                    f"{kind}_{hs.l1.bar_time:%Y%m%dT%H%M}"
+                    f"_{hs.head.bar_time:%Y%m%dT%H%M}_{hs.l3.bar_time:%Y%m%dT%H%M}"
+                )
                 shoulder_extreme = hs.l3.price
 
                 def _invalidation(

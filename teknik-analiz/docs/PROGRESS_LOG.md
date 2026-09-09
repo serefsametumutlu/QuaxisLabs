@@ -3784,3 +3784,96 @@ mevcut testleri kırmadı — hiçbiri birden fazla volatilite rejimi
 kapsayan bir senaryo kurmuyordu). Tam test paketi 889 yeşil DEĞİŞMEDİ,
 ruff TAM 19 baseline DEĞİŞMEDİ.
 
+## 2026-09-10 — `tlab/chart` ZIP entegrasyonu + `pattern_id` kimlik hatası (§5) kapatıldı + YENİ bulgu: pencere-sınırı kırpma kararsızlığı
+
+Kullanıcı önceki oturumda hazırlanan `teknik-analiz-FINAL.zip`i (`docs/
+SON_DURUM.md`, `docs/TERMINAL_DEVAM_PROMPTU.md`) projeye aktarmıştı ama
+paket yanlışlıkla `teknikanalizFINAL/` alt klasörüne açılmış, hedef
+konumlara (`tlab/chart/`, `docs/*.md`) hiç taşınmamıştı. Bu oturum iki
+işi tamamladı:
+
+**1) ZIP entegrasyonu (TERMINAL_DEVAM_PROMPTU.md Bölüm A).** 42 dosya
+doğru konumlara taşındı (`tlab/chart/` çekirdek+17 komposer, 11 yeni
+tespit edici, 6 yeni + 1 güncellenen doc), `playwright`+chromium dahil
+bağımlılıklar kuruldu, `arch`/`hypothesis` zaten kuruluymuş (önceki
+oturumdan) — test paketi 878→**909 yeşil, 0 hata**. Commit `70b1936`
+(worktree prosedürüyle `origin/main`e push edildi — kullanıcı onayı
+alındı, harness'in auto-mode sınıflandırıcısı ilk denemede push'u
+BLOKLADI, "evet push et" onayından sonra ikinci denemede geçti).
+
+**2) `pattern_id` kimlik hatası (Bölüm B, §5 — "AYRI VE ÖNCELİKLİ"
+işaretli, kullanıcı önceliklendirdi).** Kök neden `docs/KARAR_VE_
+YENIDEN_INSA.md` §5.1'de teşhis edilmişti: `pattern_id`'ler konumsal
+`bar_idx`'ten üretiliyordu; tarayıcı her koşuda son 600 barı çektiği
+için pencere kayınca (`bar_time` DEĞİŞMEDEN) `bar_idx` değişiyor,
+`pattern_id` değişiyor, o zincirin TÜM satırları "kayboldu" sayılıp
+`repaint_alarm` yanıyordu. 10 dosyada (`trend/breakouts.py`,
+`harmonics/geometry.py`, `structure/swing_fib_abcd.py`, `patterns/
+double_top_bottom.py`/`head_shoulders.py`/`flag_pennant.py`/
+`broadening.py`/`wedge.py`/`breakout_fvg.py`, `structure/supply_
+demand.py`) `bar_idx` yerine `f"...{pivot.bar_time:%Y%m%dT%H%M}..."`
+kullanılacak şekilde düzeltildi. Ayrıca: `trend/breakouts.py`'nin
+`body_ratio`'su `min(...,1.0)` ile kırpıldı (kırpılmamış hâli skoru
+1.0'ı aşırıp validator'ı `ValueError`'a düşürüp o sembolün taramasını
+komple düşürüyordu); `scanner/results.py::has_repaint_alarm` artık
+`chain_key` (symbol,tf,indicator,pattern_id) bazında, yalnızca AYNI
+`bar_time`'daki bir sinyalin yönü değiştiğinde/kayboldüğünde tetikleniyor
+— eski `key()` bazlı mantık `state`'i kimliğin parçası saydığı için
+meşru bir "forming→confirmed" geçişini de "kayıp sinyal" sayıyordu.
+2 test dosyası (hardcoded eski ID'ler fixture'dan türetilen değerlere
+güncellendi) + 1 golden JSON (yalnızca trace `name` metni değişti,
+geometri AYNI kaldı) güncellendi. 909 test yeşil DEĞİŞMEDİ, ruff/mypy
+yeni kodda sıfır hata. Commit `526691e`, worktree prosedürüyle push
+edildi.
+
+**Doğrulama denemesi ve YENİ bulgu.** Kullanıcının istediği `tlab eod
+--market bist` doğrulaması (648 sembol × ~23 gösterge × 2 TF = 29878 iş
+birimi) sistemde bellek yetersizliğinden 10765/29878'de (`~%36`)
+OLDÜRÜLDÜ — tekrar denenmedi (aynı OOM'u tekrarlama riski). Bunun yerine
+14 gerçek BIST sembolüyle (BAKAB/BARMA/EREGL/TUCLK/AKBNK/ALBRK/ISCTR/
+VESTL/CWENE/PETKM/SASA/TUPRS/INTEM/THYAO), 2 TF (1D/4H), düzeltilen 16
+göstergeyle, TEK süreçte (ProcessPoolExecutor YOK, düşük bellek) bire
+bir gerçek pencere-kayması senaryosu simüle edildi: `old_df =
+df.iloc[:-2].tail(600)` (2 bar önce biten pencere) vs `new_df =
+df.tail(600)` (şimdi biten pencere), ayrı geçici bir `ResultsStore`a
+(`outputs/results.db`ye DOKUNULMADI) iki run olarak yazılıp `diff()`
+alındı.
+
+**Sonuç — iki ayrı şey kanıtlandı:** (a) `pattern_id`'nin KENDİSİ artık
+pencere pozisyonundan TAMAMEN bağımsız — aynı olayın ID'si iki
+pencerede de BİREBİR aynı string (doğrudan kod incelemesiyle teyit
+edildi, AKBNK `ma_break_ema200_up_20250924T0900_20250924T0900`
+örneği); asıl hedeflenen düzeltme DOĞRULANDI. (b) AMA `has_repaint_
+alarm` yine de `True` döndü — GERÇEK, farklı bir nedenden: bazı olaylar
+(`trend.breakouts`'un MA-kesişim tespiti, `structure.supply_demand`'ın
+pivot-çıpalı bölge tespiti, `structure.swing_fib_abcd`'nin zigzag pivot
+tespiti) pencerenin en eski 2 barı düşünce **ID çakışması değil, gerçek
+hesap farkı** yüzünden hiç üretilmiyor — tespit mantığı pencerenin
+BAŞINA yakın bağlamı gerektiriyor, o bağlam düşünce olay bütünüyle
+kayboluyor (doğrudan kodla teyit edildi: AKBNK'nin
+`ma_break_ema200_up_...` zinciri eski pencerede hem confirmed hem
+invalidated sinyaliyle TAM üretiliyor, yeni [2 bar kaymış] pencerede
+SIFIR sinyal üretiyor).
+
+Bu, projenin zaten bildiği "aday havuzu" sınırlamasıyla (`trend.
+breakouts`/`structure.price_structure`'ın `register_verified_elsewhere`
+ile işaretlenmiş, generic `repaint_test`in KAPSAMADIĞI kısmı) AYNI
+kategoriden ama YENİ bir açıdan: mevcut `repaint_test` yalnızca pencereyi
+BÜYÜTMEYİ dener (`df[:cut]` vs tam `df`, hep sondan büyür), hiçbir zaman
+BAŞTAN KIRPMAZ — oysa gerçek tarayıcı (`Store.get(..., last_n=600)`)
+tam olarak sabit boyutlu, ÖNDEN kırpan bir kayan pencere kullanıyor. Bu
+özellik ŞU ANA KADAR hiçbir testte doğrulanmamış.
+
+**Kullanıcı kararı: yalnızca dokümante et, bu oturumda dokunma** — ayrı
+bir tasarım kararı gerektiriyor (muhtemel çözüm yönü: görünür 600 bar
+için görünmez bir "arka bağlam" tamponu, ör. 650-700 bar iç hesaplayıp
+600'ü göstermek — ama bu spekülasyon, ayrı bir oturumda ELE ALINMALI).
+**Etkilenen göstergeler (bilinen):** `trend.breakouts` (MA-kesişim
+tarafı), `structure.supply_demand`, `structure.swing_fib_abcd` — kapsamı
+TAM olarak ölçülmedi (yalnızca 14 sembollük örneklemde gözlemlendi).
+
+**Sırada:** kullanıcı `TERMINAL_DEVAM_PROMPTU.md` Bölüm B'nin kalanını
+(Ö1-Ö5: adaptörler, three_drives kuralları, stats_table komposeri, tema
+doğrulaması — playwright screenshot döngüsü gerektiren büyük iş) BU
+OTURUMDA değil, ayrı bir oturumda sürdürmeye karar verdi.
+

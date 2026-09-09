@@ -1,5 +1,16 @@
 # QuaxisLabs / Teknik Analiz — Tanı ve Yol Haritası v2
 
+> ## 📌 ÖNCE BUNU OKU — 2026-09-08 güncellemesi
+>
+> Bu belgenin **görselleştirme fazları (Faz 3, 3.5, 4) GEÇERSİZ**. Sebep:
+> şartname tersine döndü — grafik artık sunucuda basılan sabit bir görsel
+> değil, tarayıcıda çalışan **etkileşimli** bir grafik olacak.
+>
+> **Güncel karar ve yol haritası: `docs/KARAR_VE_YENIDEN_INSA.md`**
+>
+> Bu belgede HÂLÂ GEÇERLİ olanlar: Faz 0, 0.5, 1, 2, 4d (analiz kısmı),
+> 5, 6, 8. Faz 7'nin yerini zaten `SITE_TASARIM_YOL_HARITASI.md` almıştı.
+
 **Tarih:** 2026-09-03 · **Kapsam:** `teknik-analiz/` (tlab + web) · **Durum:** 560 test yeşil, Faz 0–8E + 10 tamam, arayüz Faz 3'te takılı
 
 Bu belge iki parçadan oluşur:
@@ -801,7 +812,18 @@ BİTTİ KRİTERİ:
 
 ---
 
-## FAZ 3 — SVG çizim motoru (çekirdek)
+## ~~FAZ 3 — SVG çizim motoru (çekirdek)~~ · ⚠️ GEÇERSİZ
+
+> ## ⚠️ 2026-09-08 — BU FAZ GEÇERSİZ
+>
+> Bu faz, **"grafik sunucuda üretilen SABİT bir görsel olmalı, etkileşimli
+> bir JS widget'ı OLMAMALI"** şartnamesine göre yazıldı. Kullanıcı
+> 2026-09-08'de bunun TERSİNİ istedi (imleç takibi, crosshair, zaman
+> aralığı düğmeleri). Yerini `docs/KARAR_VE_YENIDEN_INSA.md` aldı.
+>
+> **YAPILMAYACAK.** Aşağıdaki metin yalnızca tarihsel kayıt için duruyor.
+
+
 
 **Amaç:** Grafiklerin artifact'e benzememesinin **kök nedenini** ortadan kaldırmak: Plotly'yi bırakıp, artifact'in kendi tekniğiyle (saf SVG) çizen bir motor yazmak.
 
@@ -942,7 +964,18 @@ BİTTİ KRİTERİ:
 
 ---
 
-## FAZ 3.5 — Renderer kritik hataları (2026-09-05 EKLENDİ, Faz 4'ten ÖNCE)
+## ~~FAZ 3.5 — Renderer kritik hataları (2026-09-05 EKLENDİ, Faz 4'ten ÖNCE)~~ · ⚠️ GEÇERSİZ
+
+> ## ⚠️ 2026-09-08 — BU FAZ GEÇERSİZ
+>
+> Bu faz, **"grafik sunucuda üretilen SABİT bir görsel olmalı, etkileşimli
+> bir JS widget'ı OLMAMALI"** şartnamesine göre yazıldı. Kullanıcı
+> 2026-09-08'de bunun TERSİNİ istedi (imleç takibi, crosshair, zaman
+> aralığı düğmeleri). Yerini `docs/KARAR_VE_YENIDEN_INSA.md` aldı.
+>
+> **YAPILMAYACAK.** Aşağıdaki metin yalnızca tarihsel kayıt için duruyor.
+
+
 
 > **Neden eklendi:** `error/` klasöründeki 10 çıktının tamamı görüntü olarak incelendi (bkz. **`docs/GORSEL_HATA_TESHISI.md`**). Üç kod hatası dosya:satır düzeyinde doğrulandı; üçü de birden fazla göstergeyi bozuyor ve Faz 4'te SVG'ye portlanan her sahne bunları miras alacak. Önce kapatılmalı.
 
@@ -1063,7 +1096,18 @@ BITTI KRITERI:
 
 ---
 
-## FAZ 4 — 19 sahnenin portu
+## ~~FAZ 4 — 19 sahnenin portu~~ · ⚠️ GEÇERSİZ
+
+> ## ⚠️ 2026-09-08 — BU FAZ GEÇERSİZ
+>
+> Bu faz, **"grafik sunucuda üretilen SABİT bir görsel olmalı, etkileşimli
+> bir JS widget'ı OLMAMALI"** şartnamesine göre yazıldı. Kullanıcı
+> 2026-09-08'de bunun TERSİNİ istedi (imleç takibi, crosshair, zaman
+> aralığı düğmeleri). Yerini `docs/KARAR_VE_YENIDEN_INSA.md` aldı.
+>
+> **YAPILMAYACAK.** Aşağıdaki metin yalnızca tarihsel kayıt için duruyor.
+
+
 
 **Amaç:** Artifact'teki 19 grafik türünün tamamını, Faz 3'ün motoruyla, gerçek veriyle üretmek.
 
@@ -1180,6 +1224,15 @@ BİTTİ KRİTERİ (her oturum için):
 ---
 
 ## FAZ 4d — SMC yapı katmanı (`ornek1.png` standardı, 2026-09-05 EKLENDİ)
+
+> ### ⚠️ 2026-09-08 — KISMEN GÜNCELLENDİ
+>
+> Bu fazın **analiz tarafı GEÇERLİ**: BOS/CHoCH, pivot üçgenleri,
+> temas-sayılı trend çizgisi ve pivot-çıpalı arz/talep hâlâ gerekli ve
+> `tlab` içinde hâlâ eksik. **Çizim tarafı DEĞİŞTİ**: çıktı `tlab/viz`in
+> SVG sahnesi değil, `tlab/chart/composers/market_structure.py`
+> besteleyicisi olacak. Detay: `docs/KARAR_VE_YENIDEN_INSA.md`.
+
 
 > **Neden eklendi:** Kullanıcı `ornek1.png`/`ornek2.png`'yi birebir hedef olarak gösterdi. Oradaki öğelerin çoğu — BOS/CHoCH, temas-sayılı trend çizgisi, pivot üçgenleri, pivot-çıpalı arz/talep — **tlab'da hiç yok**. Bu bir sahne portu değil, **indikatör katmanına yeni üretim** eklemek.
 

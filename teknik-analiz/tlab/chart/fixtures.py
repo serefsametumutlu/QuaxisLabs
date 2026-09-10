@@ -229,3 +229,50 @@ def head_shoulders(n: int = 300, seed: int = 89, inverse: bool = False) -> pd.Da
     df = _ohlc_from_close(close, rng)
     df.index = pd.bdate_range("2025-04-01", periods=len(df), tz="UTC")
     return df
+
+
+def triangle(n: int = 220, seed: int = 101, kind: str = "simetrik") -> pd.DataFrame:
+    """Üçgen formasyonu — simetrik / yükselen / alçalan.
+
+    Sınırlar YAKINSAR ve her sınıra birden çok kez dokunulur; hacim
+    formasyon boyunca daralır (Bulkowski). Sonda kırılım vardır.
+    """
+    rng = np.random.default_rng(seed)
+    base = 50.0
+    pre = base + np.cumsum(rng.normal(0.0, 0.35, 30))
+    start = float(pre[-1])
+
+    n_body = 120
+    if kind == "yukselen":
+        hi = np.full(n_body, start * 1.10)                    # düz tavan
+        lo = np.linspace(start * 0.90, start * 1.08, n_body)  # yükselen taban
+    elif kind == "alcalan":
+        hi = np.linspace(start * 1.10, start * 0.92, n_body)  # alçalan tavan
+        lo = np.full(n_body, start * 0.90)                    # düz taban
+    else:
+        hi = np.linspace(start * 1.12, start * 1.01, n_body)
+        lo = np.linspace(start * 0.88, start * 0.99, n_body)
+
+    # sınırlar arasında salınım; her bacak sınıra DOKUNUR
+    close = np.empty(n_body)
+    pos, up = 0, True
+    while pos < n_body:
+        leg = int(rng.integers(9, 17))
+        end = min(pos + leg, n_body)
+        a = lo[pos] if up else hi[pos]
+        b = hi[end - 1] if up else lo[end - 1]
+        close[pos:end] = np.linspace(a, b, end - pos)
+        pos, up = end, not up
+    close += rng.normal(0, start * 0.004, n_body)
+
+    brk = np.linspace(float(close[-1]), float(close[-1]) * 1.10, 28)
+    body = np.r_[pre, close, brk]
+    pad = n - len(body)
+    if pad > 0:
+        body = np.r_[body, body[-1] + np.cumsum(rng.normal(0, 0.3, pad))]
+    df = _ohlc_from_close(body[:n], rng)
+    v = np.linspace(4.0, 1.5, len(df))          # hacim daralır
+    v[-28:] = 4.5                                # kırılımda artar
+    df["volume"] = v * 1e6 * rng.lognormal(0, 0.2, len(df))
+    df.index = pd.bdate_range("2025-08-01", periods=len(df), tz="UTC")
+    return df

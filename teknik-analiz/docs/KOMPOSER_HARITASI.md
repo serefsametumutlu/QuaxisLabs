@@ -19,7 +19,7 @@ Dolayısıyla iş, arketip başına bir komposer yazmak:
 
 | # | Komposer | Kapsadığı göstergeler | Referans görsel | Durum |
 |---|---|---|---|---|
-| 1 | `boundary_pattern` | `patterns.triangle`, `patterns.wedge`, `patterns.broadening`, `trend.weekly_channel`, `trend.breakouts` | `HRiOTwUbQAA9WKw`, `HRiPy4qbUAA1bKc`, `HRihBa2WIAIZjP_` | ✅ komposer hazır — **adaptörler eksik** |
+| 1 | `boundary_pattern` | `patterns.triangle`, `patterns.wedge`, `patterns.broadening`, `trend.weekly_channel`, `trend.breakouts` | `HRiOTwUbQAA9WKw`, `HRiPy4qbUAA1bKc`, `HRihBa2WIAIZjP_` | ⚠️ `patterns.triangle`/`patterns.wedge`/`patterns.broadening` **bitti** (2026-09-10, `tlab/indicators/patterns/boundary_adapter.py` — `WedgeIndicator`/`BroadeningIndicator`'ın KENDİ `Trendline` geometrisini/`track_breakout_pattern` durum makinesini paylaşan GERÇEK adaptör, `harmonics/adapter.py`'nin AYNI ilkesi; gerçek BIST verisiyle TUCLK/BARMA/EREGL görsel doğrulandı) — `trend.weekly_channel`/`trend.breakouts` HÂLÂ eksik |
 | 1a | `range_box` | yatay aralık | `HRjNKRZWAAAhfSy` | ✅ **bitti** |
 | 1b | `channel` | paralel kanal (CMT kuralı) | `HRiOTwUbQAA9WKw` | ✅ **bitti** |
 | 2 | `fib_retracement` | `structure.golden_zone` | `HRhIeAdbcAAL2_B` | ✅ **bitti** |

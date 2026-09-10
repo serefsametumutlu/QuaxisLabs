@@ -230,7 +230,13 @@ class BroadeningIndicator(BaseIndicator):
                         break_line=break_tl.value_at, target=target, confirm_bars=p.confirm_bars,
                         max_bars_to_confirm=p.max_bars_to_confirm, retest_tol_atr=p.retest_tol_atr,
                         atr_series=atr_series, score=0.55, invalidation_check=_invalidation,
-                        extra_payload={"height": height},
+                        extra_payload={
+                            "height": height,
+                            # tlab/chart adaptörü için -- bkz. wedge.py'deki
+                            # AYNI notun gerekçesi.
+                            "upper_touches": tuple(int(i) for i in upper.touches),
+                            "lower_touches": tuple(int(i) for i in lower.touches),
+                        },
                         max_bars_to_target=p.max_bars_to_target,
                     )
                     pattern_signals = track_breakout_pattern(df, dv.created_idx, cfg)

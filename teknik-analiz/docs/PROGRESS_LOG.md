@@ -3938,3 +3938,94 @@ regresyon riski — wedge.py'nin durum makinesi/pattern_id/repaint
 garantileri converging.py'de YOK). Kod DEĞİŞTİRİLMEDİ, yalnızca
 dokümante edildi.
 
+## 2026-09-10 (aynı gün) — mimari ayrışma ÇÖZÜLDÜ: `boundary_adapter.py` — wedge/triangle/broadening için GERÇEK adaptör
+
+Kullanıcı, yukarıdaki notta sunulan (düzeltilmiş) tabloyla karar verdi:
+`converging.py` BAĞIMSIZ kalsın (silinmedi, dokunulmadı — diğer tüm Y2
+komposerleriyle [channel/range_box/fib_retracement/zones_v2/market_
+structure_v2] AYNI "yeni, scanner'dan bağımsız tespit" kategorisinde,
+zaten hiçbir üretim yoluna bağlı değil) AMA `patterns.wedge`/`patterns.
+triangle`/`patterns.broadening` için `harmonics/adapter.py`nin (Candidate
+→ XabcdPattern, scanner'ın KENDİ nesnesini paylaşan) AYNI ilkesiyle
+GERÇEK bir adaptör yazılsın — tek doğru geometri kaynağı, scanner ile
+grafik HER ZAMAN tutarlı.
+
+**Bulgu — `Trendline` zaten temiz bir ara nesne taşıyordu, kaybolan
+yalnızca dışa açılmamıştı:** `wedge.py`/`broadening.py` zaten `build_
+trendlines`'ın ürettiği `upper`/`lower` `Trendline` nesnelerini (p1/p2/
+slope/touches) hesaplıyordu, ama bunları `IndicatorResult`e 2 noktalı
+düz `Line`ye düzleştirirken `touches` (temas eden bar indeksleri) hiçbir
+yere yazılmıyordu — `converging.py`nin numaralı U1/L1 temas dairelerini
+üretebilmek için BAĞIMSIZ olarak `find_pivots`+kendi uydurmasını
+tekrarlamasının asıl nedeni buydu.
+
+**Düzeltme — minimal, katkısal (additive) değişiklik, SIFIR yeni tespit
+mantığı:** `wedge.py`/`broadening.py`nin `PatternTrackingConfig.extra_
+payload`ına iki alan eklendi: `"upper_touches"`/`"lower_touches"` —
+`upper.touches`/`lower.touches`'ın (ZATEN hesaplı) tuple'larının
+OLDUĞU GİBİ dışa açılması. `extra_payload` `track_breakout_pattern`
+tarafından ZATEN her sinyalin payload'ına birleştiriliyor (mevcut
+mekanizma, yeni bir alan tipi değil) — bu yüzden hiçbir mevcut test/
+davranış etkilenmedi (22/22 wedge+broadening testi yeşil kaldı).
+
+**YENİ `tlab/indicators/patterns/boundary_adapter.py`** (`harmonics/
+adapter.py` ile AYNI konumda — `tlab/indicators/`, `tlab/chart/` DEĞİL):
+`select_latest(result)` — `result.last_state`teki pattern_id'lerden
+invalidated/expired OLMAYAN, sinyali en GÜNCEL olanı seçer (kullanıcının
+"güncel yakın bir sinyal yoksa göstermesin hiçbir şey" kuralı — hiçbiri
+uygun değilse `None`). **Gerçek bulgu bu geliştirme sırasında ortaya
+çıktı:** `track_breakout_pattern`nin `state="expired"` değeri İKİ FARKLI
+anlam taşıyor — (a) hiç onaylanmadan zaman aşımı VE (b) onaylandıktan
+SONRA hedefin `max_bars_to_target` içinde gelmemesi (`pattern_state.py`
+satır ~193-205). İlk deterministik test senaryomda TAM bu ikinci duruma
+denk gelip (gerçek bir kırılım olmuştu ama "expired" olarak bitmişti)
+`select_latest`in onu ATTIĞINI gördüm — ama bu YANLIŞ DEĞİL: `wedge.py`/
+`broadening.py`nin KENDİ `show_entry` mantığı (AL/SAT/KIRILIM/ONAY/HEDEF
+işaretlerinin çizilip çizilmeyeceğine karar veren) final_state="expired"
+olduğunda TAM OLARAK AYNI şekilde davranıyor (`final_state not in
+("invalidated","expired")`) — yani adaptörün dışlama mantığı, göstergenin
+KENDİ görsel-önem kararıyla TUTARLI, ayrı bir tasarım kararı DEĞİL.
+
+`to_pattern(result, df)` — seçilen adayın `Line`lerini (label eşleşmesiyle
+`{pattern_key}_upper`/`_lower`), `extra_payload`daki touch indekslerini
+(`df.index[i]`/`high`/`low`ten `BoundaryTouch`e çevrilir), `result.
+markers`taki `pattern_entry_{direction}:{pattern_id}` işaretini (AL/SAT
+kutusu için — YENİDEN HESAPLANMADI, doğrudan wedge.py'nin ürettiği
+marker) okuyup `BoundaryPattern`e paketler.
+
+**3 yeni ince komposer sarmalayıcı** (`tlab/chart/composers/wedge.py`,
+`triangle.py`, `broadening.py`) — `channel.py`/`xabcd.py` ile AYNI imza
+(`compose(df, pat: BoundaryPattern, ...)`, HESAP YAPMAZ).
+
+**Görsel doğrulama — gerçek BIST verisiyle (Playwright screenshot):**
+TUCLK D1 `patterns.wedge` (ALÇALAN TAKOZ, RETEST TUTTU, 14 üst/4 alt
+temas, AL kutusu doğru barda), BARMA D1 `patterns.triangle` (SİMETRİK
+ÜÇGEN, HEDEFE ULAŞTI), EREGL D1 `patterns.broadening` (GENİŞLEYEN
+FORMASYON/DİP, OLUŞUYOR, ıraksayan sınırlar doğru yönde) — üçü de sınır
+çizgileri, numaralı temaslar, başlık/state/facts metni DOĞRU render etti.
+**Küçük bir gözlem (düzeltilmedi, kapsam dışı bırakıldı):** yoğun temas
+kümelerinde (TUCLK'te 14 üst temas) numaralı etiketler üst üste biniyor
+— bu `marks.py`/`boundary_pattern.py`nin etiket-çakışma-çözücüsü
+OLMAMASINDAN kaynaklanıyor, `converging.py` DAHİL tüm `boundary_pattern`
+komposer kullanıcılarını etkileyen ortak bir görsel-cila eksiği (eski
+SVG sisteminin `layout.py::resolve_collisions`inin YENİ `tlab/chart`te
+henüz karşılığı yok) — ayrı bir takip işi.
+
+**Test:** `tests/test_patterns/test_boundary_adapter.py` (5 yeni test —
+`test_wedge.py`nin monkeypatch desenini kullanır ama pivot `bar_time`
+değerlerini GERÇEK `df.index`ten alır; bu YAZILIRKEN gerçek bir uyumsuzluk
+bulundu: ilk taslak `pd.Timestamp("2024-01-01")+timedelta` gibi keyfi
+tarihler kullanıyordu, bu `Line.points`i df'in kategorik x-eksenine
+HİZASIZ bırakıp sınır çizgilerini render'da SESSİZCE görünmez yapıyordu
+— gerçek üretimde bu asla olmaz çünkü Pivot.bar_time HER ZAMAN gerçek
+`df.index`ten gelir, ama test fixture'ları yazarken dikkat edilmesi
+gereken bir tuzak olarak not edildi). 914 test yeşil (909→914), ruff
+sıfır yeni hata, mypy/lint_lookahead baseline DEĞİŞMEDİ. Commit local'de
+hazır, push edilecek.
+
+**Sonuç — `docs/KOMPOSER_HARITASI.md` satır 1 güncellendi:** `patterns.
+triangle`/`patterns.wedge`/`patterns.broadening` artık **bitti**
+işaretli; `trend.weekly_channel`/`trend.breakouts` için AYNI (Trendline/
+geometri paylaşan) adaptör deseni HENÜZ yazılmadı, gelecek bir oturumun
+işi.
+

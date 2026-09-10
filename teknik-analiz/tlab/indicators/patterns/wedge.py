@@ -280,6 +280,14 @@ class WedgeIndicator(BaseIndicator):
                         extra_payload={
                             "apex_idx": float(conv.apex_idx),  # type: ignore[arg-type]
                             "apex_price": conv.apex_price, "height": height,
+                            # tlab/chart adaptörü (composers/boundary_pattern_
+                            # adapter.py) için: sınır çizgisinin temas ettiği
+                            # bar indeksleri -- YENİ bir hesap DEĞİL, build_
+                            # trendlines'ın ZATEN ürettiği Trendline.touches'ın
+                            # aynısı, yalnızca dışa açılıyor (numaralı U1/L1
+                            # temas daireleri için).
+                            "upper_touches": tuple(int(i) for i in upper.touches),
+                            "lower_touches": tuple(int(i) for i in lower.touches),
                         },
                     )
                     pattern_signals = track_breakout_pattern(df, conv.created_idx, cfg)

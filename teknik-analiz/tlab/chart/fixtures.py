@@ -166,7 +166,7 @@ def double_bottom(n: int = 260, seed: int = 61) -> pd.DataFrame:
     return df
 
 
-def flag_after_pole(n: int = 180, seed: int = 73) -> pd.DataFrame:
+def flag_after_pole(n: int = 120, seed: int = 73) -> pd.DataFrame:
     """Dik bir direk + kısa konsolidasyon + kırılım.
 
     Konsolidasyon boyunca hacim DARALIR (Bulkowski: vakaların ~%79'unda),
@@ -181,6 +181,11 @@ def flag_after_pole(n: int = 180, seed: int = 73) -> pd.DataFrame:
     pole = np.linspace(p0, p1, 14) + rng.normal(0, p0 * 0.006, 14)
     flag = np.linspace(p1, p1 * 0.93, 11) + rng.normal(0, p0 * 0.005, 11)
     brk = np.linspace(float(flag[-1]), p1 * 1.22, 26) + rng.normal(0, p0 * 0.008, 26)
+    # pre(40)+pole(14)+flag(11)+brk(26) = 91; n=120 ile kuyruk 29 bar.
+    # Eskiden n=180'di ve kırılımdan SONRA 89 barlık rastgele yürüyüş
+    # kalıyordu -- orada geç doğan sahte bayraklar hemen geçersizleşiyor,
+    # `select_latest` (en taze) onları seçtiği için fikstür ÇİZİLEBİLİR
+    # tek bir aday bile vermiyordu (ölçüldü: 2 aday, ikisi de invalidated).
     close = np.r_[pre, pole, flag, brk]
     pad = n - len(close)
     if pad > 0:

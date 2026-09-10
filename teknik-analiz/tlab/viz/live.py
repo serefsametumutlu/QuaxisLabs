@@ -88,6 +88,61 @@ def _require_supported_timeframe(indicator_name: str, tf: Timeframe) -> None:
         )
 
 
+def _compute_pair(
+    indicator_name: str, symbol: str, tf: Timeframe, mkt: Market, store: Store,
+) -> tuple[IndicatorResult, pd.DataFrame, pd.DataFrame]:
+    """Pair indikatörünü çalıştırır ve İKİ HAM seriyi de döndürür.
+
+    `compute_live` pair modunda `df=None` döndürüyor (tek sembolün
+    mumlarını çizmediği için) -- ama `tlab/chart`'ın `PairView`'ü iki
+    seriyi de istiyor (`pair_health.assess(y, x)` korelasyon/beta/
+    yarı-ömür için ham fiyatlara bakar). Bu yüzden ortak mantık burada,
+    iki çağıran da AYNI kodu paylaşıyor -- kopyalanmıyor.
+    """
+    if "/" not in symbol:
+        raise ValueError("Pair indikatörler için symbol 'Y/X' biçiminde olmalı")
+    y_sym, x_sym = symbol.split("/", 1)
+    pair_instance: BaseIndicator
+    if indicator_name == "pair.relative_momentum":
+        pair_instance = RelativeMomentumPair(
+            RelativeMomentumParams(y_symbol=y_sym, x_symbol=x_sym).for_timeframe(tf)
+        )
+    elif indicator_name == "pair.vol_harvest":
+        pair_instance = VolHarvestPair(
+            VolHarvestParams(y_symbol=y_sym, x_symbol=x_sym).for_timeframe(tf)
+        )
+    else:
+        pair_instance = scaled_factory(indicator_name, tf)
+    df_y = store.get(y_sym, tf, mkt)
+    df_x = store.get(x_sym, tf, mkt)
+    result = pair_instance(df_y, context={"x": df_x})
+    result.symbol = symbol
+    result.timeframe = tf
+    return result, df_y, df_x
+
+
+def compute_pair_live(
+    indicator_name: str, symbol: str, timeframe: str, market: str,
+) -> tuple[IndicatorResult, pd.DataFrame, pd.DataFrame]:
+    """`compute_live`in pair karşılığı: sonuç + Y ve X ham serileri.
+
+    `web/backend/routes/chart_json.py` pair göstergelerinde bunu çağırır
+    (`structure.report`/`market_structure` için var olan birleştirme
+    köprüleriyle AYNI desen).
+    """
+    if indicator_name not in CATALOG:
+        raise ValueError(f"Bilinmeyen indikatör: {indicator_name}")
+    if not CATALOG[indicator_name].needs_context:
+        raise ValueError(f"{indicator_name} bir pair indikatörü değil")
+    tf = _TF_MAP.get(timeframe.upper())
+    if tf is None:
+        raise ValueError(f"Geçersiz tf: {timeframe} (1h|4h|1d bekleniyor)")
+    _require_supported_timeframe(indicator_name, tf)
+    return _compute_pair(
+        indicator_name, symbol, tf, Market(market.lower()), Store(YFinanceProvider())
+    )
+
+
 def compute_live(
     indicator_name: str, symbol: str, timeframe: str, market: str
 ) -> tuple[IndicatorResult, pd.DataFrame | None]:
@@ -118,25 +173,7 @@ def compute_live(
     store = Store(YFinanceProvider())
 
     if spec.needs_context:
-        if "/" not in symbol:
-            raise ValueError("Pair indikatörler için symbol 'Y/X' biçiminde olmalı")
-        y_sym, x_sym = symbol.split("/", 1)
-        pair_instance: BaseIndicator
-        if indicator_name == "pair.relative_momentum":
-            pair_instance = RelativeMomentumPair(
-                RelativeMomentumParams(y_symbol=y_sym, x_symbol=x_sym).for_timeframe(tf)
-            )
-        elif indicator_name == "pair.vol_harvest":
-            pair_instance = VolHarvestPair(
-                VolHarvestParams(y_symbol=y_sym, x_symbol=x_sym).for_timeframe(tf)
-            )
-        else:
-            pair_instance = scaled_factory(indicator_name, tf)
-        df_y = store.get(y_sym, tf, mkt)
-        df_x = store.get(x_sym, tf, mkt)
-        result = pair_instance(df_y, context={"x": df_x})
-        result.symbol = symbol
-        result.timeframe = tf
+        result, _, _ = _compute_pair(indicator_name, symbol, tf, mkt, store)
         return result, None
 
     if spec.needs_universe:

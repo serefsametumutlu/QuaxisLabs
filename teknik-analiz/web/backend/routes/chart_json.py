@@ -27,6 +27,9 @@ from tlab.chart.composers.broadening import compose as compose_broadening
 from tlab.chart.composers.channel import compose as compose_channel
 from tlab.chart.composers.fib_retracement import compose as compose_fib
 from tlab.chart.composers.neckline import compose as compose_neckline
+from tlab.chart.composers.pair import compose as compose_pair
+from tlab.chart.composers.pole_flag import compose as compose_pole_flag
+from tlab.chart.composers.price_structure import compose as compose_price_structure
 from tlab.chart.composers.series_overlay import compose as compose_overlay
 from tlab.chart.composers.triangle import compose as compose_triangle
 from tlab.chart.composers.wedge import compose as compose_wedge
@@ -34,10 +37,13 @@ from tlab.chart.composers.xabcd import compose as compose_xabcd
 from tlab.chart.composers.zones import compose as compose_zones
 from tlab.chart.tokens import ThemeName
 from tlab.indicators.harmonics.adapter import result_to_pattern as adapt_harmonic
+from tlab.indicators.pairs.chart_adapter import to_view as adapt_pair
 from tlab.indicators.patterns.boundary_adapter import to_pattern as adapt_boundary
+from tlab.indicators.patterns.flag_adapter import to_pattern as adapt_flag
 from tlab.indicators.patterns.neckline_adapter import to_pattern as adapt_neckline
 from tlab.indicators.structure.chart_adapter import (
     golden_zone_to_fib,
+    price_structure_to_report,
     supply_demand_to_zones,
     swing_fib_abcd_to_pattern,
 )
@@ -46,7 +52,7 @@ from tlab.indicators.trend.chart_adapter import (
     ma_systems_to_overlay,
     weekly_channel_to_channel,
 )
-from tlab.viz.live import compute_live
+from tlab.viz.live import compute_live, compute_pair_live
 
 router = APIRouter(tags=["chart_json"])
 
@@ -80,13 +86,25 @@ _SUPPORTED = {
     "patterns.head_shoulders": (adapt_neckline, compose_neckline),
     "patterns.double_top_bottom": (adapt_neckline, compose_neckline),
     # arz/talep bolgeleri
+    "patterns.flag_pennant": (adapt_flag, compose_pole_flag),
     "structure.supply_demand": (supply_demand_to_zones, compose_zones),
     "structure.golden_zone": (golden_zone_to_fib, compose_fib),
     # haftalik kanal -- yalnizca GUNCEL kanal (frozen olanlar cizilmez)
     "trend.weekly_channel": (weekly_channel_to_channel, compose_channel),
     # AB=CD -- X'SIZ 4 noktali; ayni komposer, farkli iskelet
     "structure.swing_fib_abcd": (swing_fib_abcd_to_pattern, compose_xabcd),
+    # yapi raporu -- kendi komposeri (trend cizgisi + bolge + POC/VAH/VAL)
+    "structure.price_structure": (price_structure_to_report, compose_price_structure),
+    # pair -- AYRI akis (asagi bak): iki sembol, `df` yok
+    "pair.relative_momentum": (adapt_pair, compose_pair),
+    "pair.vol_harvest": (adapt_pair, compose_pair),
 }
+
+# Pair gostergeleri farkli bir akis kullanir:
+#  * veri: `compute_pair_live` (Y ve X HAM serileri de doner),
+#  * komposer imzasi `df` ALMAZ -- pair grafigi tek sembolun
+#    mumlarini cizmez, iki normalize seri + z-skor + ozkaynak cizer.
+_PAIR = {"pair.relative_momentum", "pair.vol_harvest"}
 
 
 @router.get("/chart.json")
@@ -99,6 +117,19 @@ def get_chart_json(
         raise HTTPException(422, f"{indicator} henüz tlab/chart'a bağlanmadı")
     adapt, compose = entry
     resolved_theme = _THEME_MAP.get(theme, "dark")
+
+    if indicator in _PAIR:
+        try:
+            result, df_y, df_x = compute_pair_live(indicator, symbol, tf, market)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        except FileNotFoundError as exc:
+            raise HTTPException(404, f"Veri bulunamadı: {exc}") from exc
+        view = adapt(result, df_y, df_x)
+        if view is None:
+            raise HTTPException(404, f"{symbol} için {indicator} görünümü kurulamadı")
+        fig = compose(view, theme=resolved_theme)
+        return Response(content=pio.to_json(fig), media_type="application/json")
 
     try:
         result, df = compute_live(indicator, symbol, tf, market)

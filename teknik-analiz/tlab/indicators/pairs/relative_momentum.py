@@ -214,7 +214,8 @@ class RelativeMomentumPair(BaseIndicator):
 
         if p.mode == "mean_reversion":
             signals, markers, boxes, series, last_state = self._compute_mean_reversion(
-                p, common_idx, y, x, y_open, x_open, beta, spread, z, n, first_signal_ok,
+                p, common_idx, y, x, y_open, x_open, beta, spread, z, corr_series,
+                n, first_signal_ok,
             )
         else:
             signals, markers, boxes, series, last_state = self._compute_rotational(
@@ -323,6 +324,16 @@ class RelativeMomentumPair(BaseIndicator):
         series = {
             "y_norm": y / y.iloc[0] * 100.0,
             "x_norm": x / x.iloc[0] * 100.0,
+            # HAM spread (log(Y) - beta*log(X)). `z` bunun KAYAN
+            # standartlaştırılmışı; yarı-ömür/ADF gibi ölçüler HAM
+            # spread'e bakmak zorunda (z'nin yarı-ömrü farklı çıkar).
+            # `features/pair_health.py::assess` bunu istiyor.
+            "spread": spread,
+            # KAYAN korelasyon ve beta: çiftin sağlığı ZAMAN İÇİNDE
+            # bozulur (kointegrasyon çürümesi). Tek bir "son değer"
+            # bunu gizler; grafikte düz bir çizgi olarak görünüyordu.
+            "corr": corr_series,
+            "beta": beta,
             "z": z,
             "upper": pd.Series(p.k, index=common_idx),
             "lower": pd.Series(-p.k, index=common_idx),
@@ -361,7 +372,8 @@ class RelativeMomentumPair(BaseIndicator):
     def _compute_mean_reversion(
         self, p: RelativeMomentumParams, common_idx: pd.Index,
         y: pd.Series, x: pd.Series, y_open: pd.Series | None, x_open: pd.Series | None,
-        beta: pd.Series, spread: pd.Series, z: pd.Series, n: int, first_signal_ok: int,
+        beta: pd.Series, spread: pd.Series, z: pd.Series, corr_series: pd.Series,
+        n: int, first_signal_ok: int,
     ) -> tuple[list[Signal], list[Marker], list[Box], dict[str, pd.Series], dict[str, Any]]:
         """Faz 2, 2C -- GERÇEK istatistiksel arbitraj modu (bkz. `Relative
         MomentumParams.mode` docstring'i): `position[t]` +1 (Y uzun/X kısa,
@@ -445,6 +457,16 @@ class RelativeMomentumPair(BaseIndicator):
         series = {
             "y_norm": y / y.iloc[0] * 100.0,
             "x_norm": x / x.iloc[0] * 100.0,
+            # HAM spread (log(Y) - beta*log(X)). `z` bunun KAYAN
+            # standartlaştırılmışı; yarı-ömür/ADF gibi ölçüler HAM
+            # spread'e bakmak zorunda (z'nin yarı-ömrü farklı çıkar).
+            # `features/pair_health.py::assess` bunu istiyor.
+            "spread": spread,
+            # KAYAN korelasyon ve beta: çiftin sağlığı ZAMAN İÇİNDE
+            # bozulur (kointegrasyon çürümesi). Tek bir "son değer"
+            # bunu gizler; grafikte düz bir çizgi olarak görünüyordu.
+            "corr": corr_series,
+            "beta": beta,
             "z": z,
             "upper": pd.Series(p.k, index=common_idx),
             "lower": pd.Series(-p.k, index=common_idx),

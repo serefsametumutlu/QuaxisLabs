@@ -7,7 +7,9 @@ from __future__ import annotations
 
 import pandas as pd
 
+from tlab.chart.composers.price_structure import StructureLine, StructureReport, StructureZone
 from tlab.chart.contracts import XabcdPattern, XabcdPoint
+from tlab.chart.tokens import Role
 from tlab.core.types import IndicatorResult
 from tlab.indicators.structure.fib_retracement import FibLevel, FibRetracement
 from tlab.indicators.structure.zones_v2 import Zone
@@ -204,6 +206,96 @@ def swing_fib_abcd_to_pattern(
         state=state,
         prz=None, theoretical_d=theoretical_d, actual_d=None,
         fib_levels=(), ratios=ratios,
+        bars_ago=(
+            None if last_sig is None
+            else int((df.index > pd.Timestamp(last_sig.bar_time)).sum())
+        ),
+    )
+
+
+# Bir trend çizgisinin sağa uzatılabileceği en fazla süre, KENDİ
+# bacağının katı olarak. Faz 7'de harmonik `xb` çizgisi için bulunan
+# kural: kısa/dik bir bacağın eğimi bugüne projekte edilince fiyat
+# eksenini gerçek dışı büyütüyor (100 TL'lik hissede 700 TL'lik
+# projeksiyon görülmüştü). `report.py` sahnesi de aynı sınırı koydu.
+_MAX_EXTEND_MULT = 3.0
+
+# Aynı anda çizilecek en fazla trend çizgisi. `price_structure` 7-8 aktif
+# çizgi üretebiliyor; hepsi çizilince grafik okunmaz oluyor (Faz 7
+# "declutter" turunun bulgusu). En ÇOK TEMAS ALMIŞ olanlar seçilir --
+# temas sayısı çizginin güvenilirliğinin göstergesi.
+_MAX_LINES = 4
+
+
+def price_structure_to_report(
+    result: IndicatorResult, df: pd.DataFrame
+) -> StructureReport | None:
+    """`structure.price_structure` -> `StructureReport`."""
+    n = len(df)
+    lines: list[StructureLine] = []
+    for ln in result.lines:
+        # 1) KIRILMIŞ çizgi çizilmez.
+        if ln.broken:
+            continue
+        if len(ln.points) < 2:
+            continue
+        (t0, y0), (t1, y1) = ln.points[0], ln.points[-1]
+        i0 = int(df.index.searchsorted(pd.Timestamp(t0)))
+        i1 = int(df.index.searchsorted(pd.Timestamp(t1)))
+        leg = max(i1 - i0, 1)
+        # 2) Uzatma bacağın 3 katıyla sınırlı.
+        i_end = min(i1 + int(leg * _MAX_EXTEND_MULT), n - 1)
+        slope = (float(y1) - float(y0)) / leg
+        y_end = float(y1) + slope * (i_end - i1)
+        role: Role = "bearish" if ln.style == "resistance" else "bullish"
+        pretty = "Direnç" if ln.style == "resistance" else "Destek"
+        lines.append(
+            StructureLine(
+                points=(
+                    (pd.Timestamp(df.index[i0]), float(y0)),
+                    (pd.Timestamp(df.index[i_end]), y_end),
+                ),
+                role=role, label=pretty, touches=ln.touches,
+            )
+        )
+    # HER TÜRDEN en çok temas alanlar. Salt temasa göre sıralamak tek
+    # tarafı seçiyordu (ölçüldü: 4 çizginin dördü de "Destek"), oysa
+    # yapı raporunun işi fiyatın ÜSTÜNDE ve ALTINDA ne olduğunu birlikte
+    # göstermek.
+    per_side = max(_MAX_LINES // 2, 1)
+    picked: list[StructureLine] = []
+    for role in ("bearish", "bullish"):
+        same = sorted(
+            (x for x in lines if x.role == role),
+            key=lambda x: (x.touches or 0), reverse=True,
+        )
+        picked.extend(same[:per_side])
+    lines = picked
+
+    # 3) Yalnızca AÇIK bölgeler (`Box.t1 is None` = hâlâ sürüyor).
+    zones = tuple(
+        StructureZone(
+            low=float(b.low), high=float(b.high),
+            role="bullish" if "support" in b.style else "bearish",
+            label="Destek Bölgesi" if "support" in b.style else "Direnç Bölgesi",
+        )
+        for b in result.boxes
+        if b.t1 is None and ("support" in b.style or "resistance" in b.style)
+    )
+
+    lv = {level.label: float(level.price) for level in result.levels}
+    st = result.last_state or {}
+    state = str(st.get("price_vs_zone", "")).upper() or "YAPI"
+    last_sig = (
+        max(result.signals, key=lambda s: pd.Timestamp(s.bar_time))
+        if result.signals else None
+    )
+    if not lines and not zones and "POC" not in lv:
+        return None
+    return StructureReport(
+        lines=tuple(lines), zones=zones,
+        poc=lv.get("POC"), vah=lv.get("VAH"), val=lv.get("VAL"),
+        state=state,
         bars_ago=(
             None if last_sig is None
             else int((df.index > pd.Timestamp(last_sig.bar_time)).sum())

@@ -41,6 +41,8 @@ _CASES = [
     ("structure.golden_zone", fx.impulse_retrace),
     ("trend.weekly_channel", fx.rising_channel),
     ("structure.swing_fib_abcd", fx.head_shoulders),
+    ("structure.price_structure", fx.head_shoulders),
+    ("patterns.flag_pennant", fx.impulse_retrace),
 ]
 
 

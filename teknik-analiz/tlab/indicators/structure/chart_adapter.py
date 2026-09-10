@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+from tlab.chart.contracts import XabcdPattern, XabcdPoint
 from tlab.core.types import IndicatorResult
 from tlab.indicators.structure.fib_retracement import FibLevel, FibRetracement
 from tlab.indicators.structure.zones_v2 import Zone
@@ -133,4 +134,78 @@ def golden_zone_to_fib(result: IndicatorResult, df: pd.DataFrame) -> FibRetracem
         golden_low=float(min(band_low, band_high)),
         golden_high=float(max(band_low, band_high)),
         in_golden_zone=min(band_low, band_high) <= close <= max(band_low, band_high),
+    )
+
+
+def swing_fib_abcd_to_pattern(
+    result: IndicatorResult, df: pd.DataFrame
+) -> XabcdPattern | None:
+    """`structure.swing_fib_abcd` -> `XabcdPattern` (X'SİZ, 4 noktalı).
+
+    AB=CD, XABCD'nin eksik hâli DEĞİL -- kendi başına bir formasyon;
+    5 noktalı harmonikler onu İÇERİR. `XabcdPattern` sözleşmesi bu yüzden
+    X'siz iskeleti de kabul ediyor ve komposer A-B-C-D'yi tek zikzak
+    olarak çiziyor (harmoniğin "B'de birleşen iki kanat" gövdesi burada
+    YANLIŞ olurdu).
+
+    En GÜNCEL üçlü seçilir: son üç swing ucu = A, B, C. D, göstergenin
+    kendi `D (hedef)` seviyelerinden EN YAKIN olanı (yeniden hesaplanmaz).
+    """
+    swings = [ln for ln in result.lines if ln.label.startswith("swing_")]
+    if len(swings) < 3:
+        return None
+    swings.sort(key=lambda ln: int(ln.label.rsplit("_", 1)[-1]))
+
+    # Son üç bacağın uçları ardışık dört pivot verir; son üçü A,B,C.
+    tail = swings[-3:]
+    pivots = [tail[0].points[0], tail[0].points[-1], tail[1].points[-1], tail[2].points[-1]]
+    a, b, c = pivots[1], pivots[2], pivots[3]
+    pts = [
+        XabcdPoint(pd.Timestamp(a[0]), float(a[1]), "A"),
+        XabcdPoint(pd.Timestamp(b[0]), float(b[1]), "B"),
+        XabcdPoint(pd.Timestamp(c[0]), float(c[1]), "C"),
+    ]
+
+    # D hedefleri: "D (hedef): 102.10" etiketli Level'lar. Fiyata EN YAKIN
+    # olanı gösterilir -- gösterge her oran için ayrı bir hedef üretiyor
+    # (3 aktif hedef tipik) ve hepsini çizmek merdiveni kalabalıklaştırır.
+    close = float(df["close"].iloc[-1])
+    targets = [lv for lv in result.levels if lv.label.startswith("D (hedef)")]
+    theoretical_d = (
+        float(min(targets, key=lambda lv: abs(float(lv.price) - close)).price)
+        if targets else None
+    )
+
+    # AB=CD oranları: bacaklar ZATEN biliniyor, yalnızca biçimlenir.
+    ab = b[1] - a[1]
+    bc = c[1] - b[1]
+    ratios = (
+        ("BC/AB", "—" if ab == 0 else f"{abs(bc / ab):.3f}"),
+    )
+    if theoretical_d is not None and bc != 0:
+        ratios += (("CD/BC (hedef)", f"{abs((theoretical_d - c[1]) / bc):.3f}"),)
+
+    last_sig = (
+        max(result.signals, key=lambda s: pd.Timestamp(s.bar_time))
+        if result.signals else None
+    )
+    # DURUM sinyalin `state`inden gelir. İlk denemede `last_state
+    # ["last_label"]` kullanılmıştı ama o bir SWING etiketi (HH/HL/LH/LL),
+    # durum değil -- komposer `_STATE_TR["LH"]` ile KeyError veriyordu.
+    _STATE = {
+        "completed": "tamamlandi", "invalidated": "gecersiz",
+        "active": "aktif", "pending": "izlemede",
+    }
+    state = _STATE.get(getattr(last_sig, "state", ""), "izlemede")
+    return XabcdPattern(
+        school="abcd", pattern_name="AB=CD",
+        direction="bullish" if c[1] < b[1] else "bearish",
+        points=tuple(pts),
+        state=state,
+        prz=None, theoretical_d=theoretical_d, actual_d=None,
+        fib_levels=(), ratios=ratios,
+        bars_ago=(
+            None if last_sig is None
+            else int((df.index > pd.Timestamp(last_sig.bar_time)).sum())
+        ),
     )

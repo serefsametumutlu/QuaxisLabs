@@ -80,11 +80,20 @@ def compose(
     pts = list(pat.points)
     if pat.actual_d is not None and (not pts or pts[-1] != pat.actual_d):
         pts.append(pat.actual_d)
-    wings: list[list] = [pts[0:3]]                 # X, A, B
-    if len(pts) >= 5:
-        wings.append(pts[2:5])                     # B, C, D
-    elif len(pts) == 4:
-        wings.append(pts[2:4])                     # B, C (D henüz yok)
+    # İki iskelet, iki çizim:
+    #  * X,A,B,C,D -> B'de birleşen İKİ kanat (X-D arası çizgi YOK)
+    #  * A,B,C,D   -> AB=CD; kapalı bir gövdesi yok, tek zikzak polyline
+    #    (X'siz ABCD kendi başına bir formasyon, harmoniğin eksiği değil)
+    has_x = bool(pts) and pts[0].label == "X"
+    wings: list[list]
+    if has_x:
+        wings = [pts[0:3]]                         # X, A, B
+        if len(pts) >= 5:
+            wings.append(pts[2:5])                 # B, C, D
+        elif len(pts) == 4:
+            wings.append(pts[2:4])                 # B, C (D henüz yok)
+    else:
+        wings = [pts]                              # A, B, C(, D)
 
     for wing in wings:
         if len(wing) < 3:
@@ -135,7 +144,10 @@ def compose(
     # 5) C -> Teorik D projeksiyonu (referans HRdEu6qaoAEaHIT'teki altın
     #    noktalı çizgi). Gerçek D henüz yoksa hedefi gösterir.
     if pat.theoretical_d is not None:
-        c = pat.points[3]
+        # C'yi ETİKETİNDEN bul, konumundan DEĞİL: X'li iskelette C
+        # 4., X'siz AB=CD'de 3. nokta -- sabit `points[3]` ikincisinde
+        # IndexError veriyordu.
+        c = next((q for q in pat.points if q.label == "C"), pat.points[-1])
         end_t = pat.actual_d.t if pat.actual_d else df.index[-1]
         cf.add(
             go.Scatter(

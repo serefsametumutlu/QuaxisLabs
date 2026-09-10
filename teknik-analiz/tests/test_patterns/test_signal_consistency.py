@@ -89,3 +89,35 @@ def test_every_emitted_state_has_a_turkish_label() -> None:
     assert emitted <= set(SUFFIX_LABEL_TR), (
         f"Türkçe karşılığı olmayan durum: {emitted - set(SUFFIX_LABEL_TR)}"
     )
+
+
+def test_xabcd_contract_accepts_both_skeletons() -> None:
+    """`XabcdPattern` hem X'li harmoniği hem X'siz AB=CD'yi kabul etmeli.
+
+    AB=CD, XABCD'nin eksik hâli DEĞİL -- kendi başına bir formasyon;
+    5 noktalı harmonikler onu İÇERİR (Pesavento'nun Gartley'e Fibonacci
+    oranlarını ilk uyguladığı AB=CD de X'sizdir). Sözleşme X'i ZORUNLU
+    tutarken `structure.swing_fib_abcd` hiç bağlanamıyordu; uydurma bir X
+    eklemek yanlış geometri üretirdi.
+    """
+    import pandas as pd
+    import pytest
+
+    from tlab.chart.contracts import XabcdPattern, XabcdPoint
+
+    t = pd.Timestamp("2026-01-01", tz="UTC")
+
+    def _pt(label, i):
+        return XabcdPoint(t + pd.Timedelta(days=i), 100.0 + i, label)
+
+    common = dict(
+        school="x", pattern_name="y", direction="bullish", state="izlemede",
+        prz=None, theoretical_d=None, actual_d=None,
+    )
+    # X'li (harmonik) ve X'siz (AB=CD) -- ikisi de geçerli
+    XabcdPattern(points=tuple(_pt(lab, i) for i, lab in enumerate("XABC")), **common)
+    XabcdPattern(points=tuple(_pt(lab, i) for i, lab in enumerate("ABCD")), **common)
+
+    # Rastgele bir sıra HÂLÂ reddedilmeli
+    with pytest.raises(ValueError, match="A,B,C"):
+        XabcdPattern(points=tuple(_pt(lab, i) for i, lab in enumerate("BCDA")), **common)

@@ -39,6 +39,7 @@ from tlab.indicators.patterns.neckline_adapter import to_pattern as adapt_neckli
 from tlab.indicators.structure.chart_adapter import (
     golden_zone_to_fib,
     supply_demand_to_zones,
+    swing_fib_abcd_to_pattern,
 )
 from tlab.indicators.trend.chart_adapter import (
     ewmac_to_overlay,
@@ -83,6 +84,8 @@ _SUPPORTED = {
     "structure.golden_zone": (golden_zone_to_fib, compose_fib),
     # haftalik kanal -- yalnizca GUNCEL kanal (frozen olanlar cizilmez)
     "trend.weekly_channel": (weekly_channel_to_channel, compose_channel),
+    # AB=CD -- X'SIZ 4 noktali; ayni komposer, farkli iskelet
+    "structure.swing_fib_abcd": (swing_fib_abcd_to_pattern, compose_xabcd),
 }
 
 

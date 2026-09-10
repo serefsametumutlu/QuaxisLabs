@@ -40,6 +40,7 @@ _CASES = [
     ("structure.supply_demand", fx.head_shoulders),
     ("structure.golden_zone", fx.impulse_retrace),
     ("trend.weekly_channel", fx.rising_channel),
+    ("structure.swing_fib_abcd", fx.head_shoulders),
 ]
 
 

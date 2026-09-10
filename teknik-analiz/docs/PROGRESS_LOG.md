@@ -4336,3 +4336,76 @@ import-sıralama uyarısı ÖNCEDEN VAR, doğrulandı).
   ARTIRIR** (yükselen/alçalan üçgen artık üretiliyor). Tam evren ölçümü
   YAPILAMADI — yfinance bu ortamda kurum ağ politikasıyla ENGELLİ (403).
   `tlab eod --market bist` sonrası önce/sonra sayımı YAPILMALI.
+
+---
+
+## 2026-09-10 (3) — Alçalan takoz + megafon + frontend'deki İKİNCİ liste
+
+**1) ALÇALAN TAKOZ tamamlandı.** Önceki oturumda tek `falling_wedge`
+adayı `invalidated` kalıyordu. Kök neden ÖLÇÜLDÜ: gövde 120 bar olunca
+`build_trendlines` gövdenin İÇİNDE daha erken/kısa bir takoz da buluyor
+(Eki-Ara), fiyat gövdenin geri kalanında düşmeye devam ettiği için o erken
+aday kendi alt sınırını kırıp geçersizleşiyor. Gövde 70 bara indirildi;
+70 barda varsayılan bacak aralığı (9-17) yalnızca ~5 bacak veriyordu ve
+`build_trendlines` destek tarafında HİÇ çizgi kuramıyordu (ölçüldü: 8
+pivot, 0 destek çizgisi) -- `_oscillate`e `leg_range` parametresi eklendi,
+takozlar (6,11) kullanıyor (~8 bacak, her sınıra 4 temas).
+
+**2) YENİ `broadening()` fikstürü** (tepe/dip). Megafon üçgenin TERSİ:
+sınırlar ıraksar, apeks yoktur, hacim ARTAR (Bulkowski). İkisi de
+doğrulandı, GENİŞLEYEN FORMASYON grafiği görüldü.
+
+**3) GERÇEK HATA — frontend'de ELLE yazılı İKİNCİ bir liste vardı.**
+`web/frontend/app/chart/page.tsx`'te `CHART_JSON_INDICATORS =
+["patterns.triangle"]` sabiti, hangi göstergenin ETKİLEŞİMLİ
+(`ChartPlotly`) çizileceğine karar veriyordu. Bir önceki oturumda
+`chart_json._SUPPORTED`e wedge/broadening eklenmişti ama bu liste
+güncellenmediği için ikisi de sitede HÂLÂ eski sabit-PNG yolundan
+geliyordu -- yani backend düzeltmesi kullanıcıya HİÇ ULAŞMAYACAKTI.
+İki ayrı doğru kaynağı, her yeni göstergede yeniden kayardı.
+Düzeltme: `/api/catalog` her girdiye `interactive` alanı ekliyor
+(`spec.name in chart_json._SUPPORTED`), frontend zaten çektiği
+`catalog`tan okuyor. Elle liste TAMAMEN kaldırıldı; bundan sonra
+`_SUPPORTED`e eklenen her gösterge frontend'e DOKUNMADAN etkileşimli olur.
+
+**4) Tazelik kapısı 3 -> 60 bar (grafik sayfası).** Bir önceki oturumda
+`/scan` ile aynı 3 bara ayarlanmıştı; ölçüldü ki 4 barlık bir ONAY
+sinyali bile 404'e düşüyor -- yani kapının KENDİSİ "eksik sinyal"
+üretiyordu (kullanıcının açık kuralı: "eksik hatalı sinyal olmamalı").
+Gerekçe: grafik sayfasında asıl doğruluk filtresi tazelik DEĞİL, durum
+makinesi -- `select_latest` zaten `invalidated`/`expired` adayları hiç
+döndürmüyor, yani gelen aday KENDİ ufku içinde geçerli. 60 bar (~3 ay,
+1G) üstüne "artık bakmaya değmez" sınırı koyar; kullanıcının şikâyet
+ettiği BARMA vakası (262 bar) HÂLÂ engelleniyor. `/scan` 3'te KALDI.
+
+**Sinyal tutarlılığı denetimi (kullanıcının asıl isteği).** YENİ
+`tests/test_patterns/test_signal_consistency.py`: 7 formasyon fikstürü ×
+durum/işaret tutarlılığı. Kural -- kırılım GERÇEKLEŞMİŞSE (ONAY / RETEST
+TUTTU / HEDEFE ULAŞTI) AL/SAT işareti ZORUNLU, OLUŞUYOR ise OLMAMALI;
+long->AL/altta/bullish, short->SAT/üstte/bearish. TUTARSIZLIK BULUNMADI.
+Ayrıca formasyon içermeyen 3 seride (kanal, yatay sıkışma, bayrak) yanlış
+pozitif çıkmadığı da kilitlendi. Durum makinesinin ürettiği 6 ekin
+(pending/confirmed/retest_hold/target_reached/invalidated/expired) hepsi
+`SUFFIX_LABEL_TR`de -- eksik olsa kullanıcı "RETEST_HOLD" gibi ham dize
+görürdü.
+
+**YENİ `tests/test_web/test_chart_json_route.py`:** GERÇEK rota, yalnızca
+`compute_live` mock'lanarak, 6 vaka × 3 tema = 18 render + tazelik kapısı
++ 422 + katalog `interactive` türetimi. Gerçek BIST verisi olmadan
+kurulabilecek siteye EN YAKIN doğrulama.
+
+944 test yeşil (917->944); 8 başarısız testin TAMAMI ÖNCEDEN VAR.
+`ruff`: değişen/yeni dosyalarda hata YOK (kalan 14 uyarı bu turda
+dokunulmayan komposerlerde: breadth/neckline/range_box/series_overlay/
+contracts/frame).
+
+**AÇIK KALAN — dürüst not:**
+- Frontend `tsc --noEmit` ÇALIŞTIRILAMADI (`node_modules` yok, `npm
+  install` ağ gerektiriyor). Değişiklik iki satır ve tip güvenli
+  (`CatalogEntry.interactive: boolean`), ama DERLENDİĞİ doğrulanmadı.
+- `slope_ratio_range` düzeltmesinin TARAYICI GENELİNDEKİ etkisi hâlâ
+  ölçülmedi (yfinance 403). `tlab eod --market bist` sonrası önce/sonra
+  sayımı yapılmalı -- yükselen/alçalan üçgen artık üretildiği için
+  sinyal sayısı ARTACAK.
+- Kalan 24 gösterge hâlâ eski PNG yolunda (`interactive: false`) --
+  KIRIK DEĞİL, sadece etkileşimli değil. Aşama B'nin geri kalanı.

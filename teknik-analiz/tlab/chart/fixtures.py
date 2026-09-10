@@ -276,19 +276,26 @@ def triangle(n: int = 220, seed: int = 101, kind: str = "simetrik") -> pd.DataFr
 
 def _oscillate(
     hi: np.ndarray, lo: np.ndarray, rng: np.random.Generator, start: float,
+    leg_range: tuple[int, int] = (9, 17),
 ) -> tuple[np.ndarray, list[tuple[int, bool]]]:
     """İki sınır arasında salınan kapanış serisi + dönüş noktaları.
 
     Dönen `turns`: (bar_idx, üst_mü) — sınıra DOKUNULAN barlar. Gürültü
     yalnızca bacakların İÇİNE eklenir, dönüş noktalarına EKLENMEZ: aksi
     halde "düz" bir tavan/taban gerçekte düz OLMAZ (bkz. `_pin_touches`).
+
+    `leg_range` bacak uzunluğu aralığı. Kısa gövdeli fikstürlerde (takoz:
+    70 bar) varsayılan (9,17) yalnızca ~5 bacak üretiyor, yani her sınıra
+    2-3 dönüş -- `build_trendlines` bununla destek tarafında HİÇ çizgi
+    kuramıyordu (ölçüldü: 8 pivot, 0 destek çizgisi). (6,11) ile ~8 bacak
+    ve her sınıra 4 temas çıkıyor.
     """
     n_body = len(hi)
     close = np.empty(n_body)
     turns: list[tuple[int, bool]] = []
     pos, up = 0, True
     while pos < n_body:
-        leg = int(rng.integers(9, 17))
+        leg = int(rng.integers(*leg_range))
         end = min(pos + leg, n_body)
         a = lo[pos] if up else hi[pos]
         b = hi[end - 1] if up else lo[end - 1]
@@ -330,7 +337,7 @@ def _pin_touches(
             )
 
 
-def wedge(n: int = 164, seed: int = 131, kind: str = "alcalan") -> pd.DataFrame:
+def wedge(n: int = 114, seed: int = 131, kind: str = "alcalan") -> pd.DataFrame:
     """Takoz (wedge) — alçalan (boğa) / yükselen (ayı).
 
     Üçgenden FARKI: iki sınır da AYNI yöne eğimli, ama farklı hızda —
@@ -345,30 +352,38 @@ def wedge(n: int = 164, seed: int = 131, kind: str = "alcalan") -> pd.DataFrame:
     pre = base + np.cumsum(rng.normal(0.0, 0.35, 30))
     start = float(pre[-1])
 
-    n_body = 120
-    # Eğim oranı HESAPLANARAK seçildi, göz kararı DEĞİL. İki kısıt aynı anda
-    # sağlanmalı: (1) `classify` yavaş kenarı "düz" saymamalı -- oran >
+    # Gövde 120 DEĞİL 70 bar. 120 barda `build_trendlines` gövdenin İÇİNDE
+    # daha erken/kısa bir takoz da buluyordu (ölçüldü: Eki-Ara aralığında);
+    # fiyat gövdenin geri kalanında düşmeye devam ettiği için o erken aday
+    # kendi alt sınırını kırıp "invalidated" oluyor ve adaptöre çizilebilir
+    # aday kalmıyordu. 70 bar ~5-6 salınım bacağı = her sınıra 3 temas
+    # (Bulkowski'nin 3+2 asgarisi) verirken alt-formasyona yer bırakmıyor.
+    n_body = 70
+
+    # Eğim oranı HESAPLANARAK seçildi, göz kararı DEĞİL. Üç kısıt birden:
+    # (1) `classify` yavaş kenarı "düz" saymamalı -- oran >
     # `ClassifyParams.flat_ratio`=0.15, yoksa formasyon takoz değil ÜÇGEN
     # sınıflanır (ilk denemede tam bu oldu: alçalan takoz `desc_triangle`
-    # çıktı); (2) `_passes_shape_filters` oranı [0.3, 1.0] bandında ister.
-    # Seçilen oran 0.4. Yakınsama hızı da apeksi `max_apex_bars`=120 içinde
-    # tutmalı: hızlı kenar 0.09/bar, yavaş 0.036/bar, fark 0.054/bar --
-    # ~11 birimlik açıklık ~85 barda kapanır.
+    # çıktı); (2) `_passes_shape_filters` oranı [0.3, 1.0] bandında ister;
+    # (3) apeks `max_apex_bars`=120 içinde kalmalı.
+    # Seçim: oran 0.4 -- hızlı kenar 0.12/bar, yavaş 0.048/bar, yakınsama
+    # 0.072/bar. Açıklık 11.0 -> 5.96 (70 bar), apeks ~83 bar sonra.
     if kind == "alcalan":
         # Alçalan takoz (boğa): İKİ sınır da DÜŞER, tavan daha hızlı.
-        hi = np.linspace(start * 1.12, start * 0.904, n_body)
-        lo = np.linspace(start * 0.90, start * 0.814, n_body)
+        hi = np.linspace(start * 1.11, start * 0.942, n_body)
+        lo = np.linspace(start * 0.89, start * 0.823, n_body)
         # Kırılım son bacağın bittiği yerden başlar; o yer ALT sınır olabilir
-        # (0.814*start). Üst sınırı (0.904*start) AŞMASI için oran >1.11
-        # olmalı -- 1.10 yetmiyordu, formasyon "invalidated" kalıyordu.
-        brk_mult = 1.20                                        # yukarı kırılım
+        # (0.823*start). Üst sınırı (0.942*start) AŞMASI için oran >1.145.
+        brk_mult = 1.22                                        # yukarı kırılım
     else:
         # Yükselen takoz (ayı): İKİ sınır da YÜKSELİR, taban daha hızlı.
-        lo = np.linspace(start * 0.88, start * 1.096, n_body)
-        hi = np.linspace(start * 1.12, start * 1.206, n_body)
+        lo = np.linspace(start * 0.89, start * 1.058, n_body)
+        hi = np.linspace(start * 1.11, start * 1.177, n_body)
+        # Aynı hesap ters yönde: tavandan (1.177) tabanın altına (1.058)
+        # inmesi için oran <0.899.
         brk_mult = 0.85                                        # aşağı kırılım
 
-    close, turns = _oscillate(hi, lo, rng, start)
+    close, turns = _oscillate(hi, lo, rng, start, leg_range=(6, 11))
     # Kırılım KUYRUĞU kısa: uzun bir ralli KENDİ pivotlarını doğurur ve
     # `build_trendlines` ona da bir "takoz" oturtur -- o aday takozdan DAHA
     # TAZE olduğu için `select_latest` onu seçiyordu (ölçüldü: alçalan takoz
@@ -382,6 +397,46 @@ def wedge(n: int = 164, seed: int = 131, kind: str = "alcalan") -> pd.DataFrame:
     df = _ohlc_from_close(body[:n], rng)
     _pin_touches(df, turns, hi, lo, offset=len(pre))
     v = np.linspace(4.0, 1.5, len(df))
+    v[-14:] = 4.5
+    df["volume"] = v * 1e6 * rng.lognormal(0, 0.2, len(df))
+    df.index = pd.bdate_range("2025-08-01", periods=len(df), tz="UTC")
+    return df
+
+
+def broadening(n: int = 124, seed: int = 149, kind: str = "tepe") -> pd.DataFrame:
+    """Genişleyen formasyon (megafon) — tepe (ayı) / dip (boğa).
+
+    Üçgen/takozun TERSİ: sınırlar IRAKSAR, apeks YOKTUR. Dar başlar,
+    her salınım bir öncekinden geniştir. `patterns_geom.diverging_lines`
+    bunu "ileri yönde ıraksama" testiyle ayırır.
+
+    Hacim de tersine davranır: üçgende daralır, megafonda ARTAR
+    (Bulkowski) -- her bacak daha büyük olduğu için.
+    """
+    if kind not in ("tepe", "dip"):
+        raise ValueError(f"bilinmeyen kind {kind!r} -- geçerli: dip, tepe")
+    rng = np.random.default_rng(seed)
+    base = 50.0
+    pre = base + np.cumsum(rng.normal(0.0, 0.35, 30))
+    start = float(pre[-1])
+
+    n_body = 80
+    # Dar (±%3) başlayıp geniş (±%18) biten simetrik ıraksama.
+    hi = np.linspace(start * 1.03, start * 1.18, n_body)
+    lo = np.linspace(start * 0.97, start * 0.82, n_body)
+    # Kırılım yönü: tepe -> aşağı, dip -> yukarı. Son bacak karşı sınırda
+    # bittiği için oran ona göre hesaplanır (bkz. `wedge` aynı hesap).
+    brk_mult = 0.88 if kind == "tepe" else 1.14
+
+    close, turns = _oscillate(hi, lo, rng, start, leg_range=(6, 11))
+    brk = np.linspace(float(close[-1]), float(close[-1]) * brk_mult, 14)
+    body = np.r_[pre, close, brk]
+    pad = n - len(body)
+    if pad > 0:
+        body = np.r_[body, body[-1] + np.cumsum(rng.normal(0, 0.3, pad))]
+    df = _ohlc_from_close(body[:n], rng)
+    _pin_touches(df, turns, hi, lo, offset=len(pre))
+    v = np.linspace(1.5, 4.0, len(df))          # hacim ARTAR (üçgenin tersi)
     v[-14:] = 4.5
     df["volume"] = v * 1e6 * rng.lognormal(0, 0.2, len(df))
     df.index = pd.bdate_range("2025-08-01", periods=len(df), tz="UTC")

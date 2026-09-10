@@ -47,7 +47,7 @@ _SUPPORTED = {
 @router.get("/chart.json")
 def get_chart_json(
     symbol: str, tf: str, indicator: str, market: str = "bist", theme: str = "dark",
-    max_bars_ago: int | None = 3,
+    max_bars_ago: int | None = 60,
 ) -> Response:
     compose = _SUPPORTED.get(indicator)
     if compose is None:
@@ -70,9 +70,19 @@ def get_chart_json(
         # net bir 404: frontend bunu "sinyal yok" olarak ayrı gösterir.
         raise HTTPException(404, f"{symbol} için güncel/geçerli bir {indicator} sinyali yok")
 
-    # Tazelik kapısı -- `/scan`'in `max_bars_ago` VARSAYILANIYLA (3) AYNI.
-    # Bunsuz grafik "Sinyal yaşı: 262 bar" gibi ölü bir formasyonu canlıymış
-    # gibi çiziyordu (kullanıcının BARMA ekran görüntüsü). `None` kapatır.
+    # Tazelik kapısı. `/scan`'den (3 bar) DAHA GENİŞ ve bu BİLİNÇLİ:
+    #
+    # `/scan` "bugün ne yapılabilir" listesi -- orada 3 bar doğru. Grafik
+    # sayfasında ise kullanıcı ZATEN bu sembolü ve bu göstergeyi seçmiş;
+    # 4 barlık bir ONAY sinyalini 404'e çevirmek "eksik sinyal" üretir
+    # (ölçüldü: takoz fikstürünün 4 barlık ONAY'ı 3-bar kapısına takılıyordu).
+    # Asıl DOĞRULUK filtresi burada tazelik değil, durum makinesi:
+    # `select_latest` zaten `invalidated`/`expired` adayları hiç döndürmüyor,
+    # yani gelen aday KENDİ ufku içinde hâlâ geçerli. 60 bar (~3 ay, 1G)
+    # bunun üstüne "artık bakmaya değmez" sınırı koyar ve kullanıcının
+    # şikâyet ettiği vakayı (BARMA, "Sinyal yaşı: 262 bar") hâlâ engeller.
+    # Sinyalin YAŞI grafiğin üst satırında zaten yazıyor. `None` kapatır,
+    # istenirse sorgu parametresiyle daraltılır (?max_bars_ago=3).
     if max_bars_ago is not None and pat.bars_ago is not None and pat.bars_ago > max_bars_ago:
         raise HTTPException(
             404,

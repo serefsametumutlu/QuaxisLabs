@@ -12,7 +12,10 @@ bulunan bir uyumsuzluk)."""
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pandas as pd
+import pytest
 
 from tlab.core.pattern_state import PatternTrackingConfig, track_breakout_pattern
 from tlab.core.types import IndicatorResult, Timeframe
@@ -77,14 +80,18 @@ def test_to_pattern_builds_boundary_lines_and_numbered_touches_from_real_geometr
     assert pat.state == "ONAY"
 
     upper_b, lower_b = pat.boundaries
-    # Line.points DOĞRUDAN wedge.py'nin ürettiği (upper.p1/p2) -- yeniden
-    # hesaplanmadı.
-    assert upper_b.points == (
-        (df.index[0], 130.0), (df.index[20], 110.0),
-    )
-    assert lower_b.points == (
-        (df.index[5], 100.0), (df.index[25], 95.0),
-    )
+    # İki sınır ORTAK bir aralıkta örneklenir (bkz. `_spanned`): geometri
+    # hâlâ wedge.py'nin ürettiği doğrunun AYNISI, yalnızca iki uç nokta
+    # ortak [span_start, span_end]'e taşınır. Eskiden her sınır YALNIZCA
+    # kendi iki pivotu arasında çiziliyordu (üst 0-20, alt 5-25) ve
+    # `Line.extend_right` sessizce DÜŞÜYORDU -- iki çizgi hiç kesişmiyor,
+    # formasyon grafikte oluşmuyordu.
+    assert upper_b.points[0][0] == lower_b.points[0][0]
+    assert upper_b.points[-1][0] == lower_b.points[-1][0]
+    # Doğrular DEĞİŞMEDİ: üst y=130-1.0*i, alt y=101.25-0.25*i.
+    for b, (y0, slope) in ((upper_b, (130.0, -1.0)), (lower_b, (101.25, -0.25))):
+        for t, y in b.points:
+            assert y == pytest.approx(y0 + slope * df.index.get_loc(t))
     # touches, extra_payload["upper_touches"]=(0,10,20) -- Trendline.
     # touches'ın DIŞA AÇILMIŞ hâli -- ile birebir eşleşmeli.
     assert [t.label for t in upper_b.touches] == ["U1", "U2", "U3"]
@@ -193,3 +200,71 @@ def test_select_latest_picks_the_most_recently_signalled_candidate() -> None:
     picked = select_latest(result)
     assert picked is not None
     assert picked[0] == "new"
+
+
+def test_boundaries_share_one_span_so_the_pattern_actually_closes() -> None:
+    """İki sınırın ZAMAN aralığı AYNI olmalı.
+
+    Regresyon: `wedge.py` her sınırı yalnızca kendi iki pivotu arasında
+    tanımlar ve uzatmayı `Line.extend_right=True`'ya devreder; adaptör bu
+    bayrağı okumadığı için siteye kopuk çizgiler gidiyordu (kullanıcının
+    BESTE ekran görüntüsünde alt sınır Nisan-Mayıs, üst sınır Haziran-Eylül
+    aralığındaydı -- ikisi HİÇ kesişmiyordu).
+    """
+    df = make_trend(n=200, slope=0.0, noise=1.0, seed=1).iloc[:35]
+    pat = to_pattern(_confirmed_falling_wedge(df), df)
+    assert pat is not None
+    upper_b, lower_b = pat.boundaries
+    assert upper_b.points[0][0] == lower_b.points[0][0]
+    assert upper_b.points[-1][0] == lower_b.points[-1][0]
+    # Ortak aralık formasyon gövdesinin TAMAMINI (0..25 pivotları) kapsar.
+    assert df.index.get_loc(upper_b.points[0][0]) == 0
+    assert df.index.get_loc(upper_b.points[-1][0]) >= 25
+    # ...ve sınırlar GERÇEKTEN yakınsar (alçalan takoz).
+    opening = upper_b.points[0][1] - lower_b.points[0][1]
+    closing = upper_b.points[-1][1] - lower_b.points[-1][1]
+    assert closing < opening
+
+
+def test_select_latest_rejects_a_candidate_whose_boundary_is_degenerate() -> None:
+    """Bir sınırı diğerinin yanında yok denecek kadar kısa olan aday, sinyali
+    daha TAZE olsa bile seçilmemeli.
+
+    Regresyon: `wedge.py` 159 barlık bir üst sınırı 6 barlık bir alt sınırla
+    eşleştiren adaylar da üretiyor ve bunların sinyalleri tipik olarak en
+    tazeler; salt tazeliğe göre sıralamak bu yozlaşmış adayı SİSTEMATİK
+    olarak seçiyordu. 6 barlık bir "destek çizgisi" Bulkowski'nin ~3 hafta /
+    çoklu temas ölçütünü karşılamaz -- formasyon sınırı değil, gürültüdür.
+    """
+    df = make_trend(n=200, slope=0.0, noise=1.0, seed=1).iloc[:35]
+    result = _confirmed_falling_wedge(df)
+    (good_pid, good_state), = result.last_state.items()
+    key = good_pid.rsplit("_", 1)[0]
+
+    # AYNI üst sınırı, 2 barlık bir alt sınırla eşleştiren SAHTE bir aday
+    # ekle; sinyali de bir bar DAHA TAZE olsun.
+    fresh_pid = "degenerate_long"
+    fresh_key = "degenerate"
+    upper = next(ln for ln in result.lines if ln.label == f"{key}_upper")
+    lower = next(ln for ln in result.lines if ln.label == f"{key}_lower")
+    result.lines.append(replace(upper, label=f"{fresh_key}_upper"))
+    result.lines.append(
+        replace(lower, label=f"{fresh_key}_lower",
+                points=((df.index[26], 95.0), (df.index[28], 94.5)))
+    )
+    result.last_state[fresh_pid] = dict(good_state)
+    newest = max(result.signals, key=lambda s: pd.Timestamp(s.bar_time))
+    result.signals.append(
+        replace(newest, bar_time=df.index[-1], detected_at=df.index[-1],
+                payload={**newest.payload, "pattern_id": fresh_pid})
+    )
+    assert pd.Timestamp(df.index[-1]) > pd.Timestamp(newest.bar_time), (
+        "sahte aday GERÇEKTEN taze olmalı"
+    )
+
+    picked = select_latest(result, df)
+    assert picked is not None
+    assert picked[0] == good_pid, "yozlaşmış aday, daha taze olmasına rağmen seçilmemeli"
+
+    # df verilmezse eleme YAPILMAZ (geriye dönük davranış): salt tazelik.
+    assert select_latest(result)[0] == fresh_pid

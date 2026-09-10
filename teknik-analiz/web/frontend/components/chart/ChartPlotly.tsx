@@ -61,7 +61,23 @@ export function ChartPlotly({ symbol, tf, indicator, market, theme }: Props) {
         delete layout.width;
         delete layout.height;
         return Plotly.react(containerRef.current, fig.data, layout, {
-          displayModeBar: false,
+          // PNG indirme düğmesi: `ChartImage`(PNG) yerine `ChartPlotly`ye
+          // geçilince modebar TAMAMEN kapatılmış ve kullanıcının kullandığı
+          // "PNG olarak indir" düğmesi de onunla birlikte kaybolmuştu.
+          // Yalnızca indirme düğmesi bırakılır -- geri kalan Plotly araçları
+          // (zoom/pan/lasso) grafiğin kendi zaman düğmeleriyle çakışıyor.
+          displayModeBar: true,
+          displaylogo: false,
+          modeBarButtonsToRemove: [
+            "zoom2d", "pan2d", "select2d", "lasso2d", "zoomIn2d", "zoomOut2d",
+            "autoScale2d", "resetScale2d", "toggleSpikelines",
+            "hoverClosestCartesian", "hoverCompareCartesian",
+          ],
+          toImageButtonOptions: {
+            format: "png",
+            filename: `${symbol}_${indicator}_${tf}`,
+            scale: 2,
+          },
           responsive: true,
         });
       })

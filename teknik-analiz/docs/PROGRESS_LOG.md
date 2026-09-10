@@ -4173,3 +4173,89 @@ tahmini kullanmaya devam ediyor, KIRILMADI (eski davranış korunuyor,
 sadece daha az hassas), ama tutarlılık için Aşama C'nin geri kalanında
 onlara da `chart_span` eklenmeli.
 
+
+---
+
+## 2026-09-10 — Aşama A sonrası: siteye kopuk üçgen giden İKİ GERÇEK hata
+
+Kullanıcı canlı siteden üç ekran görüntüsü gönderdi (SVGYO/BESTE/BARMA
+`patterns.triangle`): çizilenler referans görsellere HİÇ benzemiyordu —
+"çizimler ve sinyaller alakasız". Teşhis, tahminle değil ÖLÇÜMLE yapıldı;
+iki BAĞIMSIZ kök neden çıktı, ikisi de `boundary_adapter.py`'de.
+
+**HATA 1 — `Line.extend_right` sessizce DÜŞÜYORDU (kopuk çizgiler).**
+`wedge.py:229-243` her sınırı YALNIZCA kendi iki pivotu arasında tanımlar
+ve uzatmayı `Line(..., extend_right=True)` bayrağına devreder; eski
+`renderer.py:1522` bu bayrağı okuyordu. Yeni `contracts.BoundaryLine`
+sözleşmesi ise "çizgi YALNIZCA bu noktalar arasında uzanır" diyor — böyle
+bir bayrak YOK — ve adaptör `points`'i olduğu gibi kopyalıyordu
+(`grep -c extend_right` → `boundary_adapter.py`/`contracts.py`/`marks.py`
+üçünde de **0**). Sonuç: iki sınır ÖRTÜŞMEYEN zaman aralıklarında
+çiziliyordu (BESTE'de alt sınır Nisan-Mayıs, üst sınır Haziran-Eylül —
+ikisi HİÇ kesişmiyor, ortada bir üçgen hiç oluşmuyordu).
+**Düzeltme:** YENİ `_spanned()` — sınırın iki çapasından geçen doğruyu
+dört çapadan + sinyal/giriş barından türetilen ORTAK `[span_start,
+span_end]` aralığında yeniden örnekler. Daralan formasyonlarda apeksi
+AŞMAZ (aşarsa iki çizgi kesişip X'e dönerdi). Geometri wedge.py'nin
+ürettiği doğrunun AYNISI — yeni bir fit/eşik HESAPLANMAZ, yalnızca
+uzatma maddileştirilir ("grafik katmanı hesap yapmaz" ilkesi korunur:
+bu bir koordinat dönüşümü, tespit değil).
+
+**HATA 2 — tazelik sıralaması YOZLAŞMIŞ adayı SİSTEMATİK seçiyordu.**
+Hata 1 düzeltilince çıkan ikinci hata: `select_latest` yalnızca "sinyali
+en taze" adayı seçiyordu. Ölçüm (simetrik üçgen fikstürü, 8 aday):
+
+| son sinyal | üst span | alt span | denge |
+|---|---|---|---|
+| 2026-05-20 | 159 bar | **6 bar** | 0.038 |
+| 2026-05-20 | 133 bar | **6 bar** | 0.045 |
+| 2026-05-13 | 159 bar | 80 bar | **0.503** |
+
+`wedge.py` 159 barlık bir üst sınırı 6 barlık bir alt sınırla eşleştiren
+adaylar da üretiyor ve bunların sinyalleri TİPİK OLARAK en taze olanlar —
+salt tazeliğe göre sıralamak bu yozlaşmışı HER ZAMAN seçiyordu. 6 barlık
+bir "destek çizgisi" Bulkowski'nin ~3 hafta / çoklu temas ölçütünü
+karşılamaz; formasyon sınırı değil gürültüdür. Temasların (208-219. barlar)
+grafiğin sağ ucuna yığılmasının sebebi de buydu.
+**Düzeltme:** eleme (`_MIN_SPAN_BARS=15`, `_MIN_SPAN_BALANCE=0.25`)
+tazelikten ÖNCE uygulanır — sonra uygulanmasının anlamı yok, çünkü "en
+taze" zaten yozlaşmış olanı işaret ediyor. `df` verilmezse eleme yapılmaz
+(geriye dönük davranış korunur).
+
+**Ek iki düzeltme (kullanıcının aynı mesajda bildirdiği):**
+- `chart_json.py`'ye `max_bars_ago: int | None = 3` tazelik kapısı —
+  `/scan` rotasının VARSAYILANIYLA AYNI. Bunsuz grafik "Sinyal yaşı: 262
+  bar" gibi ölü bir formasyonu canlıymış gibi çiziyordu (BARMA).
+- `ChartPlotly.tsx`'te `displayModeBar: false` → PNG indirme düğmesi geri
+  geldi (`ChartImage`→`ChartPlotly` geçişinde modebar tamamen kapatılınca
+  kullanıcının kullandığı "PNG olarak indir" düğmesi de kaybolmuştu).
+  Yalnızca indirme bırakıldı; zoom/pan grafiğin kendi zaman düğmeleriyle
+  çakışıyor.
+
+**Ayrıca:** `chart/fixtures.py::triangle(kind=...)` bilinmeyen bir `kind`
+için SESSİZCE simetriğe düşüyordu (`"ascending"` yazan çağıran simetrik
+üçgen alıp testinin geçtiğini sanıyordu — bu oturumda GERÇEKTEN oldu).
+Artık `ValueError` atıyor — `tokens.py::role_color`'ın AYNI ilkesi.
+
+**Doğrulama:** Playwright + Chromium ile GÖRÜNTÜYE bakılarak — sınırlar
+artık ortak aralıkta, üçgen gerçekten kapanıyor (açılış 12.31 → kapanış
+3.46). Temasların çizgi üzerinde olduğu da ÖLÇÜLDÜ (en büyük sapma 0.21 =
+%0.4; ilk görsel izlenim "çizgiden kopuk" idi, ölçüm bunu ÇÜRÜTTÜ —
+temaslar doğru, yalnızca fikstürün kırılım bacağı sınıra yaslandığı için
+kümeleniyorlar). 2 yeni regresyon testi; 905 test yeşil (903→905), 8
+başarısız testin TAMAMI ÖNCEDEN VAR (temiz ağaçta da aynı: `arch` modülü
+kurulu değil ×4, Gemini mock ×3, 1 golden). `ruff`: değişen dosyaların
+hepsi temiz.
+
+**AÇIK KALAN (bu oturumda ÇÖZÜLMEDİ):** kök neden `wedge.py`'nin
+birbiriyle orantısız sınır çiftleri ÜRETMESİ. Adaptör bunları artık
+eliyor ama tespit edicinin kendisi hâlâ üretiyor — asıl düzeltme
+`build_trendlines`'ın aday eşleştirmesinde olmalı (CMT kuralı: bir trend
+çizgisi BENZER BÜYÜKLÜKTEKİ pivotları birleştirir). Tarayıcı genelinde
+etkisi olacağı için ayrı bir iş.
+
+**DOĞRULANAMAYAN:** yfinance bu ortamda kurum ağ politikasıyla ENGELLİ
+(403), SVGYO/BESTE/BARMA'nın GERÇEK verisi çekilemedi — doğrulama
+deterministik sentetik fikstürle yapıldı. Aynı kod yolu (`compute_live` →
+`to_pattern` → `compose`) çalıştırıldı, ama gerçek BIST verisiyle son
+kontrol kullanıcının/terminal oturumunun yapması gereken bir adım.

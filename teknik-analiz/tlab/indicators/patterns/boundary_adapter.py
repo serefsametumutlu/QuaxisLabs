@@ -30,7 +30,7 @@ import pandas as pd
 from tlab.chart.contracts import BoundaryLine, BoundaryPattern, BoundaryTouch, ChartSignal
 from tlab.chart.tokens import Role
 from tlab.core.pattern_state import SUFFIX_LABEL_TR
-from tlab.core.types import IndicatorResult
+from tlab.core.types import IndicatorResult, Line
 
 # Statik Türkçe başlık metinleri -- wedge.py/broadening.py'nin kendi özel
 # (modül-içi) `_LABEL_TR` sözlükleriyle AYNI değerler, yalnızca burada da
@@ -48,6 +48,44 @@ _TITLE_TR: dict[str, str] = {
 }
 
 
+def _pos(df: pd.DataFrame, t) -> int:
+    """`t` zaman damgasının bar konumu. İndekste birebir yoksa en yakın
+    (soldaki) bara yuvarlar -- `get_loc` KeyError atardı."""
+    ts = pd.Timestamp(t)
+    try:
+        return int(df.index.get_loc(ts))
+    except KeyError:
+        return int(min(max(df.index.searchsorted(ts, side="right") - 1, 0), len(df) - 1))
+
+
+def _spanned(
+    line: Line, df: pd.DataFrame, start_pos: int, end_pos: int
+) -> tuple[tuple[pd.Timestamp, float], ...]:
+    """`line`'ın iki çapa noktasından geçen doğruyu ORTAK `[start_pos,
+    end_pos]` aralığında yeniden örnekler.
+
+    NEDEN: `wedge.py`/`broadening.py` her sınırı YALNIZCA kendi iki
+    pivotu arasında tanımlar ve uzatmayı `Line.extend_right=True`
+    bayrağına devreder (eski `renderer.py` bu bayrağı okurdu). Yeni
+    `BoundaryLine` sözleşmesi ise "çizgi YALNIZCA bu noktalar arasında
+    uzanır" der -- bayrak yok. Bu yüzden iki sınır kendi pivot
+    aralıklarında çizilirdi: üst sınır grafiğin ortasında, alt sınır
+    başka bir yerde, ikisi HİÇ kesişmezdi (SVGYO/BESTE/BARMA ekran
+    görüntülerindeki kopuk çizgilerin tek sebebi buydu). Burada
+    uzatmayı adaptör MADDİLEŞTİRİR: geometri wedge.py'nin ürettiği
+    doğrunun AYNISI, yalnızca ortak bir aralıkta örneklenir -- yeni bir
+    fit/eşik/geometri HESAPLANMAZ.
+    """
+    (t0, y0), (t1, y1) = line.points[0], line.points[-1]
+    i0, i1 = _pos(df, t0), _pos(df, t1)
+    slope = 0.0 if i1 == i0 else (float(y1) - float(y0)) / (i1 - i0)
+    at = lambda i: float(y0) + slope * (i - i0)  # noqa: E731
+    return (
+        (pd.Timestamp(df.index[start_pos]), at(start_pos)),
+        (pd.Timestamp(df.index[end_pos]), at(end_pos)),
+    )
+
+
 def _pattern_name_of(state_info: dict) -> str:
     # wedge.py last_state -> "shape"; broadening.py last_state -> "pattern".
     name = state_info.get("shape") or state_info.get("pattern")
@@ -56,9 +94,45 @@ def _pattern_name_of(state_info: dict) -> str:
     return str(name)
 
 
-def select_latest(result: IndicatorResult) -> tuple[str, dict] | None:
+# Bir sınırın "gerçek" sayılması için gereken en az bar sayısı ve iki sınır
+# arasındaki en düşük denge oranı. Gerekçe (Bulkowski, "Encyclopedia of Chart
+# Patterns"): bir üçgen/takoz sınırı en az ~3 hafta sürmeli ve her sınıra
+# birden çok kez dokunulmalı. 6 barlık bir "destek çizgisi" formasyon sınırı
+# DEĞİL, gürültüdür -- kısa sınır, uzun olanın en az dörtte biri kadar
+# sürmeli. Bunlar bir GEOMETRİ hesabı değil, `wedge.py`'nin ÜRETTİĞİ
+# adaylar arasından KABUL EDİLEBİLİR olanları seçme ölçütü.
+_MIN_SPAN_BARS = 15
+_MIN_SPAN_BALANCE = 0.25
+
+
+def _boundary_spans(
+    result: IndicatorResult, pattern_id: str, df: pd.DataFrame
+) -> tuple[int, int] | None:
+    """Adayın üst/alt sınırlarının BAR cinsinden uzunluğu; çizgiler yoksa None."""
+    key = pattern_id.rsplit("_", 1)[0]
+    spans: list[int] = []
+    for side in ("upper", "lower"):
+        line = next((ln for ln in result.lines if ln.label == f"{key}_{side}"), None)
+        if line is None:
+            return None
+        spans.append(abs(_pos(df, line.points[-1][0]) - _pos(df, line.points[0][0])))
+    return spans[0], spans[1]
+
+
+def select_latest(
+    result: IndicatorResult, df: pd.DataFrame | None = None
+) -> tuple[str, dict] | None:
     """`result.last_state`'ten, geçersiz/süresi dolmamış en güncel adayın
-    (pattern_id, last_state[pattern_id]) çiftini döner; hiçbiri yoksa None."""
+    (pattern_id, last_state[pattern_id]) çiftini döner; hiçbiri yoksa None.
+
+    `df` verilirse önce YOZLAŞMIŞ adaylar (bir sınırı diğerinin yanında yok
+    denecek kadar kısa olanlar) ELENİR, tazelik ondan SONRA uygulanır.
+    NEDEN: `wedge.py` 159 barlık bir üst sınırı 6 barlık bir alt sınırla
+    eşleştiren adaylar da üretiyor ve bunların sinyalleri TİPİK OLARAK en
+    taze olanlar; salt tazeliğe göre sıralamak bu yozlaşmış adayı SİSTEMATİK
+    olarak seçiyordu (temaslar da o 6 barın içine yığıldığı için grafiğin
+    sağ ucunda üst üste biniyordu). Eleme tazelikten ÖNCE gelir -- yoksa
+    "en taze" zaten yozlaşmış olanı işaret eder."""
     if not result.last_state:
         return None
 
@@ -75,6 +149,19 @@ def select_latest(result: IndicatorResult) -> tuple[str, dict] | None:
         (pid, st) for pid, st in result.last_state.items()
         if st.get("state") not in ("invalidated", "expired")
     ]
+    if df is not None:
+        kept = []
+        for pid, st in candidates:
+            spans = _boundary_spans(result, pid, df)
+            if spans is None:
+                continue
+            short, long_ = min(spans), max(spans)
+            if short < _MIN_SPAN_BARS or long_ == 0:
+                continue
+            if short / long_ < _MIN_SPAN_BALANCE:
+                continue
+            kept.append((pid, st))
+        candidates = kept
     if not candidates:
         return None
     candidates.sort(key=lambda kv: latest_bar.get(kv[0], pd.Timestamp.min), reverse=True)
@@ -85,7 +172,7 @@ def to_pattern(result: IndicatorResult, df: pd.DataFrame) -> BoundaryPattern | N
     """Seçilen en güncel adayı `BoundaryPattern`e çevirir. Uygun aday yoksa
     (ya da adayın çizgi/temas verisi eksikse -- bu adaptörün eklendiği
     tarihten ÖNCE üretilmiş bir `IndicatorResult` gibi) `None` döner."""
-    picked = select_latest(result)
+    picked = select_latest(result, df)
     if picked is None:
         return None
     pattern_id, state_info = picked
@@ -153,18 +240,38 @@ def to_pattern(result: IndicatorResult, df: pd.DataFrame) -> BoundaryPattern | N
 
     bars_ago = int((df.index > pd.Timestamp(last_sig.bar_time)).sum())
 
+    # --- İki sınır için ORTAK zaman aralığı -------------------------------
+    # Dört çapa (üst iki pivot + alt iki pivot) formasyon gövdesini verir;
+    # sağ uç sinyal/giriş barına kadar taşınır ki kırılım oku çizgilerin
+    # üstünde kalsın. Daralan formasyonlarda apeks'i AŞMAZ -- aşarsa iki
+    # çizgi kesişip X'e döner.
+    anchor_pos = [
+        _pos(df, t)
+        for ln in (upper_line, lower_line)
+        for t, _ in (ln.points[0], ln.points[-1])
+    ]
+    body_start, body_end = min(anchor_pos), max(anchor_pos)
+
+    right_pos = max(body_end, _pos(df, last_sig.bar_time))
+    if entry_marker is not None:
+        right_pos = max(right_pos, _pos(df, entry_marker.t))
+    if apex_idx is not None and int(apex_idx) >= body_end:
+        right_pos = min(right_pos, int(apex_idx))
+    span_start = max(min(body_start, len(df) - 1), 0)
+    span_end = min(max(right_pos, body_end), len(df) - 1)
+
     return BoundaryPattern(
         kind=pattern_name,
         title=_TITLE_TR.get(pattern_name, pattern_name.upper()),
         state=state_label,
         boundaries=(
             BoundaryLine(
-                points=upper_line.points, role=role, name="Üst Sınır",
-                touches=upper_touches,
+                points=_spanned(upper_line, df, span_start, span_end),
+                role=role, name="Üst Sınır", touches=upper_touches,
             ),
             BoundaryLine(
-                points=lower_line.points, role=role, name="Alt Sınır",
-                touches=lower_touches,
+                points=_spanned(lower_line, df, span_start, span_end),
+                role=role, name="Alt Sınır", touches=lower_touches,
             ),
         ),
         facts=tuple(facts),

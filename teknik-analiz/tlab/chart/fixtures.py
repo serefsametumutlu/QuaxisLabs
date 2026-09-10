@@ -41,7 +41,7 @@ def range_market(n: int = 320, seed: int = 11) -> pd.DataFrame:
     trend = 40 * np.exp(np.cumsum(rng.normal(0.0035, 0.016, n_trend)))
     base = float(trend[-1])
     support, resistance = base * 0.92, base * 1.08
-    mid, half = (support + resistance) / 2, (resistance - support) / 2
+    mid = (support + resistance) / 2
 
     # sınırlara tekrar tekrar dokunan, ama DÜZENLİ OLMAYAN salınım:
     # her bacağın uzunluğu ve derinliği rastgele -- gerçek bir sıkışma
@@ -243,6 +243,11 @@ def triangle(n: int = 220, seed: int = 101, kind: str = "simetrik") -> pd.DataFr
     start = float(pre[-1])
 
     n_body = 120
+    if kind not in ("simetrik", "yukselen", "alcalan"):
+        # tokens.py::role_color ile AYNI ilke: bilinmeyen ad SESSİZCE
+        # varsayılana düşmesin -- "ascending" yazan çağıran, simetrik
+        # üçgen alıp testinin geçtiğini sanıyordu.
+        raise ValueError(f"bilinmeyen kind {kind!r} -- geçerli: alcalan, simetrik, yukselen")
     if kind == "yukselen":
         hi = np.full(n_body, start * 1.10)                    # düz tavan
         lo = np.linspace(start * 0.90, start * 1.08, n_body)  # yükselen taban

@@ -41,6 +41,7 @@ _SUPPORTED = {"patterns.triangle": compose_triangle}
 @router.get("/chart.json")
 def get_chart_json(
     symbol: str, tf: str, indicator: str, market: str = "bist", theme: str = "dark",
+    max_bars_ago: int | None = 3,
 ) -> Response:
     compose = _SUPPORTED.get(indicator)
     if compose is None:
@@ -62,6 +63,16 @@ def get_chart_json(
         # göstermesin hiçbir şey" — burada karşılığı boş bir grafik DEĞİL,
         # net bir 404: frontend bunu "sinyal yok" olarak ayrı gösterir.
         raise HTTPException(404, f"{symbol} için güncel/geçerli bir {indicator} sinyali yok")
+
+    # Tazelik kapısı -- `/scan`'in `max_bars_ago` VARSAYILANIYLA (3) AYNI.
+    # Bunsuz grafik "Sinyal yaşı: 262 bar" gibi ölü bir formasyonu canlıymış
+    # gibi çiziyordu (kullanıcının BARMA ekran görüntüsü). `None` kapatır.
+    if max_bars_ago is not None and pat.bars_ago is not None and pat.bars_ago > max_bars_ago:
+        raise HTTPException(
+            404,
+            f"{symbol} için en güncel {indicator} sinyali {pat.bars_ago} bar önce "
+            f"(sınır: {max_bars_ago} bar) -- bayat sinyal çizilmez",
+        )
 
     fig = compose(df, pat, symbol=symbol, timeframe=tf.upper(), theme=resolved_theme)
     return Response(content=pio.to_json(fig), media_type="application/json")

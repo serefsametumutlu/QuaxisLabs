@@ -3877,3 +3877,64 @@ TAM olarak ölçülmedi (yalnızca 14 sembollük örneklemde gözlemlendi).
 doğrulaması — playwright screenshot döngüsü gerektiren büyük iş) BU
 OTURUMDA değil, ayrı bir oturumda sürdürmeye karar verdi.
 
+## 2026-09-10 (aynı gün) — `converging.py` (üçgen/kama/genişleyen) entegre edildi — MİMARİ AYRIŞMA NOTU
+
+Kullanıcı, **ayrı bir terminal oturumunda** (başka bir Claude Code
+oturumu — bu proje diliyle "Sonnet" diye anılmış) `TERMINAL_DEVAM_
+PROMPTU.md`nin Ö1 maddesini (boundary_pattern adaptörleri) sürdürmüş,
+push 403 aldığı için çıktıyı `ucgenadaptoru.zip` (3 dosya) olarak bu
+oturuma teslim etti. O oturum ayrıca önceki iki commit'i (`70b1936`,
+`526691e`) bağımsızca DENETLEDİ ve DOĞRU bulduğunu bildirdi — kendi
+ölçümüyle (14 sembol yerine kendi örneklemi) pencere-kayması ID kaybını
+`%100 → %0-4`'e düşürdüğünü teyit etti (bu oturumun aynı gün önceki
+bulgusuyla — pencere BAŞTAN kırpılınca bazı olayların hiç üretilmemesi
+— aynı olgu, farklı açıdan doğrulanmış).
+
+**Entegre edilen:** `tlab/indicators/patterns/converging.py`
+(`detect_converging()` + `ConvergingPattern`) + `tlab/chart/composers/
+converging.py` (`boundary_pattern`e bağlayan ince sarmalayıcı) +
+`tlab/chart/fixtures.py`ye `triangle()` sentetik fikstürü (mevcut
+fonksiyonlara dokunulmadı, salt ekleme). Üç üçgen türü (simetrik/
+yükselen/alçalan) `önemli/HRihBa2WIAIZjP_.png` referansıyla GÖRSEL
+olarak karşılaştırıldı — numaralı temaslar (U1-U4/L1-L5), yatay+eğik
+sınır kombinasyonu, kırılımda AL/SAT kutusu birebir örtüşüyor. Ruff/
+mypy'de bu dosyalara özgü 2 küçük hata (kullanılmayan değişken, eksik
+`Role` tip anotasyonu) bulunup düzeltildi. 909 test hâlâ yeşil (bu paket
+için özel test YOK — bkz. aşağıdaki not). Commit `8d7820c` / gerçek repo
+`d821b25`.
+
+**ÖNEMLİ MİMARİ AYRIŞMA — kullanıcı kararı bekliyor:** `docs/KOMPOSER_
+HARITASI.md`nin 1. satırı ve `TERMINAL_DEVAM_PROMPTU.md`nin Ö1 maddesi
+AÇIKÇA "patterns.wedge/patterns.triangle/patterns.broadening'in MEVCUT
+`IndicatorResult` çıktısından `BoundaryPattern`e ADAPTÖR yaz" diyordu —
+yani zaten CATALOG'a kayıtlı, scanner/EOD/dashboard'u besleyen, bu
+oturumun BAŞINDA `pattern_id` düzeltmesi uygulanmış `tlab/indicators/
+patterns/wedge.py`/`broadening.py`nin GEOMETRİSİNİ yeniden kullanmak.
+`converging.py` bunun YERİNE `find_pivots` üzerine kurulu, TAMAMEN
+BAĞIMSIZ, YENİ bir tespit mantığı yazdı (kendi uydurma/kırılım/temas
+eşikleriyle). Sonuç: artık AYNI formasyon türleri için İKİ PARALEL,
+BİRBİRİNDEN FARKLI geometri/eşik kullanan tespit edici var:
+
+- `wedge.py`/`broadening.py` (CATALOG kayıtlı, `track_breakout_pattern`
+  durum makinesi, `results.db`ye yazılan, dashboard'un gösterdiği GERÇEK
+  tarama sinyalleri)
+- `converging.py` (yalnızca bu YENİ `tlab/chart` grafik komposer
+  katmanı için, HİÇBİR CATALOG/scanner/web rotasına henüz BAĞLANMADI —
+  diğer tüm `tlab/chart` bileşenleri gibi Y3/frontend geçişini
+  bekliyor).
+
+Bu, henüz zararsız (converging.py hiçbir şeye bağlı değil, hiçbir
+üretim yolunu etkilemiyor) ama Y3'te (frontend, `plotly.js` geçişi)
+`patterns.triangle` sayfası hangi tespit ediciden besleniyor olacak
+sorusu netleşmeden ilerlenirse GERÇEK bir tutarsızlık riski taşıyor:
+dün gece taramanın bulduğu bir üçgen sinyali ile kullanıcı o sembolün
+grafiğini açtığında `converging.py`nin CANLI hesapladığı üçgen
+BİRBİRİYLE UYUŞMAYABİLİR (farklı fit/eşik mantığı). **Karar kullanıcıya
+bırakıldı** — iki seçenek: (a) `converging.py`yi ATIP gerçek adaptörü
+(wedge.py/broadening.py çıktısından BoundaryPattern'e) yaz, (b)
+`wedge.py`/`broadening.py`yi ATIP scanner'ı da `converging.py`nin
+mantığına geçir (tek doğru kaynak kalır, ama scanner tarafında
+regresyon riski — wedge.py'nin durum makinesi/pattern_id/repaint
+garantileri converging.py'de YOK). Kod DEĞİŞTİRİLMEDİ, yalnızca
+dokümante edildi.
+

@@ -38,6 +38,8 @@ _CASES = [
     ("trend.ewmac", fx.head_shoulders),
     # arz/talep
     ("structure.supply_demand", fx.head_shoulders),
+    ("structure.golden_zone", fx.impulse_retrace),
+    ("trend.weekly_channel", fx.rising_channel),
 ]
 
 

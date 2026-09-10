@@ -8,6 +8,7 @@ from __future__ import annotations
 import pandas as pd
 
 from tlab.core.types import IndicatorResult
+from tlab.indicators.structure.fib_retracement import FibLevel, FibRetracement
 from tlab.indicators.structure.zones_v2 import Zone
 
 # `supply_demand.py`nin Box.style'ları -> sözleşmedeki `kind`/`freshness`.
@@ -71,3 +72,65 @@ def _created_of(
     if best is not None and best_err <= span * 0.01:
         return pd.Timestamp(best.t0)
     return pd.Timestamp(df.index[0])
+
+
+def golden_zone_to_fib(result: IndicatorResult, df: pd.DataFrame) -> FibRetracement | None:
+    """`structure.golden_zone` -> `FibRetracement` (EN GÜNCEL swing).
+
+    Gösterge her swing için ayrı bir altın bölge üretiyor (fikstürlerde
+    5-9 tane). Hepsini çizmek `tlab/viz`de "curcuna"ya yol açmıştı
+    (renderer'ın `_declutter_levels` kuralı da aynı sonuca varmıştı):
+    yalnızca EN GÜNCEL swing çizilir.
+
+    Bölge sınırları YENİDEN HESAPLANMAZ -- `last_state["band_low"]`/
+    `["band_high"]` göstergenin KENDİ güncel bandı.
+    """
+    swings = [ln for ln in result.lines if ln.label.startswith("swing_")]
+    if not swings:
+        return None
+    # BASKIN swing seçilir (en büyük fiyat açıklığı), EN YENİ değil.
+    #
+    # Göstergenin kendi `last_state` bandı EN SON swing'e bağlı ve o swing
+    # minik bir düzeltme olabiliyor: `impulse_retrace` fikstüründe son
+    # swing 125.60->118.37 (6 bar) iken fiyat 210'a çıkıp 150'ye dönmüştü;
+    # altın bölge ekranın dibinde anlamsız bir şerit olarak kalıyordu
+    # (GÖRÜLEREK bulundu). `structure/fib_retracement.py` tespit edicisi
+    # de aynı sonuca varmış ve BASKIN swing'i seçiyor.
+    #
+    # AÇIK KARAR: "hangi swing güncel altın bölgeyi tanımlar" bir TESPİT
+    # sorusu; gösterge (en yeni) ile bu adaptör (en baskın) FARKLI cevap
+    # veriyor. Kalıcı çözüm göstergenin kendisinde olmalı -- bkz.
+    # docs/KALAN_ISLER.md "karar gerekenler".
+    def _span(ln) -> float:
+        return abs(float(ln.points[-1][1]) - float(ln.points[0][1]))
+
+    dominant = max(swings, key=_span)
+    (t0, p0), (t1, p1) = dominant.points[0], dominant.points[-1]
+    p0, p1 = float(p0), float(p1)
+
+    # Bölge, SEÇİLEN swing'in 0.618-0.786 geri çekilmesi (standart tanım).
+    # Göstergenin `band_*` alanı son swing'e ait olduğu için burada
+    # KULLANILAMAZ -- farklı bir swing çizildiğinde uyumsuz kalırdı.
+    band_low = p1 - (p1 - p0) * 0.786
+    band_high = p1 - (p1 - p0) * 0.618
+
+    # Fib merdiveni: bu swing'in kendi 0.382/0.5/0.618/0.786 seviyeleri.
+    # Göstergenin `levels`i hangi swing'e ait olduğunu TAŞIMIYOR (hepsi
+    # "fib_0.5" adında), bu yüzden merdiven swing uçlarından biçimlenir --
+    # oranlar SABİT, yeni bir tespit kararı değil.
+    span = p1 - p0
+    levels = tuple(
+        FibLevel(r, p1 - span * r, f"{r:.3f}")
+        for r in (0.382, 0.5, 0.618, 0.786)
+    )
+
+    close = float(df["close"].iloc[-1])
+    return FibRetracement(
+        start_time=pd.Timestamp(t0), start_price=p0,
+        end_time=pd.Timestamp(t1), end_price=p1,
+        direction="up" if p1 > p0 else "down",
+        levels=levels,
+        golden_low=float(min(band_low, band_high)),
+        golden_high=float(max(band_low, band_high)),
+        in_golden_zone=min(band_low, band_high) <= close <= max(band_low, band_high),
+    )

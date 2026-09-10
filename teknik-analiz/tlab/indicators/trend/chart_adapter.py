@@ -13,6 +13,7 @@ import pandas as pd
 from tlab.chart.composers.series_overlay import OverlaySeries, SeriesOverlay
 from tlab.chart.tokens import Role
 from tlab.core.types import IndicatorResult
+from tlab.indicators.trend.channel import Channel
 
 # EMA yelpazesinde hangi çizgi hangi rolü alır — kısa vadeli boğa yeşili,
 # uzun vadeli nötr. `series_overlay.ma_system()`in AYNI sırası.
@@ -113,4 +114,58 @@ def ewmac_to_overlay(result: IndicatorResult, df: pd.DataFrame) -> SeriesOverlay
         signal_text="AL" if sig and sig.direction == "long" else ("SAT" if sig else ""),
         signal_role="bullish" if sig and sig.direction == "long" else "bearish",
         bars_ago=_bars_ago(df, sig),
+    )
+
+
+def weekly_channel_to_channel(result: IndicatorResult, df: pd.DataFrame) -> Channel | None:
+    """`trend.weekly_channel` -> `Channel`.
+
+    YALNIZCA `channel_current_*` çizilir. `result.lines` 160 çizgi taşıyor
+    ve bunların ~158'i `channel_frozen_*` (her hafta yeniden dondurulmuş
+    TARİHSEL kanallar). `tlab/viz/svg/scenes/weekly_channel.py` de bunları
+    BİLİNÇLİ çizmiyordu -- "okunamaz kalabalık" (PROGRESS_LOG, Faz 4a).
+    """
+    lines = {ln.label: ln for ln in result.lines}
+    up, lo = lines.get("channel_current_upper"), lines.get("channel_current_lower")
+    if up is None or lo is None:
+        return None
+
+    st = result.last_state or {}
+    (ut0, uy0), (ut1, uy1) = up.points[0], up.points[-1]
+    (lt0, ly0), (lt1, ly1) = lo.points[0], lo.points[-1]
+
+    # DİKKAT: `last_state["slope"]` kanalın eğimi DEĞİL -- orta çizginin
+    # SON haftalık farkı (`weekly_channel.py:108`, `mid_diff_last`), yani
+    # anlık bir değişim. Kanal yükselirken bile negatif olabilir; ilk
+    # denemede `rising_channel` fikstürü bu yüzden "alçalan" sınıflandı
+    # (çizgiler 27.0->28.2 YÜKSELİRKEN). Eğim ÇİZDİĞİMİZ çizginin kendi
+    # uçlarından türetilir -- yeni bir fit değil, aynı doğrunun eğimi.
+    i0 = int(df.index.searchsorted(pd.Timestamp(ut0)))
+    i1 = int(df.index.searchsorted(pd.Timestamp(ut1)))
+    slope = (float(uy1) - float(uy0)) / max(i1 - i0, 1)
+
+    ref = float(df["close"].iloc[-1]) or 1.0
+    flat = abs(slope) < ref * 0.0005
+    direction = "yatay" if flat else ("yukselen" if slope > 0 else "alcalan")
+    width_pct = abs(uy1 - ly1) / ref * 100 if ref else 0.0
+
+    pos = st.get("position_pct")
+    if st.get("at_bottom"):
+        state = "ALT BANT TEMASI"
+    elif isinstance(pos, int | float) and float(pos) >= 95:
+        state = "ÜST BANT TEMASI"
+    else:
+        state = "BANT İÇİNDE"
+
+    sig = _last_signal(result)
+    # TEMAS KONUMLARI gösterge tarafından DIŞA AÇILMIYOR (`last_state`
+    # yalnızca SAYIYI taşıyor: {"top": 22, "bottom": 26}). Adaptör bunları
+    # yeniden HESAPLAMAZ -- boş bırakılır; sayı zaten üst bilgide görünür.
+    return Channel(
+        slope_per_bar=slope,
+        upper_at=((pd.Timestamp(ut0), float(uy0)), (pd.Timestamp(ut1), float(uy1))),
+        lower_at=((pd.Timestamp(lt0), float(ly0)), (pd.Timestamp(lt1), float(ly1))),
+        upper_touches=(), lower_touches=(),
+        direction=direction, width_pct=width_pct, state=state,
+        current_touch=None, bars_ago=_bars_ago(df, sig),
     )

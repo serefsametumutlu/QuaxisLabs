@@ -99,21 +99,28 @@ def compose(
             "price",
         )
 
-    # 2) İSKELET — tüm pivotlardan geçer VE omuzların DIŞ kanatlarına
-    #    uzanır. Yalnızca uçlar bağlanırsa formasyon havada duruyor gibi
-    #    görünüyor; dış kanatlar onu fiyat yapısına oturtuyor.
-    skeleton = list(pat.points)
-    if pat.outer is not None:
-        skeleton = [pat.outer[0], *skeleton, pat.outer[1]]
-    cf.add(
-        go.Scatter(
-            x=[p.t for p in skeleton], y=[p.price for p in skeleton],
-            mode="lines", name="İskelet",
-            line=dict(color=color, width=METRICS.line_pattern),
-            hoverinfo="skip", showlegend=False,
-        ),
-        "price", observe=[p.price for p in skeleton],
-    )
+    # 2) İSKELET — YALNIZCA hologram yoksa.
+    #
+    #    İskelet, pivotları düz çizgilerle birleştirir (omuz->baş->omuz).
+    #    Hologram VARKEN ikisi birden çizilince bu düz çizgiler mumların
+    #    üstünden geçip TREND ÇİZGİSİ gibi görünüyor -- kullanıcının
+    #    bildirdiği hata tam buydu ("trend çizgileri hatalı gösteriliyor
+    #    bu yapılmamalı"), referans TOBO görselinde böyle bir çizgi YOK.
+    #    Formasyonun şeklini zaten hologram (fiyatın GERÇEK yolu)
+    #    anlatıyor; iskelet yalnızca hologramsız adaylar için bir yedek.
+    if pat.hologram is None:
+        skeleton = list(pat.points)
+        if pat.outer is not None:
+            skeleton = [pat.outer[0], *skeleton, pat.outer[1]]
+        cf.add(
+            go.Scatter(
+                x=[p.t for p in skeleton], y=[p.price for p in skeleton],
+                mode="lines", name="İskelet",
+                line=dict(color=color, width=METRICS.line_pattern),
+                hoverinfo="skip", showlegend=False,
+            ),
+            "price", observe=[p.price for p in skeleton],
+        )
 
     # 3) KÖŞELER — küçük üçgen + KUTULU etiket (referanstaki rozetler).
     #    Düz metin, mumların üstünde kayboluyordu.

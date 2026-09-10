@@ -24,6 +24,8 @@ import plotly.io as pio
 from fastapi import APIRouter, HTTPException, Response
 
 from tlab.chart.composers.broadening import compose as compose_broadening
+from tlab.chart.composers.channel import compose as compose_channel
+from tlab.chart.composers.fib_retracement import compose as compose_fib
 from tlab.chart.composers.neckline import compose as compose_neckline
 from tlab.chart.composers.series_overlay import compose as compose_overlay
 from tlab.chart.composers.triangle import compose as compose_triangle
@@ -34,8 +36,15 @@ from tlab.chart.tokens import ThemeName
 from tlab.indicators.harmonics.adapter import result_to_pattern as adapt_harmonic
 from tlab.indicators.patterns.boundary_adapter import to_pattern as adapt_boundary
 from tlab.indicators.patterns.neckline_adapter import to_pattern as adapt_neckline
-from tlab.indicators.structure.chart_adapter import supply_demand_to_zones
-from tlab.indicators.trend.chart_adapter import ewmac_to_overlay, ma_systems_to_overlay
+from tlab.indicators.structure.chart_adapter import (
+    golden_zone_to_fib,
+    supply_demand_to_zones,
+)
+from tlab.indicators.trend.chart_adapter import (
+    ewmac_to_overlay,
+    ma_systems_to_overlay,
+    weekly_channel_to_channel,
+)
 from tlab.viz.live import compute_live
 
 router = APIRouter(tags=["chart_json"])
@@ -71,6 +80,9 @@ _SUPPORTED = {
     "patterns.double_top_bottom": (adapt_neckline, compose_neckline),
     # arz/talep bolgeleri
     "structure.supply_demand": (supply_demand_to_zones, compose_zones),
+    "structure.golden_zone": (golden_zone_to_fib, compose_fib),
+    # haftalik kanal -- yalnizca GUNCEL kanal (frozen olanlar cizilmez)
+    "trend.weekly_channel": (weekly_channel_to_channel, compose_channel),
 }
 
 

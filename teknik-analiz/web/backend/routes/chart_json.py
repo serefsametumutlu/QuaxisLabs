@@ -23,7 +23,9 @@ from __future__ import annotations
 import plotly.io as pio
 from fastapi import APIRouter, HTTPException, Response
 
+from tlab.chart.composers.broadening import compose as compose_broadening
 from tlab.chart.composers.triangle import compose as compose_triangle
+from tlab.chart.composers.wedge import compose as compose_wedge
 from tlab.chart.tokens import ThemeName
 from tlab.indicators.patterns.boundary_adapter import to_pattern
 from tlab.viz.live import compute_live
@@ -35,7 +37,11 @@ _THEME_MAP: dict[str, ThemeName] = {"dark": "dark", "classic": "light", "editori
 # indikatör adı -> o adaptörün ürettiği tipli sonucu çizen `compose()`.
 # Aşama B'de her yeni gösterge burada bir satır ekler (kendi adaptörü +
 # komposer eşleşmesiyle) — akışın geri kalanı DEĞİŞMEZ.
-_SUPPORTED = {"patterns.triangle": compose_triangle}
+_SUPPORTED = {
+    "patterns.triangle": compose_triangle,
+    "patterns.wedge": compose_wedge,
+    "patterns.broadening": compose_broadening,
+}
 
 
 @router.get("/chart.json")

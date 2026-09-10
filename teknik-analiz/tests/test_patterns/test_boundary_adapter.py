@@ -268,3 +268,39 @@ def test_select_latest_rejects_a_candidate_whose_boundary_is_degenerate() -> Non
 
     # df verilmezse eleme YAPILMAZ (geriye dönük davranış): salt tazelik.
     assert select_latest(result)[0] == fresh_pid
+
+
+def _touch_marker_count(fig) -> int:
+    """Grafikteki temas DAİRESİ sayısı (`marks.boundary`'nin işaretleri)."""
+    return sum(
+        len(tr.x or ())
+        for tr in fig.data
+        if getattr(tr, "mode", None) == "markers"
+        and getattr(getattr(tr, "marker", None), "symbol", None) == "circle-open"
+    )
+
+
+def test_touch_circles_are_off_by_default_but_can_be_turned_on() -> None:
+    """Temas daireleri VARSAYILAN OLARAK çizilmemeli.
+
+    Kullanıcı geri bildirimi: "bu uçlara doğru sürekli yuvarlaklar geliyor
+    o ne anlamadım ya sadece kırılım olan ve al sat sinyallerinin geldiği
+    noktada olsun". Gerçek veride bir sınır 8-14 kez test edilebiliyor;
+    her temasa bir daire+etiket koymak grafiği okunmaz hâle getiriyordu.
+    Temas SAYISI üst bilgi satırında yazmaya devam eder.
+    """
+    from tlab.chart.composers.boundary_pattern import compose
+
+    df = make_trend(n=200, slope=0.0, noise=1.0, seed=1).iloc[:35]
+    pat = to_pattern(_confirmed_falling_wedge(df), df)
+    assert pat is not None
+    assert sum(len(b.touches) for b in pat.boundaries) > 0, "veri temas İÇERMELİ"
+
+    off = compose(df, pat, symbol="X", theme="dark")
+    assert _touch_marker_count(off) == 0
+
+    on = compose(df, pat, symbol="X", theme="dark", show_touches=True)
+    assert _touch_marker_count(on) > 0
+
+    # Temas sayısı METİN olarak hâlâ görünür (altyazıda "Temas: ...").
+    assert any(k == "Temas" for k, _ in pat.facts)

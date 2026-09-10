@@ -254,3 +254,35 @@ def test_registers_via_verified_elsewhere() -> None:
     # sağlık kontrolü: register_verified_elsewhere repaint_test ÇALIŞTIRMAZ,
     # bu yüzden ayrıca gerçek bir compute() çağrısının çökmediğini doğrula.
     WedgeIndicator("wedge")(df)
+
+
+def test_flat_sided_triangles_are_not_rejected_by_slope_ratio_range() -> None:
+    """Yükselen/alçalan üçgen `slope_ratio_range` yüzünden ELENMEMELİ.
+
+    Regresyon: `slope_ratio_range=(0.3, 1.0)` |eğim_küçük|/|eğim_büyük|
+    oranını sınırlar. Yükselen üçgende tavan TANIM GEREĞİ düzdür (eğim ~0),
+    bu yüzden oran ~0 çıkar ve 0.3'lük alt bant adayı HER ZAMAN eler --
+    `_TRIANGLE_SHAPES` asc/desc'i içermesine ve `classify()` onları
+    üretmesine rağmen `patterns.triangle` bu iki formasyonu HİÇ
+    bulamıyordu (ölçüldü: 20 adayın 20'si bu filtreye takılıyordu,
+    sinyal SIFIR). "Düz" olma şartı zaten `classify()`te doğrulanıyor.
+    """
+    from tlab.chart.fixtures import triangle as triangle_fixture
+
+    df = triangle_fixture(kind="yukselen")
+    result = WedgeIndicator("triangle", WedgeParams()).compute(df)
+    shapes = {st.get("shape") for st in (result.last_state or {}).values()}
+    assert shapes == {"asc_triangle"}
+    assert result.signals, "yükselen üçgen en az bir sinyal üretmeli"
+
+
+def test_slope_ratio_range_still_applies_to_wedges() -> None:
+    """Muafiyet YALNIZCA düz kenarlı üçgenlere -- takozlarda bant geçerli."""
+    up = _line(-1.0, 130.0, "resistance", _pivot(0, 130.0), _pivot(20, 110.0))
+    lo = _line(-0.01, 100.0, "support", _pivot(5, 100.0, "low"), _pivot(25, 99.8, "low"))
+    conv = converging_lines(up, lo)
+    p = WedgeParams(min_pivots=0, min_bars=0, max_apex_bars=100000)
+    # oran 0.01/1.0 = 0.01 -> bandın (0.3) ÇOK altında
+    assert not _passes_shape_filters(conv, up, lo, p, None, "falling_wedge")
+    # aynı geometri düz kenarlı bir üçgen olarak SUNULURSA muaf
+    assert _passes_shape_filters(conv, up, lo, p, None, "desc_triangle")

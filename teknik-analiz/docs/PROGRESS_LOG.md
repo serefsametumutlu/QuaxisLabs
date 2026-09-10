@@ -4259,3 +4259,80 @@ etkisi olacağı için ayrı bir iş.
 deterministik sentetik fikstürle yapıldı. Aynı kod yolu (`compute_live` →
 `to_pattern` → `compose`) çalıştırıldı, ama gerçek BIST verisiyle son
 kontrol kullanıcının/terminal oturumunun yapması gereken bir adım.
+
+---
+
+## 2026-09-10 (2) — Kullanıcı geri bildirimi: daireler, wedge, yükselen/alçalan
+
+Kullanıcı üçgen çizgilerini onayladı ("fena görünmüyor"), üç şey istedi:
+daireler kalksın, wedge bağlansın, "düşen ve yükselen trend düzgün
+çizilsin". Üçü de yapıldı; sırasında **bir GERÇEK ürün hatası** bulundu.
+
+**1) Temas daireleri VARSAYILAN OLARAK KAPATILDI.** Kullanıcı: "bu uçlara
+doğru sürekli yuvarlaklar geliyor o ne anlamadım ya sadece kırılım olan ve
+al sat sinyallerinin geldiği noktada olsun". `boundary_pattern.compose`e
+`show_touches: bool = False` eklendi. Temas SAYISI üst bilgi satırında
+kalıyor ("Temas: 6 üst / 2 alt"); grafikte yalnızca kırılım/giriş işareti
+(AL/SAT) var. Bir önceki oturumdaki piksel-uzayı etiket merdiveni kod
+olarak duruyor, `show_touches=True` ile geri gelir.
+
+**2) `patterns.wedge` + `patterns.broadening` web'e bağlandı**
+(`chart_json.py::_SUPPORTED`). Aşama B'nin ilk üç göstergesi tamam.
+
+**3) GERÇEK HATA — `patterns.triangle` YÜKSELEN/ALÇALAN üçgeni HİÇ
+bulamıyordu.** `_passes_shape_filters`'ın `slope_ratio_range=(0.3, 1.0)`
+bandı |eğim_küçük|/|eğim_büyük| oranını sınırlıyor. Yükselen üçgende tavan
+TANIM GEREĞİ düz (eğim ~0) → oran ~0 → 0.3 alt bandı adayı HER ZAMAN eliyor.
+Yani `_TRIANGLE_SHAPES` asc/desc'i içermesine ve `classify()` onları
+üretmesine rağmen bu iki formasyon üretimde HİÇ görünmüyordu. ÖLÇÜLDÜ
+(sentetik yükselen üçgen): 20 adayın 20'si bu filtreye takılıyor, sinyal
+SIFIR → düzeltmeden sonra **26 sinyal**, şekil `asc_triangle`. Düzeltme:
+YENİ `_FLAT_SIDED_SHAPES` kümesi, oran kontrolü bu iki şekle uygulanmıyor
+("düz" olma şartı zaten `classify()`te `flat_ratio`=0.15 ile doğrulanıyor;
+ikinci kez ve YANLIŞ ölçütle aranıyordu).
+
+**AYNI İLKENİN İKİNCİ UYGULAMASI — adaptördeki denge oranı.** Bir önceki
+oturumda eklenen `_MIN_SPAN_BALANCE=0.25` de düz kenarlı üçgenleri
+haksız yere eliyordu: geçerli bir alçalan üçgen 158 barlık direnç + 22
+barlık düz destek = denge 0.14. Yozlaşmış adayı eleyen asıl ölçüt zaten
+`_MIN_SPAN_BARS=15` (SVGYO'daki 6 barlık, takozdaki 9 barlık sahte
+sınırlar oraya takılıyor); denge oranı artık yalnızca iki kenarı da
+eğimli formasyonlara uygulanıyor. Bu düzeltmeden sonra ALÇALAN ÜÇGEN
+de çiziliyor.
+
+**Fikstürler.** YENİ `wedge(kind="alcalan"|"yukselen")`. `triangle()`'a
+`_oscillate` + `_pin_touches` eklendi: `_ohlc_from_close` high'ı
+`body_hi*(1+|N(0,0.006)|)` ile üretiyordu, yani "düz" bir tavanda bile
+her temas farklı yükseklikteydi → `build_trendlines` düz tavanı eğimli
+fitliyor, `classify()` formasyonu `falling_wedge` sanıyordu. ALÇALAN
+ÜÇGEN fikstürü bu yüzden hiç alçalan üçgen üretmiyordu — FİKSTÜR kusuru,
+tespit edicinin değil. Takoz eğim oranı (0.4) GÖZ KARARI DEĞİL,
+hesaplanarak seçildi: `flat_ratio`=0.15 üstünde (yoksa üçgen sınıflanır)
+ve `slope_ratio_range` bandında (0.3-1.0), yakınsama hızı da apeksi
+`max_apex_bars`=120 içinde tutuyor.
+
+**Doğrulama (Playwright, GÖRÜNTÜYE bakılarak):** dört şekil de referans
+görsellerdeki gibi çıkıyor — YÜKSELEN TAKOZ (iki sınır yükselen, yakınsak,
+kırmızı, kırılımda tek SAT), SİMETRİK ÜÇGEN (apekse yakınsıyor, AL),
+YÜKSELEN ÜÇGEN (düz tavan + yükselen taban, AL), ALÇALAN ÜÇGEN (düşen
+direnç + düz destek, henüz kırılım yok → sinyal işareti de yok, DOĞRU).
+Hiçbirinde temas dairesi yok. 906 test yeşil (903→906, 3 yeni regresyon
+testi); 8 başarısız testin TAMAMI ÖNCEDEN VAR (temiz ağaçta da aynı).
+`ruff`: değişen dosyalarda yeni hata yok (`boundary_pattern.py`'nin
+import-sıralama uyarısı ÖNCEDEN VAR, doğrulandı).
+
+**AÇIK KALAN — dürüst not:**
+- `wedge(kind="alcalan")` fikstürü hâlâ çizilebilir bir aday vermiyor:
+  tek `falling_wedge` adayı durum makinesi tarafından `invalidated`
+  ediliyor. Bu bir FİKSTÜR ayarı sorunu (kırılım bacağı üst sınırı
+  yeterince aşmıyor); ALÇALAN TAKOZ'un ÜRÜN yolu `yukselen` ikiziyle
+  aynı kod olduğu için çalışıyor, ama alçalan varyantı GÖRÜLEREK
+  doğrulanmadı.
+- Kök neden hâlâ `wedge.py`'nin orantısız/kırılım-bacağına oturmuş sınır
+  çiftleri ÜRETMESİ (`build_trendlines` aday eşleştirmesi, CMT kuralı:
+  benzer büyüklükteki pivotlar). Adaptör eliyor, tespit edici hâlâ
+  üretiyor.
+- **`slope_ratio_range` düzeltmesi TARAYICI GENELİNDE sinyal sayısını
+  ARTIRIR** (yükselen/alçalan üçgen artık üretiliyor). Tam evren ölçümü
+  YAPILAMADI — yfinance bu ortamda kurum ağ politikasıyla ENGELLİ (403).
+  `tlab eod --market bist` sonrası önce/sonra sayımı YAPILMALI.

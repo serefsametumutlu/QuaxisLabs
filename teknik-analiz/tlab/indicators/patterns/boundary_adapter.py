@@ -31,6 +31,7 @@ from tlab.chart.contracts import BoundaryLine, BoundaryPattern, BoundaryTouch, C
 from tlab.chart.tokens import Role
 from tlab.core.pattern_state import SUFFIX_LABEL_TR
 from tlab.core.types import IndicatorResult, Line
+from tlab.indicators.patterns.wedge import _FLAT_SIDED_SHAPES
 
 # Statik Türkçe başlık metinleri -- wedge.py/broadening.py'nin kendi özel
 # (modül-içi) `_LABEL_TR` sözlükleriyle AYNI değerler, yalnızca burada da
@@ -158,8 +159,17 @@ def select_latest(
             short, long_ = min(spans), max(spans)
             if short < _MIN_SPAN_BARS or long_ == 0:
                 continue
-            if short / long_ < _MIN_SPAN_BALANCE:
-                continue
+            # Denge oranı YALNIZCA iki kenarı da eğimli formasyonlara
+            # uygulanır. Yükselen/alçalan üçgende düz kenar TANIM GEREĞİ
+            # daha kısa olabilir (ölçüldü: geçerli bir alçalan üçgen
+            # 158 barlık direnç + 22 barlık düz destek = denge 0.14) --
+            # `wedge.py::_FLAT_SIDED_SHAPES`'in AYNI gerekçesi. Yozlaşmış
+            # adayı eleyen asıl ölçüt zaten `_MIN_SPAN_BARS`: kullanıcının
+            # SVGYO vakasındaki 6 barlık ve takozdaki 9 barlık sahte
+            # sınırlar oraya takılıyor, denge oranına gerek kalmadan.
+            if st.get("shape") not in _FLAT_SIDED_SHAPES:
+                if short / long_ < _MIN_SPAN_BALANCE:
+                    continue
             kept.append((pid, st))
         candidates = kept
     if not candidates:

@@ -44,7 +44,18 @@ def compose(
     width: int = 1600,
     height: int = 900,
     lower_panel: str = "rsi",          # "rsi" | "macd" | "none"
+    show_touches: bool = False,
 ) -> go.Figure:
+    """`show_touches` (2026-09-10, kullanıcı geri bildirimi): temas
+    daireleri VARSAYILAN OLARAK KAPALI. Kullanıcının sözleri: "bu uçlara
+    doğru sürekli yuvarlaklar geliyor o ne anlamadım ya sadece kırılım
+    olan ve al sat sinyallerinin geldiği noktada olsun". Gerçek veride bir
+    sınır 8-14 kez test edilebiliyor; her temasa bir daire+etiket koymak
+    grafiği okunmaz hâle getiriyordu (referans görsellerde temaslar haftalar
+    arayla seyrekti, o yüzden orada sorun görünmüyordu). Temas SAYISI zaten
+    üst bilgi satırında yazıyor ("Temas: 8 üst / 2 alt"); grafiğin üstünde
+    yalnızca KIRILIM/giriş işareti kalır. `True` eski davranışı geri getirir.
+    """
     panels = [
         Panel("price", METRICS.panel_ratio_price, "Fiyat"),
         Panel("volume", METRICS.panel_ratio_sub, "Hacim"),
@@ -77,7 +88,10 @@ def compose(
     for b in pat.boundaries:
         boundary(
             cf, list(b.points), role=b.role, name=b.name, dash=b.dash,
-            touches=[Touch(t.t, t.price, t.label, t.above) for t in b.touches],
+            touches=(
+                [Touch(t.t, t.price, t.label, t.above) for t in b.touches]
+                if show_touches else None
+            ),
             chart_span=chart_span,
         )
 

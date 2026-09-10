@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from web.backend.routes import (
     catalog,
     chart,
+    chart_json,
     chart_png,
     chart_svg,
     guide,
@@ -40,6 +41,7 @@ app.include_router(catalog.router, prefix="/api")
 app.include_router(universe.router, prefix="/api")
 app.include_router(chart.router, prefix="/api")
 app.include_router(chart_png.router, prefix="/api")
+app.include_router(chart_json.router, prefix="/api")
 app.include_router(chart_svg.router, prefix="/api")
 app.include_router(report.router, prefix="/api")
 app.include_router(guide.router, prefix="/api")

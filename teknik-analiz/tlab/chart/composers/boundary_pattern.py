@@ -73,10 +73,12 @@ def compose(
 
     candles(cf, df)
 
+    chart_span = df.index[-1] - df.index[0]
     for b in pat.boundaries:
         boundary(
             cf, list(b.points), role=b.role, name=b.name, dash=b.dash,
             touches=[Touch(t.t, t.price, t.label, t.above) for t in b.touches],
+            chart_span=chart_span,
         )
 
     if pat.signal is not None:

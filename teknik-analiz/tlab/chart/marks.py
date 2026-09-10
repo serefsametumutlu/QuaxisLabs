@@ -107,15 +107,48 @@ def boundary(
     cf: ChartFrame, points: list[tuple[pd.Timestamp, float]], *, role: Role,
     name: str, touches: list[Touch] | None = None, panel: str = "price",
     dash: str | None = None, width: float | None = None,
+    max_touch_labels: int = 6, chart_span: pd.Timedelta | None = None,
 ) -> None:
     """Formasyon sınırı + üzerindeki temas noktaları.
 
     Kullanıcının isteği: "kaç tepeye temas ederek oluştuğu bile yazıyor".
-    Referans görselde bu, çizgi üstünde NUMARALI içi boş dairelerle
-    yapılmış — metin rozetiyle değil. Aynısı burada.
+    Referans görselde (`önemli/HRihBa2WIAIZjP_.png`) bu, çizgi üstünde
+    NUMARALI içi boş dairelerle yapılmış — metin rozetiyle değil. Aynısı
+    burada.
 
     Çizgi YALNIZCA verilen noktalar arasında uzanır; grafiğin sol kenarına
     kadar uzatılmaz (referans görsellerin hepsinde böyle).
+
+    **Etiket seyreltme + piksel-uzayında dikey itme (2026-09-10, kullanıcı
+    geri bildirimiyle — gerçek BARMA verisiyle test edilirken bulundu):**
+    referans görseldeki temaslar haftalar arayla, doğal olarak seyrek. Gerçek
+    verideki sıkışık bir konsolidasyon (ör. BARMA'nın ~10-15 günlük bir
+    penceresi, "Tümü" zoom'unda toplam birkaç YILLIK eksende sadece birkaç
+    piksel genişliğinde) aynı aralığa 8-9 temas sığdırabiliyor. İlk düzeltme
+    denemesi (metni `top center`/`top right` arasında döndürmek) YETERSİZ
+    çıktı: temasların KENDİSİ x ekseninde zaten üst üste (birkaç piksel
+    arayla), hiçbir metin-konumu seçeneği (`top left/center/right`) bunu
+    ayrıştıramıyor — veri noktasına göre GÖRECELİ konumlanıyor, mutlak piksel
+    kayması YOK. Düzeltme: temas İŞARETLERİ (daireler) `mode="markers"`
+    ile HER zaman gerçek konumunda kalır; ETİKET METNİ ayrı `add_annotation`
+    çağrılarıyla, `yshift` (PİKSEL, x-ekseni ölçeğinden BAĞIMSIZ) kullanılarak
+    çiziliyor — art arda gelen iki etiketli temas zaman olarak yakınsa
+    (`span/max_touch_labels`ten yakın), ikincisi bir öncekinin üstüne değil,
+    ondan `_TOUCH_LABEL_STEP_PX` kadar DAHA UZAĞA (piksel cinsinden) kayar.
+    Yoğunluk `max_touch_labels`i aşarsa önce METİN seyreltilir (İŞARET HER
+    temasta kalır — hover `customdata` üzerinden orijinal etiketi HER zaman
+    gösterir); ilk ve SON temas (en güncel, referans görseldeki "TEMAS L4"
+    gibi) HER ZAMAN etiketlenir.
+
+    **`chart_span`** — GERÇEK piksel-yakınlığı, temasların KENDİ aralarındaki
+    süreye göre DEĞİL, grafiğin TAMAMININ kapladığı zaman aralığına göre
+    ölçülmeli (ilk denemede `span/max_touch_labels`in KENDİSİ eşik olarak
+    kullanılmıştı — ama temaslar zaten bu eşiğe göre SEÇİLDİĞİ için ardışık
+    gösterilen etiketler neredeyse HİÇBİR ZAMAN "yakın" çıkmıyordu, oysa
+    grafiğin YILLAR süren tam ekseninde 11 günlük bir küme zaten sadece
+    birkaç piksel genişliğinde). Çağıran `compose()` bu yüzden `df.index[-1]
+    - df.index[0]`i geçirmeli; verilmezse temasların kendi aralığına düşülür
+    (daha az doğru ama en azından bir tahmin).
     """
     color = role_color(cf.theme, role)
     xs = [p[0] for p in points]
@@ -131,39 +164,62 @@ def boundary(
     )
     if not touches:
         return
-    # Etiket çakışma çözücü: art arda gelen iki temas x ekseninde birbirine
-    # çok yakınsa etiketleri aynı yükseklikte üst üste biner (ilk denemede
-    # L5, sinyal kutusunun altında kayboldu). İkincisi bir kademe dışa alınır.
+
     span = (max(t.t for t in touches) - min(t.t for t in touches)) or pd.Timedelta(days=1)
-    near = span / 18
-    positions: list[str] = []
-    prev_t = None
-    staggered = False
-    for t in touches:
-        close_to_prev = prev_t is not None and (t.t - prev_t) < near
-        staggered = close_to_prev and not staggered
-        if t.above:
-            positions.append("top right" if staggered else "top center")
+    min_gap = span / max(max_touch_labels, 1)
+    n = len(touches)
+    shown_labels: list[str] = []
+    last_shown_t: pd.Timestamp | None = None
+    for i, t in enumerate(touches):
+        is_last = i == n - 1
+        if last_shown_t is None or is_last or (t.t - last_shown_t) >= min_gap:
+            shown_labels.append(t.label)
+            last_shown_t = t.t
         else:
-            positions.append("bottom right" if staggered else "bottom center")
-        prev_t = t.t
+            shown_labels.append("")
 
     cf.add(
         go.Scatter(
             x=[t.t for t in touches], y=[t.price for t in touches],
-            mode="markers+text",
+            mode="markers",
             marker=dict(
                 symbol="circle-open", size=METRICS.marker_touch,
                 color=color, line=dict(color=color, width=1.8),
             ),
-            text=[t.label for t in touches],
-            textposition=positions,
-            textfont=dict(family=METRICS.font_family, size=METRICS.font_label, color=color),
+            customdata=[t.label for t in touches],
             name=f"{name} temas",
-            hovertemplate="%{text}: %{y:.2f}<extra></extra>", showlegend=False,
+            hovertemplate="%{customdata}: %{y:.2f}<extra></extra>", showlegend=False,
         ),
         panel,
     )
+
+    xr, yr = cf.xref(panel), cf.yref(panel)
+    full_span = chart_span if chart_span and chart_span > pd.Timedelta(0) else span
+    plot_width_px = max(cf.width - cf.m.margin_l - cf.m.margin_r, 1)
+    px_per_second = plot_width_px / full_span.total_seconds() if full_span.total_seconds() else 0.0
+    min_gap_px = 24.0
+
+    _TOUCH_LABEL_BASE_PX = 14
+    _TOUCH_LABEL_STEP_PX = 11
+    stagger = 0
+    prev_shown_t: pd.Timestamp | None = None
+    for t, label in zip(touches, shown_labels, strict=True):
+        if not label:
+            continue
+        px_gap = (
+            (t.t - prev_shown_t).total_seconds() * px_per_second
+            if prev_shown_t is not None else min_gap_px
+        )
+        close_to_prev = px_gap < min_gap_px
+        stagger = stagger + 1 if close_to_prev else 0
+        offset = _TOUCH_LABEL_BASE_PX + stagger * _TOUCH_LABEL_STEP_PX
+        cf.fig.add_annotation(
+            x=t.t, y=t.price, xref=xr, yref=yr,
+            text=label, showarrow=False,
+            yshift=offset if t.above else -offset,
+            font=dict(family=METRICS.font_family, size=METRICS.font_label, color=color),
+        )
+        prev_shown_t = t.t
 
 
 def zone_band(

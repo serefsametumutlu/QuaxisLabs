@@ -4116,3 +4116,60 @@ yaradığını ölçmek için) veya doğrudan AŞAMA B (kalan 19 göstergenin
 adaptörleri) — kullanıcı kararı bekleniyor. `chart_json.py::_SUPPORTED`
 sözlüğü genişletilebilir tasarlandı (her yeni gösterge tek satır).
 
+## 2026-09-10 (aynı gün) — AŞAMA C erken alındı: temas etiketi çakışması gerçekten çözüldü
+
+**Bağlam:** kullanıcı Aşama A'nın çıktısını (BARMA `patterns.triangle`)
+canlı sitede görünce sert tepki verdi — referans görsele
+(`önemli/HRihBa2WIAIZjP_.png`) hiç benzemiyordu, temas etiketleri
+("U1"/"U2"/"U3"...) harf harf üst üste binip "U1U8U3" gibi okunmaz bir
+yığın oluşturuyordu. Bu, `docs/KOMPOSER_HARITASI.md`/`YURUTME_
+PROMPTLARI.md`'nin ÖNCEDEN bildiği ve Aşama C'ye (etiket çakışma
+çözücüsü) bırakılmış bir eksikti, ama kullanıcı canlı örnekte görünce
+ciddiyeti (sadece "estetik" değil, ANLAŞILMAZ) netleşti — erken alındı.
+
+**Kök neden (ilk düzeltme denemesiyle bulundu):** `marks.py::boundary()`
+'nin eski "iki-durumlu" (top center/top right) döngüsü, temas
+metinlerini VERİ NOKTASINA GÖRECELİ konumlandırıyordu — temaslar x
+ekseninde zaten birbirine yakınsa (BARMA'da 8 üst temas yalnızca ~11
+günlük bir pencereye sığıyor, "Tümü" zoom'unda grafiğin TAMAMI ~1.5
+yıl olduğu için bu pencere sadece birkaç PİKSEL genişliğinde), hiçbir
+metin-konumu seçeneği bunu ayrıştıramıyordu. İlk düzeltme (metni
+seyreltmek — yalnızca `max_touch_labels` kadarını göster, ilk/son HER
+ZAMAN göster) tek başına YETERSİZ kaldı: kalan etiketler HÂLÂ aynı
+piksel-yakın kümedeydi.
+
+**Gerçek düzeltme:** temas İŞARETLERİ (`circle-open` daireler) `mode=
+"markers"` ile HER temasta, gerçek konumunda kalıyor; ETİKET METNİ artık
+ayrı `fig.add_annotation(..., yshift=...)` çağrılarıyla çiziliyor —
+`yshift` PİKSEL cinsinden, x-ekseninin veri ölçeğinden TAMAMEN BAĞIMSIZ.
+Piksel-yakınlık kararı artık temasların KENDİ aralarındaki süreye göre
+DEĞİL (ilk denemenin hatası — temaslar zaten o eşiğe göre SEÇİLDİĞİ için
+neredeyse hiç "yakın" çıkmıyordu), yeni `chart_span` parametresiyle
+GRAFİĞİN TAMAMININ kapladığı zaman aralığına göre ölçülüyor
+(`boundary_pattern.py::compose()` artık `df.index[-1] - df.index[0]`i
+geçiriyor). Sonuç: piksel-yakın art arda gelen etiketler artık üst üste
+DEĞİL, her biri bir öncekinden 11px daha uzağa (dikey merdiven gibi)
+kayıyor; hover HER zaman `customdata` üzerinden orijinal etiketi
+gösteriyor (seyreltilen temaslar dahil).
+
+**Doğrulama (Playwright/Chrome MCP, GÖRÜNTÜYE bakılarak):** BARMA
+`patterns.triangle` (8 üst/9 alt temas, önceki en kötü örnek) — artık
+U1/U2/U4/U5/U7/U8 temiz bir merdiven hâlinde okunuyor. TUCLK `patterns.
+wedge` (14 üst temas, `docs/`de dokümante edilen EN yoğun vaka,
+`/api/chart.json`e henüz bağlı değil — `tlab.viz.live.compute_live` +
+`boundary_adapter.to_pattern` + `composers.wedge.compose` ile elle
+üretilip statik HTML'den kontrol edildi) — U1/U5/U7/U8/U14 + L1/L3 hepsi
+okunuyor. Düzeltme `boundary_pattern.py` üzerinden `wedge`/`triangle`/
+`broadening` komposerlerinin ÜÇÜNÜ de kapsıyor (paylaşılan kod yolu).
+
+**Regresyon yok:** 914 test hâlâ yeşil; `ruff`/`mypy` yeni hata YOK
+(`marks.py`'deki 2 `role_color` Literal hatası önceden vardı, satır
+numaraları kaydı, DEĞİŞMEDİ).
+
+**Kapsam notu:** `channel.py`/`range_box.py`/`converging.py` da AYNI
+`marks.boundary()`'yi çağırıyor ama `chart_span` GEÇMİYORLAR — bu üçü
+şu an daha az doğru (temasların kendi aralığına düşen) bir yakınlık
+tahmini kullanmaya devam ediyor, KIRILMADI (eski davranış korunuyor,
+sadece daha az hassas), ama tutarlılık için Aşama C'nin geri kalanında
+onlara da `chart_span` eklenmeli.
+

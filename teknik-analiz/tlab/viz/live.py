@@ -7,6 +7,7 @@ yolu barındırır (CATALOG + Store + render tek yerde)."""
 
 from __future__ import annotations
 
+import time
 from typing import Literal, overload
 
 import pandas as pd
@@ -87,6 +88,43 @@ def _require_supported_timeframe(indicator_name: str, tf: Timeframe) -> None:
             f"{indicator_name} {tf.value}'te çalışmıyor (desteklenen zaman dilimleri: {names})"
         )
 
+
+
+# (indikatör, tf, market) -> (zaman, sonuçlar, df'ler). Süreç-içi, küçük.
+_UNIVERSE_CACHE: dict[tuple[str, str, str], tuple[float, dict, dict]] = {}
+_UNIVERSE_TTL_S = 900.0          # 15 dk
+
+
+def _universe_cached(
+    indicator_name: str, tf: Timeframe, mkt: Market, store: Store, symbol: str,
+) -> tuple[dict, dict[str, pd.DataFrame]]:
+    """Evren-geneli hesabı önbellekler.
+
+    `UniverseIndicator` TEK bir sembolün grafiği için bile tüm evreni
+    hesaplamak zorunda (`rank_pct` cross-sectional). Bu, CLI'da kabul
+    edilebilir bir maliyetti ama web isteğinde değil. Aynı (gösterge,
+    tf, market) üçlüsü için sonuç HER SEMBOLDE AYNI olduğundan bir kez
+    hesaplanıp paylaşılır.
+    """
+    key = (indicator_name, tf.value, mkt.value)
+    hit = _UNIVERSE_CACHE.get(key)
+    if hit is not None and (time.monotonic() - hit[0]) < _UNIVERSE_TTL_S:
+        results, dfs = hit[1], hit[2]
+        if symbol in results:
+            return results, dfs
+
+    universe_dfs: dict[str, pd.DataFrame] = {}
+    for sym in load_universe(mkt):
+        try:
+            universe_dfs[sym] = store.get(sym, tf, mkt)
+        except FileNotFoundError:
+            continue
+    if symbol not in universe_dfs:
+        universe_dfs[symbol] = store.get(symbol, tf, mkt)
+    index_df = store.get(BENCHMARK_SYMBOL[mkt], tf, mkt)
+    results = scaled_factory(indicator_name, tf)(universe_dfs, index_df)
+    _UNIVERSE_CACHE[key] = (time.monotonic(), results, universe_dfs)
+    return results, universe_dfs
 
 def _compute_pair(
     indicator_name: str, symbol: str, tf: Timeframe, mkt: Market, store: Store,
@@ -186,18 +224,13 @@ def compute_live(
         # rank) — `tlab universe-plot` zaten AYNI maliyeti evren-geneli
         # görseller (saçılım/ısı haritası) için taşıyordu, burada yalnızca
         # TEK sembolün sonucu seçilip standart `render()`'a verilir.
-        universe_symbols = load_universe(mkt)
-        universe_dfs: dict[str, pd.DataFrame] = {}
-        for sym in universe_symbols:
-            try:
-                universe_dfs[sym] = store.get(sym, tf, mkt)
-            except FileNotFoundError:
-                continue
-        if symbol not in universe_dfs:
-            universe_dfs[symbol] = store.get(symbol, tf, mkt)
-        index_df = store.get(BENCHMARK_SYMBOL[mkt], tf, mkt)
-        instance = scaled_factory(indicator_name, tf)
-        results = instance(universe_dfs, index_df)
+        # ÖNBELLEK: evren hesabı TÜM semboller için AYNI. Web'de her
+        # sembol tıklamasında 648 sembollük cache okuma + cross-sectional
+        # rank yeniden koşuyordu -- tek bir grafik dakikalar sürebilir.
+        # Sonuç sözlüğü (sembol -> IndicatorResult) bir kez hesaplanıp
+        # kısa süreli tutulur; gün içinde veri değişmediği için bu
+        # doğruluğu ETKİLEMEZ, `tlab eod` yeni veri yazınca TTL dolar.
+        results, universe_dfs = _universe_cached(indicator_name, tf, mkt, store, symbol)
         if symbol not in results:
             raise ValueError(
                 f"'{symbol}' için {indicator_name} sonucu üretilemedi "

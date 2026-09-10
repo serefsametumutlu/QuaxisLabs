@@ -23,6 +23,7 @@ from __future__ import annotations
 import plotly.io as pio
 from fastapi import APIRouter, HTTPException, Response
 
+from tlab.chart.composers.boundary_pattern import compose as compose_boundary_pattern
 from tlab.chart.composers.broadening import compose as compose_broadening
 from tlab.chart.composers.channel import compose as compose_channel
 from tlab.chart.composers.fib_retracement import compose as compose_fib
@@ -37,9 +38,14 @@ from tlab.chart.composers.xabcd import compose as compose_xabcd
 from tlab.chart.composers.zones import compose as compose_zones
 from tlab.chart.tokens import ThemeName
 from tlab.indicators.harmonics.adapter import result_to_pattern as adapt_harmonic
+from tlab.indicators.momentum.chart_adapter import (
+    alpha_rank_to_overlay,
+    momentum_rank_to_overlay,
+)
 from tlab.indicators.pairs.chart_adapter import to_view as adapt_pair
 from tlab.indicators.patterns.boundary_adapter import to_pattern as adapt_boundary
 from tlab.indicators.patterns.flag_adapter import to_pattern as adapt_flag
+from tlab.indicators.patterns.fvg_adapter import to_pattern as adapt_fvg
 from tlab.indicators.patterns.neckline_adapter import to_pattern as adapt_neckline
 from tlab.indicators.structure.chart_adapter import (
     golden_zone_to_fib,
@@ -47,6 +53,7 @@ from tlab.indicators.structure.chart_adapter import (
     supply_demand_to_zones,
     swing_fib_abcd_to_pattern,
 )
+from tlab.indicators.trend.breakout_adapter import to_pattern as adapt_breakout
 from tlab.indicators.trend.chart_adapter import (
     ewmac_to_overlay,
     ma_systems_to_overlay,
@@ -87,10 +94,16 @@ _SUPPORTED = {
     "patterns.double_top_bottom": (adapt_neckline, compose_neckline),
     # arz/talep bolgeleri
     "patterns.flag_pennant": (adapt_flag, compose_pole_flag),
+    "patterns.breakout_fvg": (adapt_fvg, compose_boundary_pattern),
     "structure.supply_demand": (supply_demand_to_zones, compose_zones),
     "structure.golden_zone": (golden_zone_to_fib, compose_fib),
     # haftalik kanal -- yalnizca GUNCEL kanal (frozen olanlar cizilmez)
     "trend.weekly_channel": (weekly_channel_to_channel, compose_channel),
+    # kirilim -- ~20 turden EN YUKSEK kaliteli GUNCEL olan (bkz. adaptor)
+    "trend.breakouts": (adapt_breakout, compose_boundary_pattern),
+    # evren gostergeleri -- tum evren hesaplanir, live.py onbellekler
+    "momentum.alpha_rank": (alpha_rank_to_overlay, compose_overlay),
+    "momentum.momentum_rank": (momentum_rank_to_overlay, compose_overlay),
     # AB=CD -- X'SIZ 4 noktali; ayni komposer, farkli iskelet
     "structure.swing_fib_abcd": (swing_fib_abcd_to_pattern, compose_xabcd),
     # yapi raporu -- kendi komposeri (trend cizgisi + bolge + POC/VAH/VAL)

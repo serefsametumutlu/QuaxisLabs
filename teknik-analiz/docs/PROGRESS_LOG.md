@@ -4467,3 +4467,98 @@ Not: `pair.*` için rota DEĞİŞMELİ -- `compute_live` pair modunda
 `df=None` döndürüyor, rota bunu 422 sayıyor. `momentum.*` TÜM evreni
 hesaplar (yavaş). `patterns.breakout_fvg` mevcut fikstürlerin HİÇBİRİNDE
 aday üretmiyor -- önce fikstür gerekiyor.
+
+---
+
+## 2026-09-10 (5) — AŞAMA B BİTTİ: 27/27 gösterge bağlı
+
+Kalan 8'in tamamı bağlandı. Karar gerektirenlerde kararlar VERİLDİ ve
+gerekçeleri koda yazıldı.
+
+**Verilen kararlar:**
+
+1. **`trend.breakouts` — hangi kırılım?** Gösterge ~20 tür tarıyor,
+   tek sembolde 126 kırılım + 78 retest + 29 yanlış-kırılım üretiyor;
+   Faz 8A'da tam bu yüzden galeriden çıkarılmıştı. Karar: ÇİZME değil
+   SEÇ. Sıra: (a) `false_break` ile zincirlenenleri ele, (b) son 40 bar
+   kapısı, (c) kalanlar arasından `quality_score` EN YÜKSEK olanı.
+   Tazelik bir KAPI, skor SIRALAYICI -- tersi olsaydı dünkü çöp bir
+   kırılım üç gün önceki sağlamı gölgelerdi. `BoundaryPattern`
+   docstring'i "kırılım seviyeleri"ni zaten kapsıyor: tek sınır =
+   kırılan seviye.
+
+2. **`patterns.flag_pennant` — sınırlar nereden?** Bulkowski: bayrak
+   "paralel ya da paralele yakın trend çizgileriyle sınırlı"
+   konsolidasyondur. Gösterge kanalı ZATEN hesaplıyordu
+   (`_upper_at`/`_lower_at`, kırılım kararının dayanağı) ama dışa
+   açmıyordu -- yalnızca konsolidasyon KUTUSU vardı, onun da eğimi yok.
+   Karar: iki çizgiyi `{pid}_upper`/`_lower` olarak yayınla (hesap
+   değil, yayın).
+
+3. **`patterns.breakout_fvg` — fikstür.** YENİ `breakout_fvg()`:
+   konsolidasyon → gap'li kırılım → FVG → retest → devam. Parametreler
+   ARANARAK bulundu (kutu 14 bar/σ=0.001, öncesi σ=0.8): `_find_box`
+   "yükseklik ≤ 1.5×ATR" istiyor, ama `_ohlc_from_close`un fitil
+   gürültüsü tek başına 10 barlık pencereyi ~0.7 birim genişletiyor ve
+   ATR kutunun İÇİNDE düşüyor. Kutu KISA olmalı ki ATR penceresi hâlâ
+   oynak öncesini görsün. Retest de boşluğun İÇİNE inmeli (0.45 sığdı,
+   aday `expired` kalıyordu; 0.22 ile tam zincir çalışıyor).
+   Grafik: `BoundaryPattern.band` = FVG şeridi, sınır = kırılan kutu
+   kenarı.
+
+4. **`pair.*` — rota dalı.** `compute_live` pair modunda `df=None`
+   döndürüyor ve `composers/pair.py::compose` imzası `df` ALMIYOR.
+   YENİ `live.py::compute_pair_live` (Y+X ham serilerini de döndürür,
+   ortak mantık `_compute_pair`'de -- kopyalanmıyor) + rotada ayrı dal.
+
+5. **`momentum.*` — hız.** `compute_live` bunları ZATEN karşılıyordu;
+   sorun mimari değil HIZ (tek sembolün grafiği için 648 sembol).
+   Karar: sonuç (gösterge, tf, market) başına önbelleklenir
+   (`_universe_cached`, TTL 15 dk) -- hesap TÜM semboller için AYNI
+   olduğundan bir kez koşup paylaşmak doğruluğu ETKİLEMEZ.
+
+6. **`structure.price_structure` — kendi komposeri.** `market_structure`
+   komposeri pivot+BOS/CHoCH çizer (SMC dili); price_structure klasik
+   trend çizgisi + bölge + POC/VAH/VAL dilidir. Birleştirmek ikisini de
+   okunmaz yapardı. YENİ `composers/price_structure.py`.
+
+**Göstergelere eklenen seriler** (hepsi zaten içeride hesaplanıyordu,
+yalnızca dışa açıldı): `pair.*` -> `spread`/`corr`/`beta`;
+`flag_pennant` -> `{pid}_upper`/`_lower`.
+
+**GÖRÜLEREK bulunan hatalar (bu turda):**
+- "Direk: %421.2": `pole_pct` KESİR olmalı (komposer 100 ile çarpıyor).
+  `depth_pct` ile AYNI tuzak, İKİNCİ kez -- bu desen artık bir kontrol
+  maddesi (bkz. KALAN_ISLER.md "birim tuzağı").
+- `pole_flag` y ekseni TÜM seriden ölçekleniyordu ama x aralığı SONRADAN
+  kısıtlanıyor -> 11 barlık formasyon 28-51 ekseninde boğuluyordu
+  (K2'nin aynısı). Artık görünen pencereden ölçeklenir; sağ kenar da
+  formasyon genişliğinin ~3 katıyla sınırlı.
+- `alpha_rank` normalize serileri (baz-100) ham mumlarla AYNI panelde
+  -> mumlar ekranın dibine yapışıyordu. Karşılaştırma alt panele alındı,
+  alfa t-istatistiği üst bilgiye.
+- `weekly_channel` yön sınıfı TERSTİ (`last_state["slope"]` kanalın
+  eğimi değil, orta çizginin son haftalık farkı).
+- `golden_zone` EN YENİ swing'i alıyordu -> BASKIN swing.
+- `swing_fib_abcd` durumu için `last_state["last_label"]` kullanılmıştı
+  ama o bir SWING etiketi (HH/HL/LH/LL) -> komposer KeyError veriyordu.
+- `composers/xabcd.py::pat.points[3]` sabit indeksi X'siz iskelette
+  IndexError -> C artık ETİKETİNDEN bulunur.
+
+989 test yeşil (978->989); 8 başarısız testin TAMAMI ÖNCEDEN VAR
+(`arch` kurulu değil ×4, Gemini mock ×3, 1 golden). `ruff`: değişen ve
+yeni dosyalarda hata YOK.
+
+**Kilitleyen test:** `test_catalog_interactive_flag_is_derived_from_the_
+route_not_duplicated` artık CATALOG'un TAMAMININ bağlı olmasını şart
+koşuyor -- yeni bir gösterge eklenip `_SUPPORTED`e yazılmazsa yakalar.
+
+**AÇIK (dürüst not):**
+- Gerçek BIST verisiyle HİÇBİRİ doğrulanmadı (yfinance 403). Tümü
+  deterministik sentetik fikstürle, ama rotanın AYNI kod yolundan.
+  `scripts/grafik_cek.py` kendi verinle tek komutla üretir.
+- `slope_ratio_range` düzeltmesinin tarayıcı genelindeki etkisi hâlâ
+  ölçülmedi.
+- Frontend `tsc` çalıştırılamadı (node_modules yok).
+- Grafik penceresi genel sorunu: yalnızca `pole_flag`de çözüldü; diğer
+  komposerlerde formasyon hâlâ tüm geçmişin içinde küçük kalabiliyor.

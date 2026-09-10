@@ -72,7 +72,14 @@ def compose(
     #    İlk denemede tek `toself` poligonu (X-A-B-C-D) çizilmişti; Plotly
     #    onu kapatmak için X'ten D'ye uzun bir köşegen atıyor ve formasyon
     #    grafiğin altını boydan boya kesen yanlış bir çizgi kazanıyordu.
-    pts = list(pat.points) + ([pat.actual_d] if pat.actual_d else [])
+    # `actual_d` YALNIZCA `points` içinde henüz yoksa eklenir. Sözleşme
+    # D'yi points'te KABUL EDİYOR ("X, A, B, C (+ D varsa)") ve iki-kanat
+    # çizimi onu orada BEKLİYOR; koşulsuz eklemek D'yi İKİ KEZ listeye
+    # koyuyordu -> grafikte iki ayrı "D" etiketi (harmonik adaptörü
+    # bağlandığında görüldü).
+    pts = list(pat.points)
+    if pat.actual_d is not None and (not pts or pts[-1] != pat.actual_d):
+        pts.append(pat.actual_d)
     wings: list[list] = [pts[0:3]]                 # X, A, B
     if len(pts) >= 5:
         wings.append(pts[2:5])                     # B, C, D

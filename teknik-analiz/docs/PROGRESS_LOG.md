@@ -4409,3 +4409,61 @@ contracts/frame).
   sinyal sayısı ARTACAK.
 - Kalan 24 gösterge hâlâ eski PNG yolunda (`interactive: false`) --
   KIRIK DEĞİL, sadece etkileşimli değil. Aşama B'nin geri kalanı.
+
+---
+
+## 2026-09-10 (4) — Aşama B: 3 -> 16 gösterge bağlandı
+
+Rota `_SUPPORTED` artık `{gösterge: (adaptör, komposer)}`. Adaptör
+`IndicatorResult`i tipli sözleşmeye çevirir (hesap YAPMAZ), komposer
+yalnızca çizer. Frontend bunu `/api/catalog`un `interactive` alanından
+görür -- elle liste YOK.
+
+**YENİ adaptörler (4 dosya, 13 gösterge):**
+1. `harmonics/adapter.py::result_to_pattern` -- **8 harmonik okul TEK
+   köprüyle**. `polygons` `{pid}_xab`(X,A,B) + `{pid}_bcd`(B,C,D),
+   `levels` PRZ/fib, `last_state` okul/formasyon/durum.
+2. `patterns/neckline_adapter.py` -- **OBO/TOBO + çift tepe/dip, TEK
+   adaptör**. İki gösterge farklı biçimde konuşuyor: `head_shoulders`
+   boyun `Line` (eğimli) + `kind` anahtarı, `double_top_bottom` boyun
+   `Level` (yatay) + `pattern` anahtarı; ikisi de karşılanıyor.
+3. `trend/chart_adapter.py` -- `ma_systems` (EMA yelpazesi, TAM dizi)
+   ve `ewmac` (tahminler YALNIZCA alt panelde).
+4. `structure/chart_adapter.py` -- `supply_demand`. Bölge SEÇİMİ
+   adaptörde YAPILMAZ; gösterge zaten `last_state["nearest_*"]` ile
+   karar vermiş, o okunuyor.
+
+**Bu turda bulunan GERÇEK hatalar (hepsi RENDER EDİP BAKARAK):**
+- **Çift "D" etiketi** (`composers/xabcd.py:75`): `actual_d` koşulsuz
+  ekleniyordu, ama sözleşme D'yi ZATEN `points` içinde kabul ediyor ve
+  iki-kanat çizimi onu orada bekliyor -> D listeye İKİ KEZ giriyordu.
+- **`bars_ago` harmoniklerde HEP None**: `last_state` anahtarı
+  `{okul}_{formasyon}_{aday}`, sinyal payload'ında ise `pattern_name` ile
+  `pattern_id` AYRI alanlar. Doğrudan karşılaştırma SESSİZCE hiç
+  eşleşmiyordu -- grafikte "Sinyal yaşı" hiç görünmeyecekti.
+- **"Derinlik: %2869.9" -> "%1451.0" -> %14.5**: İKİ tuzak üst üste.
+  (a) `depth` payload'ı MUTLAK FİYAT mesafesi, oran değil;
+  (b) `depth_pct` ADI yanıltıcı -- tespit edici oraya KESİR koyuyor
+  (`neckline_v2.py:248`) ve komposer 100 ile ÇARPIYOR (`neckline.py:43`).
+- **Rota 500**: tazelik kapısı `pat.bars_ago` okuyordu ama her sözleşme
+  bu alanı TAŞIMIYOR -- `supply_demand` `list[Zone]` döndürüyor,
+  `AttributeError`. Artık `getattr(pat, "bars_ago", None)`.
+- **`SeriesOverlay` "en az bir seri" şartı** `trend.ewmac`i imkânsız
+  kılıyordu (tahminler -20..+20, fiyat ölçeğinde anlamsız). Şart
+  `series or sub_series` olarak gevşetildi.
+
+**Doğrulama:** 5 gösterge Playwright ile GÖRÜLEREK doğrulandı (harmonik
+carney/pesavento, OBO, çift dip, ma_systems). 968 test yeşil (944->968);
+8 başarısız testin TAMAMI ÖNCEDEN VAR. `ruff` yeni dosyalarda temiz.
+
+**KALAN 11 GÖSTERGE** (hepsi eski PNG yolunda -- KIRIK DEĞİL):
+`structure.golden_zone`, `structure.swing_fib_abcd`,
+`structure.price_structure`, `trend.weekly_channel`, `trend.breakouts`,
+`patterns.flag_pennant`, `patterns.breakout_fvg`,
+`pair.relative_momentum`, `pair.vol_harvest`, `momentum.alpha_rank`,
+`momentum.momentum_rank`.
+
+Not: `pair.*` için rota DEĞİŞMELİ -- `compute_live` pair modunda
+`df=None` döndürüyor, rota bunu 422 sayıyor. `momentum.*` TÜM evreni
+hesaplar (yavaş). `patterns.breakout_fvg` mevcut fikstürlerin HİÇBİRİNDE
+aday üretmiyor -- önce fikstür gerekiyor.

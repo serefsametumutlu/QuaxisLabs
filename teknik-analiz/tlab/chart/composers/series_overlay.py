@@ -45,8 +45,11 @@ class SeriesOverlay:
     bars_ago: int | None = None
 
     def __post_init__(self) -> None:
-        if not self.series:
-            raise ValueError("en az bir bindirme serisi gerekli")
+        # Bindirme TAMAMEN alt panelde olabilir: `trend.ewmac`in tahmin
+        # serileri (-20..+20) fiyat ölçeğinde anlamsız, yalnızca `sub_series`
+        # doldurulur. Fiyat paneli yine mumları çizer.
+        if not self.series and not self.sub_series:
+            raise ValueError("en az bir bindirme serisi gerekli (series ya da sub_series)")
 
 
 def ma_system(df: pd.DataFrame, periods: tuple[int, ...] = (8, 21, 55, 200)) -> SeriesOverlay:

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import { fetchCatalog, fetchUniverse } from "@/lib/api";
 import type { CatalogEntry } from "@/lib/types";
 import { ChartImage } from "@/components/chart/ChartImage";
@@ -9,6 +10,19 @@ import { ChartGuide } from "@/components/chart/ChartGuide";
 import { AiReportPanel } from "@/components/chart/AiReportPanel";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { useTheme } from "@/lib/useTheme";
+
+// `plotly.js-finance-dist-min` `window`a bağımlı — SSR sırasında import
+// edilirse çöker, bu yüzden `ssr:false` ile yalnızca tarayıcıda yüklenir.
+const ChartPlotly = dynamic(
+  () => import("@/components/chart/ChartPlotly").then((m) => m.ChartPlotly),
+  { ssr: false }
+);
+
+// Aşama A (YURUTME_PROMPTLARI.md): `tlab/chart`'a bağlanmış göstergeler —
+// yalnızca bunlar için `ChartPlotly` (etkileşimli) kullanılır, diğerleri
+// ESKİSİ GİBİ `ChartImage`'ı (sabit PNG) kullanmaya devam eder. Aşama B
+// bittiğinde bu liste kalkacak, HEPSİ `ChartPlotly` kullanacak.
+const CHART_JSON_INDICATORS = ["patterns.triangle"];
 
 const TIMEFRAMES = ["1h", "4h", "1d", "w1"];
 const MARKETS = ["bist", "nasdaq"];
@@ -181,14 +195,25 @@ function ChartPageInner() {
                 {indicator} · {tf.toUpperCase()}
               </span>
             </div>
-            <ChartImage
-              key={refreshTick}
-              symbol={symbol}
-              tf={tf}
-              indicator={indicator}
-              market={market}
-              theme={theme}
-            />
+            {CHART_JSON_INDICATORS.includes(indicator) ? (
+              <ChartPlotly
+                key={refreshTick}
+                symbol={symbol}
+                tf={tf}
+                indicator={indicator}
+                market={market}
+                theme={theme}
+              />
+            ) : (
+              <ChartImage
+                key={refreshTick}
+                symbol={symbol}
+                tf={tf}
+                indicator={indicator}
+                market={market}
+                theme={theme}
+              />
+            )}
           </div>
           <ChartGuide indicator={indicator} />
           <AiReportPanel

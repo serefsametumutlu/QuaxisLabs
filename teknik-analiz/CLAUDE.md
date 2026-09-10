@@ -548,6 +548,20 @@ oturum) yoksa Faz 5'in kalan maddelerine mi (B: breakouts skor dağılımı,
 D: price_structure performansı, E: alpha/momentum rank kalibrasyonu,
 F: pattern_context uygulaması) devam edilecek — HENÜZ BAŞLANMADI.
 
+**NOT (2026-09-08'den itibaren) — grafik katmanının YENİDEN İNŞASI ayrı
+belgelerde takip ediliyor, yukarıdaki Faz-numaralı akışın DIŞINDA:**
+`tlab/viz` (PNG) → `tlab/chart` (tipli komposer + Plotly) geçişinin tam
+gerekçesi `docs/KARAR_VE_YENIDEN_INSA.md`'de, 27 göstergenin komposer
+eşleşme durumu `docs/KOMPOSER_HARITASI.md`'de, adım adım yürütme planı
+`YURUTME_PROMPTLARI.md`'de (Aşama A-H). **Durum (2026-09-10): Aşama A
+BİTTİ** — `tlab/chart` ilk kez web'e bağlandı (`web/backend/routes/
+chart_json.py` + `web/frontend/components/chart/ChartPlotly.tsx`,
+yalnızca `patterns.triangle`, gerçek BIST verisiyle tarayıcıda hover/
+crosshair/zaman-düğmeleri/3-tema DOĞRULANDI). Kalan 19 gösterge (Aşama
+B), sinyal kalitesi doğrulaması (Aşama E), etiket çakışma çözücüsü
+(Aşama C) vb. HENÜZ YAPILMADI — tam detay `docs/PROGRESS_LOG.md`'nin
+2026-09-10 "AŞAMA A tamamlandı" girdisinde.
+
 ### Tamamlanan fazlar (özet)
 
 - **Faz 0 — İskelet**: `core/types.py`, `core/indicator.py`, `core/params.py`,

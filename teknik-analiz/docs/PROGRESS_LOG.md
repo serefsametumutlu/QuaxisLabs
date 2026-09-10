@@ -4029,3 +4029,90 @@ işaretli; `trend.weekly_channel`/`trend.breakouts` için AYNI (Trendline/
 geometri paylaşan) adaptör deseni HENÜZ yazılmadı, gelecek bir oturumun
 işi.
 
+## 2026-09-10 (aynı gün) — AŞAMA A tamamlandı: `tlab/chart` ilk kez ürüne bağlandı
+
+**Bağlam:** kullanıcı `YURUTME_PROMPTLARI.md`i (başka bir terminal
+oturumunun ürettiği A-H aşamalı yürütme planı) projeye ekleyip "buna göre
+devam et, siteye bağla" dedi. Ölçüm doğrulandı: `grep -rn "tlab.chart"
+web/` gerçekten **0 sonuç** veriyordu — `tlab/chart` altındaki 21
+komposer (bu oturumun ve önceki `9f013ed` commit'inin ürünü) hiçbir web
+rotasına bağlı değildi, site hâlâ eski `tlab/viz` PNG yolunu kullanıyordu.
+
+**Yapılan — dikey dilim, TEK gösterge (`patterns.triangle`) uçtan uca:**
+
+1. **`web/backend/routes/chart_json.py`** (YENİ) — `GET /api/chart.json`.
+   Akış: `tlab/viz/live.py::compute_live` (ZATEN var olan "sembolden
+   canlı `IndicatorResult`a" kısayolu, CATALOG+Store) → `boundary_
+   adapter.to_pattern` (tarayıcının KENDİ geometrisini `BoundaryPattern`e
+   çevirir, YENİDEN HESAP YAPMAZ) → `composers.triangle.compose`
+   (yalnızca çizer) → `plotly.io.to_json` (fig.to_plotly_json()'un düz
+   dict'i FastAPI'nin varsayılan serileştiricisinde numpy dizileriyle
+   çöküyor, Plotly'nin KENDİ encoder'ı bu yüzden tercih edildi).
+   Şimdilik YALNIZCA `patterns.triangle` (`_SUPPORTED` sözlüğü) — başka
+   bir gösterge istenirse 422 + "henüz tlab/chart'a bağlanmadı". Sinyal
+   yoksa (`to_pattern` None) 404 + net mesaj — kullanıcının "güncel
+   sinyal yoksa hiçbir şey göstermesin" kuralı burada karşılığını 404
+   olarak buluyor (boş bir grafik DEĞİL). Tema eşlemesi `chart_png.py`
+   ile AYNI (`dark`/`classic`/`editorial` → `dark`/`light`/`paper`).
+2. **Frontend:** `plotly.js-finance-dist-min` kuruldu (350kB, tam
+   plotly'nin 1MB+'ının yerine). `web/frontend/types/plotly-finance.d.ts`
+   (resmi tip paketi yok, minimal elle yazılmış sözleşme). YENİ
+   `components/chart/ChartPlotly.tsx` — `/api/chart.json`'dan çekip
+   `Plotly.react` ile çizer; `app/chart/page.tsx`'e `next/dynamic(...,
+   {ssr:false})` ile bağlandı (`CHART_JSON_INDICATORS = ["patterns.
+   triangle"]` listesindeyse `ChartPlotly`, değilse ESKİSİ GİBİ
+   `ChartImage`/PNG).
+
+**2 GERÇEK hata bulunup düzeltildi (bu entegrasyon sırasında):**
+1. **Plotly'nin gizli-konteyner genişlik hatası** — ilk taslakta yükleniyor/
+   hata durumlarında grafik konteyneri Tailwind `hidden` (`display:none`)
+   ile gizleniyordu; `Plotly.react` bu konteynere çizildiğinde
+   `getBoundingClientRect()` genişliği 0 döndüğü için Plotly sabit bir
+   varsayılana (700px) düşüyor ve konteyner SONRADAN görünür olsa bile
+   o dar genişlikte KALIYORDU (resize event'i hiç tetiklenmemiş oluyordu)
+   — gerçek tarayıcıda ekran görüntüsüyle doğrulanırken yakalandı (grafik
+   yalnızca 700px genişliğinde, başlık/rangeselector/facts satırı hiç
+   görünmüyordu). Düzeltme: konteyner artık HER ZAMAN düzen akışında
+   kalır, yükleniyor/hata durumları `visibility:hidden` + üstüne bindirilen
+   bir katmanla gösteriliyor — Plotly ilk çizimde her zaman gerçek
+   genişliği görüyor.
+2. **`react-hooks/set-state-in-effect`** — `ChartImage.tsx`'in KENDİ
+   deseni tekrar kullanıldı: `qs` (sorgu string'i) değişince eski durum
+   RENDER SIRASINDA senkron sıfırlanıyor (`prevQs` karşılaştırması),
+   asıl fetch + `setStatus` çağrıları `useEffect`in İÇİNDEKİ `.then`/
+   `.catch` callback'lerinde kalıyor — kural yalnızca effect GÖVDESİNDE
+   senkron `setState`'i yasaklıyor.
+
+**Görsel doğrulama (Playwright/Chrome MCP, gerçek BIST verisiyle,
+GÖRÜNTÜYE bakılarak):** BARMA D1 `patterns.triangle` (SİMETRİK ÜÇGEN,
+HEDEFE ULAŞTI) — mumlar, hacim paneli, sınır çizgileri, numaralı
+temaslar, AL kutusu, başlık/facts metni DOĞRU render etti. Hover
+(`hovermode="x unified"`) her panelde o bardaki TÜM serileri (fiyat
+panelinde OHLC, hacim panelinde Hacim+MA21) tek kutuda gösterdi; dikey
+crosshair (`spikemode="across"`) çalıştı. Rangeselector düğmeleri
+(3A/6A/1Y/Tümü) tıklanınca gerçekten zoom yaptı (fiyat + hacim paneli
+BİRLİKTE, `shared_xaxes=True`). **3 temanın ÜÇÜ de** (dark/classic/
+editorial) doğru kontrastla render etti — tema değişince yeni bir
+`/api/chart.json` isteği GERÇEKTEN attığı network log'uyla doğrulandı.
+`patterns.triangle` sinyali olmayan bir sembolde (ASELS) net "güncel/
+geçerli bir sinyal yok" mesajı çıktı (hata DEĞİL, gri bir kutu).
+Farklı bir gösterge (`harmonic.carney`) seçilince ESKİ `ChartImage`/PNG
+yolu (dark tema, "PNG indir" butonu) hiç bozulmadan çalışmaya devam etti.
+
+**Regresyon yok:** 914 test hâlâ yeşil; `ruff check tlab/ web/ tests/`
+YENİ dosyalarda (`chart_json.py`, `main.py`) sıfır hata (pre-existing 42
+hata unrelated dosyalarda, `repaint.py` dahil, DEĞİŞMEDİ); `mypy tlab/
+web/` 18 hata İLE ÖNCESİ/SONRASI BİREBİR AYNI (`git stash` ile
+doğrulandı) — `chart_json.py`'nin kendi katkısı (`ThemeName` literal
+tip uyuşmazlığı) `_THEME_MAP: dict[str, ThemeName]` ile düzeltildi,
+geri kalan 18 hepsi `tlab/chart/composers/*`'in (channel/liquidity/
+zones/market_structure/pole_flag/neckline/xabcd/quadrant_map/pair) ve
+`web/backend/routes/scan.py`'nin ÖNCEDEN VAR OLAN `role_color` Literal
+sorunu — bu oturumda DOKUNULMADI.
+
+**Sırada — `YURUTME_PROMPTLARI.md`'nin sırası:** AŞAMA E (sinyal
+kalitesi/ileri getiri doğrulaması, B'den ÖNCE hangi göstergelerin işe
+yaradığını ölçmek için) veya doğrudan AŞAMA B (kalan 19 göstergenin
+adaptörleri) — kullanıcı kararı bekleniyor. `chart_json.py::_SUPPORTED`
+sözlüğü genişletilebilir tasarlandı (her yeni gösterge tek satır).
+

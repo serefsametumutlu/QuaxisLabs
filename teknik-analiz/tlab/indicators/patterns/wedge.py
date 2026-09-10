@@ -204,7 +204,7 @@ class WedgeIndicator(BaseIndicator):
                 shape = classify(conv, classify_params)
                 if shape is None or shape not in self._shapes:
                     continue
-                if not _passes_shape_filters(conv, upper, lower, p, context):
+                if not _passes_shape_filters(conv, upper, lower, p, context, shape):
                     continue
 
                 # pattern_key zaman damgasindan turetilir, bar_idx'ten DEGIL --
@@ -403,8 +403,22 @@ class WedgeIndicator(BaseIndicator):
         )
 
 
+# Bir kenarı TANIM GEREĞİ düz olan formasyonlar. `slope_ratio_range`
+# (|eğim_kücük| / |eğim_büyük|) bu ikisine UYGULANAMAZ: düz kenarın eğimi
+# ~0 olduğu için oran da ~0 çıkar ve 0.3'lük alt bant onları HER ZAMAN eler.
+# Ölçüldü (2026-09-10, sentetik yükselen üçgen fikstürü): 20 adayın 20'si
+# `slope_ratio_range`e takılıyor, sinyal SIFIR. Yani `_TRIANGLE_SHAPES`
+# asc/desc'i içeriyor ve `classify()` onları üretiyor olsa da, bu filtre
+# yüzünden `patterns.triangle` YÜKSELEN/ALÇALAN üçgeni HİÇ BULAMIYORDU --
+# yalnızca simetrik olanı. "Düz" olma şartı zaten `classify()`te
+# `_slope_sign(..., flat_ratio)` ile DOĞRULANIYOR, burada ikinci kez
+# (ve yanlış ölçütle) aranmamalı.
+_FLAT_SIDED_SHAPES = frozenset({"asc_triangle", "desc_triangle"})
+
+
 def _passes_shape_filters(
     conv, upper: Trendline, lower: Trendline, p: WedgeParams, context: dict | None = None,
+    shape: str | None = None,
 ) -> bool:
     """Faz 1, 1D — `context={"elim": {}}` verilirse (bkz. `double_top_
     bottom.py::_bump`) hangi filtrenin eleneni sayar; varsayılan (`None`)
@@ -429,10 +443,11 @@ def _passes_shape_filters(
     if conv.apex_idx - conv.created_idx < 1:
         _bump(context, "apex_too_close")
         return False
-    ratio = _normalized_ratio(upper.slope, lower.slope)
-    if not (p.slope_ratio_range[0] <= ratio <= p.slope_ratio_range[1]):
-        _bump(context, "slope_ratio_range")
-        return False
+    if shape not in _FLAT_SIDED_SHAPES:
+        ratio = _normalized_ratio(upper.slope, lower.slope)
+        if not (p.slope_ratio_range[0] <= ratio <= p.slope_ratio_range[1]):
+            _bump(context, "slope_ratio_range")
+            return False
     return True
 
 

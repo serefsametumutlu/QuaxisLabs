@@ -6,6 +6,7 @@ from fastapi import APIRouter
 
 from tlab.indicators.bootstrap import CATALOG
 from tlab.viz.labels_tr import INDICATOR_CATEGORY_TR, tr_indicator
+from web.backend.routes.chart_json import _SUPPORTED as _CHART_JSON_SUPPORTED
 
 router = APIRouter(tags=["catalog"])
 
@@ -21,6 +22,15 @@ def get_catalog() -> list[dict[str, object]]:
             "needs_context": spec.needs_context,
             "needs_universe": spec.needs_universe,
             "supported_timeframes": [tf.value for tf in spec.supported_timeframes],
+            # `tlab/chart`e (tipli komposer + Plotly) bagli mi -- frontend
+            # ETKILESIMLI `ChartPlotly` mi yoksa ESKI sabit `ChartImage` mi
+            # kullanacagina BUNA gore karar verir. Eskiden frontend'de
+            # ELLE yazili ikinci bir liste vardi (`CHART_JSON_INDICATORS =
+            # ["patterns.triangle"]`) ve backend'e yeni bir gosterge
+            # eklenince SESSIZCE kayiyordu: wedge/broadening `_SUPPORTED`e
+            # eklendigi halde sitede hala eski PNG yolundan geliyordu.
+            # Tek dogru kaynak `chart_json._SUPPORTED`.
+            "interactive": spec.name in _CHART_JSON_SUPPORTED,
         }
         for spec in CATALOG.values()
     ]

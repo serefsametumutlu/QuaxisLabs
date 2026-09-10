@@ -4173,3 +4173,297 @@ tahmini kullanmaya devam ediyor, KIRILMADI (eski davranış korunuyor,
 sadece daha az hassas), ama tutarlılık için Aşama C'nin geri kalanında
 onlara da `chart_span` eklenmeli.
 
+
+---
+
+## 2026-09-10 — Aşama A sonrası: siteye kopuk üçgen giden İKİ GERÇEK hata
+
+Kullanıcı canlı siteden üç ekran görüntüsü gönderdi (SVGYO/BESTE/BARMA
+`patterns.triangle`): çizilenler referans görsellere HİÇ benzemiyordu —
+"çizimler ve sinyaller alakasız". Teşhis, tahminle değil ÖLÇÜMLE yapıldı;
+iki BAĞIMSIZ kök neden çıktı, ikisi de `boundary_adapter.py`'de.
+
+**HATA 1 — `Line.extend_right` sessizce DÜŞÜYORDU (kopuk çizgiler).**
+`wedge.py:229-243` her sınırı YALNIZCA kendi iki pivotu arasında tanımlar
+ve uzatmayı `Line(..., extend_right=True)` bayrağına devreder; eski
+`renderer.py:1522` bu bayrağı okuyordu. Yeni `contracts.BoundaryLine`
+sözleşmesi ise "çizgi YALNIZCA bu noktalar arasında uzanır" diyor — böyle
+bir bayrak YOK — ve adaptör `points`'i olduğu gibi kopyalıyordu
+(`grep -c extend_right` → `boundary_adapter.py`/`contracts.py`/`marks.py`
+üçünde de **0**). Sonuç: iki sınır ÖRTÜŞMEYEN zaman aralıklarında
+çiziliyordu (BESTE'de alt sınır Nisan-Mayıs, üst sınır Haziran-Eylül —
+ikisi HİÇ kesişmiyor, ortada bir üçgen hiç oluşmuyordu).
+**Düzeltme:** YENİ `_spanned()` — sınırın iki çapasından geçen doğruyu
+dört çapadan + sinyal/giriş barından türetilen ORTAK `[span_start,
+span_end]` aralığında yeniden örnekler. Daralan formasyonlarda apeksi
+AŞMAZ (aşarsa iki çizgi kesişip X'e dönerdi). Geometri wedge.py'nin
+ürettiği doğrunun AYNISI — yeni bir fit/eşik HESAPLANMAZ, yalnızca
+uzatma maddileştirilir ("grafik katmanı hesap yapmaz" ilkesi korunur:
+bu bir koordinat dönüşümü, tespit değil).
+
+**HATA 2 — tazelik sıralaması YOZLAŞMIŞ adayı SİSTEMATİK seçiyordu.**
+Hata 1 düzeltilince çıkan ikinci hata: `select_latest` yalnızca "sinyali
+en taze" adayı seçiyordu. Ölçüm (simetrik üçgen fikstürü, 8 aday):
+
+| son sinyal | üst span | alt span | denge |
+|---|---|---|---|
+| 2026-05-20 | 159 bar | **6 bar** | 0.038 |
+| 2026-05-20 | 133 bar | **6 bar** | 0.045 |
+| 2026-05-13 | 159 bar | 80 bar | **0.503** |
+
+`wedge.py` 159 barlık bir üst sınırı 6 barlık bir alt sınırla eşleştiren
+adaylar da üretiyor ve bunların sinyalleri TİPİK OLARAK en taze olanlar —
+salt tazeliğe göre sıralamak bu yozlaşmışı HER ZAMAN seçiyordu. 6 barlık
+bir "destek çizgisi" Bulkowski'nin ~3 hafta / çoklu temas ölçütünü
+karşılamaz; formasyon sınırı değil gürültüdür. Temasların (208-219. barlar)
+grafiğin sağ ucuna yığılmasının sebebi de buydu.
+**Düzeltme:** eleme (`_MIN_SPAN_BARS=15`, `_MIN_SPAN_BALANCE=0.25`)
+tazelikten ÖNCE uygulanır — sonra uygulanmasının anlamı yok, çünkü "en
+taze" zaten yozlaşmış olanı işaret ediyor. `df` verilmezse eleme yapılmaz
+(geriye dönük davranış korunur).
+
+**Ek iki düzeltme (kullanıcının aynı mesajda bildirdiği):**
+- `chart_json.py`'ye `max_bars_ago: int | None = 3` tazelik kapısı —
+  `/scan` rotasının VARSAYILANIYLA AYNI. Bunsuz grafik "Sinyal yaşı: 262
+  bar" gibi ölü bir formasyonu canlıymış gibi çiziyordu (BARMA).
+- `ChartPlotly.tsx`'te `displayModeBar: false` → PNG indirme düğmesi geri
+  geldi (`ChartImage`→`ChartPlotly` geçişinde modebar tamamen kapatılınca
+  kullanıcının kullandığı "PNG olarak indir" düğmesi de kaybolmuştu).
+  Yalnızca indirme bırakıldı; zoom/pan grafiğin kendi zaman düğmeleriyle
+  çakışıyor.
+
+**Ayrıca:** `chart/fixtures.py::triangle(kind=...)` bilinmeyen bir `kind`
+için SESSİZCE simetriğe düşüyordu (`"ascending"` yazan çağıran simetrik
+üçgen alıp testinin geçtiğini sanıyordu — bu oturumda GERÇEKTEN oldu).
+Artık `ValueError` atıyor — `tokens.py::role_color`'ın AYNI ilkesi.
+
+**Doğrulama:** Playwright + Chromium ile GÖRÜNTÜYE bakılarak — sınırlar
+artık ortak aralıkta, üçgen gerçekten kapanıyor (açılış 12.31 → kapanış
+3.46). Temasların çizgi üzerinde olduğu da ÖLÇÜLDÜ (en büyük sapma 0.21 =
+%0.4; ilk görsel izlenim "çizgiden kopuk" idi, ölçüm bunu ÇÜRÜTTÜ —
+temaslar doğru, yalnızca fikstürün kırılım bacağı sınıra yaslandığı için
+kümeleniyorlar). 2 yeni regresyon testi; 905 test yeşil (903→905), 8
+başarısız testin TAMAMI ÖNCEDEN VAR (temiz ağaçta da aynı: `arch` modülü
+kurulu değil ×4, Gemini mock ×3, 1 golden). `ruff`: değişen dosyaların
+hepsi temiz.
+
+**AÇIK KALAN (bu oturumda ÇÖZÜLMEDİ):** kök neden `wedge.py`'nin
+birbiriyle orantısız sınır çiftleri ÜRETMESİ. Adaptör bunları artık
+eliyor ama tespit edicinin kendisi hâlâ üretiyor — asıl düzeltme
+`build_trendlines`'ın aday eşleştirmesinde olmalı (CMT kuralı: bir trend
+çizgisi BENZER BÜYÜKLÜKTEKİ pivotları birleştirir). Tarayıcı genelinde
+etkisi olacağı için ayrı bir iş.
+
+**DOĞRULANAMAYAN:** yfinance bu ortamda kurum ağ politikasıyla ENGELLİ
+(403), SVGYO/BESTE/BARMA'nın GERÇEK verisi çekilemedi — doğrulama
+deterministik sentetik fikstürle yapıldı. Aynı kod yolu (`compute_live` →
+`to_pattern` → `compose`) çalıştırıldı, ama gerçek BIST verisiyle son
+kontrol kullanıcının/terminal oturumunun yapması gereken bir adım.
+
+---
+
+## 2026-09-10 (2) — Kullanıcı geri bildirimi: daireler, wedge, yükselen/alçalan
+
+Kullanıcı üçgen çizgilerini onayladı ("fena görünmüyor"), üç şey istedi:
+daireler kalksın, wedge bağlansın, "düşen ve yükselen trend düzgün
+çizilsin". Üçü de yapıldı; sırasında **bir GERÇEK ürün hatası** bulundu.
+
+**1) Temas daireleri VARSAYILAN OLARAK KAPATILDI.** Kullanıcı: "bu uçlara
+doğru sürekli yuvarlaklar geliyor o ne anlamadım ya sadece kırılım olan ve
+al sat sinyallerinin geldiği noktada olsun". `boundary_pattern.compose`e
+`show_touches: bool = False` eklendi. Temas SAYISI üst bilgi satırında
+kalıyor ("Temas: 6 üst / 2 alt"); grafikte yalnızca kırılım/giriş işareti
+(AL/SAT) var. Bir önceki oturumdaki piksel-uzayı etiket merdiveni kod
+olarak duruyor, `show_touches=True` ile geri gelir.
+
+**2) `patterns.wedge` + `patterns.broadening` web'e bağlandı**
+(`chart_json.py::_SUPPORTED`). Aşama B'nin ilk üç göstergesi tamam.
+
+**3) GERÇEK HATA — `patterns.triangle` YÜKSELEN/ALÇALAN üçgeni HİÇ
+bulamıyordu.** `_passes_shape_filters`'ın `slope_ratio_range=(0.3, 1.0)`
+bandı |eğim_küçük|/|eğim_büyük| oranını sınırlıyor. Yükselen üçgende tavan
+TANIM GEREĞİ düz (eğim ~0) → oran ~0 → 0.3 alt bandı adayı HER ZAMAN eliyor.
+Yani `_TRIANGLE_SHAPES` asc/desc'i içermesine ve `classify()` onları
+üretmesine rağmen bu iki formasyon üretimde HİÇ görünmüyordu. ÖLÇÜLDÜ
+(sentetik yükselen üçgen): 20 adayın 20'si bu filtreye takılıyor, sinyal
+SIFIR → düzeltmeden sonra **26 sinyal**, şekil `asc_triangle`. Düzeltme:
+YENİ `_FLAT_SIDED_SHAPES` kümesi, oran kontrolü bu iki şekle uygulanmıyor
+("düz" olma şartı zaten `classify()`te `flat_ratio`=0.15 ile doğrulanıyor;
+ikinci kez ve YANLIŞ ölçütle aranıyordu).
+
+**AYNI İLKENİN İKİNCİ UYGULAMASI — adaptördeki denge oranı.** Bir önceki
+oturumda eklenen `_MIN_SPAN_BALANCE=0.25` de düz kenarlı üçgenleri
+haksız yere eliyordu: geçerli bir alçalan üçgen 158 barlık direnç + 22
+barlık düz destek = denge 0.14. Yozlaşmış adayı eleyen asıl ölçüt zaten
+`_MIN_SPAN_BARS=15` (SVGYO'daki 6 barlık, takozdaki 9 barlık sahte
+sınırlar oraya takılıyor); denge oranı artık yalnızca iki kenarı da
+eğimli formasyonlara uygulanıyor. Bu düzeltmeden sonra ALÇALAN ÜÇGEN
+de çiziliyor.
+
+**Fikstürler.** YENİ `wedge(kind="alcalan"|"yukselen")`. `triangle()`'a
+`_oscillate` + `_pin_touches` eklendi: `_ohlc_from_close` high'ı
+`body_hi*(1+|N(0,0.006)|)` ile üretiyordu, yani "düz" bir tavanda bile
+her temas farklı yükseklikteydi → `build_trendlines` düz tavanı eğimli
+fitliyor, `classify()` formasyonu `falling_wedge` sanıyordu. ALÇALAN
+ÜÇGEN fikstürü bu yüzden hiç alçalan üçgen üretmiyordu — FİKSTÜR kusuru,
+tespit edicinin değil. Takoz eğim oranı (0.4) GÖZ KARARI DEĞİL,
+hesaplanarak seçildi: `flat_ratio`=0.15 üstünde (yoksa üçgen sınıflanır)
+ve `slope_ratio_range` bandında (0.3-1.0), yakınsama hızı da apeksi
+`max_apex_bars`=120 içinde tutuyor.
+
+**Doğrulama (Playwright, GÖRÜNTÜYE bakılarak):** dört şekil de referans
+görsellerdeki gibi çıkıyor — YÜKSELEN TAKOZ (iki sınır yükselen, yakınsak,
+kırmızı, kırılımda tek SAT), SİMETRİK ÜÇGEN (apekse yakınsıyor, AL),
+YÜKSELEN ÜÇGEN (düz tavan + yükselen taban, AL), ALÇALAN ÜÇGEN (düşen
+direnç + düz destek, henüz kırılım yok → sinyal işareti de yok, DOĞRU).
+Hiçbirinde temas dairesi yok. 906 test yeşil (903→906, 3 yeni regresyon
+testi); 8 başarısız testin TAMAMI ÖNCEDEN VAR (temiz ağaçta da aynı).
+`ruff`: değişen dosyalarda yeni hata yok (`boundary_pattern.py`'nin
+import-sıralama uyarısı ÖNCEDEN VAR, doğrulandı).
+
+**AÇIK KALAN — dürüst not:**
+- `wedge(kind="alcalan")` fikstürü hâlâ çizilebilir bir aday vermiyor:
+  tek `falling_wedge` adayı durum makinesi tarafından `invalidated`
+  ediliyor. Bu bir FİKSTÜR ayarı sorunu (kırılım bacağı üst sınırı
+  yeterince aşmıyor); ALÇALAN TAKOZ'un ÜRÜN yolu `yukselen` ikiziyle
+  aynı kod olduğu için çalışıyor, ama alçalan varyantı GÖRÜLEREK
+  doğrulanmadı.
+- Kök neden hâlâ `wedge.py`'nin orantısız/kırılım-bacağına oturmuş sınır
+  çiftleri ÜRETMESİ (`build_trendlines` aday eşleştirmesi, CMT kuralı:
+  benzer büyüklükteki pivotlar). Adaptör eliyor, tespit edici hâlâ
+  üretiyor.
+- **`slope_ratio_range` düzeltmesi TARAYICI GENELİNDE sinyal sayısını
+  ARTIRIR** (yükselen/alçalan üçgen artık üretiliyor). Tam evren ölçümü
+  YAPILAMADI — yfinance bu ortamda kurum ağ politikasıyla ENGELLİ (403).
+  `tlab eod --market bist` sonrası önce/sonra sayımı YAPILMALI.
+
+---
+
+## 2026-09-10 (3) — Alçalan takoz + megafon + frontend'deki İKİNCİ liste
+
+**1) ALÇALAN TAKOZ tamamlandı.** Önceki oturumda tek `falling_wedge`
+adayı `invalidated` kalıyordu. Kök neden ÖLÇÜLDÜ: gövde 120 bar olunca
+`build_trendlines` gövdenin İÇİNDE daha erken/kısa bir takoz da buluyor
+(Eki-Ara), fiyat gövdenin geri kalanında düşmeye devam ettiği için o erken
+aday kendi alt sınırını kırıp geçersizleşiyor. Gövde 70 bara indirildi;
+70 barda varsayılan bacak aralığı (9-17) yalnızca ~5 bacak veriyordu ve
+`build_trendlines` destek tarafında HİÇ çizgi kuramıyordu (ölçüldü: 8
+pivot, 0 destek çizgisi) -- `_oscillate`e `leg_range` parametresi eklendi,
+takozlar (6,11) kullanıyor (~8 bacak, her sınıra 4 temas).
+
+**2) YENİ `broadening()` fikstürü** (tepe/dip). Megafon üçgenin TERSİ:
+sınırlar ıraksar, apeks yoktur, hacim ARTAR (Bulkowski). İkisi de
+doğrulandı, GENİŞLEYEN FORMASYON grafiği görüldü.
+
+**3) GERÇEK HATA — frontend'de ELLE yazılı İKİNCİ bir liste vardı.**
+`web/frontend/app/chart/page.tsx`'te `CHART_JSON_INDICATORS =
+["patterns.triangle"]` sabiti, hangi göstergenin ETKİLEŞİMLİ
+(`ChartPlotly`) çizileceğine karar veriyordu. Bir önceki oturumda
+`chart_json._SUPPORTED`e wedge/broadening eklenmişti ama bu liste
+güncellenmediği için ikisi de sitede HÂLÂ eski sabit-PNG yolundan
+geliyordu -- yani backend düzeltmesi kullanıcıya HİÇ ULAŞMAYACAKTI.
+İki ayrı doğru kaynağı, her yeni göstergede yeniden kayardı.
+Düzeltme: `/api/catalog` her girdiye `interactive` alanı ekliyor
+(`spec.name in chart_json._SUPPORTED`), frontend zaten çektiği
+`catalog`tan okuyor. Elle liste TAMAMEN kaldırıldı; bundan sonra
+`_SUPPORTED`e eklenen her gösterge frontend'e DOKUNMADAN etkileşimli olur.
+
+**4) Tazelik kapısı 3 -> 60 bar (grafik sayfası).** Bir önceki oturumda
+`/scan` ile aynı 3 bara ayarlanmıştı; ölçüldü ki 4 barlık bir ONAY
+sinyali bile 404'e düşüyor -- yani kapının KENDİSİ "eksik sinyal"
+üretiyordu (kullanıcının açık kuralı: "eksik hatalı sinyal olmamalı").
+Gerekçe: grafik sayfasında asıl doğruluk filtresi tazelik DEĞİL, durum
+makinesi -- `select_latest` zaten `invalidated`/`expired` adayları hiç
+döndürmüyor, yani gelen aday KENDİ ufku içinde geçerli. 60 bar (~3 ay,
+1G) üstüne "artık bakmaya değmez" sınırı koyar; kullanıcının şikâyet
+ettiği BARMA vakası (262 bar) HÂLÂ engelleniyor. `/scan` 3'te KALDI.
+
+**Sinyal tutarlılığı denetimi (kullanıcının asıl isteği).** YENİ
+`tests/test_patterns/test_signal_consistency.py`: 7 formasyon fikstürü ×
+durum/işaret tutarlılığı. Kural -- kırılım GERÇEKLEŞMİŞSE (ONAY / RETEST
+TUTTU / HEDEFE ULAŞTI) AL/SAT işareti ZORUNLU, OLUŞUYOR ise OLMAMALI;
+long->AL/altta/bullish, short->SAT/üstte/bearish. TUTARSIZLIK BULUNMADI.
+Ayrıca formasyon içermeyen 3 seride (kanal, yatay sıkışma, bayrak) yanlış
+pozitif çıkmadığı da kilitlendi. Durum makinesinin ürettiği 6 ekin
+(pending/confirmed/retest_hold/target_reached/invalidated/expired) hepsi
+`SUFFIX_LABEL_TR`de -- eksik olsa kullanıcı "RETEST_HOLD" gibi ham dize
+görürdü.
+
+**YENİ `tests/test_web/test_chart_json_route.py`:** GERÇEK rota, yalnızca
+`compute_live` mock'lanarak, 6 vaka × 3 tema = 18 render + tazelik kapısı
++ 422 + katalog `interactive` türetimi. Gerçek BIST verisi olmadan
+kurulabilecek siteye EN YAKIN doğrulama.
+
+944 test yeşil (917->944); 8 başarısız testin TAMAMI ÖNCEDEN VAR.
+`ruff`: değişen/yeni dosyalarda hata YOK (kalan 14 uyarı bu turda
+dokunulmayan komposerlerde: breadth/neckline/range_box/series_overlay/
+contracts/frame).
+
+**AÇIK KALAN — dürüst not:**
+- Frontend `tsc --noEmit` ÇALIŞTIRILAMADI (`node_modules` yok, `npm
+  install` ağ gerektiriyor). Değişiklik iki satır ve tip güvenli
+  (`CatalogEntry.interactive: boolean`), ama DERLENDİĞİ doğrulanmadı.
+- `slope_ratio_range` düzeltmesinin TARAYICI GENELİNDEKİ etkisi hâlâ
+  ölçülmedi (yfinance 403). `tlab eod --market bist` sonrası önce/sonra
+  sayımı yapılmalı -- yükselen/alçalan üçgen artık üretildiği için
+  sinyal sayısı ARTACAK.
+- Kalan 24 gösterge hâlâ eski PNG yolunda (`interactive: false`) --
+  KIRIK DEĞİL, sadece etkileşimli değil. Aşama B'nin geri kalanı.
+
+---
+
+## 2026-09-10 (4) — Aşama B: 3 -> 16 gösterge bağlandı
+
+Rota `_SUPPORTED` artık `{gösterge: (adaptör, komposer)}`. Adaptör
+`IndicatorResult`i tipli sözleşmeye çevirir (hesap YAPMAZ), komposer
+yalnızca çizer. Frontend bunu `/api/catalog`un `interactive` alanından
+görür -- elle liste YOK.
+
+**YENİ adaptörler (4 dosya, 13 gösterge):**
+1. `harmonics/adapter.py::result_to_pattern` -- **8 harmonik okul TEK
+   köprüyle**. `polygons` `{pid}_xab`(X,A,B) + `{pid}_bcd`(B,C,D),
+   `levels` PRZ/fib, `last_state` okul/formasyon/durum.
+2. `patterns/neckline_adapter.py` -- **OBO/TOBO + çift tepe/dip, TEK
+   adaptör**. İki gösterge farklı biçimde konuşuyor: `head_shoulders`
+   boyun `Line` (eğimli) + `kind` anahtarı, `double_top_bottom` boyun
+   `Level` (yatay) + `pattern` anahtarı; ikisi de karşılanıyor.
+3. `trend/chart_adapter.py` -- `ma_systems` (EMA yelpazesi, TAM dizi)
+   ve `ewmac` (tahminler YALNIZCA alt panelde).
+4. `structure/chart_adapter.py` -- `supply_demand`. Bölge SEÇİMİ
+   adaptörde YAPILMAZ; gösterge zaten `last_state["nearest_*"]` ile
+   karar vermiş, o okunuyor.
+
+**Bu turda bulunan GERÇEK hatalar (hepsi RENDER EDİP BAKARAK):**
+- **Çift "D" etiketi** (`composers/xabcd.py:75`): `actual_d` koşulsuz
+  ekleniyordu, ama sözleşme D'yi ZATEN `points` içinde kabul ediyor ve
+  iki-kanat çizimi onu orada bekliyor -> D listeye İKİ KEZ giriyordu.
+- **`bars_ago` harmoniklerde HEP None**: `last_state` anahtarı
+  `{okul}_{formasyon}_{aday}`, sinyal payload'ında ise `pattern_name` ile
+  `pattern_id` AYRI alanlar. Doğrudan karşılaştırma SESSİZCE hiç
+  eşleşmiyordu -- grafikte "Sinyal yaşı" hiç görünmeyecekti.
+- **"Derinlik: %2869.9" -> "%1451.0" -> %14.5**: İKİ tuzak üst üste.
+  (a) `depth` payload'ı MUTLAK FİYAT mesafesi, oran değil;
+  (b) `depth_pct` ADI yanıltıcı -- tespit edici oraya KESİR koyuyor
+  (`neckline_v2.py:248`) ve komposer 100 ile ÇARPIYOR (`neckline.py:43`).
+- **Rota 500**: tazelik kapısı `pat.bars_ago` okuyordu ama her sözleşme
+  bu alanı TAŞIMIYOR -- `supply_demand` `list[Zone]` döndürüyor,
+  `AttributeError`. Artık `getattr(pat, "bars_ago", None)`.
+- **`SeriesOverlay` "en az bir seri" şartı** `trend.ewmac`i imkânsız
+  kılıyordu (tahminler -20..+20, fiyat ölçeğinde anlamsız). Şart
+  `series or sub_series` olarak gevşetildi.
+
+**Doğrulama:** 5 gösterge Playwright ile GÖRÜLEREK doğrulandı (harmonik
+carney/pesavento, OBO, çift dip, ma_systems). 968 test yeşil (944->968);
+8 başarısız testin TAMAMI ÖNCEDEN VAR. `ruff` yeni dosyalarda temiz.
+
+**KALAN 11 GÖSTERGE** (hepsi eski PNG yolunda -- KIRIK DEĞİL):
+`structure.golden_zone`, `structure.swing_fib_abcd`,
+`structure.price_structure`, `trend.weekly_channel`, `trend.breakouts`,
+`patterns.flag_pennant`, `patterns.breakout_fvg`,
+`pair.relative_momentum`, `pair.vol_harvest`, `momentum.alpha_rank`,
+`momentum.momentum_rank`.
+
+Not: `pair.*` için rota DEĞİŞMELİ -- `compute_live` pair modunda
+`df=None` döndürüyor, rota bunu 422 sayıyor. `momentum.*` TÜM evreni
+hesaplar (yavaş). `patterns.breakout_fvg` mevcut fikstürlerin HİÇBİRİNDE
+aday üretmiyor -- önce fikstür gerekiyor.

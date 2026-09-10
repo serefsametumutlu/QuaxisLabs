@@ -92,6 +92,11 @@ export interface CatalogEntry {
   /** Faz 0.5, A3 — büyük harfli tf kodları (ör. ["1D","4H"]). Boş dizi =
    * göstergenin kendi bir kısıtı yok (nadir; çoğu gösterge D1/H4 bildirir). */
   supported_timeframes: string[];
+  /** `tlab/chart`e (tipli komposer + Plotly) bağlı mı. true ise grafik
+   * ETKİLEŞİMLİ `ChartPlotly` ile, değilse ESKİ sabit `ChartImage` ile
+   * çizilir. Kaynağı backend'deki `chart_json._SUPPORTED` — frontend'de
+   * elle tutulan ikinci bir liste YOK (bir zamanlar vardı ve kaydı). */
+  interactive: boolean;
 }
 
 export interface CategoryEntry {

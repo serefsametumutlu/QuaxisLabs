@@ -18,11 +18,12 @@ const ChartPlotly = dynamic(
   { ssr: false }
 );
 
-// Aşama A (YURUTME_PROMPTLARI.md): `tlab/chart`'a bağlanmış göstergeler —
-// yalnızca bunlar için `ChartPlotly` (etkileşimli) kullanılır, diğerleri
-// ESKİSİ GİBİ `ChartImage`'ı (sabit PNG) kullanmaya devam eder. Aşama B
-// bittiğinde bu liste kalkacak, HEPSİ `ChartPlotly` kullanacak.
-const CHART_JSON_INDICATORS = ["patterns.triangle"];
+// Hangi göstergenin ETKİLEŞİMLİ (`ChartPlotly`) çizileceğini BACKEND
+// söyler: `/api/catalog`'un `interactive` alanı, `chart_json._SUPPORTED`ten
+// türetilir. Burada ELLE yazılı bir liste TUTULMAZ — eskiden tutuluyordu
+// (`CHART_JSON_INDICATORS = ["patterns.triangle"]`) ve backend'e yeni bir
+// gösterge eklenince sessizce kayıyordu: wedge/broadening `_SUPPORTED`e
+// eklendiği hâlde sitede hâlâ eski PNG yolundan geliyordu.
 
 const TIMEFRAMES = ["1h", "4h", "1d", "w1"];
 const MARKETS = ["bist", "nasdaq"];
@@ -195,7 +196,7 @@ function ChartPageInner() {
                 {indicator} · {tf.toUpperCase()}
               </span>
             </div>
-            {CHART_JSON_INDICATORS.includes(indicator) ? (
+            {catalog.find((c) => c.name === indicator)?.interactive ? (
               <ChartPlotly
                 key={refreshTick}
                 symbol={symbol}

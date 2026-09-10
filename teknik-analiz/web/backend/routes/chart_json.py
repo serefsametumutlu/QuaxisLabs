@@ -23,28 +23,81 @@ from __future__ import annotations
 import plotly.io as pio
 from fastapi import APIRouter, HTTPException, Response
 
+from tlab.chart.composers.broadening import compose as compose_broadening
+from tlab.chart.composers.channel import compose as compose_channel
+from tlab.chart.composers.fib_retracement import compose as compose_fib
+from tlab.chart.composers.neckline import compose as compose_neckline
+from tlab.chart.composers.series_overlay import compose as compose_overlay
 from tlab.chart.composers.triangle import compose as compose_triangle
+from tlab.chart.composers.wedge import compose as compose_wedge
+from tlab.chart.composers.xabcd import compose as compose_xabcd
+from tlab.chart.composers.zones import compose as compose_zones
 from tlab.chart.tokens import ThemeName
-from tlab.indicators.patterns.boundary_adapter import to_pattern
+from tlab.indicators.harmonics.adapter import result_to_pattern as adapt_harmonic
+from tlab.indicators.patterns.boundary_adapter import to_pattern as adapt_boundary
+from tlab.indicators.patterns.neckline_adapter import to_pattern as adapt_neckline
+from tlab.indicators.structure.chart_adapter import (
+    golden_zone_to_fib,
+    supply_demand_to_zones,
+    swing_fib_abcd_to_pattern,
+)
+from tlab.indicators.trend.chart_adapter import (
+    ewmac_to_overlay,
+    ma_systems_to_overlay,
+    weekly_channel_to_channel,
+)
 from tlab.viz.live import compute_live
 
 router = APIRouter(tags=["chart_json"])
 
 _THEME_MAP: dict[str, ThemeName] = {"dark": "dark", "classic": "light", "editorial": "paper"}
 
-# indikatör adı -> o adaptörün ürettiği tipli sonucu çizen `compose()`.
-# Aşama B'de her yeni gösterge burada bir satır ekler (kendi adaptörü +
-# komposer eşleşmesiyle) — akışın geri kalanı DEĞİŞMEZ.
-_SUPPORTED = {"patterns.triangle": compose_triangle}
+# indikatör adı -> (adaptör, komposer).
+#
+# Adaptör `IndicatorResult`i TİPLİ bir sözleşmeye çevirir (hesap yapmaz,
+# tarayıcının KENDİ geometrisini okur), komposer yalnızca çizer. Aşama
+# B'de her yeni gösterge burada TEK bir satır ekler; akışın geri kalanı
+# DEĞİŞMEZ. Frontend bu sözlüğü `/api/catalog`un `interactive` alanı
+# üzerinden görür — orada ELLE tutulan ikinci bir liste YOK.
+_SUPPORTED = {
+    "patterns.triangle": (adapt_boundary, compose_triangle),
+    "patterns.wedge": (adapt_boundary, compose_wedge),
+    "patterns.broadening": (adapt_boundary, compose_broadening),
+    # 8 harmonik okulun HEPSİ `HarmonicIndicator`ın tek çıktı biçimini
+    # paylaşır -> tek adaptör, tek komposer.
+    "harmonic.carney": (adapt_harmonic, compose_xabcd),
+    "harmonic.pesavento": (adapt_harmonic, compose_xabcd),
+    "harmonic.gilmore": (adapt_harmonic, compose_xabcd),
+    "harmonic.cypher": (adapt_harmonic, compose_xabcd),
+    "harmonic.nenstar": (adapt_harmonic, compose_xabcd),
+    "harmonic.navarro200": (adapt_harmonic, compose_xabcd),
+    "harmonic.five_zero": (adapt_harmonic, compose_xabcd),
+    "harmonic.three_drives": (adapt_harmonic, compose_xabcd),
+    # trend -- seri bindirmeleri
+    "trend.ma_systems": (ma_systems_to_overlay, compose_overlay),
+    "trend.ewmac": (ewmac_to_overlay, compose_overlay),
+    # boyun cizgili donus formasyonlari -- iki gosterge TEK adaptor
+    "patterns.head_shoulders": (adapt_neckline, compose_neckline),
+    "patterns.double_top_bottom": (adapt_neckline, compose_neckline),
+    # arz/talep bolgeleri
+    "structure.supply_demand": (supply_demand_to_zones, compose_zones),
+    "structure.golden_zone": (golden_zone_to_fib, compose_fib),
+    # haftalik kanal -- yalnizca GUNCEL kanal (frozen olanlar cizilmez)
+    "trend.weekly_channel": (weekly_channel_to_channel, compose_channel),
+    # AB=CD -- X'SIZ 4 noktali; ayni komposer, farkli iskelet
+    "structure.swing_fib_abcd": (swing_fib_abcd_to_pattern, compose_xabcd),
+}
 
 
 @router.get("/chart.json")
 def get_chart_json(
     symbol: str, tf: str, indicator: str, market: str = "bist", theme: str = "dark",
+    max_bars_ago: int | None = 60,
 ) -> Response:
-    compose = _SUPPORTED.get(indicator)
-    if compose is None:
+    entry = _SUPPORTED.get(indicator)
+    if entry is None:
         raise HTTPException(422, f"{indicator} henüz tlab/chart'a bağlanmadı")
+    adapt, compose = entry
     resolved_theme = _THEME_MAP.get(theme, "dark")
 
     try:
@@ -56,12 +109,37 @@ def get_chart_json(
     if df is None:
         raise HTTPException(422, f"{indicator} bu modda desteklenmiyor")
 
-    pat = to_pattern(result, df)
+    pat = adapt(result, df)
     if pat is None:
         # Kural (KOMPOSER_HARITASI.md): "güncel yakın bir sinyal yoksa
         # göstermesin hiçbir şey" — burada karşılığı boş bir grafik DEĞİL,
         # net bir 404: frontend bunu "sinyal yok" olarak ayrı gösterir.
         raise HTTPException(404, f"{symbol} için güncel/geçerli bir {indicator} sinyali yok")
+
+    # Tazelik kapısı. `/scan`'den (3 bar) DAHA GENİŞ ve bu BİLİNÇLİ:
+    #
+    # `/scan` "bugün ne yapılabilir" listesi -- orada 3 bar doğru. Grafik
+    # sayfasında ise kullanıcı ZATEN bu sembolü ve bu göstergeyi seçmiş;
+    # 4 barlık bir ONAY sinyalini 404'e çevirmek "eksik sinyal" üretir
+    # (ölçüldü: takoz fikstürünün 4 barlık ONAY'ı 3-bar kapısına takılıyordu).
+    # Asıl DOĞRULUK filtresi burada tazelik değil, durum makinesi:
+    # `select_latest` zaten `invalidated`/`expired` adayları hiç döndürmüyor,
+    # yani gelen aday KENDİ ufku içinde hâlâ geçerli. 60 bar (~3 ay, 1G)
+    # bunun üstüne "artık bakmaya değmez" sınırı koyar ve kullanıcının
+    # şikâyet ettiği vakayı (BARMA, "Sinyal yaşı: 262 bar") hâlâ engeller.
+    # Sinyalin YAŞI grafiğin üst satırında zaten yazıyor. `None` kapatır,
+    # istenirse sorgu parametresiyle daraltılır (?max_bars_ago=3).
+    # `getattr`: her sözleşme `bars_ago` TAŞIMAZ -- `structure.supply_demand`
+    # adaptörü `list[Zone]` döndürüyor ve `pat.bars_ago` AttributeError
+    # veriyordu (rota 500'e düşüyordu). Yaşı olmayan sonuçlarda tazelik
+    # kapısı UYGULANMAZ; bölgeler zaten "şu an geçerli olanlar".
+    bars_ago = getattr(pat, "bars_ago", None)
+    if max_bars_ago is not None and bars_ago is not None and bars_ago > max_bars_ago:
+        raise HTTPException(
+            404,
+            f"{symbol} için en güncel {indicator} sinyali {bars_ago} bar önce "
+            f"(sınır: {max_bars_ago} bar) -- bayat sinyal çizilmez",
+        )
 
     fig = compose(df, pat, symbol=symbol, timeframe=tf.upper(), theme=resolved_theme)
     return Response(content=pio.to_json(fig), media_type="application/json")

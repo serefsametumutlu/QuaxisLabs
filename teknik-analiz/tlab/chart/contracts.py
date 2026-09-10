@@ -121,7 +121,22 @@ class XabcdPattern:
 
     def __post_init__(self) -> None:
         labels = [p.label for p in self.points]
-        if labels[:4] != ["X", "A", "B", "C"]:
-            raise ValueError(f"XABCD noktaları X,A,B,C ile başlamalı — alınan: {labels}")
+        # İKİ geçerli iskelet:
+        #  * X,A,B,C(,D) -- 5 noktalı harmonikler (Gartley/Bat/Crab/...)
+        #  * A,B,C(,D)   -- 4 noktalı AB=CD (`structure.swing_fib_abcd`)
+        #
+        # AB=CD, XABCD'nin eksik hâli DEĞİL; kendi başına bir formasyon.
+        # Literatür bunu net ayırıyor: 5 noktalı harmonikler 3/4 noktalı
+        # ABCD'yi İÇERİR ("patterns have embedded 3-point (ABC) or
+        # four-level (ABCD) patterns"), yani ABCD daha temel bir yapı --
+        # Gartley'in özgün formasyonuna Fibonacci oranlarını ilk uygulayan
+        # Pesavento'nun AB=CD'si de X'siz. Sözleşme X'i ZORUNLU tutunca
+        # `swing_fib_abcd` bağlanamıyordu (uydurma bir X eklemek yanlış
+        # geometri üretirdi).
+        if labels[:4] != ["X", "A", "B", "C"] and labels[:3] != ["A", "B", "C"]:
+            raise ValueError(
+                f"noktalar X,A,B,C (harmonik) ya da A,B,C (AB=CD) ile başlamalı — "
+                f"alınan: {labels}"
+            )
         if self.direction not in ("bullish", "bearish"):
             raise ValueError(f"yön 'bullish' veya 'bearish' olmalı — alınan: {self.direction!r}")

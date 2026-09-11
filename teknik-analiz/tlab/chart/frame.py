@@ -64,6 +64,10 @@ class Panel:
         span = hi - lo
         return (lo - span * pad, hi + span * pad)
 
+    def observed(self) -> list[float]:
+        """Bu panele kaydedilmiş ham y değerleri (`focus` y-aralığı için)."""
+        return list(self._values)
+
     def observe(self, values) -> None:
         """Bu panele çizilecek bir seriyi y-aralığı hesabına dahil et."""
         s = pd.Series(values, dtype="float64").replace([float("inf"), float("-inf")], pd.NA)
@@ -85,6 +89,31 @@ class Panel:
         span = hi - lo
         return (lo - span * pad, hi + span * pad)
 
+
+
+def _visible_price_range(
+    df: pd.DataFrame, lo: int, hi: int, panel: Panel,
+    fallback: tuple[float, float] | None,
+) -> tuple[float, float] | None:
+    """Fiyat panelinin y aralığını GÖRÜNEN dilimden hesapla.
+
+    Gözlenen değerler (hedef çizgisi, PRZ, seviye) de katılır -- ama
+    SINIRLI: mum aralığının 1.2 katından fazla uzaktakiler DIŞARIDA
+    bırakılır. Aksi halde uzak bir hedef (ör. %40 aşağıda) ekseni gerip
+    formasyonu yeniden eziyor; eski `renderer.py`de tam bu yaşanmıştı
+    (100 TL'lik hissede 700 TL'lik projeksiyon).
+    """
+    vis = df.iloc[lo : hi + 1]
+    if vis.empty:
+        return fallback
+    c_lo, c_hi = float(vis["low"].min()), float(vis["high"].max())
+    height = max(c_hi - c_lo, 1e-9)
+    limit_lo, limit_hi = c_lo - height * 1.2, c_hi + height * 1.2
+    for v in panel.observed():
+        if limit_lo <= v <= limit_hi:
+            c_lo, c_hi = min(c_lo, v), max(c_hi, v)
+    pad = (c_hi - c_lo) * 0.07 or 1.0
+    return (c_lo - pad, c_hi + pad)
 
 class ChartFrame:
     """Panelleri kurar, ortak x/hover/crosshair ayarlarını uygular."""
@@ -117,6 +146,8 @@ class ChartFrame:
         # `ALTIN BÖLGE` etiketinin altında kayboldu).
         self._edge: list[dict] = []
 
+        # `focus()` ile ayarlanır; None ise tüm seri gösterilir.
+        self._focus: tuple[pd.DataFrame, int, int] | None = None
         total = sum(p.height_ratio for p in panels)
         self.fig = make_subplots(
             rows=len(panels), cols=1, shared_xaxes=True,
@@ -124,6 +155,49 @@ class ChartFrame:
             row_heights=[p.height_ratio / total for p in panels],
             specs=[[{"secondary_y": p.secondary_y}] for p in panels],
         )
+
+    def focus(
+        self,
+        df: pd.DataFrame,
+        start: pd.Timestamp,
+        end: pd.Timestamp,
+        *,
+        left_mult: float = 0.45,
+        right_mult: float = 1.10,
+        min_bars: int = 55,
+    ) -> None:
+        """Grafiği formasyonun KENDİ aralığına odakla.
+
+        Neden gerekli: komposerler tüm geçmişi çiziyordu ve 11-40 barlık
+        bir formasyon 300 barlık bir eksende nokta gibi kalıyordu
+        (kullanıcının tekrar eden şikâyeti; CLAUDE.md'de "BULUNAN HATA 2"
+        olarak da kayıtlı). Referans görsellerin hepsi formasyona
+        yakınlaşmış durumda.
+
+        İki şeyi birden yapar, çünkü ayrı yapmak YENİ bir hata üretiyor:
+          1. x aralığını [start - pay, end + pay] yapar,
+          2. fiyat panelinin y aralığını YALNIZCA görünen dilimden
+             yeniden hesaplar. Sadece (1) yapılırsa otomatik y ölçeği
+             hâlâ TÜM seriyi görür ve formasyon dikeyde ezilir --
+             `pole_flag`de tam olarak bu yaşandı (11 barlık bayrak 28-51
+             ekseninde boğuldu), `GORSEL_HATA_TESHISI.md` K2'nin aynısı.
+
+        `right_mult` soldan büyük: kırılım sonrası ne olduğunu görmek,
+        formasyon öncesini görmekten daha değerli.
+        """
+        i0 = int(df.index.searchsorted(pd.Timestamp(start)))
+        i1 = int(df.index.searchsorted(pd.Timestamp(end)))
+        i0, i1 = max(min(i0, i1), 0), min(max(i0, i1), len(df) - 1)
+        span = max(i1 - i0, 1)
+        lo = max(i0 - int(span * left_mult), 0)
+        hi = min(i1 + int(span * right_mult), len(df) - 1)
+        # Çok kısa formasyonlarda pencere en az `min_bars` olsun --
+        # aksi halde 4 barlık bir bayrak 9 barlık bir grafiğe düşüyor.
+        if hi - lo < min_bars:
+            need = min_bars - (hi - lo)
+            lo = max(lo - need // 2, 0)
+            hi = min(hi + need - (need // 2), len(df) - 1)
+        self._focus = (df, lo, hi)
 
     def row(self, panel_name: str) -> int:
         try:
@@ -294,6 +368,11 @@ class ChartFrame:
             if panel.y_tickformat:
                 yaxis.update(tickformat=panel.y_tickformat)
             rng = panel.autorange()
+            if self._focus is not None:
+                fdf, flo, fhi = self._focus
+                xaxis.update(range=[fdf.index[flo], fdf.index[fhi]])
+                if panel.name == "price":
+                    rng = _visible_price_range(fdf, flo, fhi, panel, rng)
             if rng is not None:
                 yaxis.update(range=list(rng))
 

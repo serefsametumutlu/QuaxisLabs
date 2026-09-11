@@ -147,7 +147,10 @@ def weekly_channel_to_channel(result: IndicatorResult, df: pd.DataFrame) -> Chan
     ref = float(df["close"].iloc[-1]) or 1.0
     flat = abs(slope) < ref * 0.0005
     direction = "yatay" if flat else ("yukselen" if slope > 0 else "alcalan")
-    width_pct = abs(uy1 - ly1) / ref * 100 if ref else 0.0
+    # KESİR (yüzde DEĞİL): komposer `ch.width_pct * 100` yapıyor.
+    # `depth_pct` ve `pole_pct` ile AYNI tuzak, ÜÇÜNCÜ kez -- yüzde
+    # verilince "Genişlik: %734" yazıyordu.
+    width_pct = abs(uy1 - ly1) / ref if ref else 0.0
 
     pos = st.get("position_pct")
     if st.get("at_bottom"):

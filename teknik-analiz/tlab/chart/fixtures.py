@@ -166,7 +166,7 @@ def double_bottom(n: int = 260, seed: int = 61) -> pd.DataFrame:
     return df
 
 
-def flag_after_pole(n: int = 180, seed: int = 73) -> pd.DataFrame:
+def flag_after_pole(n: int = 120, seed: int = 73) -> pd.DataFrame:
     """Dik bir direk + kısa konsolidasyon + kırılım.
 
     Konsolidasyon boyunca hacim DARALIR (Bulkowski: vakaların ~%79'unda),
@@ -181,6 +181,11 @@ def flag_after_pole(n: int = 180, seed: int = 73) -> pd.DataFrame:
     pole = np.linspace(p0, p1, 14) + rng.normal(0, p0 * 0.006, 14)
     flag = np.linspace(p1, p1 * 0.93, 11) + rng.normal(0, p0 * 0.005, 11)
     brk = np.linspace(float(flag[-1]), p1 * 1.22, 26) + rng.normal(0, p0 * 0.008, 26)
+    # pre(40)+pole(14)+flag(11)+brk(26) = 91; n=120 ile kuyruk 29 bar.
+    # Eskiden n=180'di ve kırılımdan SONRA 89 barlık rastgele yürüyüş
+    # kalıyordu -- orada geç doğan sahte bayraklar hemen geçersizleşiyor,
+    # `select_latest` (en taze) onları seçtiği için fikstür ÇİZİLEBİLİR
+    # tek bir aday bile vermiyordu (ölçüldü: 2 aday, ikisi de invalidated).
     close = np.r_[pre, pole, flag, brk]
     pad = n - len(close)
     if pad > 0:
@@ -439,5 +444,83 @@ def broadening(n: int = 124, seed: int = 149, kind: str = "tepe") -> pd.DataFram
     v = np.linspace(1.5, 4.0, len(df))          # hacim ARTAR (üçgenin tersi)
     v[-14:] = 4.5
     df["volume"] = v * 1e6 * rng.lognormal(0, 0.2, len(df))
+    df.index = pd.bdate_range("2025-08-01", periods=len(df), tz="UTC")
+    return df
+
+
+def breakout_fvg(n: int = 120, seed: int = 167, kind: str = "yukselen") -> pd.DataFrame:
+    """Konsolidasyon → kırılım → FVG → retest → devam zinciri.
+
+    `patterns.breakout_fvg`in aradığı DÖRT aşamayı kasten kurar. Kritik
+    parça FVG: 3 mumlu bir dizide `mum[i-1].high < mum[i+1].low`
+    (yükseliş) olacak şekilde ORTA mumun ATLADIĞI bir aralık bırakılır --
+    bu ancak GAP'li bir sıçramayla olur, normal `_ohlc_from_close`
+    gürültüsü bunu üretmez. Bu yüzden kırılım barı ELLE gap'lenir.
+    """
+    if kind not in ("yukselen", "alcalan"):
+        raise ValueError(f"bilinmeyen kind {kind!r} -- geçerli: alcalan, yukselen")
+    rng = np.random.default_rng(seed)
+    base = 50.0
+    up = kind == "yukselen"
+
+    # Öncesi OYNAK: `_find_box` kutuyu "yükseklik <= 1.5 x ATR" ile
+    # sınıyor, yani ATR'nin kutudan ÖNCE yükselmiş olması gerekiyor
+    # (gerçekte de konsolidasyon oynak bir hareketin ARDINDAN gelir).
+    # İlk denemede pre çok sakindi (sigma 0.30), ATR ~0.9 çıkıyor ve
+    # 10 barlık pencere 1.5 ATR'yi aşıyordu -> hiç kutu bulunamıyordu.
+    pre = base + np.cumsum(rng.normal(0.0, 0.8, 26))
+    start = float(pre[-1])
+
+    # 1) DAR konsolidasyon. Parametreler ARANARAK bulundu (kutu 14 bar,
+    # sigma 0.001): `_ohlc_from_close`un fitil gürültüsü (~%0.6/bar) tek
+    # başına 10 barlık pencereyi ~0.7 birim genişletiyor, ATR ise kutunun
+    # İÇİNDE düştüğü için oran kolayca 1.5'i aşıyor. Kutu kısa olmalı ki
+    # ATR penceresi (14 bar) hâlâ oynak öncesini görsün.
+    box = start + rng.normal(0, start * 0.001, 14)
+
+    # 2) KIRILIM: tek barda sert sıçrama (gap burada doğar).
+    jump = start * (0.055 if up else -0.055)
+    brk = np.array([float(box[-1]) + jump, float(box[-1]) + jump * 1.15])
+
+    # 3) Kırılım sonrası kısa devam, sonra 4) RETEST (boşluğa dönüş) ve
+    #    reddedilme, sonra devam.
+    cont = np.linspace(float(brk[-1]), float(brk[-1]) + jump * 0.5, 4)
+    # Retest boşluğun İÇİNE inmeli: FVG kabaca [box sonu, box sonu +
+    # 0.6*jump] aralığında. 0.45 fazla sığdı, aday `expired` kalıyordu
+    # (retest hiç gerçekleşmemiş sayılıyor).
+    retest = np.linspace(float(cont[-1]), float(box[-1]) + jump * 0.22, 8)
+    after = np.linspace(float(retest[-1]), float(retest[-1]) + jump * 1.4, 20)
+
+    body = np.r_[pre, box, brk, cont, retest, after]
+    pad = n - len(body)
+    if pad > 0:
+        body = np.r_[body, body[-1] + np.cumsum(rng.normal(0, 0.25, pad))]
+    df = _ohlc_from_close(body[:n], rng)
+
+    # FVG'yi GARANTİLE: kırılım barının komşularını ayır. `mum[i-1].high`
+    # ile `mum[i+1].low` arasında gerçek bir boşluk kalmalı (yükselişte);
+    # rastgele gürültü bunu kapatabiliyor.
+    i = len(pre) + len(box)                     # ilk kırılım barı
+    if 0 < i < len(df) - 1:
+        gap = float(df["close"].iloc[i]) * 0.012
+        hi_i, lo_i = df.columns.get_loc("high"), df.columns.get_loc("low")
+        # `high >= max(open, close)` ve `low <= min(open, close)`
+        # değişmezleri KORUNMALI (`validate_ohlcv`); ilk denemede
+        # komşunun high'ı gövdesinin altına indirildi ve fikstür
+        # doğrulamada patladı.
+        o1, c1 = float(df["open"].iloc[i - 1]), float(df["close"].iloc[i - 1])
+        o2, c2 = float(df["open"].iloc[i + 1]), float(df["close"].iloc[i + 1])
+        if up:
+            df.iloc[i - 1, hi_i] = max(o1, c1)               # komşu tepesi kısılır
+            df.iloc[i + 1, lo_i] = max(max(o1, c1) + gap, 0.0)
+            df.iloc[i + 1, lo_i] = min(float(df.iloc[i + 1, lo_i]), min(o2, c2))
+        else:
+            df.iloc[i - 1, lo_i] = min(o1, c1)
+            df.iloc[i + 1, hi_i] = min(o1, c1) - gap
+            df.iloc[i + 1, hi_i] = max(float(df.iloc[i + 1, hi_i]), max(o2, c2))
+
+    v = np.full(len(df), 2.0)
+    v[i : i + 3] = 5.0                          # kırılımda hacim patlar
+    df["volume"] = v * 1e6 * rng.lognormal(0, 0.18, len(df))
     df.index = pd.bdate_range("2025-08-01", periods=len(df), tz="UTC")
     return df

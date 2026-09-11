@@ -7,6 +7,7 @@ yolu barındırır (CATALOG + Store + render tek yerde)."""
 
 from __future__ import annotations
 
+import time
 from typing import Literal, overload
 
 import pandas as pd
@@ -88,6 +89,98 @@ def _require_supported_timeframe(indicator_name: str, tf: Timeframe) -> None:
         )
 
 
+
+# (indikatör, tf, market) -> (zaman, sonuçlar, df'ler). Süreç-içi, küçük.
+_UNIVERSE_CACHE: dict[tuple[str, str, str], tuple[float, dict, dict]] = {}
+_UNIVERSE_TTL_S = 900.0          # 15 dk
+
+
+def _universe_cached(
+    indicator_name: str, tf: Timeframe, mkt: Market, store: Store, symbol: str,
+) -> tuple[dict, dict[str, pd.DataFrame]]:
+    """Evren-geneli hesabı önbellekler.
+
+    `UniverseIndicator` TEK bir sembolün grafiği için bile tüm evreni
+    hesaplamak zorunda (`rank_pct` cross-sectional). Bu, CLI'da kabul
+    edilebilir bir maliyetti ama web isteğinde değil. Aynı (gösterge,
+    tf, market) üçlüsü için sonuç HER SEMBOLDE AYNI olduğundan bir kez
+    hesaplanıp paylaşılır.
+    """
+    key = (indicator_name, tf.value, mkt.value)
+    hit = _UNIVERSE_CACHE.get(key)
+    if hit is not None and (time.monotonic() - hit[0]) < _UNIVERSE_TTL_S:
+        results, dfs = hit[1], hit[2]
+        if symbol in results:
+            return results, dfs
+
+    universe_dfs: dict[str, pd.DataFrame] = {}
+    for sym in load_universe(mkt):
+        try:
+            universe_dfs[sym] = store.get(sym, tf, mkt)
+        except FileNotFoundError:
+            continue
+    if symbol not in universe_dfs:
+        universe_dfs[symbol] = store.get(symbol, tf, mkt)
+    index_df = store.get(BENCHMARK_SYMBOL[mkt], tf, mkt)
+    results = scaled_factory(indicator_name, tf)(universe_dfs, index_df)
+    _UNIVERSE_CACHE[key] = (time.monotonic(), results, universe_dfs)
+    return results, universe_dfs
+
+def _compute_pair(
+    indicator_name: str, symbol: str, tf: Timeframe, mkt: Market, store: Store,
+) -> tuple[IndicatorResult, pd.DataFrame, pd.DataFrame]:
+    """Pair indikatörünü çalıştırır ve İKİ HAM seriyi de döndürür.
+
+    `compute_live` pair modunda `df=None` döndürüyor (tek sembolün
+    mumlarını çizmediği için) -- ama `tlab/chart`'ın `PairView`'ü iki
+    seriyi de istiyor (`pair_health.assess(y, x)` korelasyon/beta/
+    yarı-ömür için ham fiyatlara bakar). Bu yüzden ortak mantık burada,
+    iki çağıran da AYNI kodu paylaşıyor -- kopyalanmıyor.
+    """
+    if "/" not in symbol:
+        raise ValueError("Pair indikatörler için symbol 'Y/X' biçiminde olmalı")
+    y_sym, x_sym = symbol.split("/", 1)
+    pair_instance: BaseIndicator
+    if indicator_name == "pair.relative_momentum":
+        pair_instance = RelativeMomentumPair(
+            RelativeMomentumParams(y_symbol=y_sym, x_symbol=x_sym).for_timeframe(tf)
+        )
+    elif indicator_name == "pair.vol_harvest":
+        pair_instance = VolHarvestPair(
+            VolHarvestParams(y_symbol=y_sym, x_symbol=x_sym).for_timeframe(tf)
+        )
+    else:
+        pair_instance = scaled_factory(indicator_name, tf)
+    df_y = store.get(y_sym, tf, mkt)
+    df_x = store.get(x_sym, tf, mkt)
+    result = pair_instance(df_y, context={"x": df_x})
+    result.symbol = symbol
+    result.timeframe = tf
+    return result, df_y, df_x
+
+
+def compute_pair_live(
+    indicator_name: str, symbol: str, timeframe: str, market: str,
+) -> tuple[IndicatorResult, pd.DataFrame, pd.DataFrame]:
+    """`compute_live`in pair karşılığı: sonuç + Y ve X ham serileri.
+
+    `web/backend/routes/chart_json.py` pair göstergelerinde bunu çağırır
+    (`structure.report`/`market_structure` için var olan birleştirme
+    köprüleriyle AYNI desen).
+    """
+    if indicator_name not in CATALOG:
+        raise ValueError(f"Bilinmeyen indikatör: {indicator_name}")
+    if not CATALOG[indicator_name].needs_context:
+        raise ValueError(f"{indicator_name} bir pair indikatörü değil")
+    tf = _TF_MAP.get(timeframe.upper())
+    if tf is None:
+        raise ValueError(f"Geçersiz tf: {timeframe} (1h|4h|1d bekleniyor)")
+    _require_supported_timeframe(indicator_name, tf)
+    return _compute_pair(
+        indicator_name, symbol, tf, Market(market.lower()), Store(YFinanceProvider())
+    )
+
+
 def compute_live(
     indicator_name: str, symbol: str, timeframe: str, market: str
 ) -> tuple[IndicatorResult, pd.DataFrame | None]:
@@ -118,25 +211,7 @@ def compute_live(
     store = Store(YFinanceProvider())
 
     if spec.needs_context:
-        if "/" not in symbol:
-            raise ValueError("Pair indikatörler için symbol 'Y/X' biçiminde olmalı")
-        y_sym, x_sym = symbol.split("/", 1)
-        pair_instance: BaseIndicator
-        if indicator_name == "pair.relative_momentum":
-            pair_instance = RelativeMomentumPair(
-                RelativeMomentumParams(y_symbol=y_sym, x_symbol=x_sym).for_timeframe(tf)
-            )
-        elif indicator_name == "pair.vol_harvest":
-            pair_instance = VolHarvestPair(
-                VolHarvestParams(y_symbol=y_sym, x_symbol=x_sym).for_timeframe(tf)
-            )
-        else:
-            pair_instance = scaled_factory(indicator_name, tf)
-        df_y = store.get(y_sym, tf, mkt)
-        df_x = store.get(x_sym, tf, mkt)
-        result = pair_instance(df_y, context={"x": df_x})
-        result.symbol = symbol
-        result.timeframe = tf
+        result, _, _ = _compute_pair(indicator_name, symbol, tf, mkt, store)
         return result, None
 
     if spec.needs_universe:
@@ -149,18 +224,13 @@ def compute_live(
         # rank) — `tlab universe-plot` zaten AYNI maliyeti evren-geneli
         # görseller (saçılım/ısı haritası) için taşıyordu, burada yalnızca
         # TEK sembolün sonucu seçilip standart `render()`'a verilir.
-        universe_symbols = load_universe(mkt)
-        universe_dfs: dict[str, pd.DataFrame] = {}
-        for sym in universe_symbols:
-            try:
-                universe_dfs[sym] = store.get(sym, tf, mkt)
-            except FileNotFoundError:
-                continue
-        if symbol not in universe_dfs:
-            universe_dfs[symbol] = store.get(symbol, tf, mkt)
-        index_df = store.get(BENCHMARK_SYMBOL[mkt], tf, mkt)
-        instance = scaled_factory(indicator_name, tf)
-        results = instance(universe_dfs, index_df)
+        # ÖNBELLEK: evren hesabı TÜM semboller için AYNI. Web'de her
+        # sembol tıklamasında 648 sembollük cache okuma + cross-sectional
+        # rank yeniden koşuyordu -- tek bir grafik dakikalar sürebilir.
+        # Sonuç sözlüğü (sembol -> IndicatorResult) bir kez hesaplanıp
+        # kısa süreli tutulur; gün içinde veri değişmediği için bu
+        # doğruluğu ETKİLEMEZ, `tlab eod` yeni veri yazınca TTL dolar.
+        results, universe_dfs = _universe_cached(indicator_name, tf, mkt, store, symbol)
         if symbol not in results:
             raise ValueError(
                 f"'{symbol}' için {indicator_name} sonucu üretilemedi "

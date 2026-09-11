@@ -229,6 +229,24 @@ class FlagPennantIndicator(BaseIndicator):
                     label=f"{pattern_id}_pole", style="pattern_pole",
                 )
             )
+            # BAYRAK SINIRLARI (2026-09-10). Kanal ZATEN hesaplanıyordu
+            # (`_upper_at`/`_lower_at`, kırılım kararının dayanağı) ama
+            # DIŞA AÇILMIYORDU -- yalnızca konsolidasyon kutusu vardı.
+            # Bulkowski'nin tanımında bayrak, "paralel ya da paralele
+            # yakın trend çizgileriyle sınırlı" bir konsolidasyondur;
+            # kutu bunu göstermez (eğimi yok). Çizim katmanı bu iki
+            # çizgiyi istiyor -- hesap DEĞİL, zaten var olanın yayını.
+            _flag_t0, _flag_t1 = df.index[window_start], df.index[born_idx]
+            for _side, _fn in (("upper", _upper_at), ("lower", _lower_at)):
+                lines.append(
+                    Line(
+                        points=(
+                            (_flag_t0, float(_fn(window_start))),
+                            (_flag_t1, float(_fn(born_idx))),
+                        ),
+                        label=f"{pattern_id}_{_side}", style="pattern_boundary",
+                    )
+                )
             # 2026-09-03: kutu eskiden yalnızca `flag_min_bars`lık DOĞUM
             # penceresini (born_idx'e kadar) kapsıyordu -- kanalın kendisi
             # (kırılım hesabında kullanılan üst/alt OLS fiti) bilinçli

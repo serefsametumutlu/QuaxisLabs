@@ -62,9 +62,14 @@ def test_both_directions_tracked_when_pattern_found() -> None:
         assert dirs <= {"long", "short"}
 
 
-def test_hologram_polygon_matches_boundary_line_corners() -> None:
-    """2026-09-01: hologram dolgusu `_upper`/`_lower` sınır çizgileri için
-    ZATEN üretilen aynı 4 ankor noktasını çevre sırasıyla birleştirmeli."""
+def test_hologram_polygon_is_time_aligned_trapezoid() -> None:
+    """2026-09-11 (docs/KALAN_ISLER.md madde 2.4): hologram artık `_upper`/
+    `_lower` çizgilerinin HAM (bağımsız seçilmiş, farklı zamanlı olabilen)
+    ankor noktalarını DEĞİL, ikisinin de ORTAK bir [start_idx, created_idx]
+    aralığındaki değerini birleştirir -- aksi hâlde ıraksayan bir formasyon
+    GÖRSEL olarak yakınsayan bir kama gibi görünebiliyordu (bir dış kenar
+    doğuma doğru içe dönüyordu). 4 köşe artık AYNI iki zaman damgasını
+    (sol=start, sağ=created) paylaşır -- düzgün bir yamuk."""
     df = make_trend(n=250, slope=0.0, noise=2.0, seed=5)
     # Faz 0.5: sistem varsayılanı zigzag_method="atr" bu belirli seed'de
     # broadening'in ihtiyaç duyduğu min_pivots kadar pivot üretmiyor; bu test
@@ -75,12 +80,13 @@ def test_hologram_polygon_matches_boundary_line_corners() -> None:
     assert result.polygons, "bu fixture en az bir aday üretmeli (bkz. yorum)"
     for poly in result.polygons:
         assert poly.style == "pattern_hologram"
-        key = poly.label.removesuffix("_hologram")
-        upper = next(line for line in result.lines if line.label == f"{key}_upper")
-        lower = next(line for line in result.lines if line.label == f"{key}_lower")
-        assert poly.points == (
-            upper.points[0], upper.points[1], lower.points[1], lower.points[0],
-        )
+        # Sol iki köşe AYNI zaman damgasını, sağ iki köşe AYNI (farklı)
+        # zaman damgasını paylaşmalı -- düzgün bir yamuk, çarpık bir
+        # dörtgen değil.
+        (t_ul, _), (t_ur, _), (t_lr, _), (t_ll, _) = poly.points
+        assert t_ul == t_ll
+        assert t_ur == t_lr
+        assert t_ul < t_ur
 
 
 def test_max_bars_filters_out_too_long_spans() -> None:

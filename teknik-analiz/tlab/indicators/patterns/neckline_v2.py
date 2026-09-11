@@ -26,10 +26,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-import numpy as np
 import pandas as pd
 
-from tlab.features.swings import Pivot, alternate_pivots, find_pivots
+from tlab.features.swings import alternate_pivots, find_pivots
 
 
 @dataclass(frozen=True)
@@ -110,9 +109,9 @@ def _path_bounds(
 
 
 def _find_retest(
-    df: pd.DataFrame, brk: "NecklinePoint | None", level: float, up: bool,
+    df: pd.DataFrame, brk: NecklinePoint | None, level: float, up: bool,
     *, tol: float = 0.012, max_bars: int = 30,
-) -> "NecklinePoint | None":
+) -> NecklinePoint | None:
     """Kırılım sonrası boyun çizgisine DÖNÜŞ (retest).
 
     Referans görselde kırılım ve retest AYRI iki işaret: kırılım seviyeyi

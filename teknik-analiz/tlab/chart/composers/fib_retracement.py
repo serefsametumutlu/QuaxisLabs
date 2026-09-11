@@ -82,5 +82,8 @@ def compose(
             below=fib.direction == "up",
         )
 
+    # Swing'e odaklan; fib merdiveni zaten bu bacaktan türüyor.
+    cf.focus(df, min(fib.start_time, fib.end_time), max(fib.start_time, fib.end_time))
+
     volume(cf, df, panel="volume", ma=21)
     return cf.finish()

@@ -4,6 +4,13 @@
 declare module "plotly.js-finance-dist-min" {
   interface Config {
     displayModeBar?: boolean;
+    displaylogo?: boolean;
+    modeBarButtonsToRemove?: string[];
+    toImageButtonOptions?: {
+      format?: string;
+      filename?: string;
+      scale?: number;
+    };
     responsive?: boolean;
   }
 

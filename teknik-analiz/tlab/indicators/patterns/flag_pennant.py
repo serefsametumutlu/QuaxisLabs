@@ -34,7 +34,7 @@ generic `Registry.register()`'a TEMİZ kaydolur."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import ClassVar
 
 import numpy as np
@@ -82,10 +82,46 @@ class FlagPennantParams(BaseParams):
     # direk" + "en fazla 3 hafta"); 1D taban kabul edilip diğer zaman
     # dilimlerine göre ölçeklenir.
     _BAR_FIELDS: ClassVar[frozenset[str]] = frozenset(
-        {"pole_bars", "flag_min_bars", "flag_max_bars"}
+        {"pole_bars", "flag_min_bars", "flag_max_bars", "htf_max_bars"}
     )
     # Faz 0.5, A4 — bkz. double_top_bottom.py'deki AYNI notu.
     require_volume_confirm: bool = False
+    # docs/KALAN_ISLER.md madde 2.3 — Bulkowski'nin "High and Tight Flag"
+    # (HTF) ayrımı: standart bayrak/flamada hedefe ulaşma ~%56 iken HTF'de
+    # (direk KISA sürede ÇOK büyük) ~%90. İkisini AYNI torbada raporlamak
+    # istatistiği bozuyor. `shape` ("bayrak"/"flama" -- kanal geometrisi)
+    # DEĞİŞTİRİLMEDİ (composer'ın `_LABEL_TR` sözlüğü bu iki değeri
+    # bekliyor); `is_htf` bağımsız, ADDİTİF bir bayrak.
+    #
+    # `htf_pct=0.90` DEĞİL: Bulkowski'nin ham %90'ı KENDİ ölçüm yöntemine
+    # (direk ≤8 hafta) göre kalibre edilmiş; buradaki `find_impulses` her
+    # direği SABİT `pole_bars` (varsayılan 5) barlık bir pencerede ölçüyor
+    # -- 5 barda %90 fiilen İMKANSIZA yakın (ÖLÇÜLDÜ, 2026-09-11: 648
+    # sembollük tam BIST evreninde 3403 gerçek direğin `pole_pct`
+    # dağılımı — medyan %11.4, %99 yüzdelik dilim %46.5, GÖZLENEN
+    # maksimum %86.8, 0.90'ı AŞAN SIFIR direk). Bu yüzden `htf_pct`
+    # LİTERATÜRDEN değil bu dağılımın ~%95 yüzdelik dilimine (en
+    # "patlayıcı" direklerin en üst ~%5'i — HTF'nin "nadir ve istisnai"
+    # ruhuna sadık, ama bu sistemin KENDİ direk ölçeğine göre) göre
+    # kalibre edildi.
+    htf_pct: float = 0.30
+    htf_max_bars: int = 40
+
+    def for_timeframe(self, tf: Timeframe) -> FlagPennantParams:
+        """docs/KALAN_ISLER.md madde 3 — `breakout_fvg.py::BreakoutFvgParams.
+        for_timeframe`'in AYNI kök nedeni/düzeltmesi: `flag_atr` (konsolidasyon
+        penceresinin ATR'ye göre üst genişliği) bir ORAN, `_BAR_FIELDS` DEĞİL
+        — `flag_min_bars` 4H'te ×3 ölçeklenirken (5→15) `flag_atr` SABİT
+        kalıyordu, bu da 4H'te fiilen SIFIRA yakın aday üretiyordu (648
+        sembollük gerçek `tlab eod` koşusuyla DOĞRULANDI: 4H = 3 aday/1
+        sembol, D1 = 3403 aday/593 sembol). 80 gerçek sembolde ÖLÇÜLDÜ
+        (`scripts/breakout_fvg_box_atr_olcum.py`'nin AYNI yöntemi,
+        `flag_min_bars` pencereleriyle): D1'in `flag_atr=1.5`'i o dağılımın
+        ~%10 yüzdelik dilimine denk geliyor; AYNI yüzdelik dilim 4H'te ~2.9."""
+        scaled = super().for_timeframe(tf)
+        if tf == Timeframe.H4:
+            scaled = replace(scaled, flag_atr=2.9)
+        return scaled
 
 
 class FlagPennantIndicator(BaseIndicator):
@@ -135,6 +171,20 @@ class FlagPennantIndicator(BaseIndicator):
             if pole_range_price == 0:
                 continue
             direction: Direction = "long" if pole.direction == "up" else "short"
+
+            # HTF (madde 2.3): direk KISA sürede (≤htf_max_bars) BÜYÜK
+            # (≥htf_pct) bir hareket yapmışsa. Bulkowski'nin orijinal
+            # istatistiği yükseliş yönlü direkler için ölçüldü ama
+            # geometrik tanım (hızlı+büyük hareket) yöne bağlı değil --
+            # burada her iki yön için de simetrik uygulanıyor.
+            pole_bars_actual = pole.t1_idx - pole.t0_idx
+            pole_base_price = abs(float(close[pole.t0_idx]))
+            pole_pct = pole_range_price / pole_base_price if pole_base_price > 0 else 0.0
+            # bool(...): `pole_pct`/`pole_base_price` numpy skalerleri --
+            # dönüştürülmezse `numpy.bool_` sızar (bkz. `IndicatorResult.
+            # to_json()`'un aynı sınıf hatayı defansif olarak yakaladığı
+            # `tlab/core/types.py` notu; burada kaynağında önleniyor).
+            is_htf = bool(pole_pct >= p.htf_pct and 0 < pole_bars_actual <= p.htf_max_bars)
 
             max_giveback = p.max_retrace * pole_range_price
             retrace_breached = False
@@ -200,7 +250,9 @@ class FlagPennantIndicator(BaseIndicator):
                 max_bars_to_confirm=max(0, (window_start + p.flag_max_bars - 1) - born_idx),
                 retest_tol_atr=p.retest_tol_atr, atr_series=atr_series, score=0.55,
                 invalidation_check=_invalidation,
-                extra_payload={"pole_range": pole_range_price},
+                extra_payload={
+                    "pole_range": pole_range_price, "is_htf": is_htf, "pole_pct": pole_pct,
+                },
                 max_bars_to_target=max_bars_to_target,
             )
             pattern_signals = track_breakout_pattern(df, born_idx, cfg)
@@ -229,6 +281,24 @@ class FlagPennantIndicator(BaseIndicator):
                     label=f"{pattern_id}_pole", style="pattern_pole",
                 )
             )
+            # BAYRAK SINIRLARI (2026-09-10). Kanal ZATEN hesaplanıyordu
+            # (`_upper_at`/`_lower_at`, kırılım kararının dayanağı) ama
+            # DIŞA AÇILMIYORDU -- yalnızca konsolidasyon kutusu vardı.
+            # Bulkowski'nin tanımında bayrak, "paralel ya da paralele
+            # yakın trend çizgileriyle sınırlı" bir konsolidasyondur;
+            # kutu bunu göstermez (eğimi yok). Çizim katmanı bu iki
+            # çizgiyi istiyor -- hesap DEĞİL, zaten var olanın yayını.
+            _flag_t0, _flag_t1 = df.index[window_start], df.index[born_idx]
+            for _side, _fn in (("upper", _upper_at), ("lower", _lower_at)):
+                lines.append(
+                    Line(
+                        points=(
+                            (_flag_t0, float(_fn(window_start))),
+                            (_flag_t1, float(_fn(born_idx))),
+                        ),
+                        label=f"{pattern_id}_{_side}", style="pattern_boundary",
+                    )
+                )
             # 2026-09-03: kutu eskiden yalnızca `flag_min_bars`lık DOĞUM
             # penceresini (born_idx'e kadar) kapsıyordu -- kanalın kendisi
             # (kırılım hesabında kullanılan üst/alt OLS fiti) bilinçli
@@ -321,7 +391,7 @@ class FlagPennantIndicator(BaseIndicator):
                     )
             last_state[pattern_id] = {
                 "shape": shape, "direction": direction, "state": last_sig.state,
-                "event": last_sig.payload["event"], "target": target,
+                "event": last_sig.payload["event"], "target": target, "is_htf": is_htf,
             }
 
         return IndicatorResult(

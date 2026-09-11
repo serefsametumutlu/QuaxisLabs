@@ -43,6 +43,11 @@ class PoleFlag:
     vol_contraction: float          # konsolidasyon hacmi / direk hacmi
     view_start: pd.Timestamp        # grafiğin başlaması gereken bar
     bars_ago: int | None
+    # docs/KALAN_ISLER.md madde 2.3 -- Bulkowski'nin "High and Tight Flag"
+    # ayrımı (direk ≥%90 KISA sürede). `shape` (kanal geometrisi) ile
+    # ORTOGONAL, ADDİTİF bir bayrak -- varsayılan False, eski çağıranları
+    # bozmaz.
+    is_htf: bool = False
 
     def __post_init__(self) -> None:
         if self.direction not in ("long", "short"):
@@ -66,9 +71,6 @@ def detect_pole_flag(
     zig = alternate_pivots(find_pivots(df, left=left, right=right))
     if len(zig) < 3:
         return None
-
-    close = df["close"]
-    vol = df["volume"]
 
     for i in range(len(zig) - 2, -1, -1):
         p0, p1 = zig[i], zig[i + 1]

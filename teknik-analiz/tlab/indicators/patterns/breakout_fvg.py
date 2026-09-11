@@ -30,7 +30,7 @@ test_passes_repaint` bunu doğrular)."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import ClassVar, Literal
 
 import pandas as pd
@@ -79,6 +79,27 @@ class BreakoutFvgParams(BaseParams):
         {"consolidation_bars", "breakout_search_bars", "fvg_search_bars", "max_bars_to_retest"}
     )
     require_volume_confirm: bool = False
+
+    def for_timeframe(self, tf: Timeframe) -> BreakoutFvgParams:
+        """docs/KALAN_ISLER.md madde 3 — GERÇEK bir hata: `box_atr_max`
+        (kutunun ATR'ye göre üst genişliği) bir ORAN, `_BAR_FIELDS`
+        DEĞİL — `for_timeframe` `consolidation_bars`ı (10→30, ×3) ölçekler
+        ama `box_atr_max`ı (1.5) SABİT bırakır. Sonuç: 4H'te evrenin
+        TAMAMINDA SIFIR aday (648 sembollük gerçek `tlab eod` koşusuyla
+        DOĞRULANDI — `patterns.breakout_fvg` 4H, 0/648). Kök neden ÖLÇÜLDÜ:
+        80 gerçek sembolde 30-bar/ATR(14) oranının 4H'teki minimumu bile
+        (~3.05) 1.5'in altına HİÇ İNMİYOR — eşik matematiksel olarak
+        ulaşılamaz. D1'in kendi 1.5'i o dağılımın ~%0.4-1 yüzdelik dilimine
+        denk geliyor (en dar konsolidasyonları yakalama NİYETİ buydu);
+        AYNI "nadir/dar" ruhu 4H'te korumak için `box_atr_max=3.2` (4H
+        dağılımının AYNI ~%0.5 yüzdelik dilimi) — teorik sqrt(3)≈1.73
+        kat DEĞİL, gerçek piyasa otokorelasyonu sqrt-ölçeklemeden daha
+        hızlı büyüdüğü için EMPİRİK ölçüldü (`scripts/breakout_fvg_box_
+        atr_olcum.py`)."""
+        scaled = super().for_timeframe(tf)
+        if tf == Timeframe.H4:
+            scaled = replace(scaled, box_atr_max=3.2)
+        return scaled
 
 
 _FvgDirection = Literal["long", "short"]

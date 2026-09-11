@@ -13,7 +13,7 @@ import plotly.graph_objects as go
 
 from tlab.chart.composers.boundary_pattern import rsi
 from tlab.chart.frame import ChartFrame, Panel
-from tlab.chart.marks import candles, guide_level, line_series, signal_box, volume
+from tlab.chart.marks import candles, guide_level, line_series, volume
 from tlab.chart.tokens import METRICS, ThemeName, rgba, role_color
 from tlab.indicators.patterns.neckline_v2 import NecklinePattern
 
@@ -125,7 +125,7 @@ def compose(
     # 3) KÖŞELER — küçük üçgen + KUTULU etiket (referanstaki rozetler).
     #    Düz metin, mumların üstünde kayboluyordu.
     up = pat.direction == "long"
-    for i, pt in enumerate(pat.points):
+    for pt in pat.points:
         if not pt.label:
             continue          # koltukaltı: iskelette var, etiketi yok
         is_neck = pt.label == "BOYUN"
@@ -234,6 +234,17 @@ def compose(
             borderwidth=1, borderpad=4,
             font=dict(family=METRICS.font_family, size=10, color=cf.pal.text),
         )
+
+    # Formasyona odaklan: köşeler + boyun + kırılım/retest.
+    _ts = [p.t for p in pat.points]
+    _ts += [pat.neckline[0][0], pat.neckline[-1][0]]
+    for _ev in (pat.breakout, pat.retest):
+        if _ev is not None:
+            _ts.append(_ev.t)
+    if pat.hologram is not None and pat.hologram.times:
+        _ts += [pat.hologram.times[0], pat.hologram.times[-1]]
+    if _ts:
+        cf.focus(df, min(_ts), max(_ts))
 
     volume(cf, df, panel="volume", ma=21)
     r = rsi(df["close"]).iloc[42:]

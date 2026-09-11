@@ -109,7 +109,7 @@ def engle_granger_pvalue(y: pd.Series, x: pd.Series, trend: str = "c") -> float:
     if len(valid) < 3:
         raise ValueError("engle_granger_pvalue için en az 3 hizalı gözlem gerekli")
     result = coint(valid.iloc[:, 0].to_numpy(), valid.iloc[:, 1].to_numpy(), trend=trend)
-    return float(result.pvalue)
+    return float(result[1])
 
 
 def ols_spread(y: pd.Series, x: pd.Series) -> tuple[pd.Series, float, float]:

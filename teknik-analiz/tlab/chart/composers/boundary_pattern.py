@@ -14,7 +14,14 @@ import plotly.graph_objects as go
 from tlab.chart.contracts import BoundaryPattern
 from tlab.chart.frame import ChartFrame, Panel
 from tlab.chart.marks import (
-    Touch, boundary, candles, guide_level, line_series, signal_box, volume, zone_band,
+    Touch,
+    boundary,
+    candles,
+    guide_level,
+    line_series,
+    signal_box,
+    volume,
+    zone_band,
 )
 from tlab.chart.tokens import METRICS, ThemeName
 
@@ -111,6 +118,15 @@ def compose(
             "price",
         )
         signal_box(cf, s.t, s.price, text=s.text, role=s.role, below=s.below)
+
+    # Formasyona ODAKLAN: sınırların ve (varsa) sinyalin kapladığı
+    # aralık. Tüm geçmişi çizmek 20-40 barlık bir üçgeni 300 barlık
+    # eksende nokta yapıyordu.
+    _ts = [pd.Timestamp(t) for b in pat.boundaries for t, _ in b.points]
+    if pat.signal is not None:
+        _ts.append(pd.Timestamp(pat.signal.t))
+    if _ts:
+        cf.focus(df, min(_ts), max(_ts))
 
     volume(cf, df, panel="volume", ma=21)
 

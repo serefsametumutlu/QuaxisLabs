@@ -12,6 +12,7 @@ import pandas as pd
 from tests.test_structure.fixtures import build_registry_smoke_ohlcv
 from tlab.core.errors import RegistryError
 from tlab.core.indicator import registry
+from tlab.core.types import Timeframe
 from tlab.indicators.patterns.flag_pennant import FlagPennantIndicator, FlagPennantParams
 from tlab.testing.fixtures import make_trend
 
@@ -54,6 +55,50 @@ def test_finds_bull_flag_after_pole_and_confirms_breakout() -> None:
     ]
     assert confirmed, "yukarı yönlü direk sonrası bir bayrak/flama kırılımı beklenirdi"
     assert confirmed[0].payload["pattern_name"] in ("bayrak", "flama")
+
+
+def test_for_timeframe_widens_flag_atr_on_h4() -> None:
+    """docs/KALAN_ISLER.md madde 3 -- `breakout_fvg.py`'nin AYNI kök
+    nedeni: `flag_atr` bir ORAN, `_BAR_FIELDS` DEĞİL, `flag_min_bars`in
+    D1->4H ölçeklemesi (5->15, ×3) `flag_atr`ı (1.5) SABİT bırakıyordu --
+    648 sembollik gerçek `tlab eod` koşusunda 4H = 3 aday/1 sembol
+    (D1 = 3403/593) olarak DOĞRULANDI. D1 (scale=1.0) DEĞİŞMEMELİ."""
+    base = FlagPennantParams()
+    d1 = base.for_timeframe(Timeframe.D1)
+    h4 = base.for_timeframe(Timeframe.H4)
+    assert d1.flag_atr == base.flag_atr == 1.5
+    assert h4.flag_atr > base.flag_atr
+    assert h4.flag_min_bars == base.flag_min_bars * 3
+
+
+def test_is_htf_false_for_normal_sized_pole() -> None:
+    """docs/KALAN_ISLER.md madde 2.3 -- `_pole_then_flat_flag_ohlcv`'nin
+    direği ~%18 (varsayılan `htf_pct=0.30`'un altında), HTF SAYILMAMALI."""
+    df = _pole_then_flat_flag_ohlcv()
+    params = FlagPennantParams(
+        pole_bars=4, pole_atr=1.5, flag_min_bars=5, flag_max_bars=15, flag_atr=2.0,
+    )
+    result = FlagPennantIndicator(params)(df)
+    assert result.last_state
+    assert all(info["is_htf"] is False for info in result.last_state.values())
+    assert all(s.payload.get("is_htf") is False for s in result.signals)
+
+
+def test_marks_is_htf_when_pole_far_exceeds_threshold() -> None:
+    """AYNI fixture, `htf_pct` KASITLI OLARAK direğin kendi büyüklüğünün
+    (~%18) altına çekildi -- `is_htf` hem `last_state`de hem sinyal
+    payload'ında True olmalı (extra_payload'ın TÜM sinyallere yayıldığı
+    doğrulanır, `pattern_state.py::track_breakout_pattern`)."""
+    df = _pole_then_flat_flag_ohlcv()
+    params = FlagPennantParams(
+        pole_bars=4, pole_atr=1.5, flag_min_bars=5, flag_max_bars=15, flag_atr=2.0,
+        htf_pct=0.10,
+    )
+    result = FlagPennantIndicator(params)(df)
+    assert result.last_state
+    assert all(info["is_htf"] is True for info in result.last_state.values())
+    assert result.signals
+    assert all(s.payload.get("is_htf") is True for s in result.signals)
 
 
 def test_no_target_or_entry_marker_while_still_pending() -> None:

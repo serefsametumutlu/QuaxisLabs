@@ -77,9 +77,9 @@ class BroadeningParams(BaseParams):
     min_pivots: int = 4
     min_bars: int = 15
     # Faz 1, 1C sonrası (BULUNAN HATA 3) -- `wedge.py::WedgeParams.max_bars`
-    # ile AYNI mekanizma/gerekçe. 0=sınırsız, KASITLI OLARAK `_BAR_FIELDS`
-    # DIŞINDA.
-    max_bars: int = 0
+    # ile AYNI mekanizma/gerekçe/karar (2026-09-11, `docs/KALAN_ISLER.md`
+    # madde 2.1). KASITLI OLARAK `_BAR_FIELDS` DIŞINDA.
+    max_bars: int = 180
     tol_atr: float = 0.3
     confirm_bars: int = 1
     vol_k: float = 1.2
@@ -200,9 +200,25 @@ class BroadeningIndicator(BaseIndicator):
                         label=f"{pattern_key}_lower", style="pattern_boundary", extend_right=True,
                     )
                 )
+                # Hologram köşeleri iki çizginin KENDİ (bağımsız seçilmiş,
+                # genelde farklı zamanlı) pivotlarından DEĞİL, ORTAK bir
+                # [start_idx, created_idx] aralığındaki değerlerinden
+                # kurulur (`_spanned`/`boundary_adapter.py`'nin AYNI ilkesi).
+                # NEDEN: upper.p1/lower.p1 (erken uç) farklı barlarda olabilir
+                # -- ham pivotları köşe sırasıyla birleştirmek (GÖRSEL olarak
+                # doğrulandı, docs/KALAN_ISLER.md madde 2.4) ıraksayan bir
+                # formasyonu YAKINSAYAN bir kama gibi gösteriyordu (dış
+                # kenarlardan biri doğuma doğru İÇE dönüyordu).
+                hologram_left = df.index[start_idx]
+                hologram_right = df.index[dv.created_idx]
                 polygons.append(
                     Polygon(
-                        points=(upper_points[0], upper_points[1], lower_points[1], lower_points[0]),
+                        points=(
+                            (hologram_left, upper.value_at(start_idx)),
+                            (hologram_right, upper.value_at(dv.created_idx)),
+                            (hologram_right, lower.value_at(dv.created_idx)),
+                            (hologram_left, lower.value_at(start_idx)),
+                        ),
                         label=f"{pattern_key}_hologram", style="pattern_hologram",
                     )
                 )

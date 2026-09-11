@@ -276,6 +276,14 @@ class VolHarvestPair(BaseIndicator):
         series = {
             "y_norm": y / y.iloc[0] * 100.0,
             "x_norm": x / x.iloc[0] * 100.0,
+            # HAM spread -- `relative_momentum.py`'deki AYNI gerekçe:
+            # yarı-ömür/ADF z'ye değil spread'e bakar.
+            "spread": spread,
+            # KAYAN korelasyon ve beta: çiftin sağlığı ZAMAN İÇİNDE
+            # bozulur (kointegrasyon çürümesi). Tek bir "son değer"
+            # bunu gizler; grafikte düz bir çizgi olarak görünüyordu.
+            "corr": corr_series,
+            "beta": beta,
             "z": z,
             "upper": pd.Series(2.0, index=common_idx),
             "lower": pd.Series(-2.0, index=common_idx),

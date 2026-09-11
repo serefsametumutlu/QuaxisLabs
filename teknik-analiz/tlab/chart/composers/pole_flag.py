@@ -38,7 +38,7 @@ def compose(
         ],
         theme=theme, width=width, height=height,
         title=f"{symbol} — {'YÜKSELİŞ' if pf.direction == 'long' else 'DÜŞÜŞ'} "
-              f"{pf.shape.upper()} — {_STATE_TR[pf.state]}",
+              f"{'YÜKSEK VE SIKI ' if pf.is_htf else ''}{pf.shape.upper()} — {_STATE_TR[pf.state]}",
         subtitle="  |  ".join([
             f"Periyot: {timeframe}",
             f"Direk: %{pf.pole_pct * 100:.1f}",
@@ -109,15 +109,19 @@ def compose(
             role=role, below=pf.direction == "long",
         )
 
+    # Odak ORTAK mekanizmadan (`ChartFrame.focus`): x aralığı VE fiyat
+    # y aralığı birlikte ayarlanır. Burada bir zamanlar buna özel bir
+    # kopya vardı; iki mekanizma tutmak ikisinin de kaymasına yol açar.
+    # `view_start` göstergenin kendi tercihi (direği tam göster) --
+    # korunur, sağ ucu ortak kural belirler.
+    _end = pf.upper[-1][0]
+    if pf.breakout is not None:
+        _end = max(_end, pf.breakout[0])
+    cf.focus(df, pf.view_start, _end)
+
     volume(cf, df, panel="volume", ma=21)
     r = rsi(df["close"]).iloc[42:]
     line_series(cf, r.index, r, "rsi", name="RSI(14)", role="accent", fmt=".1f")
     guide_level(cf, 70, "rsi")
     guide_level(cf, 30, "rsi")
-
-    fig = cf.finish()
-    # 5) Görünüm penceresi: direğin BAŞLANGICINDAN birkaç bar ÖNCE başlar.
-    #    Kullanıcı: "mumları çizginin başladığı dibinden bir 5-6 mum
-    #    öncesinden başlatmak gerekiyordu".
-    fig.update_xaxes(range=[pf.view_start, df.index[-1]])
-    return fig
+    return cf.finish()

@@ -100,12 +100,17 @@ class WedgeParams(BaseParams):
     # mesafesine (`created_idx - min(p1'ler)`) hiç üst sınır YOKTU --
     # gerçek veride (TUCLK) ~18 ay süren gerçekçi olmayan bir "formasyon"
     # üretmişti (`max_apex_bars` yalnızca doğum-apex mesafesini sınırlıyor,
-    # BUNU DEĞİL). `double_top_bottom.max_bars_between`'in AYNI mekanizması
-    # -- 0=sınırsız (varsayılan davranış DEĞİŞMEDİ, 1D'nin önce/sonra
-    # ölçümü gerçek bir literatür-temelli varsayılana karar verecek).
-    # KASITLI OLARAK `_BAR_FIELDS` DIŞINDA (sentinel 0, ölçeklemeyle 1'e
-    # dönüşmesin).
-    max_bars: int = 0
+    # BUNU DEĞİL). `double_top_bottom.max_bars_between`'in AYNI mekanizması.
+    # KARAR VERİLDİ (2026-09-11, `docs/spec/FORMASYON_DENETIM_v2.md`'nin
+    # span taraması + GARAN'da GÖRSEL doğrulama — bkz. `docs/KALAN_ISLER.
+    # md` madde 2.1): 180 bar (D1'de ~8.5 ay, Bulkowski aralığının üst
+    # sınırına yakın). O taramada wedge+triangle+broadening'in 166
+    # sınırsız confirmed/completed adayının %37'si (62) bu eşiğin altında
+    # kalıyordu; GARAN/patterns.triangle'da Ekim 2024'ten bugüne (~500 bar)
+    # süren gerçekçi olmayan bir "formasyon" bu eşikle elenir. KASITLI
+    # OLARAK `_BAR_FIELDS` DIŞINDA (sentinel 0=sınırsız, ölçeklemeyle 1'e
+    # dönüşmesin) -- yalnızca istenirse sınırsıza dönülebilsin diye.
+    max_bars: int = 180
     max_apex_bars: int = 120
     slope_ratio_range: tuple[float, float] = (0.3, 1.0)
     tol_atr: float = 0.3

@@ -13,6 +13,7 @@ import pandas as pd
 from tests.test_structure.fixtures import build_registry_smoke_ohlcv
 from tlab.core.errors import RegistryError
 from tlab.core.indicator import registry
+from tlab.core.types import Timeframe
 from tlab.indicators.patterns.breakout_fvg import (
     BreakoutFvgIndicator,
     BreakoutFvgParams,
@@ -218,6 +219,22 @@ def test_no_consolidation_found_produces_empty_result() -> None:
     result = BreakoutFvgIndicator(params).compute(df)
     assert result.last_state == {}
     assert result.boxes == []
+
+
+def test_for_timeframe_widens_box_atr_max_on_h4() -> None:
+    """docs/KALAN_ISLER.md madde 3 -- GERÇEK hata: `box_atr_max` bir ORAN,
+    `_BAR_FIELDS` DEĞİL, bu yüzden `consolidation_bars`in D1->4H ölçeklemesi
+    (10->30) `box_atr_max`ı (1.5) SABİT bırakıyordu -- 30 barlık bir pencere
+    14 periyotluk (SABİT) ATR'ye göre HER ZAMAN 1.5'in üstünde kalıyor,
+    eşik matematiksel olarak ulaşılamaz hâle geliyordu (648 sembollik
+    gerçek `tlab eod` koşusunda doğrulandı: 4H = 0/648 aday). D1 (scale=1.0)
+    DEĞİŞMEMELİ -- yalnızca 4H genişletilir."""
+    base = BreakoutFvgParams()
+    d1 = base.for_timeframe(Timeframe.D1)
+    h4 = base.for_timeframe(Timeframe.H4)
+    assert d1.box_atr_max == base.box_atr_max == 1.5
+    assert h4.box_atr_max > base.box_atr_max
+    assert h4.consolidation_bars == base.consolidation_bars * 3
 
 
 def test_registers_via_verified_elsewhere() -> None:

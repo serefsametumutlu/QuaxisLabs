@@ -1,0 +1,15 @@
+# Streamlit'in KENDİ (glide-data-grid tabanlı `st.dataframe`, bazı iç
+# bileşenler) tema tespiti CSS enjeksiyonundan BAĞIMSIZ çalışır — bu dosya
+# olmadan bu bileşenler tarayıcının/OS'in açık/koyu tercihine göre kendi
+# başına karar veriyordu, "bazı yerler dark bazı yerler light" şikayetinin
+# bir parçası buydu. Varsayılan seçili tema ("Klasik Beyaz Rapor" ==
+# LIGHT_ANALYSIS, bkz. tlab/viz/themes.py) ile birebir eşleşecek şekilde
+# sabitlendi — kullanıcı başka bir temaya geçerse sayfanın geri kalanı
+# `_inject_theme_css` ile o temaya döner, yalnızca bu native bileşenler
+# (ör. sinyal tablosu) varsayılan paletle kalabilir (bilinen bir sınır).
+[theme]
+base = "light"
+primaryColor = "#b8892f"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#eef0f3"
+textColor = "#161a20"

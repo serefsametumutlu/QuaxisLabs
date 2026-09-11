@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 from unittest import mock
 
+import pandas as pd
 import pytest
 from fastapi import HTTPException
 
@@ -226,3 +227,40 @@ def test_universe_result_is_cached_so_one_computation_serves_all_symbols() -> No
         for sym in ("A", "B", "C"):
             live._universe_cached("momentum.alpha_rank", Timeframe.D1, Market.BIST, store, sym)
     assert len(calls) == 1, f"evren {len(calls)} kez hesaplandı, 1 olmalıydı"
+
+
+def test_focus_narrows_the_window_to_the_pattern() -> None:
+    """`ChartFrame.focus` grafiği formasyona odaklamalı.
+
+    Regresyon: komposerler tüm geçmişi çiziyordu ve 20-40 barlık bir
+    formasyon 300 barlık eksende nokta gibi kalıyordu (kullanıcının
+    tekrar eden şikâyeti). Odak İKİ şeyi birden yapar -- yalnızca x
+    aralığını daraltmak yetmez, y ekseni hâlâ TÜM seriyi görüp
+    formasyonu dikeyde ezer (`pole_flag`de tam bu yaşandı).
+    """
+    # `head_shoulders` fikstürü carney için geçerli bir aday üretiyor
+    # (`harmonic_shape` üretmiyor -- fikstür adı yanıltıcı ama
+    # harmonik motorun kendi oran kapıları farklı).
+    df = fx.head_shoulders()
+    from tlab.core.types import Timeframe
+    from tlab.indicators.bootstrap import scaled_factory
+
+    result = scaled_factory("harmonic.carney", Timeframe.D1)(df)
+    with mock.patch.object(cj, "compute_live", return_value=(result, df)):
+        resp = cj.get_chart_json(
+            symbol="X", tf="1d", indicator="harmonic.carney", max_bars_ago=None
+        )
+    layout = json.loads(resp.body)["layout"]
+    x_range = layout["xaxis"]["range"]
+    assert x_range, "odak uygulanmamış (x aralığı serbest)"
+    shown = pd.Timestamp(x_range[1]) - pd.Timestamp(x_range[0])
+    full = df.index[-1] - df.index[0]
+    assert shown < full, "pencere daralmamış"
+
+    # y ekseni de GÖRÜNEN dilimden ölçeklenmeli, tüm seriden değil.
+    y_range = layout["yaxis"]["range"]
+    assert y_range
+    lo, hi = float(y_range[0]), float(y_range[1])
+    assert hi - lo < (float(df["high"].max()) - float(df["low"].min())), (
+        "y ekseni hâlâ tüm seriden ölçekleniyor"
+    )

@@ -185,5 +185,10 @@ def compose(
             role=role, below=pat.direction == "bullish",
         )
 
+    # X-A-B-C(-D) aralığına odaklan.
+    _ts = [q.t for q in pts]
+    if _ts:
+        cf.focus(df, min(_ts), max(_ts))
+
     volume(cf, df, panel="volume", ma=21)
     return cf.finish()

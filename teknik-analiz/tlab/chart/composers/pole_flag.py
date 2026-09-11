@@ -109,39 +109,19 @@ def compose(
             role=role, below=pf.direction == "long",
         )
 
+    # Odak ORTAK mekanizmadan (`ChartFrame.focus`): x aralığı VE fiyat
+    # y aralığı birlikte ayarlanır. Burada bir zamanlar buna özel bir
+    # kopya vardı; iki mekanizma tutmak ikisinin de kaymasına yol açar.
+    # `view_start` göstergenin kendi tercihi (direği tam göster) --
+    # korunur, sağ ucu ortak kural belirler.
+    _end = pf.upper[-1][0]
+    if pf.breakout is not None:
+        _end = max(_end, pf.breakout[0])
+    cf.focus(df, pf.view_start, _end)
+
     volume(cf, df, panel="volume", ma=21)
     r = rsi(df["close"]).iloc[42:]
     line_series(cf, r.index, r, "rsi", name="RSI(14)", role="accent", fmt=".1f")
     guide_level(cf, 70, "rsi")
     guide_level(cf, 30, "rsi")
-
-    fig = cf.finish()
-    # 5) Görünüm penceresi: direğin BAŞLANGICINDAN birkaç bar ÖNCE başlar.
-    #    Kullanıcı: "mumları çizginin başladığı dibinden bir 5-6 mum
-    #    öncesinden başlatmak gerekiyordu".
-    # SAĞ kenar da sınırlı. `view_start`den df'in SONUNA kadar çizmek
-    # 11 barlık bir direk+bayrağı 190 barlık bir grafiğe sıkıştırıyordu
-    # (GÖRÜLEREK bulundu: formasyon sol kenarda nokta gibi kalıyor).
-    # Formasyonun kendi genişliğinin ~3 katı kadar sağa bakılır --
-    # hedefin gerçekleşip gerçekleşmediğini görmeye yeter.
-    _i0 = int(df.index.searchsorted(pf.view_start))
-    _i_end = int(df.index.searchsorted(pf.upper[-1][0]))
-    if pf.breakout is not None:
-        _i_end = max(_i_end, int(df.index.searchsorted(pf.breakout[0])))
-    _span = max(_i_end - _i0, 10)
-    _right = min(_i_end + _span * 3, len(df) - 1)
-    fig.update_xaxes(range=[pf.view_start, df.index[_right]])
-    # Y ekseni GÖRÜNEN pencereden ölçeklenir. Otomatik ölçek TÜM seriyi
-    # görüyor; x-aralığı SONRADAN kısıtlandığı için grafik boş alana
-    # yayılıyordu (fikstür 30'dan başlıyor, bayrak 47'de -- eksen 28-51
-    # çıkıyordu). `GORSEL_HATA_TESHISI.md` K2'nin aynısı.
-    _vis = df.iloc[_i0 : _right + 1]
-    if len(_vis):
-        _lo = float(_vis["low"].min())
-        _hi = float(_vis["high"].max())
-        for _v in (pf.target, pf.pole_start[1], pf.pole_end[1]):
-            if _v is not None:
-                _lo, _hi = min(_lo, float(_v)), max(_hi, float(_v))
-        _pad = (_hi - _lo) * 0.08 or 1.0
-        fig.update_yaxes(range=[_lo - _pad, _hi + _pad], row=1, col=1)
-    return fig
+    return cf.finish()

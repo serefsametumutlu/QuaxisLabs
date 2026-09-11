@@ -235,6 +235,17 @@ def compose(
             font=dict(family=METRICS.font_family, size=10, color=cf.pal.text),
         )
 
+    # Formasyona odaklan: köşeler + boyun + kırılım/retest.
+    _ts = [p.t for p in pat.points]
+    _ts += [pat.neckline[0][0], pat.neckline[-1][0]]
+    for _ev in (pat.breakout, pat.retest):
+        if _ev is not None:
+            _ts.append(_ev.t)
+    if pat.hologram is not None and pat.hologram.times:
+        _ts += [pat.hologram.times[0], pat.hologram.times[-1]]
+    if _ts:
+        cf.focus(df, min(_ts), max(_ts))
+
     volume(cf, df, panel="volume", ma=21)
     r = rsi(df["close"]).iloc[42:]
     line_series(cf, r.index, r, "rsi", name="RSI(14)", role="accent", fmt=".1f")

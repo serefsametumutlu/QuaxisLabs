@@ -4562,3 +4562,56 @@ koşuyor -- yeni bir gösterge eklenip `_SUPPORTED`e yazılmazsa yakalar.
 - Frontend `tsc` çalıştırılamadı (node_modules yok).
 - Grafik penceresi genel sorunu: yalnızca `pole_flag`de çözüldü; diğer
   komposerlerde formasyon hâlâ tüm geçmişin içinde küçük kalabiliyor.
+
+---
+
+## 2026-09-11 — Grafik penceresi: ORTAK odak mekanizması
+
+Kullanıcının tekrar eden şikâyeti ("formasyon grafiğin köşesinde nokta
+gibi kalıyor"; CLAUDE.md'de "BULUNAN HATA 2" olarak da kayıtlı) tek bir
+paylaşılan mekanizmayla çözüldü: YENİ `ChartFrame.focus(df, start, end)`.
+
+**Neden tek mekanizma:** `pole_flag`e bir tur önce buna ÖZEL bir kopya
+yazılmıştı. İki mekanizma tutmak ikisinin de kaymasına yol açar; o kopya
+kaldırıldı, `pole_flag` de ortak olanı çağırıyor.
+
+**İKİ şeyi birden yapar** -- ve bu şart:
+  1. x aralığını `[start - pay, end + pay]` yapar,
+  2. FİYAT panelinin y aralığını YALNIZCA görünen dilimden yeniden
+     hesaplar.
+Yalnızca (1) yapılırsa otomatik y ölçeği hâlâ TÜM seriyi görür ve
+formasyon dikeyde ezilir -- `pole_flag`de tam bu yaşandı (11 barlık
+bayrak 28-51 ekseninde boğuldu), `GORSEL_HATA_TESHISI.md` K2'nin aynısı.
+
+Gözlenen değerler (hedef/PRZ/seviye) y aralığına katılır ama SINIRLI:
+mum aralığının 1.2 katından uzaktakiler dışarıda kalır. Aksi halde uzak
+bir hedef ekseni gerip formasyonu yeniden eziyor (eski `renderer.py`de
+100 TL'lik hissede 700 TL'lik projeksiyon sorunu).
+
+`right_mult` (1.10) soldan (0.45) büyük: kırılım SONRASI ne olduğunu
+görmek, formasyon öncesini görmekten daha değerli. Çok kısa
+formasyonlarda pencere en az 55 bar.
+
+**Bağlandığı komposerler:** `boundary_pattern` (üçgen/kama/genişleyen/
+kırılım/FVG + `channel` ve `triangle`/`wedge`/`broadening` sarmalayıcıları
+buna delege ediyor), `neckline`, `xabcd`, `fib_retracement`, `pole_flag`.
+BİLİNÇLİ olarak BAĞLANMAYANLAR: `series_overlay` (ma_systems/ewmac/
+momentum -- bunlar tüm seriyi anlatan göstergeler), `price_structure`
+(yapı raporu, geniş bakış İSTİYOR), `zones` ve `pair` (zaman aralığı
+tanımlı bir "formasyon" yok).
+
+**Doğrulama:** harmonik carney GÖRÜLEREK -- formasyon artık grafiği
+dolduruyor (önce sol alt köşede nokta kadardı). OBO'da pencere
+DARALMADI ve bu DOĞRU: o formasyon zaten ~200 bar, odak gereksiz yere
+kırpmıyor. Kilitleyen test: `test_focus_narrows_the_window_to_the_pattern`
+(hem x hem y daralmasını sınar).
+
+**ÜÇÜNCÜ birim tuzağı:** `Channel.width_pct` de KESİR olmalıymış
+(komposer `* 100` yapıyor) -- "Genişlik: %734" yazıyordu. `depth_pct`
+ve `pole_pct` ile aynı desen. Bu artık `KALAN_ISLER.md`'de bir kontrol
+maddesi; yeni bir `*_pct` alanı doldururken komposerin ne yaptığına
+BAKILMALI.
+
+989 test yeşil; 8 başarısız testin TAMAMI önceden var. `ruff`: değişen
+dosyalarda yeni hata yok (`frame.py`nin 5 B023 uyarısı önceden vardı,
+temiz ağaçta da aynı).

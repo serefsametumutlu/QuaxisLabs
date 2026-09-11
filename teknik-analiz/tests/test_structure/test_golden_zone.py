@@ -197,6 +197,27 @@ def test_last_state_reflects_open_band() -> None:
     assert result.last_state["band_high"] is not None
 
 
+def test_last_state_reflects_dominant_not_latest_swing() -> None:
+    """docs/KALAN_ISLER.md madde 2.2 -- KARAR (BACKTEST, 2026-09-11): 150
+    gerçek BIST sembolünde en baskın swing'in başarı oranı (%86.7) en yeni
+    swing'inkinden (%59.3) ezici biçimde yüksek çıktı; `last_state` artık
+    EN BASKIN (en büyük |fiyat açıklığı|) swing'i yansıtmalı, en son
+    oluşan swing'i DEĞİL. `_build_touch_reaction_success_scenario` İKİ
+    swing üretir: swing_1 (100->130, açıklık 30, BASKIN) ve swing_2
+    (130->107, açıklık 23, daha YENİ ama daha KÜÇÜK)."""
+    df = _build_touch_reaction_success_scenario()
+    result = GoldenZoneIndicator(_params()).compute(df)
+    swings = {ln.label: ln for ln in result.lines if ln.label.startswith("swing_")}
+    assert set(swings) == {"swing_1", "swing_2"}
+    (_, x1), (_, a1) = swings["swing_1"].points[0], swings["swing_1"].points[-1]
+    assert abs(a1 - x1) > abs(  # swing_1 gerçekten baskın (daha büyük)
+        swings["swing_2"].points[-1][1] - swings["swing_2"].points[0][1]
+    )
+    # swing_1 (X=100 low, A=130 high, yükseliş) 0.618/0.786 bandı.
+    assert result.last_state["band_low"] == pytest.approx(106.42)
+    assert result.last_state["band_high"] == pytest.approx(111.46)
+
+
 # --- repaint ---------------------------------------------------------------
 
 

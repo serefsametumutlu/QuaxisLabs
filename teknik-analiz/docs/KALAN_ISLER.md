@@ -12,8 +12,9 @@ olduğunun istatistiksel kanıtı eklendi (1.6, 1.4).
 broadening'in aşırı-uzun-formasyon sorunu `max_bars=180` ile kapatıldı
 (GARAN'ın sahte 500-barlık üçgeni artık üretilmiyor, LIDER'in gerçek
 ~9 aylık üçgeni doğru render ediliyor); 2.2 golden_zone swing seçimi
-incelendi, kök nedeni belgelendi, üretimde tüketicisi olmadığı için
-DEĞİŞTİRİLMEDİ (kullanıcı kararı önerisi bırakıldı); 2.3 `patterns.
+KULLANICI KARARIYLA BACKTEST edildi — en baskın swing %86.7 başarı,
+en yeni swing yalnızca %59.3 (150 sembol, 4159 swing) — `last_state`
+artık en baskın swing'i yansıtıyor; 2.3 `patterns.
 flag_pennant`e empirik kalibre edilmiş bir `is_htf` (High and Tight
 Flag) ayrımı eklendi (tam evrende 161 aday); 2.4 `broadening`
 hologramının çarpık-kama görünümü zaman-hizalı yamuk köşeleriyle
@@ -82,9 +83,14 @@ Sonra **görüntüye BAK**. Sayılar makul mü, etiketler çakışıyor mu,
   her durum için: sinyalden sonraki N barda getiri dağılımı, koşulsuz
   dağılıma karşı. Yöntem: Lo-Mamaysky-Wang (2000) — koşullu vs
   koşulsuz dağılım karşılaştırması.
-- **1.3 Çoklu test düzeltmesi.** `discovery.py`de Benjamini-Hochberg
-  zaten var; aynı disiplin GÖSTERGE seçimine uygulanmalı. Deflated
-  Sharpe (Bailey & López de Prado 2014) + permütasyon testi (Aronson).
+- **1.3 Çoklu test düzeltmesi — UYGULANDI (2026-09-11), sonuç madde
+  1.7'de.** `discovery.py`de Benjamini-Hochberg zaten var; aynı disiplin
+  GÖSTERGE seçimine uygulandı (permütasyon testi + BH, q=0.05) — ama
+  test edilen partinin 3 üyesinin sahte-tekrar (pseudo-replication)
+  sorunu taşıdığı ORTAYA ÇIKTI, sembol-düzeyi kümeleme İLE TEKRARI
+  gerekiyor. Deflated Sharpe (Bailey & López de Prado 2014) fonksiyon
+  kütüphanesi (`scripts/deflated_sharpe.py`) hazır ama HENÜZ
+  çağrılmadı — ham getiri dizisi üreten bir sonraki turu bekliyor.
 - **1.4 `trend.breakouts` kalite skoru kalibre edilmedi.** Ağırlıklar
   (hacim 0.30 / yaş 0.20 / temas 0.20 / gövde 0.15 / mesafe 0.15)
   görev metninden geldi, ÖLÇÜLMEDİ. Artık grafik bu skora göre TEK
@@ -143,6 +149,60 @@ Sonra **görüntüye BAK**. Sayılar makul mü, etiketler çakışıyor mu,
   gösterge test edilince %5 eşikte tesadüfen ~1 "anlamlı" çıkması
   beklenir. Sonraki adım: tam evren + Benjamini-Hochberg + IS/OOS split.
 
+- **1.7 TAM istatistiksel doğrulama YAPILDI (2026-09-11) — ASIL BULGU
+  METODOLOJİK, "kazanan gösterge" DEĞİL.** `scripts/tam_istatistiksel_
+  dogrulama.py`: 586 sembol (tam evren, ≥300 bar), context/universe
+  istemeyen 23 gösterge, HER sembolün KENDİ tarih aralığının ilk %70'i
+  IS / son %30'u OOS (sinyalin `detected_at`'ine göre — aynı veri iki kez
+  kullanılmaz), 20 bar ileri getiri, yön-ağırlıklı adil baza karşı 3000
+  tekrarlı permütasyon testiyle p-değeri, 23 gösterge üzerinde Benjamini-
+  Hochberg (q=0.05). ~69 dakika sürdü. Sonuç:
+  `outputs/reports/tam_istatistiksel_dogrulama_2026-09-11.csv`.
+
+  **Ham sonuç: 3 gösterge FDR düzeltmesinden SAĞ ÇIKTI** —
+  `patterns.broadening` (n=57, fark=+%30.3, p=0.000), `patterns.wedge`
+  (n=10, fark=+%79.2, p=0.000), `harmonic.five_zero` (n=2, fark=+%68.0,
+  p=0.0037). **Bu sayılar İNANDIRICI DEĞİL** (gerçek bir kenar tipik
+  olarak düşük tek haneli yüzdelerdedir) — `scripts/tam_dogrulama_
+  aykiri_deger_kontrolu.py` ile HER birinin HAM sinyal listesi tek tek
+  incelendi (`outputs/reports/tam_dogrulama_aykiri_deger_kontrolu_
+  2026-09-11.txt`) ve **üçü de SAHTE ÇIKTI — SAHTE-TEKRAR (pseudo-
+  replication) sorunu:**
+  - `patterns.wedge`'in 10 "sinyali" aslında yalnızca **2 farklı
+    sembol** (BIGEN, INTEK) — BIGEN tek başına 5 tanesini üretiyor
+    (getiriler +%285/+%186/+%140/+%72/+%48) çünkü hisse OOS penceresinde
+    patlamış, dedektör AYNI hareketi kapsayan ÇAKIŞAN/ARDIŞIK birkaç
+    aday üretmiş (bağımsız 10 gözlem DEĞİL, fiilen n=2).
+  - `patterns.broadening`'in 57 "sinyali" yalnızca **10 farklı sembol**
+    — ANELE tek başına AYNI getiriyi (+%232.4) 5 KEZ tekrarlıyor,
+    KRDMA 24 neredeyse özdeş kaydı 2 tarihe yığıyor — bu, madde 2.1'de
+    KAPATILMAMIŞ bırakılan (`build_trendlines`'ın orantısız/çakışan
+    aday üretimi) kök nedenin doğrudan İSTATİSTİKSEL sonucu: aynı
+    hareket birden fazla neredeyse-özdeş aday olarak sayılıyor.
+  - `harmonic.five_zero` zaten n=2 — herhangi bir p-değeri istatistiksel
+    olarak anlamsız.
+
+  **Daha güvenilir (ama sıkı FDR eşiğini AŞAMAYAN) iki gösterge:**
+  `trend.breakouts` (n=66575 — evrene yayılmış, gerçek çeşitlilik,
+  fark=+%0.34, p=0.027) ve `trend.weekly_channel` (n=10710, fark=+%0.57,
+  p=0.0157) — ikisi de gerçekçi büyüklükte, geniş örneklemli bir kenara
+  işaret ediyor ama üç "sahte kazanan"ın anormal derecede küçük
+  p-değerleri FDR bütçesini tüketince eşiği geçemediler — bu BH
+  düzeltmesinin kusuru değil, PARTİDEKİ bağımsızlık varsayımını ihlal
+  eden 3 göstergenin battaniyeyi çekmesi.
+
+  **SONUÇ:** 27 göstergenin hiçbiri şu an "kanıtlanmış, sağlam bir OOS
+  kenarı" iddiasını hak etmiyor. `trend.breakouts`/`trend.weekly_channel`
+  izlenmeye değer en güçlü adaylar. **Sonraki adım (yapılmadı):**
+  permütasyon testi öncesi SEMBOL düzeyinde kümeleme/tekilleştirme
+  (her sembole TEK bir ortalama getiri) ile pseudo-replication'ı
+  kökten önleyip 23 göstergeyi TEKRAR test etmek — bu hem üç sahte
+  "kazanan"ı elemeli hem de `trend.breakouts`/`weekly_channel`'ın
+  düzeltilmiş bütçeyle FDR eşiğini geçip geçmediğini netleştirmeli.
+  Deflated Sharpe (Bailey & López de Prado) HENÜZ uygulanmadı
+  (`scripts/deflated_sharpe.py` fonksiyon kütüphanesi olarak hazır,
+  ham getiri dizileri gerektiriyor).
+
 ## 2. TESPİT EDİCİ kök nedenleri (öncelik 2)
 
 - **2.1 `wedge.py` orantısız sınır çiftleri ÜRETİYOR — KISMEN KAPATILDI
@@ -169,27 +229,25 @@ Sonra **görüntüye BAK**. Sayılar makul mü, etiketler çakışıyor mu,
   ÇÖZMEZ — `build_trendlines`'ın KENDİSİ (price_structure/breakouts/
   head_shoulders/double_top_bottom'u da etkileyen paylaşılan bir
   fonksiyon) ayrı, daha kapsamlı bir iş.
-- **2.2 `golden_zone`: hangi swing güncel bölgeyi tanımlar? İNCELENDİ
-  (2026-09-11), KASITLI OLARAK DEĞİŞTİRİLMEDİ — kod okuma sonucu.**
-  Kök neden netleşti: `golden_zone.py::compute()` HER swing için ayrı
-  Box/Level/signal üretiyor (`payload["swing_id"]` ile ayrışıyor) —
-  `last_state` (`band_low`/`band_high`/`in_band`/`distance_atr`) İSE
-  yalnızca döngüdeki `is_open` swing'e (kronolojik olarak EN YENİ,
-  kendinden sonraki pivot henüz kesinleşmemiş) ait, çünkü döngü
-  sırayla yazılıp SON swing'te üzerine yazılıyor. Adaptör (`chart_
-  adapter.py::golden_zone_to_fib`) ve BAĞIMSIZ bir başka dedektör
-  (`fib_retracement.py`, `best_span` ile "en geniş bacak") ise İKİSİ DE
-  EN BASKIN (en büyük |fiyat açıklığı|) swing'i seçiyor — iki farklı
-  yerde bağımsızca aynı karara varılmış, bu "baskın" seçiminin daha
-  sağlam olduğuna dair zayıf ama gerçek bir sinyal. **Değiştirmedim
-  çünkü:** `grep` ile doğrulandı — `last_state`'in band alanları `/scan`,
-  `web/backend`, dashboard'un HİÇBİRİNDE tüketilmiyor (yalnızca kendi
-  testinde okunuyor); yani şu an üretimde SIFIR etkisi var, "baskın"a
-  çevirmek `is_open` olmayan bir swing için `distance_atr`/`in_band`'i
-  YENİDEN tanımlamayı gerektiren, riski faydasından büyük bir değişiklik
-  olurdu. **Öneri:** ya `last_state`'i TAMAMEN kaldır (hiçbir tüketicisi
-  yok), ya da bilinçli bir ürün kararıyla "baskın"a çevir — ikisi de
-  kullanıcı kararı gerektiriyor, kod tarafında engel yok.
+- **2.2 `golden_zone`: hangi swing güncel bölgeyi tanımlar? KAPATILDI
+  (2026-09-11) — KULLANICI KARARIYLA BACKTEST edildi.** Önceki turda
+  kod okumasıyla bulunan kök neden (gösterge `last_state`i EN YENİ
+  swing'e göre dolduruyordu, adaptör + `fib_retracement.py` ise EN
+  BASKIN swing'i seçiyordu) DEĞİŞTİRİLMEMİŞTİ çünkü `last_state`in
+  o an hiçbir tüketicisi yoktu. Kullanıcı "backtest yapıp hangisi
+  performansı iyiyse onu kullan" dedi — `scripts/golden_zone_swing_
+  backtest.py` ile 150 gerçek BIST sembolünde 4159 swing'in NİHAİ
+  sonucu (success/fail/reaction/dokunuşsuz) ölçüldü: **en baskın
+  swing'in başarı oranı %86.7 (n=150), en yeni swing'inki yalnızca
+  %59.3 (n=150)** — 27 puanlık, tesadüfle açıklanamayacak bir fark
+  (swing büyüklüğü ile başarı arasında genel Spearman ρ=0.24, p<0.0001,
+  monoton: en küçük yüzdelik dilimde %39 başarı → en büyükte %73).
+  `golden_zone.py::compute()` artık `last_state`i EN BASKIN swing'e
+  göre dolduruyor (`dominant_span` takibiyle, döngü içinde HER swing
+  için karşılaştırılıyor) — adaptör ve `fib_retracement.py` ile
+  TUTARLI hâle geldi. 1 yeni kilitleyen test (`test_last_state_
+  reflects_dominant_not_latest_swing`), 1008 test yeşil, 0 regresyon.
+  Sonuç: `outputs/reports/golden_zone_swing_backtest_2026-09-11.csv`.
 - **2.3 "High and tight flag" ayrı tür olarak ayrılmalı — KAPATILDI
   (2026-09-11).** Kod incelemesi: `pole_flag.py::detect_pole_flag()`
   ÖLÜ KOD (hiçbir yerden çağrılmıyor, `grep` ile doğrulandı) — yalnızca

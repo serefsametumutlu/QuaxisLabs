@@ -78,12 +78,12 @@ def _created_of(
 
 
 def golden_zone_to_fib(result: IndicatorResult, df: pd.DataFrame) -> FibRetracement | None:
-    """`structure.golden_zone` -> `FibRetracement` (EN GÜNCEL swing).
+    """`structure.golden_zone` -> `FibRetracement` (EN BASKIN swing).
 
     Gösterge her swing için ayrı bir altın bölge üretiyor (fikstürlerde
     5-9 tane). Hepsini çizmek `tlab/viz`de "curcuna"ya yol açmıştı
     (renderer'ın `_declutter_levels` kuralı da aynı sonuca varmıştı):
-    yalnızca EN GÜNCEL swing çizilir.
+    yalnızca EN BASKIN swing çizilir.
 
     Bölge sınırları YENİDEN HESAPLANMAZ -- `last_state["band_low"]`/
     `["band_high"]` göstergenin KENDİ güncel bandı.
@@ -93,17 +93,15 @@ def golden_zone_to_fib(result: IndicatorResult, df: pd.DataFrame) -> FibRetracem
         return None
     # BASKIN swing seçilir (en büyük fiyat açıklığı), EN YENİ değil.
     #
-    # Göstergenin kendi `last_state` bandı EN SON swing'e bağlı ve o swing
-    # minik bir düzeltme olabiliyor: `impulse_retrace` fikstüründe son
-    # swing 125.60->118.37 (6 bar) iken fiyat 210'a çıkıp 150'ye dönmüştü;
-    # altın bölge ekranın dibinde anlamsız bir şerit olarak kalıyordu
-    # (GÖRÜLEREK bulundu). `structure/fib_retracement.py` tespit edicisi
-    # de aynı sonuca varmış ve BASKIN swing'i seçiyor.
-    #
-    # AÇIK KARAR: "hangi swing güncel altın bölgeyi tanımlar" bir TESPİT
-    # sorusu; gösterge (en yeni) ile bu adaptör (en baskın) FARKLI cevap
-    # veriyor. Kalıcı çözüm göstergenin kendisinde olmalı -- bkz.
-    # docs/KALAN_ISLER.md "karar gerekenler".
+    # KARAR VERİLDİ (2026-09-11, BACKTEST): "hangi swing güncel altın
+    # bölgeyi tanımlar" — önceden bu adaptör (baskın) ile göstergenin
+    # kendi `last_state`'i (en yeni) FARKLI cevap veriyordu. 150 gerçek
+    # BIST sembolünde 4159 swing'in nihai sonucu (başarı/başarısızlık)
+    # ölçüldü (`scripts/golden_zone_swing_backtest.py`): baskın swing'in
+    # başarı oranı %86.7 (n=150), en yeni swing'inki yalnızca %59.3
+    # (n=150) — ezici bir fark. `golden_zone.py::compute()` artık
+    # `last_state`'i de AYNI (baskın) tanıma göre dolduruyor, bu adaptör
+    # ve `structure/fib_retracement.py` ile TUTARLI.
     def _span(ln) -> float:
         return abs(float(ln.points[-1][1]) - float(ln.points[0][1]))
 

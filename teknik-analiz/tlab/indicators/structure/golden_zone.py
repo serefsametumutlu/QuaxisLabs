@@ -1,5 +1,7 @@
-"""GoldenZoneIndicator — en güncel onaylı swing'in Fibonacci "altın bölge"
-geri çekilme bandı (0.618-0.786) + izleme.
+"""GoldenZoneIndicator — HER onaylı swing için Fibonacci "altın bölge" geri
+çekilme bandı (0.618-0.786) + izleme; `last_state` (tek, özet "güncel durum"
+alanı) EN BASKIN (en büyük |fiyat açıklığı|) swing'i yansıtır — 2026-09-11
+BACKTEST kararı, aşağıya bak.
 
 Zigzag `swings.alternate_pivots` (varsayılan `include_pending=False`) ile
 elde edilir — bu yüzden zigzag'deki HER pivot ZATEN kesinleşmiştir
@@ -78,8 +80,8 @@ class GoldenZoneParams(BaseParams):
 
 
 class GoldenZoneIndicator(BaseIndicator):
-    """En güncel onaylı swing'in altın bölge bandı + dokunuş/reaksiyon/
-    başarısızlık/başarı izlemesi."""
+    """HER onaylı swing'in altın bölge bandı + dokunuş/reaksiyon/
+    başarısızlık/başarı izlemesi; `last_state` EN BASKIN swing'i yansıtır."""
 
     meta = IndicatorMeta(
         name="structure.golden_zone",
@@ -116,7 +118,18 @@ class GoldenZoneIndicator(BaseIndicator):
             "band_low": None, "band_high": None, "in_band": False,
             "distance_atr": None, "last_reaction_at": None,
         }
-
+        # docs/KALAN_ISLER.md madde 2.2 -- KARAR (2026-09-11, BACKTEST'e
+        # göre): `last_state` hangi swing'i yansıtmalı — "en yeni" mi
+        # "en baskın" mı? İkisi ampirik olarak KARŞILAŞTIRILDI (150 gerçek
+        # BIST sembolü, 4159 swing, `scripts/golden_zone_swing_backtest.py`):
+        # en baskın (sembol başına en büyük |fiyat açıklığı|) swing'lerin
+        # başarı oranı %86.7 (n=150) — en yeni swing'lerin başarı oranı
+        # yalnızca %59.3 (n=150). Fark KAPANMAZ büyüklükte (27 puan).
+        # `last_state` artık EN BASKIN swing'i yansıtıyor — bu zaten
+        # `chart_adapter.py::golden_zone_to_fib` (bağımsızca "baskın"ı
+        # seçmişti) ve AYRI bir dedektör olan `fib_retracement.py`
+        # (`best_span`) ile TUTARLI hâle gelir.
+        dominant_span = -1.0
         for i in range(1, len(zigzag)):
             x_pivot, a_pivot = zigzag[i - 1], zigzag[i]
 
@@ -236,7 +249,9 @@ class GoldenZoneIndicator(BaseIndicator):
                     markers.append(Marker(df.index[t], close[t], "BAŞARILI", "golden_zone_success"))
                     done = True
 
-            if is_open:
+            span = abs(a_pivot.price - x_pivot.price)
+            if span > dominant_span:
+                dominant_span = span
                 last_price = close[-1]
                 distance_atr = 0.0
                 last_atr = atr_series.iloc[-1]

@@ -31,8 +31,19 @@ ikisi de AYNI kök nedene sahip (bir ORAN parametresi `_BAR_FIELDS`
 ölçeklemesinden dışarıda kalıp sabit kalırken, onunla ilişkili bar-sayısı
 eşiği ×3 büyüyordu, eşik matematiksel olarak ulaşılamaz hâle geliyordu)
 — `for_timeframe()` override'larıyla düzeltildi (913 ve 618 adaya
-çıktı). 1007 test yeşil. Aşağıdakiler bağlama işi DEĞİL — sistemin
-doğruluğu ve olgunluğu için kalanlar.
+çıktı). 1008 test yeşil.
+
+**MADDE 1.7/1.8 (2026-09-11/12) — TAM istatistiksel doğrulama, İKİ TUR:**
+ilk tur (sinyal-düzeyi) 3 "anlamlı" gösterge buldu ama hepsi sahte
+çıktı (pseudo-replication — birkaç hisseye yığılmış çakışan sinyaller).
+SEMBOL-düzeyi kümelemeyle tekrarlanınca (kullanıcı talebiyle) tablo
+tamamen değişti: `trend.breakouts`/`trend.weekly_channel`'ın ilk turda
+"güvenilir" görünen anlamlılığı da AYNI sorunun daha hafif bir
+versiyonuymuş (p=0.027→0.72, p=0.016→0.18) — **27 göstergenin hiçbiri
+şu an FDR-düzeltmeli, sağlam bir OOS kenarı kanıtlamıyor.** En az
+çürütülmüş adaylar `trend.ewmac`/`structure.golden_zone`/`trend.
+ma_systems` (n>550, p=0.03-0.13). Aşağıdakiler bağlama işi DEĞİL —
+sistemin doğruluğu ve olgunluğu için kalanlar.
 
 ---
 
@@ -191,17 +202,64 @@ Sonra **görüntüye BAK**. Sayılar makul mü, etiketler çakışıyor mu,
   düzeltmesinin kusuru değil, PARTİDEKİ bağımsızlık varsayımını ihlal
   eden 3 göstergenin battaniyeyi çekmesi.
 
-  **SONUÇ:** 27 göstergenin hiçbiri şu an "kanıtlanmış, sağlam bir OOS
-  kenarı" iddiasını hak etmiyor. `trend.breakouts`/`trend.weekly_channel`
-  izlenmeye değer en güçlü adaylar. **Sonraki adım (yapılmadı):**
-  permütasyon testi öncesi SEMBOL düzeyinde kümeleme/tekilleştirme
-  (her sembole TEK bir ortalama getiri) ile pseudo-replication'ı
-  kökten önleyip 23 göstergeyi TEKRAR test etmek — bu hem üç sahte
-  "kazanan"ı elemeli hem de `trend.breakouts`/`weekly_channel`'ın
-  düzeltilmiş bütçeyle FDR eşiğini geçip geçmediğini netleştirmeli.
+  **SONUÇ (bu ilk turda):** 27 göstergenin hiçbiri şu an "kanıtlanmış,
+  sağlam bir OOS kenarı" iddiasını hak etmiyor. `trend.breakouts`/
+  `trend.weekly_channel` izlenmeye değer en güçlü adaylar GİBİ
+  GÖRÜNÜYORDU — **aşağıdaki SEMBOL-kümelemeli tekrarda bu değerlendirme
+  YANLIŞ ÇIKTI, bkz. 1.8.**
+
+- **1.8 SEMBOL-düzeyi kümelenmiş tekrar YAPILDI (2026-09-12) — 1.7'nin
+  DÜZELTMESİ, kullanıcı talebiyle.** `scripts/tam_istatistiksel_
+  dogrulama_kumelenmis.py`: AYNI 586 sembol/23 gösterge/IS-OOS/
+  permütasyon/BH kurulumu, ama artık HER GÖSTERGE için sinyaller önce
+  SEMBOLE göre gruplanıp o sembolün OOS sinyallerinin ORTALAMASI TEK
+  bir gözlem sayılıyor — birim artık "sinyal" değil "sembol", bu
+  1.7'nin bulduğu sahte-tekrar sorununu KÖKTEN önlüyor. ~99 dakika
+  sürdü. Sonuç: `outputs/reports/tam_istatistiksel_dogrulama_
+  kumelenmis_2026-09-12.csv` (+ ham sinyaller uzun formatta
+  `..._ham_sinyaller_2026-09-12.csv`, gelecekte yeniden hesaplamadan
+  farklı kümeleme denenebilsin diye).
+
+  **KRİTİK DÜZELTME — 1.7'nin "en güvenilir" dediği ikili ÇÖKTÜ:**
+  `trend.breakouts` p=0.027 → **p=0.721** (n=585 sembol, fark
+  +%0.34 → +%0.26, artık SIFIRDAN AYIRT EDİLEMEZ); `trend.weekly_
+  channel` p=0.0157 → **p=0.181** (n=586 sembol, fark +%0.57 →
+  **-%0.92**, işaret bile TERS DÖNDÜ). Demek ki bu ikisinin 1.7'deki
+  "anlamlılığı" da AYNI sahte-tekrar sorununun (bir sembolde tek bir
+  büyük harekette birikmiş onlarca sinyal) daha HAFİF bir versiyonuydu
+  — yalnızca broadening/wedge/five_zero değil, GENELDE ham sinyal-
+  düzeyi testin kendisi güvenilmezmiş.
+
+  **3 "sahte kazanan" da beklendiği gibi ELENMEDİ ama şimdi n'leri
+  AÇIKÇA görülüyor:** `patterns.wedge` (n=**2** sembol, p=0.00067),
+  `harmonic.five_zero` (n=**2** sembol, p=0.002), `patterns.broadening`
+  (n=**10** sembol, fark +%32.3 ama MEDYAN yalnızca +%13.0 — ortalama
+  hâlâ ANELE'nin tek +%232'lik gözlemi tarafından çekiliyor). n=2 ile
+  HİÇBİR p-değeri (ne kadar küçük olursa olsun) istatistiksel bir iddia
+  taşıyamaz — permütasyonun kendisi 2 elemanla neredeyse dejenere olur.
+  n=10 (broadening) da 23 göstergelik bir FDR bütçesinde güvenilir bir
+  "kazanan" ilan etmek için hâlâ çok küçük.
+
+  **Öne çıkan YENİ bir aday (BH eşiğini GEÇEMEDİ ama not edilmeye
+  değer):** `trend.ewmac` — n=**559 sembol** (evrene yayılmış, gerçek
+  çeşitlilik), fark=+%1.59, **p=0.034** — 1.7'de bu gösterge p=0.547
+  ile önemsiz görünüyordu, kümelemeden SONRA en güçlü (küçük n'e
+  dayanmayan) sinyal bu. FDR bütçesi yine 3 küçük-n göstergesi
+  tarafından tüketildiği için q=0.05'i geçemedi.
+
+  **GERÇEK SONUÇ (düzeltilmiş):** 27 göstergenin hiçbiri bu 586-
+  sembollük OOS penceresinde FDR-düzeltmeli, sağlam bir kenar
+  KANITLAMIYOR. `structure.swing_fib_abcd` (n=583, fark≈%0.01,
+  p=0.989) ve `trend.breakouts` (yukarıda) TEMİZ SIFIR sonuçlar —
+  gerçekten hiçbir şey yok. `trend.ewmac`/`structure.golden_zone`/
+  `trend.ma_systems` (üçü de n>550, p=0.13-0.13-0.03 aralığında)
+  gelecekte tekrar ölçülmeye değer EN İYİ adaylar — ama şu anda "işe
+  yarıyor" denemez, yalnızca "diğerlerinden daha az çürütülmüş."
   Deflated Sharpe (Bailey & López de Prado) HENÜZ uygulanmadı
-  (`scripts/deflated_sharpe.py` fonksiyon kütüphanesi olarak hazır,
-  ham getiri dizileri gerektiriyor).
+  (`scripts/deflated_sharpe.py` fonksiyon kütüphanesi hazır).
+  **Ders (metodoloji):** sinyal-düzeyi bir testte HER ZAMAN sembol
+  başına kaç bağımsız gözlem olduğu kontrol edilmeli — "n=57 sinyal"
+  gibi bir sayı, altında "n=10 sembol" gizleyebilir.
 
 ## 2. TESPİT EDİCİ kök nedenleri (öncelik 2)
 
